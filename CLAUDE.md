@@ -146,7 +146,8 @@ Pipeline stages, in execution order:
 |---|---|
 | `universe.py` | Builds the ticker list (`sp500` / `all_us` / `custom`). Also owns `load_config()`, imported everywhere. |
 | `storage.py` | Owns `market_data.db` — schema, upserts, ingest state. Only module writing SQL to it. |
-| `backfill.py` | Resumable 20-year OHLCV loader for the full universe. |
+| `backfill.py` | Resumable 20-year OHLCV loader for the full universe. Adaptive Yahoo rate limiting. |
+| `build_features.py` | Computes the 20 indicators across all history into the `features` table. |
 | `data_pull.py` | Fetches OHLCV history via yfinance. |
 | `features.py` | Computes **20** technical indicators per (ticker, date). No third-party TA lib. |
 | `train_model.py` | Trains the XGBoost classifier. Owns `FEATURE_COLS`. |
@@ -170,9 +171,16 @@ Two distinct stores, different purposes:
   Composite PK `(ticker, date)`, `STRICT` and `WITHOUT ROWID`, upsert on write so
   reruns update rather than duplicate. `symbols` and `ingest_state` are populated too.
 
-  `features` exists but is **empty** — its schema is settled so the migration off
-  Parquet is a data move, not a redesign. The daily pipeline still reads Parquet;
-  repointing it is the next piece of work, not done yet.
+  **`features` is populated: 18,108,070 rows across 5,749 tickers.** 16.8M of those
+  have all 20 indicators non-null (the rest are rolling-window warm-up, stored as
+  NULL). 420 tickers have prices but no features and never will — under 210 bars,
+  so the 200-day SMA cannot warm up. That is expected, not a gap.
+
+  Database is 4.5 GB total, `PRAGMA quick_check` clean, zero orphaned feature rows
+  and zero duplicate keys.
+
+  The daily pipeline still reads Parquet. Repointing `data_pull.py` / `features.py` /
+  `train_model.py` / `score.py` at SQLite is the next piece of work and is not done.
 - **Trade ledger** — `data/positions.db` (SQLite). Stays separate. This is the
   "what did the system actually do" record that `backtest.py` reads.
 

@@ -80,7 +80,7 @@ should be re-sized against the real figure.
 build the venv, initialize git. Code arrived by manual file transfer, so there is no
 git history prior to this point.
 
-### 06 · Data infrastructure scale-up 🟡 65%
+### 06 · Data infrastructure scale-up 🟡 85%
 **Prices are in.** `data/market_data.db` holds 18,150,413 daily bars across 6,169
 tickers, 2006-09-05 to 2026-09-04, in 1.3 GB — the 14-19 GB estimate assumed every
 ticker had the full 20 years; only 2,226 do.
@@ -90,7 +90,12 @@ ticker had the full 20 years; only 2,226 do.
   tickers with no Yahoo data)
 - ✅ Verified: idempotent re-runs, resumable after SIGTERM, no duplicates, no
   impossible bars
-- ⏳ `features` table exists but is empty
+- ✅ `features` table populated — 18,108,070 rows, 5,749 tickers, 3.7 min build.
+  16.8M rows have all 20 indicators non-null; 420 tickers are ineligible (under
+  210 bars, so the 200-day SMA cannot warm up)
+- ✅ Database 4.5 GB, integrity-checked, no orphans or duplicate keys
+- ✅ Yahoo rate limiting handled adaptively, with throttling distinguished from
+  genuine no-data so a throttled run cannot mark real tickers as failed
 - ⏳ Daily pipeline still reads Parquet — repointing it is the next step
 
 **No longer blocked.** The survivorship decision was made: collect now, accept the
