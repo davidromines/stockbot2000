@@ -1,6 +1,5 @@
 yfinance>=0.2.40
 pandas>=2.0.0
-pandas-ta>=0.3.14b0
 xgboost>=2.0.0
 scikit-learn>=1.4.0
 pyyaml>=6.0
