@@ -1,8 +1,23 @@
 # StockPicker2000 — Roadmap
 
-Last updated: 2026-09-08. 12 phases. Status: smoke test in progress.
+Last updated: 2026-09-08. 12 phases. Status: migrated to Arena; smoke test resuming.
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
+
+---
+
+## Operating mandate
+
+Fixed constraints the phases below all sit inside:
+
+- **$100 total account cap** — $10 x 10 positions. Total downside is bounded at $100.
+- **Every order human-approved**, entries and exits alike.
+- **Swing trading only** (days-weeks). Intraday is ruled out by pattern-day-trader
+  rules, which require $25k equity.
+- **Entry threshold: score >= 70.**
+- **Stops are not broker-side.** Robinhood dollar-amount orders are market-only and
+  regular-hours-only, so stops are evaluated once daily by `check_exits.py` and
+  filled as approved market orders. Gap risk is not covered.
 
 ---
 
@@ -16,12 +31,17 @@ git conventions documented in `GIT_WORKFLOW.md`.
 All nine pipeline modules written: universe selection, data pull, feature engineering,
 scoring, model training, ATR stop-loss, position ledger, backtest, LLM report.
 
-### 03 · Environment setup 🟡 80%
+### 03 · Environment setup 🟡 90%
 Fixed three missing dependencies (`pyyaml`, `yfinance`, `pyarrow`). Removed
 `pandas_ta` entirely — its pinned `numba` version will not build on Python 3.14 —
 and rewrote all indicators in plain pandas/numpy.
 
-**Remaining:** confirm the rewritten `features.py` is actually deployed on the box.
+✅ `features.py` deployment confirmed 2026-09-08 (byte-identical to known-good; no
+module imports `pandas_ta`). ✅ `pandas-ta` removed from `requirements.txt`, where it
+was still pinned.
+
+**Remaining:** install Python 3.12 on the Arena VM and build the venv against it —
+Ubuntu 26.04 ships 3.14 as system Python.
 
 ### 04 · End-to-end smoke test 🟡 35%
 Proving the pipeline runs start to finish on the 18-ticker fallback universe.
@@ -32,15 +52,23 @@ Proving the pipeline runs start to finish on the 18-ticker fallback universe.
 - ⏳ `features.py` — pending
 - ⏳ `score.py` — pending
 - ⏳ `train_model.py` — not yet run
-- ⏳ `back_test.py` — not yet run
+- ⏳ `backtest.py` — not yet run
 
 ---
 
 ## Infrastructure
 
-### 05 · Migration to Arena hypervisor 🔵 0%
-New VM on the i7 host, sharing 8 cores / 32 GB with one existing VM.
-Allocation: 4 vCPU / 12 GB RAM / 100 GB disk. Install Python 3.12, not 3.14.
+### 05 · Migration to Arena hypervisor 🟡 85%
+VM is provisioned and the project now lives on it — hostname `stockpicker2000`,
+repo at `~/stockpicker2000`, Ubuntu 26.04 LTS.
+
+Measured allocation: **4 vCPU / 11 GB RAM / 97 GB disk** (83 GB free). Note the RAM
+is 11 GB, not the 12 GB planned — the Strategy Lab compute budget assumes 12 GB and
+should be re-sized against the real figure.
+
+**Remaining:** install Python 3.12 (deadsnakes has 3.12.13 built for Ubuntu 26.04),
+build the venv, initialize git. Code arrived by manual file transfer, so there is no
+git history prior to this point.
 
 ### 06 · Data infrastructure scale-up 🔵 0%
 Replace the Parquet cache with SQLite (`market_data.db`, `prices` + `features`
@@ -91,7 +119,8 @@ Telegram daily scorecard and lab digest; LLM report refinements.
 | Item | Status |
 |---|---|
 | Survivorship-bias data source | **Open — blocking phase 06** |
-| Arena provisioning (disk, quiet hours) | Open |
+| Arena provisioning (disk, quiet hours) | Partly resolved — 97 GB disk confirmed; quiet hours still open |
+| Funded stake vs. the $100 account cap | **Open** — promotion ladder ends in a funded stake, mandate caps total exposure at $100 |
 | Paper-trading duration & funding stake | Open |
 | Strategy Lab design | Resolved 2026-09-08 |
 | Universe & history scope | Resolved — full US equities, 20yr |
