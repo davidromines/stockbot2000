@@ -259,24 +259,44 @@ def upsert_features(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     return len(frame)
 
 
-def tickers_needing_features(conn: sqlite3.Connection) -> list[str]:
+MIN_BARS_FOR_FEATURES = 210  # 200-day SMA warm-up
+
+
+def tickers_needing_features(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES) -> list[str]:
     """
-    Tickers whose features are missing or stale.
+    Tickers whose features are missing or stale *and* that have enough history
+    to compute any.
 
     Compares the latest feature date against the latest price date per ticker,
     so this is derived state rather than a progress table that could drift out
     of sync with reality. Re-running after new prices arrive picks up exactly
     the tickers that moved.
+
+    The `min_bars` floor matters for honesty as much as efficiency. Roughly 420
+    tickers listed too recently for a 200-day SMA to warm up will never produce
+    a feature row. Counting them as outstanding would leave the status output
+    permanently reporting unfinished work on a database that is in fact
+    complete — and would re-read all of them on every run forever.
     """
     rows = conn.execute("""
         SELECT p.ticker
-        FROM (SELECT ticker, MAX(date) AS last_price FROM prices GROUP BY ticker) p
+        FROM (SELECT ticker, MAX(date) AS last_price, COUNT(*) AS bars
+              FROM prices GROUP BY ticker) p
         LEFT JOIN (SELECT ticker, MAX(date) AS last_feature FROM features GROUP BY ticker) f
           ON p.ticker = f.ticker
-        WHERE f.last_feature IS NULL OR f.last_feature < p.last_price
+        WHERE p.bars >= ?
+          AND (f.last_feature IS NULL OR f.last_feature < p.last_price)
         ORDER BY p.ticker
-    """).fetchall()
+    """, (min_bars,)).fetchall()
     return [r["ticker"] for r in rows]
+
+
+def feature_ineligible_count(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES) -> int:
+    """Tickers that have prices but can never have features — too little history."""
+    return conn.execute(
+        "SELECT COUNT(*) FROM (SELECT ticker FROM prices GROUP BY ticker HAVING COUNT(*) < ?)",
+        (min_bars,),
+    ).fetchone()[0]
 
 
 def feature_stats(conn: sqlite3.Connection) -> dict:

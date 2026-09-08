@@ -34,7 +34,7 @@ from universe import load_config
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("build_features")
 
-MIN_BARS = 210  # 200-day SMA warm-up; below this compute_features_for_ticker returns nothing
+MIN_BARS = storage.MIN_BARS_FOR_FEATURES  # 200-day SMA warm-up
 
 _interrupted = False
 
@@ -112,10 +112,17 @@ def show_status(config: dict) -> None:
     conn = storage.connect(config["database"]["market_data_path"])
     storage.init_db(conn)
     p, f = storage.price_stats(conn), storage.feature_stats(conn)
-    print(f"prices   : {p['rows']:,} rows | {p['tickers']:,} tickers")
-    print(f"features : {f['rows']:,} rows | {f['tickers']:,} tickers | "
+    outstanding = len(storage.tickers_needing_features(conn))
+    ineligible = storage.feature_ineligible_count(conn)
+    print(f"prices     : {p['rows']:,} rows | {p['tickers']:,} tickers | "
+          f"{p['first_date']} -> {p['last_date']}")
+    print(f"features   : {f['rows']:,} rows | {f['tickers']:,} tickers | "
           f"{f['first_date']} -> {f['last_date']}")
-    print(f"outstanding: {len(storage.tickers_needing_features(conn)):,} tickers")
+    print(f"outstanding: {outstanding:,} tickers")
+    print(f"ineligible : {ineligible:,} tickers under {MIN_BARS} bars "
+          f"(too recently listed for a 200-day SMA — expected, not missing)")
+    if outstanding == 0:
+        print("\nFeature coverage is complete.")
     conn.close()
 
 
