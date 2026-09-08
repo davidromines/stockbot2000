@@ -58,11 +58,13 @@ def run(config: dict, limit: int | None = None, rebuild: bool = False,
         conn.commit()
         log.warning(f"--rebuild: cleared {n:,} existing feature rows")
 
-    todo = storage.tickers_needing_features(conn)
+    types = config["universe"].get("feature_types")
+    todo = storage.tickers_needing_features(conn, types=types)
     outstanding = len(todo)
     if limit:
         todo = todo[:limit]
 
+    log.info(f"Feature types: {', '.join(types) if types else 'all'}")
     log.info(f"{outstanding} tickers need features | computing {len(todo)} this run")
     if not todo:
         log.info("Nothing to do.")
@@ -111,9 +113,10 @@ def run(config: dict, limit: int | None = None, rebuild: bool = False,
 def show_status(config: dict) -> None:
     conn = storage.connect(config["database"]["market_data_path"])
     storage.init_db(conn)
+    types = config["universe"].get("feature_types")
     p, f = storage.price_stats(conn), storage.feature_stats(conn)
-    outstanding = len(storage.tickers_needing_features(conn))
-    ineligible = storage.feature_ineligible_count(conn)
+    outstanding = len(storage.tickers_needing_features(conn, types=types))
+    ineligible = storage.feature_ineligible_count(conn, types=types)
     print(f"prices     : {p['rows']:,} rows | {p['tickers']:,} tickers | "
           f"{p['first_date']} -> {p['last_date']}")
     print(f"features   : {f['rows']:,} rows | {f['tickers']:,} tickers | "

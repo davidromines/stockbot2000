@@ -270,7 +270,8 @@ def upsert_features(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 MIN_BARS_FOR_FEATURES = 210  # 200-day SMA warm-up
 
 
-def tickers_needing_features(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES) -> list[str]:
+def tickers_needing_features(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES,
+                             types: list[str] | None = None) -> list[str]:
     """
     Tickers whose features are missing or stale *and* that have enough history
     to compute any.
@@ -280,30 +281,55 @@ def tickers_needing_features(conn: sqlite3.Connection, min_bars: int = MIN_BARS_
     of sync with reality. Re-running after new prices arrive picks up exactly
     the tickers that moved.
 
-    The `min_bars` floor matters for honesty as much as efficiency. Roughly 420
-    tickers listed too recently for a 200-day SMA to warm up will never produce
-    a feature row. Counting them as outstanding would leave the status output
-    permanently reporting unfinished work on a database that is in fact
-    complete — and would re-read all of them on every run forever.
+    The `min_bars` floor matters for honesty as much as efficiency. Tickers listed
+    too recently for a 200-day SMA to warm up will never produce a feature row.
+    Counting them as outstanding would leave the status output permanently
+    reporting unfinished work on a database that is in fact complete — and would
+    re-read all of them on every run forever.
+
+    `types` restricts to security types worth indicating at all. Rolling
+    indicators on a warrant or a corporate note are arithmetic without meaning.
     """
-    rows = conn.execute("""
+    params: list = [min_bars]
+    type_clause = ""
+    if types:
+        type_clause = f"""
+          AND p.ticker IN (SELECT ticker FROM symbols
+                           WHERE security_type IN ({",".join("?" * len(types))}))"""
+        params += list(types)
+
+    # Staleness is a row-count comparison, not a max-date one. compute_features_
+    # for_ticker emits one row per price bar, so equal counts mean up to date.
+    # Comparing latest dates instead would miss history added at the *start* —
+    # which is exactly what switching the pull from 20y to max does, leaving
+    # every already-computed ticker looking current while missing years of bars.
+    rows = conn.execute(f"""
         SELECT p.ticker
-        FROM (SELECT ticker, MAX(date) AS last_price, COUNT(*) AS bars
-              FROM prices GROUP BY ticker) p
-        LEFT JOIN (SELECT ticker, MAX(date) AS last_feature FROM features GROUP BY ticker) f
+        FROM (SELECT ticker, COUNT(*) AS bars FROM prices GROUP BY ticker) p
+        LEFT JOIN (SELECT ticker, COUNT(*) AS feats FROM features GROUP BY ticker) f
           ON p.ticker = f.ticker
         WHERE p.bars >= ?
-          AND (f.last_feature IS NULL OR f.last_feature < p.last_price)
+          {type_clause}
+          AND (f.feats IS NULL OR f.feats <> p.bars)
         ORDER BY p.ticker
-    """, (min_bars,)).fetchall()
+    """, params).fetchall()
     return [r["ticker"] for r in rows]
 
 
-def feature_ineligible_count(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES) -> int:
-    """Tickers that have prices but can never have features — too little history."""
+def feature_ineligible_count(conn: sqlite3.Connection, min_bars: int = MIN_BARS_FOR_FEATURES,
+                             types: list[str] | None = None) -> int:
+    """Tickers of the given types that have prices but too little history for features."""
+    clause, params = "", []
+    if types:
+        clause = (f" AND ticker IN (SELECT ticker FROM symbols "
+                  f"WHERE security_type IN ({','.join('?' * len(types))}))")
+        params = list(types)
+    params.append(min_bars)  # bound last: the HAVING placeholder trails the IN list
+
     return conn.execute(
-        "SELECT COUNT(*) FROM (SELECT ticker FROM prices GROUP BY ticker HAVING COUNT(*) < ?)",
-        (min_bars,),
+        f"SELECT COUNT(*) FROM (SELECT ticker FROM prices WHERE 1=1{clause} "
+        f"GROUP BY ticker HAVING COUNT(*) < ?)",
+        params,
     ).fetchone()[0]
 
 

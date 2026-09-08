@@ -15,6 +15,7 @@ Usage:
     python backfill.py --limit 20          # prove the loop on 20 tickers
     python backfill.py                     # full universe
     python backfill.py --retry-failed      # another pass at failures
+    python backfill.py --retry-failed --period 1y   # rescue instruments too new for max
     python backfill.py --status            # progress, no fetching
 
 For the full run, use nohup — see README.
@@ -158,9 +159,9 @@ def fetch_batch(tickers: list[str], period: str, interval: str, attempts: int,
 
 
 def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = False,
-                 batch_size: int | None = None) -> None:
+                 batch_size: int | None = None, period_override: str | None = None) -> None:
     bcfg = config.get("backfill", {})
-    period = bcfg.get("period", "20y")
+    period = period_override or bcfg.get("period", "max")
     interval = bcfg.get("interval", "1d")
     batch_size = batch_size or bcfg.get("batch_size", 50)
     pause = bcfg.get("sleep_between_batches_sec", 1.0)
@@ -202,7 +203,7 @@ def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = Fa
         todo = todo[:limit]
 
     log.info(f"Universe {len(all_tickers)} tickers | {done_already} done | "
-             f"{outstanding} outstanding | fetching {len(todo)} this run")
+             f"{outstanding} outstanding | fetching {len(todo)} this run | period={period}")
     if not todo:
         log.info("Nothing to do.")
         conn.close()
@@ -325,6 +326,8 @@ def main():
     parser.add_argument("--limit", type=int, help="Only fetch this many tickers (for testing).")
     parser.add_argument("--batch-size", type=int, help="Override config batch size.")
     parser.add_argument("--retry-failed", action="store_true", help="Reset failed tickers and retry.")
+    parser.add_argument("--period", help="Override the configured period, e.g. 5y, 1y, 5d. "
+                                         "Used to rescue instruments too new for period=max.")
     parser.add_argument("--status", action="store_true", help="Show progress and exit.")
     args = parser.parse_args()
 
@@ -337,7 +340,7 @@ def main():
     signal.signal(signal.SIGINT, _handle_interrupt)
     signal.signal(signal.SIGTERM, _handle_interrupt)
     run_backfill(config, limit=args.limit, retry_failed=args.retry_failed,
-                 batch_size=args.batch_size)
+                 batch_size=args.batch_size, period_override=args.period)
 
 
 if __name__ == "__main__":
