@@ -1,8 +1,14 @@
 # === Trading System Config ===
 
 universe:
-  source: "sp500"          # sp500 | custom
+  source: "sp500"          # sp500 | all_us | custom
   custom_tickers_file: "data/custom_universe.txt"  # only used if source: custom
+
+  # --- all_us source: NASDAQ Trader symbol directory (free, no key, no scraping) ---
+  nasdaq_listed_url: "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+  other_listed_url: "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
+  exchanges: ["N", "A"]    # NYSE, NYSE American. P/Z/V are ARCA/BATS/IEX — ETF venues.
+  request_timeout_seconds: 30
 
 data:
   lookback_days: 730        # 2 years of daily bars for training/feature history
