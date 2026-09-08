@@ -28,8 +28,8 @@ backtesting are run manually/separately, not on the daily cron.
 ## One-time setup
 
 ```bash
-cd trading-system
-python3 -m venv venv
+cd ~/stockpicker2000
+python3.12 -m venv venv   # NOT bare python3 — system python is 3.14
 source venv/bin/activate
 pip install -r requirements.txt
 
@@ -44,7 +44,7 @@ python train_model.py
 python position_tracking.py
 
 # 4. Set up cron for the daily scan (edit crontab -e)
-# 0 7 * * 1-5 /full/path/to/stockpicker2000/run_pipeline.sh >> logs/pipeline.log 2>&1
+# 0 7 * * 1-5 /home/stockpicker/stockpicker2000/run_pipeline.sh >> logs/pipeline.log 2>&1
 ```
 
 **Note on training data**: `train_model.py` needs enough history for the
@@ -80,6 +80,16 @@ reproducible, and keeps the LLM from silently drifting the numbers.
 
 ## Risk management
 
+- **Account cap: $100 total.** $10 x 10 positions spends exactly that. The cap is
+  the point — total downside is bounded at $100 by design, not by luck.
+- **Every order is human-approved**, entries and exits alike. The system proposes;
+  a person authorizes.
+- **Swing trading only** (days-weeks). Intraday is ruled out: pattern-day-trader
+  rules require $25k equity.
+- **Stops are not resting broker orders.** Robinhood dollar-amount orders are
+  market-only and regular-hours-only, so `check_exits.py` evaluates stops once a day
+  and the exit goes in as an approved market order. A gap through the stop
+  overnight is not protected against.
 - **Position sizing**: `$10` per position (dollar-based, fractional),
   configurable in `config.yaml` → `risk.position_size_usd`.
 - **Max holdings**: 10 concurrent open positions, `risk.max_open_positions`.
