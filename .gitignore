@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+data/*.parquet
+data/*.json
+data/*.db
+data/raw/
+logs/*.log
+models/*.json
+.env

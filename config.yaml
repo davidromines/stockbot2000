@@ -1,0 +1,43 @@
+# === Trading System Config ===
+
+universe:
+  source: "sp500"          # sp500 | custom
+  custom_tickers_file: "data/custom_universe.txt"  # only used if source: custom
+
+data:
+  lookback_days: 730        # 2 years of daily bars for training/feature history
+  interval: "1d"
+  raw_dir: "data/raw"
+  features_file: "data/features_latest.parquet"
+  history_file: "data/ohlcv_history.parquet"
+
+labeling:
+  horizon_days: 5           # swing-trade horizon: label = forward N-day return
+  up_threshold_pct: 3.0     # positive label if forward return >= this %
+
+model:
+  path: "models/xgb_uptrend.json"
+  train_test_split: 0.2
+  random_state: 42
+
+risk:
+  position_size_usd: 10.0
+  max_open_positions: 10
+  stop_loss_type: "atr"        # atr | fixed_pct
+  stop_loss_atr_multiple: 2.0  # exit if price drops 2x ATR(14) below entry
+  stop_loss_fixed_pct: 8.0     # used only if stop_loss_type: fixed_pct
+  take_profit_pct: null        # null = no fixed take-profit; exits on stop or score decay
+
+database:
+  path: "data/positions.db"
+
+llm:
+  provider: "ollama"                     # ollama | openai_compatible
+  endpoint: "http://localhost:11434/api/generate"
+  model: "llama3.1:8b"                   # change to whatever you run locally
+  timeout_seconds: 120
+  max_tickers_per_batch: 25              # batch tickers per LLM call to keep prompts small
+
+scoresheet:
+  output_file: "data/scoresheet.json"
+  top_n: 25                # only send Claude the top N candidates, not the whole universe
