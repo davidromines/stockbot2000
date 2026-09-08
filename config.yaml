@@ -26,6 +26,16 @@ backfill:
   retry_attempts: 3                # retries per batch
   retry_backoff_sec: 5             # multiplied by attempt number
   max_ticker_attempts: 3           # give up on a ticker after this many failures
+  threads: true                    # yfinance internal concurrency; set false to be gentler
+
+  # --- Yahoo rate limiting. There is no published limit and no Retry-After
+  # header, so the safe pace is discovered at runtime rather than configured.
+  jitter_frac: 0.3                 # randomize every sleep by +/- this fraction
+  throttle_growth: 2.0             # multiplier applied to delays on each throttling signal
+  rate_limit_backoff_sec: 60       # first pause after a rate-limited response
+  rate_limit_backoff_max_sec: 900  # ceiling on any single pause
+  rate_limit_max_strikes: 5        # stop the run after this many throttling signals
+  empty_batches_before_stopping: 3 # consecutive empty batches treated as throttling
 
 labeling:
   horizon_days: 5           # swing-trade horizon: label = forward N-day return
