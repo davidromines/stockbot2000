@@ -14,22 +14,48 @@ betting), which is a different system entirely.
 
 ## Current state — READ THIS FIRST
 
-The project is **mid-smoke-test**. The pipeline has never yet run end to end.
-Do not start new feature work until `data_pull.py -> features.py -> score.py`
-completes cleanly on the small fallback universe.
+**The smoke test passed on 2026-09-08.** Every stage ran end to end on the
+18-ticker fallback universe, on Python 3.12 with no code changes required.
 
-Known-good so far:
-- `universe.py` runs (falls back to 18 hardcoded tickers — see gotchas)
+| Stage | Result |
+|---|---|
+| `universe.py` | 18 tickers (Wikipedia 403 -> fallback, as expected) |
+| `data_pull.py` | 13,140 rows / 18 tickers -> `ohlcv_history.parquet` |
+| `features.py` | 20 indicators for 18 tickers -> `features_latest.parquet` |
+| `train_model.py` | 9,558 labeled rows, 21.9% positive, test AUC 0.764 |
+| `score.py` | 18 scored; top score 41.7 (TSLA) |
+| `position_tracking.py` | ledger initialized |
+| `check_exits.py` | ran clean (no open positions) |
+| `backtest.py` | ran; **result is invalid, see below** |
+| `llm_report.py` | ran in fallback mode — Ollama is not installed on this VM |
 
-Not yet verified:
-- `data_pull.py`, `features.py`, `score.py`, `train_model.py`, `backtest.py`
+### Do not trust the backtest number
+
+`backtest.py --threshold 70` reports a **97.9% win rate over 47 trades**. This is
+not a result, it is look-ahead leakage. `train_model.py` splits with
+`train_test_split(..., stratify=y)` — a *random shuffled* split over time-ordered
+rows — so the model is trained on the same history the backtest then evaluates,
+including days after each simulated trade. Any figure from `backtest.py` is
+meaningless until the walk-forward split in `BACKLOG.md` is implemented. Do not
+quote this number, tune against it, or treat it as even an optimistic upper bound.
+
+### What the smoke test did *not* exercise
+
+- **No entry path.** Top score was 41.7 against a threshold of 70, so zero
+  candidates qualified and no order was ever proposed. The buy flow is still
+  unproven end to end.
+- **No exit path.** The ledger is empty, so `check_exits.py` short-circuited.
+- **No real LLM report.** Ollama is absent; reasons are generic placeholder text.
 
 Immediate next steps:
-1. ~~Confirm the rewritten `features.py` is deployed.~~ **Done 2026-09-08** —
-   verified byte-identical to the known-good copy; no module imports `pandas_ta`.
-2. ~~`mkdir -p data/raw models`.~~ **Done** — `data/raw`, `models`, `logs` exist.
-3. Build the venv on Python 3.12, install `requirements.txt`.
-4. Run each stage in order, fix what breaks.
+1. ~~Confirm the rewritten `features.py` is deployed.~~ **Done 2026-09-08.**
+2. ~~`mkdir -p data/raw models`.~~ **Done.**
+3. ~~Build the venv on Python 3.12, install `requirements.txt`.~~ **Done** —
+   `./venv/bin/python`, clean install, no `numba`.
+4. ~~Run each stage in order.~~ **Done — all stages pass.**
+5. Fix the train/test split so `backtest.py` produces a real number. This is now
+   the highest-value work; everything downstream depends on trusting the simulator.
+6. Install Ollama, or decide the LLM report stays optional.
 
 ---
 
