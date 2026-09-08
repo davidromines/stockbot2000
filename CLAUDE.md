@@ -78,6 +78,12 @@ Immediate next steps:
 - **Wikipedia S&P 500 scrape returns HTTP 403.** `universe.py` silently falls back
   to 18 hardcoded tickers. Planned replacement: the NASDAQ Trader symbol directory
   (`nasdaqlisted.txt` / `otherlisted.txt`), which is free and does not require scraping.
+- **yfinance returns negative prices for some tickers.** `auto_adjust=True`
+  back-adjusts for splits and dividends; where the cumulative adjustment exceeds
+  the original price the result goes negative, which also inverts high/low.
+  Found on 8 of 6,169 tickers. `storage.is_valid_ohlcv()` now rejects these at
+  write time — do not remove that guard, and do not "fix" impossible bars by
+  taking absolute values. The adjusted series for those tickers is simply wrong.
 - **yfinance does not serve delisted tickers.** This is a real correctness problem
   for backtesting — see the survivorship-bias item under Open Decisions.
 - Long backfills must be run under `nohup`/`tmux`/`screen`. SSH sessions to this
@@ -138,7 +144,9 @@ Pipeline stages, in execution order:
 
 | File | Role |
 |---|---|
-| `universe.py` | Builds the ticker list. Also owns `load_config()`, imported everywhere. |
+| `universe.py` | Builds the ticker list (`sp500` / `all_us` / `custom`). Also owns `load_config()`, imported everywhere. |
+| `storage.py` | Owns `market_data.db` — schema, upserts, ingest state. Only module writing SQL to it. |
+| `backfill.py` | Resumable 20-year OHLCV loader for the full universe. |
 | `data_pull.py` | Fetches OHLCV history via yfinance. |
 | `features.py` | Computes **20** technical indicators per (ticker, date). No third-party TA lib. |
 | `train_model.py` | Trains the XGBoost classifier. Owns `FEATURE_COLS`. |
@@ -157,10 +165,14 @@ model parameters — read them from config.
 
 Two distinct stores, different purposes:
 
-- **Market data** — currently Parquet files under `data/`. **Being migrated to
-  SQLite** (`data/market_data.db`) with `prices` and `features` tables, composite
-  primary key `(ticker, date)`, upsert on write so reruns update rather than
-  duplicate.
+- **Market data** — `data/market_data.db` (SQLite). **`prices` is populated:
+  18,150,413 rows across 6,169 tickers, 2006-09-05 to 2026-09-04, 1.3 GB on disk.**
+  Composite PK `(ticker, date)`, `STRICT` and `WITHOUT ROWID`, upsert on write so
+  reruns update rather than duplicate. `symbols` and `ingest_state` are populated too.
+
+  `features` exists but is **empty** — its schema is settled so the migration off
+  Parquet is a data move, not a redesign. The daily pipeline still reads Parquet;
+  repointing it is the next piece of work, not done yet.
 - **Trade ledger** — `data/positions.db` (SQLite). Stays separate. This is the
   "what did the system actually do" record that `backtest.py` reads.
 
@@ -187,11 +199,15 @@ Two distinct stores, different purposes:
 
 ## Scale targets
 
-- Universe: full US common stock on NYSE/NASDAQ, ~6,000-8,000 tickers
-  (currently 18 via fallback).
-- History: 20 years of daily bars (currently configured for 730 days).
-- Estimated database size at full scale: 14-19 GB, plus ~5 GB/year of
-  strategy-search ledger.
+- Universe: **6,172 US common stocks** from the NASDAQ Trader directory
+  (`universe.source: all_us`). The daily pipeline still runs on the 18-ticker
+  `sp500` fallback — the two are independent.
+- History: **20 years, backfilled.** 18.15M bars, 5,032 distinct trading days.
+  Only 2,226 tickers have the full 20 years; the rest listed later.
+- **Measured** database size: prices 1.3 GB. The old 14-19 GB estimate was
+  roughly 10x too pessimistic — it assumed every ticker had 20 years of history.
+  Features will add materially more when populated; re-measure then rather than
+  re-estimating.
 
 ### Host — migration completed 2026-09-08
 

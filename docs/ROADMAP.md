@@ -1,6 +1,6 @@
 # Stockbot2000 — Roadmap
 
-Last updated: 2026-09-08. 12 phases. Status: on Arena; pipeline runs end to end.
+Last updated: 2026-09-08. 12 phases. Status: 20yr history loaded; pipeline runs end to end.
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
 
@@ -80,12 +80,23 @@ should be re-sized against the real figure.
 build the venv, initialize git. Code arrived by manual file transfer, so there is no
 git history prior to this point.
 
-### 06 · Data infrastructure scale-up 🔵 0%
-Replace the Parquet cache with SQLite (`market_data.db`, `prices` + `features`
-tables). Scale from 18 tickers to the full US equity universe (~6-8k) with 20
-years of daily history. Estimated 14-19 GB.
+### 06 · Data infrastructure scale-up 🟡 65%
+**Prices are in.** `data/market_data.db` holds 18,150,413 daily bars across 6,169
+tickers, 2006-09-05 to 2026-09-04, in 1.3 GB — the 14-19 GB estimate assumed every
+ticker had the full 20 years; only 2,226 do.
 
-**Blocked on:** the survivorship-bias data source decision.
+- ✅ `universe.py` builds 6,172 tickers from the NASDAQ Trader directory
+- ✅ `storage.py` owns the schema; `backfill.py` loads it resumably (11.4 min, 3
+  tickers with no Yahoo data)
+- ✅ Verified: idempotent re-runs, resumable after SIGTERM, no duplicates, no
+  impossible bars
+- ⏳ `features` table exists but is empty
+- ⏳ Daily pipeline still reads Parquet — repointing it is the next step
+
+**No longer blocked.** The survivorship decision was made: collect now, accept the
+bias, track `source` per row so a point-in-time provider can be layered in later.
+Daily symbol snapshots now record when tickers leave the listings, so the gap stops
+widening from here.
 
 ### 07 · Simulator realism & backtest rigor 🔵 0%
 Costs, slippage, liquidity floors, true walk-forward splitting, long-only
@@ -128,7 +139,7 @@ Telegram daily scorecard and lab digest; LLM report refinements.
 
 | Item | Status |
 |---|---|
-| Survivorship-bias data source | **Open — blocking phase 06** |
+| Survivorship-bias data source | Decided 2026-09-08 — collect now, accept bias, keep it reversible. Buying point-in-time data remains open. |
 | Arena provisioning (disk, quiet hours) | Partly resolved — 97 GB disk confirmed; quiet hours still open |
 | Funded stake vs. the $100 account cap | **Open** — promotion ladder ends in a funded stake, mandate caps total exposure at $100 |
 | Paper-trading duration & funding stake | Open |
