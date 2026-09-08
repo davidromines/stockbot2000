@@ -9,6 +9,7 @@ universe:
   other_listed_url: "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
   exchanges: ["N", "A"]    # NYSE, NYSE American. P/Z/V are ARCA/BATS/IEX — ETF venues.
   request_timeout_seconds: 30
+  snapshot_dir: "data/symbol_snapshots"   # dated raw copies of each directory fetch
 
 data:
   lookback_days: 730        # 2 years of daily bars for training/feature history

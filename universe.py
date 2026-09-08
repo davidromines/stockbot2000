@@ -17,6 +17,8 @@ Note the deliberate difference in failure behaviour: "sp500" falls back silently
 successful run and quietly poison everything downstream.
 """
 import logging
+from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -68,14 +70,25 @@ def get_sp500_tickers() -> list[str]:
 # Full US common stock universe (production path)
 # --------------------------------------------------------------------------
 
-def _fetch_symbol_file(url: str, timeout: int) -> list[dict]:
+def _fetch_symbol_file(url: str, timeout: int, snapshot_path: Path | None = None) -> list[dict]:
     """
     Fetch one pipe-delimited NASDAQ Trader directory file and return its rows as
     dicts. Both files carry a trailing 'File Creation Time' line that is not a
     record; it is dropped here.
+
+    If `snapshot_path` is given, the raw response is written there first. These
+    snapshots are the primary record: the directory is a live view of what is
+    listed *today*, and nobody publishes yesterday's. Keeping the raw file means
+    a future point-in-time universe can be reconstructed from what we saw,
+    rather than from what is still listed when we ask.
     """
     resp = requests.get(url, timeout=timeout)
     resp.raise_for_status()
+
+    if snapshot_path is not None:
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_text(resp.text, encoding="utf-8")
+        log.info(f"Snapshot saved: {snapshot_path}")
 
     lines = [ln for ln in resp.text.splitlines() if ln and not ln.startswith("File Creation Time")]
     if len(lines) < 2:
@@ -129,9 +142,10 @@ def normalize_symbol(symbol: str) -> str | None:
     return symbol
 
 
-def get_all_us_tickers(config: dict) -> list[str]:
+def get_all_us_symbols(config: dict, save_snapshot: bool = True) -> list[dict]:
     """
-    Build the full US common-stock universe from the NASDAQ Trader symbol directory.
+    Build the full US common-stock universe from the NASDAQ Trader symbol directory,
+    returning ticker/name/exchange rather than bare tickers.
 
     Free, no API key, and served as plain text — unlike the Wikipedia scrape, which
     this box gets a 403 from.
@@ -140,36 +154,56 @@ def get_all_us_tickers(config: dict) -> list[str]:
     timeout = ucfg.get("request_timeout_seconds", 30)
     keep_exchanges = set(ucfg.get("exchanges", ["N", "A"]))
 
-    nasdaq = _fetch_symbol_file(ucfg["nasdaq_listed_url"], timeout)
-    other = _fetch_symbol_file(ucfg["other_listed_url"], timeout)
+    snap_dir = Path(ucfg.get("snapshot_dir", "data/symbol_snapshots"))
+    today = date.today().isoformat()
+    nas_snap = snap_dir / f"{today}_nasdaqlisted.txt" if save_snapshot else None
+    oth_snap = snap_dir / f"{today}_otherlisted.txt" if save_snapshot else None
+
+    nasdaq = _fetch_symbol_file(ucfg["nasdaq_listed_url"], timeout, nas_snap)
+    other = _fetch_symbol_file(ucfg["other_listed_url"], timeout, oth_snap)
     log.info(f"Symbol directory: {len(nasdaq)} NASDAQ rows, {len(other)} other-listed rows.")
 
-    tickers = set()
+    found: dict[str, dict] = {}
 
     for row in nasdaq:
         if row.get("Test Issue") != "N" or row.get("ETF") != "N":
             continue
         ticker = normalize_symbol(row.get("Symbol", ""))
         if ticker:
-            tickers.add(ticker)
+            found[ticker] = {
+                "ticker": ticker,
+                "name": row.get("Security Name", "").strip() or None,
+                "exchange": "NASDAQ",
+            }
 
     # otherlisted covers NYSE (N) and NYSE American (A); P/Z/V are ARCA/BATS/IEX,
     # which list ETFs rather than operating companies.
+    exchange_names = {"N": "NYSE", "A": "NYSE American"}
     for row in other:
         if row.get("Test Issue") != "N" or row.get("ETF") != "N":
             continue
-        if row.get("Exchange") not in keep_exchanges:
+        code = row.get("Exchange")
+        if code not in keep_exchanges:
             continue
         ticker = normalize_symbol(row.get("ACT Symbol", ""))
         if ticker:
-            tickers.add(ticker)
+            found[ticker] = {
+                "ticker": ticker,
+                "name": row.get("Security Name", "").strip() or None,
+                "exchange": exchange_names.get(code, code),
+            }
 
-    if not tickers:
+    if not found:
         raise ValueError("Symbol directory parsed but yielded zero common-stock tickers.")
 
-    result = sorted(tickers)
-    log.info(f"Universe: {len(result)} US common stocks on {'/'.join(sorted(keep_exchanges))} + NASDAQ.")
+    result = [found[t] for t in sorted(found)]
+    log.info(f"Universe: {len(result)} US common stocks on NASDAQ/{'/'.join(sorted(keep_exchanges))}.")
     return result
+
+
+def get_all_us_tickers(config: dict) -> list[str]:
+    """Ticker-only view of `get_all_us_symbols`, for callers that want a plain list."""
+    return [s["ticker"] for s in get_all_us_symbols(config)]
 
 
 def get_custom_tickers(path: str) -> list[str]:
@@ -190,7 +224,27 @@ def get_universe(config: dict) -> list[str]:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Build the ticker universe.")
+    parser.add_argument("--record", action="store_true",
+                        help="Write today's symbol snapshot into the symbols table.")
+    args = parser.parse_args()
+
     cfg = load_config()
-    tickers = get_universe(cfg)
-    print(f"Universe size: {len(tickers)}")
-    print(tickers[:20], "...")
+
+    if args.record:
+        import storage
+
+        symbols = get_all_us_symbols(cfg)
+        conn = storage.connect(cfg["database"]["market_data_path"])
+        storage.init_db(conn)
+        n = storage.record_symbols(conn, symbols)
+        active = conn.execute("SELECT COUNT(*) FROM symbols WHERE is_active=1").fetchone()[0]
+        inactive = conn.execute("SELECT COUNT(*) FROM symbols WHERE is_active=0").fetchone()[0]
+        conn.close()
+        print(f"Recorded {n} symbols. Active: {active}, no longer listed: {inactive}")
+    else:
+        tickers = get_universe(cfg)
+        print(f"Universe size: {len(tickers)}")
+        print(tickers[:20], "...")
