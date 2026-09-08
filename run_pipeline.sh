@@ -4,7 +4,7 @@
 # separately on a slower cadence (weekly/monthly) as history accumulates.
 #
 # Suggested cron (7:00am local, before market open):
-#   0 7 * * 1-5 /home/stockpicker/stockpicker2000/run_pipeline.sh >> logs/pipeline.log 2>&1
+#   0 7 * * 1-5 /home/stockpicker/stockbot2000/run_pipeline.sh >> logs/pipeline.log 2>&1
 
 set -euo pipefail
 cd "$(dirname "$0")"

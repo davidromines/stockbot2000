@@ -1,4 +1,4 @@
-# stockpicker2000 — v1 (real-first, will get better)
+# stockbot2000 — v1 (real-first, will get better)
 
 Mirrors the football-prediction system's shape: local server pulls data and
 does the heavy compute (yfinance + XGBoost + local LLM), Claude only reads
@@ -28,7 +28,7 @@ backtesting are run manually/separately, not on the daily cron.
 ## One-time setup
 
 ```bash
-cd ~/stockpicker2000
+cd ~/stockbot2000
 python3.12 -m venv venv   # NOT bare python3 — system python is 3.14
 source venv/bin/activate
 pip install -r requirements.txt
@@ -44,7 +44,7 @@ python train_model.py
 python position_tracking.py
 
 # 4. Set up cron for the daily scan (edit crontab -e)
-# 0 7 * * 1-5 /home/stockpicker/stockpicker2000/run_pipeline.sh >> logs/pipeline.log 2>&1
+# 0 7 * * 1-5 /home/stockpicker/stockbot2000/run_pipeline.sh >> logs/pipeline.log 2>&1
 ```
 
 **Note on training data**: `train_model.py` needs enough history for the

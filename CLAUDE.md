@@ -1,11 +1,14 @@
-# StockPicker2000
+# Stockbot2000
 
 Automated swing-trading system: scores US equities on technical indicators, sizes and
 stops positions by ATR, and evolves its own trading strategies against 20 years of
 market history before any real capital is committed.
 
-Formerly named `betbot9000`, then `trend-scanner`. Do not confuse with the separate
-`betbot` project (college football betting) that lives on the same host.
+Renamed several times: `betbot9000` -> `trend-scanner` -> `stockpicker2000` ->
+**`stockbot2000`** (current, as of 2026-09-08). Older commits, the VM hostname
+and the Linux user still say `stockpicker` — that is expected, not a leftover to
+clean up. Do not confuse this with the separate `betbot` project (college football
+betting), which is a different system entirely.
 
 ---
 
@@ -166,8 +169,9 @@ Two distinct stores, different purposes:
 
 ### Host — migration completed 2026-09-08
 
-Now running on the "Arena" VM. Hostname `stockpicker2000`, user `stockpicker`,
-repo at `~/stockpicker2000`. Ubuntu 26.04 LTS.
+Now running on the "Arena" VM. Hostname is `stockpicker2000` and the Linux user is
+`stockpicker` — both predate the rename to Stockbot2000 and were left alone; only
+the project is renamed. Repo at `~/stockbot2000`. Ubuntu 26.04 LTS.
 
 Measured: **4 vCPU / 11 GB RAM / 97 GB disk** (83 GB free at migration).
 Note the RAM is ~11 GB, not the 12 GB planned — the strategy-search memory

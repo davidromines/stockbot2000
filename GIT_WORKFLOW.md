@@ -1,31 +1,32 @@
 # Git Workflow
 
-This project (`stockpicker2000`) lives in **its own folder and its own GitHub
+This project (`stockbot2000`) lives in **its own folder and its own GitHub
 repository**, fully separate from `betbot9000`. Do not nest one inside the
 other, and don't share a virtualenv/venv between them.
 
-Actual layout on the Arena VM (`stockpicker2000`, user `stockpicker`):
+Actual layout on the Arena VM (hostname `stockpicker2000`, user `stockpicker` —
+both predate the rename and are unchanged):
 
 ```
-~/stockpicker2000/           (this project — the repo root)
+~/stockbot2000/           (this project — the repo root)
 ```
 
 `betbot9000` is not on this VM. An earlier draft of this file suggested
-`~/projects/stockpicker2000`; the repo has always lived at `~/stockpicker2000`
+`~/projects/stockbot2000`; the repo has always lived at `~/stockbot2000`
 and `CLAUDE.md` refers to that path, so this doc was corrected to match rather
 than the other way round.
 
 ## One-time setup — done 2026-09-08
 
 ```bash
-cd ~/stockpicker2000
+cd ~/stockbot2000
 git init -b main
 git add .
-git commit -m "Initial commit: stockpicker2000 on Arena VM"
+git commit -m "Initial commit: stockbot2000 on Arena VM"
 ```
 
 Remote is **not yet configured**. `gh` is not installed on this VM. To add one
-later, either install `gh` and run `gh repo create stockpicker2000 --private
+later, either install `gh` and run `gh repo create stockbot2000 --private
 --source=. --push`, or add the remote by hand:
 
 ```bash

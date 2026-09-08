@@ -1,4 +1,4 @@
-# StockPicker2000 — Roadmap
+# Stockbot2000 — Roadmap
 
 Last updated: 2026-09-08. 12 phases. Status: migrated to Arena; smoke test resuming.
 
@@ -24,7 +24,7 @@ Fixed constraints the phases below all sit inside:
 ## Foundation
 
 ### 01 · Project foundation ✅ 100%
-Renamed (betbot9000 → trend-scanner → StockPicker2000), repo identity established,
+Renamed (betbot9000 → trend-scanner → stockpicker2000 → Stockbot2000), repo identity established,
 git conventions documented in `GIT_WORKFLOW.md`.
 
 ### 02 · Core pipeline build ✅ 100%
@@ -59,8 +59,8 @@ Proving the pipeline runs start to finish on the 18-ticker fallback universe.
 ## Infrastructure
 
 ### 05 · Migration to Arena hypervisor 🟡 85%
-VM is provisioned and the project now lives on it — hostname `stockpicker2000`,
-repo at `~/stockpicker2000`, Ubuntu 26.04 LTS.
+VM is provisioned and the project now lives on it — hostname `stockbot2000`,
+repo at `~/stockbot2000`, Ubuntu 26.04 LTS.
 
 Measured allocation: **4 vCPU / 11 GB RAM / 97 GB disk** (83 GB free). Note the RAM
 is 11 GB, not the 12 GB planned — the Strategy Lab compute budget assumes 12 GB and
