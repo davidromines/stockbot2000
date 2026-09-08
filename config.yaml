@@ -18,6 +18,15 @@ data:
   features_file: "data/features_latest.parquet"
   history_file: "data/ohlcv_history.parquet"
 
+backfill:
+  period: "20y"                    # yfinance period string for the historical pull
+  interval: "1d"
+  batch_size: 50                   # tickers per yfinance request
+  sleep_between_batches_sec: 1.0   # be a good citizen; Yahoo has no SLA
+  retry_attempts: 3                # retries per batch
+  retry_backoff_sec: 5             # multiplied by attempt number
+  max_ticker_attempts: 3           # give up on a ticker after this many failures
+
 labeling:
   horizon_days: 5           # swing-trade horizon: label = forward N-day return
   up_threshold_pct: 3.0     # positive label if forward return >= this %
