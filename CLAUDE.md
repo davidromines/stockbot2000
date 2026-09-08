@@ -166,18 +166,26 @@ model parameters — read them from config.
 
 Two distinct stores, different purposes:
 
-- **Market data** — `data/market_data.db` (SQLite). **`prices` is populated:
-  18,150,413 rows across 6,169 tickers, 2006-09-05 to 2026-09-04, 1.3 GB on disk.**
-  Composite PK `(ticker, date)`, `STRICT` and `WITHOUT ROWID`, upsert on write so
-  reruns update rather than duplicate. `symbols` and `ingest_state` are populated too.
+- **Market data** — `data/market_data.db` (SQLite), **8.5 GB**.
 
-  **`features` is populated: 18,108,070 rows across 5,749 tickers.** 16.8M of those
-  have all 20 indicators non-null (the rest are rolling-window warm-up, stored as
-  NULL). 420 tickers have prices but no features and never will — under 210 bars,
-  so the 200-day SMA cannot warm up. That is expected, not a gap.
+  `prices`: **35,425,982 rows across 13,121 instruments, 1962-01-02 to 2026-09-04.**
+  Pulled at `period: max`, so each instrument carries its full available history —
+  Alcoa reaches back to 1962, not just the 20 years the earlier pull captured.
 
-  Database is 4.5 GB total, `PRAGMA quick_check` clean, zero orphaned feature rows
-  and zero duplicate keys.
+  `features`: **33,789,595 rows across 9,950 tickers**, of which **31,529,867 have
+  all 20 indicators non-null** — the trainable set. Computed only for
+  `universe.feature_types` (common stock, ADRs, ETFs, closed-end funds); rolling
+  indicators on a warrant or a corporate note are arithmetic without meaning.
+
+  `symbols`: all **13,155 listings tagged by `security_type`** — etf 5,652,
+  common_stock 5,373, preferred 465, warrant 438, unit 372, adr 276,
+  closed_end_fund 273, note 165, right 128, etn 13.
+
+  Integrity verified: zero negative or inverted bars, zero duplicate keys, zero
+  orphan feature rows, zero untagged symbols, `quick_check` clean.
+
+  **24 instruments have no data at all** — 20 SPAC rights Yahoo does not quote,
+  plus SVA (halted) and three others. Common-stock coverage is 5,372 of 5,373.
 
   The daily pipeline still reads Parquet. Repointing `data_pull.py` / `features.py` /
   `train_model.py` / `score.py` at SQLite is the next piece of work and is not done.
@@ -207,15 +215,17 @@ Two distinct stores, different purposes:
 
 ## Scale targets
 
-- Universe: **6,172 US common stocks** from the NASDAQ Trader directory
-  (`universe.source: all_us`). The daily pipeline still runs on the 18-ticker
-  `sp500` fallback — the two are independent.
-- History: **20 years, backfilled.** 18.15M bars, 5,032 distinct trading days.
-  Only 2,226 tickers have the full 20 years; the rest listed later.
-- **Measured** database size: prices 1.3 GB. The old 14-19 GB estimate was
-  roughly 10x too pessimistic — it assumed every ticker had 20 years of history.
-  Features will add materially more when populated; re-measure then rather than
-  re-estimating.
+- Universe: **13,155 listings** from the NASDAQ Trader directory across NASDAQ,
+  NYSE, NYSE American, NYSE Arca, Cboe BZX and IEX — every instrument type, each
+  tagged. `universe.tradeable_types` keeps the scanner on common stock; the
+  database deliberately holds the whole market.
+- History: **full available depth**, 1962 to present.
+- **Measured** database size: 8.5 GB (73 GB free). The original 14-19 GB estimate
+  turned out to be in the right range only by accident — it assumed 20 years for
+  6-8k common stocks, and the real shape is 60+ years for 13k instruments.
+- Beware the earlier universe count of 6,169 "common stocks": **822 of those were
+  not common stock** (closed-end funds, corporate notes, preferred, units). Fixed
+  by `security_type` tagging on 2026-09-08.
 
 ### Host — migration completed 2026-09-08
 

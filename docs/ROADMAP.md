@@ -1,6 +1,6 @@
 # Stockbot2000 — Roadmap
 
-Last updated: 2026-09-08. 12 phases. Status: 20yr history loaded; pipeline runs end to end.
+Last updated: 2026-09-08. 12 phases. Status: full-depth market database loaded; pipeline runs end to end.
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
 
@@ -80,22 +80,22 @@ should be re-sized against the real figure.
 build the venv, initialize git. Code arrived by manual file transfer, so there is no
 git history prior to this point.
 
-### 06 · Data infrastructure scale-up 🟡 85%
-**Prices are in.** `data/market_data.db` holds 18,150,413 daily bars across 6,169
-tickers, 2006-09-05 to 2026-09-04, in 1.3 GB — the 14-19 GB estimate assumed every
-ticker had the full 20 years; only 2,226 do.
+### 06 · Data infrastructure scale-up 🟡 90%
+**The market database is built.** `data/market_data.db` holds 35,425,982 price
+bars across 13,121 instruments spanning 1962-01-02 to 2026-09-04, plus 33,789,595
+feature rows — 31.5M of them with all 20 indicators present. 8.5 GB.
 
-- ✅ `universe.py` builds 6,172 tickers from the NASDAQ Trader directory
-- ✅ `storage.py` owns the schema; `backfill.py` loads it resumably (11.4 min, 3
-  tickers with no Yahoo data)
-- ✅ Verified: idempotent re-runs, resumable after SIGTERM, no duplicates, no
-  impossible bars
-- ✅ `features` table populated — 18,108,070 rows, 5,749 tickers, 3.7 min build.
-  16.8M rows have all 20 indicators non-null; 420 tickers are ineligible (under
-  210 bars, so the 200-day SMA cannot warm up)
-- ✅ Database 4.5 GB, integrity-checked, no orphans or duplicate keys
+- ✅ 13,155 listings from the NASDAQ Trader directory across six venues, every one
+  tagged by `security_type` (etf 5,652 · common_stock 5,373 · preferred 465 ·
+  warrant 438 · unit 372 · adr 276 · closed_end_fund 273 · note 165 · right 128 ·
+  etn 13)
+- ✅ Full available history per instrument, not a fixed 20-year window
+- ✅ Integrity verified: no negative or inverted bars, no duplicate keys, no orphan
+  feature rows, no untagged symbols, `quick_check` clean
 - ✅ Yahoo rate limiting handled adaptively, with throttling distinguished from
-  genuine no-data so a throttled run cannot mark real tickers as failed
+  genuine no-data
+- ⚠️ 24 instruments unavailable (20 SPAC rights Yahoo does not quote, SVA halted,
+  3 others). Common-stock coverage is 5,372 of 5,373
 - ⏳ Daily pipeline still reads Parquet — repointing it is the next step
 
 **No longer blocked.** The survivorship decision was made: collect now, accept the
@@ -144,7 +144,7 @@ Telegram daily scorecard and lab digest; LLM report refinements.
 
 | Item | Status |
 |---|---|
-| Survivorship-bias data source | Decided 2026-09-08 — collect now, accept bias, keep it reversible. Buying point-in-time data remains open. |
+| Survivorship-bias data source | **Open — needs work.** Collect-now accepted as an interim, but this is the largest threat to every backtest figure. Research + Internet Archive reconstruction now tracked in `BACKLOG.md`. |
 | Arena provisioning (disk, quiet hours) | Partly resolved — 97 GB disk confirmed; quiet hours still open |
 | Funded stake vs. the $100 account cap | **Open** — promotion ladder ends in a funded stake, mandate caps total exposure at $100 |
 | Paper-trading duration & funding stake | Open |

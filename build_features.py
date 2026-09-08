@@ -59,6 +59,8 @@ def run(config: dict, limit: int | None = None, rebuild: bool = False,
         log.warning(f"--rebuild: cleared {n:,} existing feature rows")
 
     types = config["universe"].get("feature_types")
+    # Self-heal if feature_types was narrowed since the last run.
+    storage.prune_features_of_excluded_types(conn, types)
     todo = storage.tickers_needing_features(conn, types=types)
     outstanding = len(todo)
     if limit:

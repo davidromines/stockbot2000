@@ -333,6 +333,29 @@ def feature_ineligible_count(conn: sqlite3.Connection, min_bars: int = MIN_BARS_
     ).fetchone()[0]
 
 
+def prune_features_of_excluded_types(conn: sqlite3.Connection, types: list[str]) -> int:
+    """
+    Delete feature rows for security types no longer in `feature_types`.
+
+    Narrowing the configured types otherwise leaves orphans behind: rows computed
+    under a previous, wider setting that nothing will ever refresh again. They are
+    worse than absent, because they look like current data while having been
+    derived from whatever price history existed when they were written.
+    """
+    if not types:
+        return 0
+    placeholders = ",".join("?" * len(types))
+    n = conn.execute(f"""
+        DELETE FROM features WHERE ticker IN (
+            SELECT ticker FROM symbols WHERE security_type NOT IN ({placeholders})
+        )
+    """, types).rowcount
+    if n:
+        conn.commit()
+        log.info(f"Pruned {n:,} feature rows for security types outside feature_types")
+    return n
+
+
 def feature_stats(conn: sqlite3.Connection) -> dict:
     row = conn.execute("""
         SELECT COUNT(*) AS rows, COUNT(DISTINCT ticker) AS tickers,
