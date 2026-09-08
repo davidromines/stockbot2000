@@ -7,7 +7,16 @@ universe:
   # --- all_us source: NASDAQ Trader symbol directory (free, no key, no scraping) ---
   nasdaq_listed_url: "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
   other_listed_url: "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
-  exchanges: ["N", "A"]    # NYSE, NYSE American. P/Z/V are ARCA/BATS/IEX — ETF venues.
+  exchanges: ["N", "A", "P", "Z", "V"]   # NYSE, NYSE American, NYSE Arca, Cboe BZX, IEX
+
+  # Instrument types the daily scanner may trade. Everything in the directory is
+  # stored and tagged regardless; this only narrows what gets scored and traded.
+  # A swing-trading model should not train on leveraged ETFs or thin warrants.
+  tradeable_types: ["common_stock"]
+
+  # Types worth computing indicators for. Warrants, rights, units and notes are
+  # too thin and erratic for rolling indicators to mean anything.
+  feature_types: ["common_stock", "adr", "etf", "closed_end_fund"]
   request_timeout_seconds: 30
   snapshot_dir: "data/symbol_snapshots"   # dated raw copies of each directory fetch
 
@@ -19,7 +28,7 @@ data:
   history_file: "data/ohlcv_history.parquet"
 
 backfill:
-  period: "20y"                    # yfinance period string for the historical pull
+  period: "max"                    # full available history per instrument
   interval: "1d"
   batch_size: 50                   # tickers per yfinance request
   sleep_between_batches_sec: 1.0   # be a good citizen; Yahoo has no SLA

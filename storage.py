@@ -70,14 +70,22 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS symbols (
-            ticker      TEXT PRIMARY KEY,
-            name        TEXT,
-            exchange    TEXT,
-            first_seen  TEXT NOT NULL,
-            last_seen   TEXT NOT NULL,
-            is_active   INTEGER NOT NULL DEFAULT 1
+            ticker        TEXT PRIMARY KEY,
+            name          TEXT,
+            exchange      TEXT,
+            security_type TEXT,
+            first_seen    TEXT NOT NULL,
+            last_seen     TEXT NOT NULL,
+            is_active     INTEGER NOT NULL DEFAULT 1
         ) STRICT
     """)
+    # Migration for databases created before security_type existed. Cheaper and
+    # far safer than rebuilding a table that took hours of downloads to fill.
+    existing = {r[1] for r in conn.execute("PRAGMA table_info(symbols)")}
+    if "security_type" not in existing:
+        conn.execute("ALTER TABLE symbols ADD COLUMN security_type TEXT")
+        log.info("Migrated symbols table: added security_type")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_symbols_type ON symbols(security_type)")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS ingest_state (
@@ -324,14 +332,15 @@ def record_symbols(conn: sqlite3.Connection, symbols: list[dict], seen_on: str |
     """
     seen_on = seen_on or date.today().isoformat()
     rows = [
-        (s["ticker"], s.get("name"), s.get("exchange"), seen_on, seen_on)
+        (s["ticker"], s.get("name"), s.get("exchange"), s.get("security_type"), seen_on, seen_on)
         for s in symbols
     ]
     conn.executemany("""
-        INSERT INTO symbols (ticker, name, exchange, first_seen, last_seen, is_active)
-        VALUES (?, ?, ?, ?, ?, 1)
+        INSERT INTO symbols (ticker, name, exchange, security_type, first_seen, last_seen, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
         ON CONFLICT(ticker) DO UPDATE SET
             name=excluded.name, exchange=excluded.exchange,
+            security_type=excluded.security_type,
             last_seen=excluded.last_seen, is_active=1
     """, rows)
 
@@ -344,6 +353,27 @@ def record_symbols(conn: sqlite3.Connection, symbols: list[dict], seen_on: str |
 # --------------------------------------------------------------------------
 # Ingest state (resumability)
 # --------------------------------------------------------------------------
+
+def tickers_by_type(conn: sqlite3.Connection, types: list[str], active_only: bool = True) -> list[str]:
+    """Tickers of the given security types, e.g. ['common_stock', 'etf']."""
+    placeholders = ",".join("?" * len(types))
+    sql = f"SELECT ticker FROM symbols WHERE security_type IN ({placeholders})"
+    if active_only:
+        sql += " AND is_active = 1"
+    return [r["ticker"] for r in conn.execute(sql + " ORDER BY ticker", types).fetchall()]
+
+
+def type_breakdown(conn: sqlite3.Connection) -> dict:
+    """Row and ticker counts per security type — what actually landed."""
+    rows = conn.execute("""
+        SELECT s.security_type AS t,
+               COUNT(DISTINCT s.ticker) AS symbols,
+               COUNT(DISTINCT p.ticker) AS with_prices
+        FROM symbols s LEFT JOIN prices p ON s.ticker = p.ticker
+        GROUP BY s.security_type ORDER BY symbols DESC
+    """).fetchall()
+    return {r["t"]: {"symbols": r["symbols"], "with_prices": r["with_prices"]} for r in rows}
+
 
 def seed_ingest_state(conn: sqlite3.Connection, tickers: list[str]) -> int:
     """Register tickers as pending without disturbing rows already completed."""
