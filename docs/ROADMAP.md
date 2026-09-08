@@ -1,6 +1,6 @@
 # Stockbot2000 — Roadmap
 
-Last updated: 2026-09-08. 12 phases. Status: migrated to Arena; smoke test resuming.
+Last updated: 2026-09-08. 12 phases. Status: on Arena; pipeline runs end to end.
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
 
@@ -31,7 +31,7 @@ git conventions documented in `GIT_WORKFLOW.md`.
 All nine pipeline modules written: universe selection, data pull, feature engineering,
 scoring, model training, ATR stop-loss, position ledger, backtest, LLM report.
 
-### 03 · Environment setup 🟡 90%
+### 03 · Environment setup ✅ 100%
 Fixed three missing dependencies (`pyyaml`, `yfinance`, `pyarrow`). Removed
 `pandas_ta` entirely — its pinned `numba` version will not build on Python 3.14 —
 and rewrote all indicators in plain pandas/numpy.
@@ -40,19 +40,29 @@ and rewrote all indicators in plain pandas/numpy.
 module imports `pandas_ta`). ✅ `pandas-ta` removed from `requirements.txt`, where it
 was still pinned.
 
-**Remaining:** install Python 3.12 on the Arena VM and build the venv against it —
-Ubuntu 26.04 ships 3.14 as system Python.
+✅ Python 3.12.13 installed from deadsnakes and venv built at `./venv`.
+`requirements.txt` installed clean on 2026-09-08 — no `numba`, no build failures.
 
-### 04 · End-to-end smoke test 🟡 35%
-Proving the pipeline runs start to finish on the 18-ticker fallback universe.
-**This is the current focus. Nothing downstream is worth building until it passes.**
+Note: pip resolved pandas 3.0.5 / numpy 2.5.3 because requirements only sets `>=`
+floors. It works today, but the versions that work are unrecorded — see `BACKLOG.md`.
 
-- ✅ `universe.py`
-- ⏳ `data_pull.py` — retry pending
-- ⏳ `features.py` — pending
-- ⏳ `score.py` — pending
-- ⏳ `train_model.py` — not yet run
-- ⏳ `backtest.py` — not yet run
+### 04 · End-to-end smoke test 🟡 85%
+Every stage now runs start to finish on the 18-ticker fallback universe
+(2026-09-08), with no code changes required.
+
+- ✅ `universe.py` — 18 tickers via fallback
+- ✅ `data_pull.py` — 13,140 rows
+- ✅ `features.py` — 20 indicators
+- ✅ `train_model.py` — AUC 0.764 (not a valid estimate, see below)
+- ✅ `score.py` — top score 41.7
+- ✅ `position_tracking.py`, `check_exits.py`
+- ✅ `backtest.py` — runs, **but the number it prints is invalid**
+- 🟡 `llm_report.py` — runs in fallback mode; Ollama not installed on this VM
+
+**Not at 100%, because "it runs" is not "it works":** no candidate cleared the
+threshold of 70, so the entry path was never exercised and the ledger stayed
+empty, meaning the exit path wasn't either. And `backtest.py`'s 97.9% win rate is
+look-ahead leakage from the random train/test split — phase 07 work, not a result.
 
 ---
 
