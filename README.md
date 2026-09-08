@@ -21,9 +21,60 @@ backtest.py          → prints strategy performance summary (run manually, not 
 position_tracking.py  → data/positions.db             (SQLite: all entries/exits, for backtesting + review)
 ```
 
+Outside the daily cycle, feeding the historical store:
+
+```
+universe.py --record → symbols table + data/symbol_snapshots/  (who was listed, when)
+backfill.py          → data/market_data.db                     (20yr OHLCV, resumable)
+storage.py           → owns that database's schema and writes
+```
+
 `run_pipeline.sh` chains data pull → features → score → LLM report → exit
 check, in that order. Intended for cron, pre-market. Training and
 backtesting are run manually/separately, not on the daily cron.
+
+## Historical data store
+
+Separate from the daily pipeline above, and the foundation the Strategy Lab will
+search over: `data/market_data.db` holds 20 years of daily bars for the full US
+common-stock universe (~6,200 tickers on NYSE / NYSE American / NASDAQ).
+
+```bash
+python universe.py --record          # refresh the symbol registry + snapshots
+python backfill.py --limit 20        # prove the loop on 20 tickers first
+nohup python backfill.py &           # full run — hours, survives SSH drops
+python backfill.py --status          # progress, any time
+python backfill.py --retry-failed    # another pass at failures
+```
+
+**The backfill is resumable.** Kill it and re-run: `ingest_state` tracks progress
+per ticker and commits once per batch, so an interruption loses at most one batch.
+Never start it over from scratch — just run it again.
+
+Universe source is `config.yaml` -> `universe.source`:
+
+| Source | Tickers | Use |
+|---|---|---|
+| `sp500` | 18 (Wikipedia 403s, falls back) | smoke test |
+| `all_us` | ~6,172 from the NASDAQ Trader directory | production backfill |
+| `custom` | whatever's in your file | ad hoc |
+
+### Two databases, on purpose
+
+- `data/market_data.db` — market history. Large, regenerable, rebuilt by re-running
+  the backfill. Owned by `storage.py`, which is the only module that writes SQL to it.
+- `data/positions.db` — the trade ledger. Small, irreplaceable, owned by
+  `position_tracking.py`. This is the record of what the system actually did.
+
+### A limitation worth knowing
+
+yfinance does not serve delisted companies, so this data covers only firms still
+listed today. Every bankruptcy and acquisition of the last 20 years is missing,
+which makes any backtest run against it look better than reality. This is a known,
+accepted trade-off — not something the code can correct for. `universe.py --record`
+snapshots the symbol directory daily so that *going forward* we can tell when a
+ticker leaves the listings, but the missing history stays missing until a
+point-in-time data source is bought.
 
 ## One-time setup
 
