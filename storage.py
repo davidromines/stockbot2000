@@ -215,6 +215,79 @@ def ticker_price_range(conn: sqlite3.Connection, ticker: str) -> dict | None:
     return dict(row) if row and row["rows"] else None
 
 
+def load_prices(conn: sqlite3.Connection, ticker: str) -> pd.DataFrame:
+    """One ticker's full history in date order, shaped for `features.py`."""
+    return pd.read_sql_query(
+        "SELECT ticker, date, open, high, low, close, volume "
+        "FROM prices WHERE ticker = ? ORDER BY date",
+        conn, params=(ticker,),
+    )
+
+
+# --------------------------------------------------------------------------
+# Features
+# --------------------------------------------------------------------------
+
+def upsert_features(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
+    """
+    Upsert computed indicators, keyed on (ticker, date) like prices.
+
+    Only the canonical FEATURE_COLS are stored. `compute_features_for_ticker`
+    also emits intermediates (bb_upper, obv, obv_sma_20, vol_sma_20) that the
+    model does not consume; keeping them would mean the table and the model
+    disagreeing about what a feature is.
+    """
+    from train_model import FEATURE_COLS
+
+    if df.empty:
+        return 0
+
+    cols = ["ticker", "date"] + FEATURE_COLS
+    frame = df.copy()
+    frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
+    frame = frame[cols]
+
+    placeholders = ",".join("?" * len(cols))
+    updates = ",".join(f"{c}=excluded.{c}" for c in FEATURE_COLS)
+    sql = (f"INSERT INTO features ({','.join(cols)}) VALUES ({placeholders}) "
+           f"ON CONFLICT(ticker, date) DO UPDATE SET {updates}")
+
+    # NaN is normal here — every rolling indicator is undefined for its warm-up
+    # window — but sqlite3 has no NaN, so it must become NULL explicitly.
+    frame = frame.astype(object).where(pd.notna(frame), None)
+    conn.executemany(sql, list(frame.itertuples(index=False, name=None)))
+    return len(frame)
+
+
+def tickers_needing_features(conn: sqlite3.Connection) -> list[str]:
+    """
+    Tickers whose features are missing or stale.
+
+    Compares the latest feature date against the latest price date per ticker,
+    so this is derived state rather than a progress table that could drift out
+    of sync with reality. Re-running after new prices arrive picks up exactly
+    the tickers that moved.
+    """
+    rows = conn.execute("""
+        SELECT p.ticker
+        FROM (SELECT ticker, MAX(date) AS last_price FROM prices GROUP BY ticker) p
+        LEFT JOIN (SELECT ticker, MAX(date) AS last_feature FROM features GROUP BY ticker) f
+          ON p.ticker = f.ticker
+        WHERE f.last_feature IS NULL OR f.last_feature < p.last_price
+        ORDER BY p.ticker
+    """).fetchall()
+    return [r["ticker"] for r in rows]
+
+
+def feature_stats(conn: sqlite3.Connection) -> dict:
+    row = conn.execute("""
+        SELECT COUNT(*) AS rows, COUNT(DISTINCT ticker) AS tickers,
+               MIN(date) AS first_date, MAX(date) AS last_date
+        FROM features
+    """).fetchone()
+    return dict(row)
+
+
 # --------------------------------------------------------------------------
 # Symbol registry
 # --------------------------------------------------------------------------
