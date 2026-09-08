@@ -4,6 +4,21 @@ Ordered roughly by what unblocks the most value next — not a strict
 commitment, just a working priority list.
 
 ## Near-term
+- [ ] **Move the entry threshold into `config.yaml`** — the `70` cutoff currently
+  lives in the Claude-side workflow and as a `--threshold` CLI arg on
+  `backtest.py`. Nothing else in the system hardcodes a tunable, and the Strategy
+  Lab treats `entry_threshold` as a gene, so it needs a config home first.
+- [ ] **Take-profit is dead code.** `stop_loss.check_take_profit_triggered()` is
+  implemented and `config.yaml` exposes `risk.take_profit_pct`, but
+  `check_exits.py` only ever calls `check_stop_triggered()`. Either wire it in or
+  drop it — right now setting the config key silently does nothing.
+- [ ] **Gap risk on stops is unmitigated.** Stops are checked once daily against a
+  quote, and dollar-amount orders can't rest at the broker. A stock that gaps
+  through its stop overnight exits at whatever the next approved market order
+  fills at. Worth at least measuring in the backtest before it matters live.
+- [ ] **Reconcile the indicator count.** Code has 20 (`FEATURE_COLS`); `README.md`
+  and `docs/STRATEGY_LAB.md` say ~25 in places. The genome's `indicator_weights`
+  space must be built against the real number.
 - [ ] **Telegram bot** — daily push notification with:
   - The day's scorecard (top N candidates + scores + reasons from `scoresheet.json`)
   - Currently open positions and their unrealized P&L
