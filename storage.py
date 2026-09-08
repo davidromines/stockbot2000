@@ -133,19 +133,51 @@ _UPSERT_PRICES = """
 """
 
 
+def is_valid_ohlcv(frame: pd.DataFrame) -> pd.Series:
+    """
+    Boolean mask of rows that are physically possible prices.
+
+    yfinance's `auto_adjust=True` back-adjusts historical prices for splits and
+    dividends. Where the cumulative adjustment exceeds the original price the
+    result goes *negative*, and negating the values also inverts high/low
+    ordering. Observed on 3 of 6,169 tickers (VATE, CBIO, DEC) — rare, but a
+    negative price silently poisons every indicator computed from it, and the
+    Strategy Lab searches hard enough to find and exploit exactly this kind of
+    artifact. Rejected at write time rather than filtered downstream, so the
+    database never holds an impossible bar.
+    """
+    return (
+        frame["close"].notna()
+        & (frame["close"] > 0)
+        & (frame["open"] > 0)
+        & (frame["high"] > 0)
+        & (frame["low"] > 0)
+        & (frame["high"] >= frame["low"])
+    )
+
+
 def upsert_prices(conn: sqlite3.Connection, df: pd.DataFrame, source: str = "yfinance") -> int:
     """
     Upsert a long-format OHLCV frame (one row per ticker/date).
 
     Returns rows written. Re-running with the same data updates in place and
     leaves the row count unchanged — the idempotency the project requires of
-    every pipeline stage.
+    every pipeline stage. Rows failing `is_valid_ohlcv` are rejected and logged.
     """
     if df.empty:
         return 0
 
     frame = df.copy()
     frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
+
+    valid = is_valid_ohlcv(frame)
+    if not valid.all():
+        rejected = frame.loc[~valid]
+        for ticker, n in rejected["ticker"].value_counts().items():
+            log.warning(f"{ticker}: rejected {n} rows with impossible prices (negative or high<low)")
+        frame = frame.loc[valid]
+        if frame.empty:
+            return 0
 
     rows = []
     for r in frame.itertuples(index=False):
