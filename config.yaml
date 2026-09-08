@@ -35,7 +35,8 @@ risk:
   take_profit_pct: null        # null = no fixed take-profit; exits on stop or score decay
 
 database:
-  path: "data/positions.db"
+  path: "data/positions.db"                 # trade ledger — position_tracking.py
+  market_data_path: "data/market_data.db"   # OHLCV history + features — storage.py
 
 llm:
   provider: "ollama"                     # ollama | openai_compatible
