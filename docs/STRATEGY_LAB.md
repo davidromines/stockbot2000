@@ -147,24 +147,52 @@ and any strategy can be re-run from it.
 
 ## Compute plan
 
-Sized for 4 vCPU / 12 GB on Arena, overnight while the other VM is quiet.
+Sized against the **measured** Arena VM, not the planned one: 4 vCPU, **10.9 GB
+total RAM with ~9.2 GB actually available**, overnight while the other VM is quiet.
+The original plan assumed 12 GB.
 
-The search must not touch the full 40M-row database on every evaluation. The
-simulator preloads a compact `float32` matrix covering the liquid tradeable subset
-(~1,500 tickers after liquidity filters) into **shared memory**, so all four workers
-read one copy rather than each holding their own. Winners are re-validated against
-the full universe before promotion.
+The search must not touch the full prices table on every evaluation — it is
+**35,425,982 rows**. The simulator preloads a compact `float32` matrix covering the
+liquid tradeable subset into **shared memory**, so all four workers read one copy
+rather than each holding their own. Winners are re-validated against the full
+universe before promotion.
+
+Matrix cost is now computed rather than estimated, at 25 columns per ticker-day
+(OHLCV + 20 indicators) over the **3,523 trading days in the 2006-2019 search
+window**:
+
+| Liquid tickers | Search window (2006-2019) | Full history (16,278 days) |
+|---|---|---|
+| 1,000 | 0.35 GB | 1.63 GB |
+| **1,500** | **0.53 GB** | 2.44 GB |
+| 2,000 | 0.70 GB | 3.26 GB |
+| 3,000 | 1.06 GB | 4.88 GB |
+
+At the planned 1,500 tickers the matrix is **0.53 GB, not the ~900 MB originally
+estimated** — the earlier figure implicitly priced a much wider window. Note the
+right-hand column: loading full history instead of the search window costs 4-5x,
+which is the whole reason the search window is bounded.
 
 | Metric | Value |
 |---|---|
-| Shared search matrix in RAM | ~900 MB |
+| Shared search matrix in RAM | ~0.53 GB (1,500 tickers, search window) |
 | Parallel evaluation workers | 4 |
 | Strategies evaluated per 8h night | ~200k |
 | Ledger growth | ~5 GB/year |
 
-Scheduling constraints: the search and the Ollama LLM report must not run
-simultaneously (together they exceed 12 GB). Since 4 vCPUs fully commits the host
-alongside the other VM, pick the overnight window against that VM's actual quiet hours.
+**The matrix was never the binding constraint.** With ~9.2 GB available it fits
+many times over. The real ceiling is concurrency: Ollama running `llama3.1:8b`
+holds roughly 5-6 GB resident, and the search costs the shared matrix plus
+per-worker interpreter and intermediate arrays — call it 3-5 GB across four
+workers. Together that is 8-11 GB against 9.2 GB available, so **the search and the
+LLM report still must not run simultaneously.** Losing a gigabyte against the plan
+did not change that conclusion; it removed the margin that made it comfortable.
+
+Two further notes on the real box. The 8.5 GB database benefits substantially from
+the OS page cache, and a memory-hungry search will evict it — expect the first
+queries after a search to be slower. And since 4 vCPUs fully commits the host
+alongside the other VM, the overnight window must still be picked against that VM's
+actual quiet hours, which remains an open item.
 
 ---
 
