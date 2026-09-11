@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 data/*.parquet
 data/*.json
+data/*.html
 data/*.db
 data/raw/
 data/symbol_snapshots/

@@ -144,7 +144,7 @@ bad objective just finds bad answers faster.
 tried recorded with parentage and results. ~200k evaluations per overnight run,
 full re-search weekly.
 
-### 10 · Promotion pipeline & lab dashboard 🟡 50%
+### 10 · Promotion pipeline & lab dashboard ✅ 100%
 `promote.py` built 2026-09-11. Six stages from search to funded, with the sealed
 holdout enforced in code: a second attempt on the same strategy is refused and the
 refusal recorded, because discipline is not a reliable defence against re-testing
@@ -157,7 +157,11 @@ strict — tracked in `BACKLOG.md`. Stage 04 is directional, not calibrated.
 First run through the ladder: 49 shortlisted from 120 scored, 45 surviving
 validation. That survival rate is too high and is also in the backlog.
 
-**Remaining:** `lab_dashboard.py`.
+✅ `lab_dashboard.py` built 2026-09-11 — a self-contained HTML page, no server
+and no dependencies. Net P&L leads every table; fitness and Sharpe are shown as
+diagnostics of *why*, never as the verdict. Renders the family tree of the best
+strategy, because a winner reached through a visible line of improving ancestors
+is a different proposition from one that appeared fully formed from a random draw.
 `promote.py`, `lab_dashboard.py`. The gauntlet from random guess to funded, plus
 leaderboards and strategy family trees.
 
