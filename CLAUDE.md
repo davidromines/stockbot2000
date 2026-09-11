@@ -14,6 +14,21 @@ betting), which is a different system entirely.
 
 ## Current state — READ THIS FIRST
 
+**The market database is built and complete** (2026-09-08): 35.4M price bars across
+13,121 instruments back to 1962, plus 33.8M feature rows. Details under Storage
+model. Phases 01-05 are done; phase 06 is at 90%.
+
+**The single most important gap:** the daily pipeline still reads Parquet — 18
+tickers, 730 days. Nothing consumes the database yet. Repointing `data_pull.py` /
+`features.py` / `train_model.py` / `score.py` at SQLite is the next piece of work.
+
+**Data freshness:** the last bar is 2026-09-04. `backfill.py` is incremental, so a
+re-run tops it up rather than refetching. Check before trusting any score.
+
+---
+
+### Smoke test — passed 2026-09-08
+
 **The smoke test passed on 2026-09-08.** Every stage ran end to end on the
 18-ticker fallback universe, on Python 3.12 with no code changes required.
 
@@ -47,15 +62,16 @@ quote this number, tune against it, or treat it as even an optimistic upper boun
 - **No exit path.** The ledger is empty, so `check_exits.py` short-circuited.
 - **No real LLM report.** Ollama is absent; reasons are generic placeholder text.
 
-Immediate next steps:
-1. ~~Confirm the rewritten `features.py` is deployed.~~ **Done 2026-09-08.**
-2. ~~`mkdir -p data/raw models`.~~ **Done.**
-3. ~~Build the venv on Python 3.12, install `requirements.txt`.~~ **Done** —
-   `./venv/bin/python`, clean install, no `numba`.
-4. ~~Run each stage in order.~~ **Done — all stages pass.**
-5. Fix the train/test split so `backtest.py` produces a real number. This is now
-   the highest-value work; everything downstream depends on trusting the simulator.
-6. Install Ollama, or decide the LLM report stays optional.
+Immediate next steps (as of 2026-09-11):
+1. Repoint the daily pipeline off Parquet onto `market_data.db`. The data exists
+   and is unused; this is what connects them.
+2. Fix the train/test split in `train_model.py` so `backtest.py` produces a real
+   number. Arguably ahead of (1) in value — everything downstream depends on
+   trusting the simulator, and more data cannot fix a leaking split.
+3. Top up prices — the last bar is 2026-09-04.
+4. Survivorship-bias research, starting with the free Internet Archive
+   reconstruction. See `BACKLOG.md`.
+5. Install Ollama, or decide the LLM report stays optional.
 
 ---
 
@@ -69,19 +85,22 @@ Immediate next steps:
   deadsnakes PPA. Always build the venv with `python3.12`, never bare `python3`.
 - **`requirements.txt` had `pandas-ta` still pinned** long after the code stopped
   importing it. Removed 2026-09-08. `pyyaml`, `yfinance` and `pyarrow` — previously
-  flagged as missing — are all present and pinned. Requirements are now believed
-  correct but have not yet been installed cleanly end to end.
+  flagged as missing — are all present and pinned. Requirements installed
+  cleanly end to end on Python 3.12 on 2026-09-08. Versions are floors only
+  (`>=`), so the working set — pandas 3.0.5, numpy 2.5.3, xgboost 3.4.1 — is not
+  recorded anywhere; see `BACKLOG.md`.
 - **Indicator count is 20, not 25.** `FEATURE_COLS` in `train_model.py` lists 20,
   and all 20 are verified present in `features.py` output. `README.md` and
   `docs/STRATEGY_LAB.md` both say "~25" in places — the genome's `indicator_weights`
   space is sized off that wrong number and should be built against 20.
-- **Wikipedia S&P 500 scrape returns HTTP 403.** `universe.py` silently falls back
-  to 18 hardcoded tickers. Planned replacement: the NASDAQ Trader symbol directory
-  (`nasdaqlisted.txt` / `otherlisted.txt`), which is free and does not require scraping.
+- **Wikipedia S&P 500 scrape returns HTTP 403.** Still true, and `universe.source:
+  sp500` still falls back to 18 hardcoded tickers — that is the smoke-test path and
+  is left alone deliberately. Production uses `universe.source: all_us`, built from
+  the NASDAQ Trader symbol directory, which does not scrape and does not 403.
 - **yfinance returns negative prices for some tickers.** `auto_adjust=True`
   back-adjusts for splits and dividends; where the cumulative adjustment exceeds
   the original price the result goes negative, which also inverts high/low.
-  Found on 8 of 6,169 tickers. `storage.is_valid_ohlcv()` now rejects these at
+  Found on 8 tickers during the 20-year pull, and the guard has run over the full 13,121-instrument load since. `storage.is_valid_ohlcv()` now rejects these at
   write time — do not remove that guard, and do not "fix" impossible bars by
   taking absolute values. The adjusted series for those tickers is simply wrong.
 - **yfinance does not serve delisted tickers.** This is a real correctness problem
@@ -274,11 +293,15 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
 
 ## Open decisions — do not assume answers
 
-1. **Survivorship-bias data source (BLOCKING).** yfinance omits delisted
-   companies, so any universe built from it excludes every bankruptcy and
-   acquisition — which inflates every backtest. Either budget for point-in-time
-   data with dead tickers (~$50-100/mo, e.g. Sharadar via Nasdaq Data Link) or
-   explicitly accept a known, unmeasured upward bias. Unresolved.
+1. **Survivorship-bias data source — interim decision made, still needs work.**
+   yfinance omits delisted companies, so the universe excludes every bankruptcy and
+   acquisition since 1962. Decided 2026-09-08: collect now and accept the bias, with
+   `source` recorded per row and the symbol directory snapshotted daily so the gap
+   stops widening. **That is an interim position, not a fix.** A flat haircut cannot
+   correct it either, because the bias is not uniform across strategies and the Lab
+   preferentially discovers the ones that exploit it. Full reasoning and a costed
+   research path — free Internet Archive reconstruction first, paid point-in-time
+   data second — are the first section of `BACKLOG.md`.
 2. **Arena provisioning** — confirm 100 GB datastore availability and identify
    the other VM's quiet hours for the overnight search window.
 3. **Paper-trading duration and funding stake** — no concrete rule agreed yet.
