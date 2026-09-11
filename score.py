@@ -13,6 +13,8 @@ import logging
 import pandas as pd
 import xgboost as xgb
 
+import storage
+
 from train_model import FEATURE_COLS
 from universe import load_config
 
@@ -22,10 +24,19 @@ log = logging.getLogger("score")
 
 def main():
     cfg = load_config()
-    features = pd.read_parquet(cfg["data"]["features_file"])
+    conn = storage.connect(cfg["database"]["market_data_path"])
+    latest = storage.load_latest_features(
+        conn, FEATURE_COLS,
+        types=cfg["universe"]["tradeable_types"],
+        max_staleness_days=cfg["scoresheet"].get("max_staleness_days", 5),
+    )
+    conn.close()
 
-    latest = features.sort_values("date").groupby("ticker").tail(1).copy()
-    latest = latest.dropna(subset=FEATURE_COLS)
+    if latest.empty:
+        log.error("No scoreable tickers — is the database stale? Run backfill.py "
+                  "then build_features.py.")
+        return
+    log.info(f"Scoring {len(latest):,} tickers as of {latest['date'].max()}")
 
     model = xgb.XGBClassifier()
     model.load_model(cfg["model"]["path"])

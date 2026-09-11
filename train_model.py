@@ -11,6 +11,8 @@ import logging
 
 import pandas as pd
 import xgboost as xgb
+
+import storage
 from sklearn.metrics import classification_report, roc_auc_score
 
 from universe import load_config
@@ -29,7 +31,7 @@ FEATURE_COLS = [
 
 def build_labels(history: pd.DataFrame, horizon_days: int, up_threshold_pct: float) -> pd.DataFrame:
     history = history.sort_values(["ticker", "date"]).reset_index(drop=True)
-    history["future_close"] = history.groupby("ticker")["close"].shift(-horizon_days)
+    history["future_close"] = history.groupby("ticker", observed=True)["close"].shift(-horizon_days)
     history["forward_return_pct"] = (history["future_close"] / history["close"] - 1) * 100
     history["label"] = (history["forward_return_pct"] >= up_threshold_pct).astype(int)
     return history.dropna(subset=["label"])
@@ -79,15 +81,22 @@ def chronological_split(df: pd.DataFrame, test_fraction: float, horizon_days: in
 def main():
     runtime.be_nice()
     cfg = load_config()
-    features = pd.read_parquet(cfg["data"]["features_file"])
-    history = pd.read_parquet(cfg["data"]["history_file"])[["ticker", "date", "close"]]
+    conn = storage.connect(cfg["database"]["market_data_path"])
 
-    labeled = build_labels(history, cfg["labeling"]["horizon_days"], cfg["labeling"]["up_threshold_pct"])
-    merged = features.merge(labeled[["ticker", "date", "label"]], on=["ticker", "date"], how="inner")
-    merged = merged.dropna(subset=FEATURE_COLS + ["label"])
+    merged = storage.load_training_frame(
+        conn, FEATURE_COLS,
+        types=cfg["universe"]["tradeable_types"],
+        start_date=cfg["data"].get("train_start"),
+    )
+    conn.close()
+    log.info(f"Loaded {len(merged):,} rows from market_data.db "
+             f"({merged['ticker'].nunique():,} tickers, "
+             f"{merged.memory_usage(deep=True).sum()/1e9:.2f} GB)")
 
+    merged = build_labels(merged, cfg["labeling"]["horizon_days"],
+                          cfg["labeling"]["up_threshold_pct"])
     if merged.empty:
-        log.error("No labeled rows after merge — need more history before training.")
+        log.error("No labeled rows — check the database has prices and features.")
         return
 
     train, test, split = chronological_split(

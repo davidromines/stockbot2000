@@ -26,6 +26,8 @@ import os
 import pandas as pd
 import xgboost as xgb
 
+import storage
+
 from train_model import FEATURE_COLS
 from stop_loss import calculate_stop_loss
 from universe import load_config
@@ -53,21 +55,26 @@ def load_split(cfg: dict) -> dict:
 
 
 def run_backtest(threshold: float, cfg: dict) -> dict:
-    features = pd.read_parquet(cfg["data"]["features_file"]).sort_values(["ticker", "date"])
-    history = pd.read_parquet(cfg["data"]["history_file"])[["ticker", "date", "close"]]
+    split = load_split(cfg)
+
+    conn = storage.connect(cfg["database"]["market_data_path"])
+    features = storage.load_training_frame(
+        conn, FEATURE_COLS,
+        types=cfg["universe"]["tradeable_types"],
+        start_date=split["test_start"], end_date=split["test_end"],
+    )
+    conn.close()
+
+    log.info(f"Out-of-sample only: {split['test_start']} -> {split['test_end']} "
+             f"({len(features):,} rows, {features['ticker'].nunique():,} tickers)")
+    if features.empty:
+        raise SystemExit("No feature rows in the held-out period — retrain first.")
+
+    features = features.sort_values(["ticker", "date"]).reset_index(drop=True)
+    history = features[["ticker", "date", "close"]]
 
     model = xgb.XGBClassifier()
     model.load_model(cfg["model"]["path"])
-
-    features = features.dropna(subset=FEATURE_COLS).reset_index(drop=True)
-
-    split = load_split(cfg)
-    before = len(features)
-    features = features[features["date"].astype(str) >= split["test_start"]].reset_index(drop=True)
-    log.info(f"Out-of-sample only: {split['test_start']} -> {split['test_end']} "
-             f"({len(features):,} of {before:,} feature rows)")
-    if features.empty:
-        raise SystemExit("No feature rows in the held-out period — retrain first.")
 
     features["score"] = model.predict_proba(features[FEATURE_COLS])[:, 1] * 100
 
