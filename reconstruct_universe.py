@@ -53,6 +53,10 @@ def snapshot_list(file: str, timeout: int = 60) -> list[str]:
     return [r[0] for r in rows[1:]] if len(rows) > 1 else []
 
 
+class ArchiveBlocked(Exception):
+    """The Wayback Machine has stopped answering — back off and resume later."""
+
+
 def fetch_snapshot(file: str, ts: str, cache_dir: Path, timeout: int = 60) -> str | None:
     """
     Fetch one archived capture, caching it on disk.
@@ -72,6 +76,13 @@ def fetch_snapshot(file: str, ts: str, cache_dir: Path, timeout: int = 60) -> st
             return None
         path.write_text(resp.text, encoding="utf-8")
         return resp.text
+    except requests.exceptions.ConnectionError:
+        # Distinguished from a bad capture on purpose. archive.org refuses
+        # connections outright once it decides you have asked too often, and
+        # every subsequent request fails the same way. Treating that as "this
+        # snapshot is unusable" would march through the whole list marking
+        # nothing and leave no sign of why.
+        raise ArchiveBlocked(f"{file} {ts}")
     except Exception as e:
         log.warning(f"{file} {ts}: {e}")
         return None
@@ -115,19 +126,23 @@ def parse_snapshot(text: str, file: str) -> list[dict]:
     return out
 
 
-def fetch_all(config: dict, pause: float = 1.5) -> None:
+def fetch_all(config: dict, pause: float = 3.0) -> None:
     conn = storage.connect(config["database"]["market_data_path"])
     storage.init_db(conn)
     cache = Path(config["universe"].get("archive_cache_dir", "data/archive_snapshots"))
 
     done = storage.archived_snapshots(conn)
     log.info(f"{len(done)} snapshots already stored")
+    blocked = stored = 0
+    max_blocked = 4
 
     for file in FILES:
         try:
             stamps = snapshot_list(file)
         except Exception as e:
             log.error(f"Could not list snapshots for {file}: {e}")
+            log.error("If this is a connection refusal, archive.org is rate limiting; "
+                      "progress is saved and a later re-run will continue.")
             continue
         log.info(f"{file}: {len(stamps)} archived captures")
 
@@ -135,15 +150,30 @@ def fetch_all(config: dict, pause: float = 1.5) -> None:
             key = f"{file}:{ts}"
             if key in done:
                 continue
-            text = fetch_snapshot(file, ts, cache)
+            try:
+                text = fetch_snapshot(file, ts, cache)
+            except ArchiveBlocked:
+                blocked += 1
+                if blocked >= max_blocked:
+                    log.error(
+                        f"archive.org is refusing connections after {stored} new snapshots. "
+                        f"Rate limited — progress is saved, re-run later to continue.")
+                    conn.close()
+                    return
+                wait = min(60 * (2 ** (blocked - 1)), 900)
+                log.warning(f"Connection refused ({blocked}/{max_blocked}); waiting {wait}s")
+                time.sleep(wait)
+                continue
             if text is None:
                 continue
+            blocked = 0
             rows = parse_snapshot(text, file)
             if not rows:
                 log.warning(f"{file} {ts}: parsed zero listings")
                 continue
             day = f"{ts[0:4]}-{ts[4:6]}-{ts[6:8]}"
             n = storage.record_historical_listings(conn, day, key, rows)
+            stored += 1
             log.info(f"{file} {ts[:8]}: {n:,} listings ({i}/{len(stamps)})")
             time.sleep(pause * random.uniform(0.7, 1.4))
 
