@@ -37,6 +37,7 @@ import math
 
 import numpy as np
 
+import benchmark as bench
 import costs as costs_mod
 import genome as gn
 import ledger
@@ -138,9 +139,11 @@ def _evaluate_window(conn, cfg, genome_dict, window):
     cm = costs_mod.CostModel(cfg)
     size = cfg["risk"]["position_size_usd"]
     capital = size * cfg["risk"]["max_open_positions"]
+    null = bench.compute(conn, cfg, window)
     res = simulator.simulate(genome_dict, panel, cm, size,
                              max_entries=cfg["lab"].get("max_entries_per_eval", 20000))
-    scored = reward.fitness(res, gn.complexity(genome_dict), capital_usd=capital)
+    scored = reward.fitness(res, gn.complexity(genome_dict), capital_usd=capital,
+                            benchmark_net_pct=null["net_pct"], position_size_usd=size)
     scored["pnl_series"] = res.get("pnl_series")
     return scored
 
@@ -191,7 +194,9 @@ def validate(conn, cfg, run_id: str) -> list[str]:
         scored = _evaluate_window(conn, cfg, json.loads(row["genome"]), window)
         if scored is None:
             continue
-        passed = scored["net_pnl_usd"] > 0 and scored["n_trades"] >= 20
+        # Must beat the null, not merely zero. Under the old rule 52% of random
+        # strategies passed this gate.
+        passed = scored.get("excess_pnl_usd", 0) > 0 and scored["n_trades"] >= 20
         _decide(conn, sid, "validation", passed,
                 {"net_pnl_usd": scored["net_pnl_usd"], "sharpe": scored["sharpe"],
                  "n_trades": scored["n_trades"], "window": window})
@@ -242,7 +247,7 @@ def seal(conn, cfg, sid: str) -> None:
 
     trials = int(row["trial_index"] or 1)
     dsr = deflated_sharpe(scored["sharpe"], trials, max(scored["n_trades"], 2))
-    passed = scored["net_pnl_usd"] > 0 and dsr > 0.95
+    passed = scored.get("excess_pnl_usd", 0) > 0 and dsr > 0.95
 
     _decide(conn, sid, "sealed", passed, {
         "net_pnl_usd": scored["net_pnl_usd"], "sharpe": scored["sharpe"],

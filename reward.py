@@ -26,6 +26,14 @@ Five terms, each closing a specific hole:
 - **Losing strategies score zero.** Not a negative number: zero. A strategy that
   loses money should not be ranked above another that loses more, because
   "less bad" is not a gradient worth climbing when the goal is making money.
+
+**Scored against the null, not against zero.** This is the correction that matters
+most. Buying at random and holding five days was profitable in every window this
+project tests on, because the market rose — so scoring against zero rewarded being
+long in a bull market rather than picking well, and 52% of random strategies
+passed the validation gate as a result. Fitness now measures **excess return over
+what a random entry earns in the same window**, net of costs. A strategy that beats
+zero has demonstrated nothing; one that beats the null has demonstrated selection.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 
@@ -76,6 +84,7 @@ def max_drawdown(pnl: np.ndarray, capital_usd: float) -> float:
 
 
 def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
+            benchmark_net_pct: float = 0.0, position_size_usd: float = 10.0,
             cfg: dict | None = None) -> dict:
     """
     Score one simulated strategy. Returns the fitness and every component.
@@ -91,13 +100,25 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
 
     if n < p["min_trades"]:
         return _zero(net, n, "too few trades")
+
+    # Excess over the null. `benchmark_net_pct` is what a random entry earned per
+    # trade in this window, net of costs; charging it per trade converts a raw
+    # P&L into "did this select better than chance".
+    benchmark_usd = position_size_usd * (benchmark_net_pct / 100.0) * n
+    excess = net - benchmark_usd
+    excess_pnl = pnl - position_size_usd * (benchmark_net_pct / 100.0)
+
     if net <= 0:
         # Deliberately flat rather than negative: "loses less" is not a gradient
         # worth climbing when the objective is making money.
-        return _zero(net, n, "unprofitable")
+        return _zero(net, n, "unprofitable", excess)
+    if excess <= 0:
+        # Profitable but no better than buying at random. This is the case that
+        # used to score well and should not.
+        return _zero(net, n, "no better than the null", excess)
 
-    sr = sharpe(pnl, avg_hold_days=result.get("avg_hold_days", 5.0))
-    dd = max_drawdown(pnl, capital_usd)
+    sr = sharpe(excess_pnl, avg_hold_days=result.get("avg_hold_days", 5.0))
+    dd = max_drawdown(excess_pnl, capital_usd)
     shrink = np.sqrt(n / (n + p["shrinkage_trades"]))
 
     # Multiplicative, not subtractive. A fixed subtraction has to be calibrated
@@ -111,17 +132,20 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     return {
         "fitness": float(score),
         "net_pnl_usd": net,
+        "excess_pnl_usd": float(excess),
+        "benchmark_pnl_usd": float(benchmark_usd),
         "n_trades": n,
         "sharpe": float(sr),
         "max_drawdown": float(dd),
         "shrinkage": float(shrink),
         "complexity_multiplier": float(penalty),
         "avg_net_return_per_trade": float(pnl.mean() / capital_usd * n) if n else 0.0,
-        "verdict": "profitable",
+        "verdict": "beats the null",
     }
 
 
-def _zero(net: float, n: int, why: str) -> dict:
-    return {"fitness": 0.0, "net_pnl_usd": net, "n_trades": n, "sharpe": 0.0,
+def _zero(net: float, n: int, why: str, excess: float = 0.0) -> dict:
+    return {"fitness": 0.0, "net_pnl_usd": net, "excess_pnl_usd": float(excess),
+            "benchmark_pnl_usd": 0.0, "n_trades": n, "sharpe": 0.0,
             "max_drawdown": 0.0, "shrinkage": 0.0, "complexity_multiplier": 0.0,
             "avg_net_return_per_trade": 0.0, "verdict": why}

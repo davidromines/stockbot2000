@@ -31,6 +31,7 @@ import signal
 import sys
 import time
 
+import benchmark as bench
 import costs as costs_mod
 import genome as gn
 import ledger
@@ -54,11 +55,14 @@ def _handle_interrupt(signum, frame):
     log.warning("Interrupt received. Finishing this generation, then stopping.")
 
 
-def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_entries):
+def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_entries,
+                 benchmark_net_pct=0.0):
     """Simulate and score one candidate. Kept separate so it can be parallelised."""
     result = simulator.simulate(genome_dict, panel, cost_model, position_size,
                                 max_entries=max_entries)
-    scored = reward.fitness(result, gn.complexity(genome_dict), capital_usd=capital)
+    scored = reward.fitness(result, gn.complexity(genome_dict), capital_usd=capital,
+                            benchmark_net_pct=benchmark_net_pct,
+                            position_size_usd=position_size)
     scored["gross_pnl_usd"] = result.get("gross_pnl_usd")
     scored["costs_usd"] = result.get("costs_usd")
     scored["win_rate"] = result.get("win_rate")
@@ -98,6 +102,10 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
     position_size = config["risk"]["position_size_usd"]
     capital = position_size * config["risk"]["max_open_positions"]
 
+    null = bench.compute(conn, config, window)
+    log.info(f"Null for this window: {null['net_pct']:+.3f}% net per trade — "
+             f"strategies are scored on excess over it, not on raw P&L")
+
     run_id = ledger.new_run(conn, window, generations, population,
                             {"lab": lab, "risk": config["risk"], "costs": config["costs"]})
     log.info(f"Run {run_id}: {generations} generations x {population} candidates")
@@ -133,7 +141,8 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
             if _stop:
                 break
             trial += 1
-            scored = evaluate_one(g, panel, cost_model, position_size, capital, max_entries)
+            scored = evaluate_one(g, panel, cost_model, position_size, capital,
+                                  max_entries, null["net_pct"])
             sid = ledger.record(conn, run_id, gen, origin, g, gn.describe,
                                 gn.complexity(g), parent_id, scored, window, trial)
             scored_pop.append((scored, g, sid))
@@ -143,12 +152,12 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
             break
         pop = scored_pop
         best = max(pop, key=lambda x: x[0]["fitness"])[0]
-        money = max(pop, key=lambda x: x[0]["net_pnl_usd"])[0]
-        profitable = sum(1 for s, _, _ in pop if s["net_pnl_usd"] > 0)
+        money = max(pop, key=lambda x: x[0].get("excess_pnl_usd", 0))[0]
+        profitable = sum(1 for s, _, _ in pop if s.get("excess_pnl_usd", 0) > 0)
         rate = trial / (time.time() - started)
         log.info(f"gen {gen + 1}/{generations}  best fitness {best['fitness']:.3f}  "
-                 f"best P&L ${money['net_pnl_usd']:+,.0f}  "
-                 f"profitable {profitable}/{len(pop)}  {rate:.1f} evals/s")
+                 f"best excess ${money.get('excess_pnl_usd', 0):+,.0f}  "
+                 f"beating the null {profitable}/{len(pop)}  {rate:.1f} evals/s")
 
     ledger.finish_run(conn, run_id, trial)
     s = ledger.run_stats(conn, run_id)
