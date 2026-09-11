@@ -6,6 +6,7 @@ No third-party TA library required (pandas_ta was dropped — its `numba` pin
 doesn't support newer Python versions and the project shouldn't be blocked
 on that upstream lag). All indicators below are plain pandas/numpy.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import logging
 import numpy as np
 import pandas as pd

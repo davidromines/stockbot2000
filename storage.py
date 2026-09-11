@@ -365,6 +365,65 @@ def feature_stats(conn: sqlite3.Connection) -> dict:
     return dict(row)
 
 
+def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
+                       types: list[str] | None = None,
+                       start_date: str | None = None,
+                       end_date: str | None = None) -> pd.DataFrame:
+    """
+    Features joined to close price, for model training and backtesting.
+
+    Two memory choices matter at this scale. Indicators come back as `float32`,
+    which halves ~15M rows from 2.5 GB to 1.25 GB at no cost to a model that
+    trains in single precision anyway. And `ticker` becomes a pandas categorical
+    — as plain strings, 15M Python objects would dwarf the numeric data they
+    label.
+
+    Rows with any null indicator are excluded here rather than downstream, so the
+    caller receives only usable rows.
+    """
+    cols = ", ".join(f"f.{c}" for c in feature_cols)
+    where = [f"f.{c} IS NOT NULL" for c in feature_cols]
+    params: list = []
+
+    if types:
+        where.append(f"f.ticker IN (SELECT ticker FROM symbols "
+                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
+        params += list(types)
+    if start_date:
+        where.append("f.date >= ?"); params.append(start_date)
+    if end_date:
+        where.append("f.date <= ?"); params.append(end_date)
+
+    sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
+           f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
+           f"WHERE {' AND '.join(where)}")
+
+    df = pd.read_sql_query(sql, conn, params=params)
+    df["ticker"] = df["ticker"].astype("category")
+    for c in feature_cols + ["close"]:
+        df[c] = df[c].astype("float32")
+    return df
+
+
+def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
+                         types: list[str] | None = None) -> pd.DataFrame:
+    """Most recent feature row per ticker — what the daily scorer ranks."""
+    cols = ", ".join(f"f.{c}" for c in feature_cols)
+    where = [f"f.{c} IS NOT NULL" for c in feature_cols]
+    params: list = []
+    if types:
+        where.append(f"f.ticker IN (SELECT ticker FROM symbols "
+                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
+        params += list(types)
+
+    sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
+           f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
+           f"JOIN (SELECT ticker, MAX(date) AS d FROM features GROUP BY ticker) m "
+           f"  ON f.ticker = m.ticker AND f.date = m.d "
+           f"WHERE {' AND '.join(where)}")
+    return pd.read_sql_query(sql, conn, params=params)
+
+
 # --------------------------------------------------------------------------
 # Symbol registry
 # --------------------------------------------------------------------------

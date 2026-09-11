@@ -1,5 +1,11 @@
 # === Trading System Config ===
 
+compute:
+  # This VM has 4 vCPUs and shares a fully committed host with another VM.
+  # OpenBLAS, OpenMP and XGBoost each take every core unless told otherwise.
+  max_threads: 3     # leave one core for the desktop, SSH and interactive work
+  nice_level: 10     # batch jobs yield to anything interactive
+
 universe:
   source: "sp500"          # sp500 | all_us | custom
   custom_tickers_file: "data/custom_universe.txt"  # only used if source: custom
@@ -21,6 +27,8 @@ universe:
   snapshot_dir: "data/symbol_snapshots"   # dated raw copies of each directory fetch
 
 data:
+  source: "sqlite"          # sqlite | parquet — parquet is the legacy 18-ticker smoke-test path
+  train_start: "2006-01-01"  # ignore pre-2006 history for training; see STRATEGY_LAB windows
   lookback_days: 730        # 2 years of daily bars for training/feature history
   interval: "1d"
   raw_dir: "data/raw"

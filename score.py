@@ -6,6 +6,7 @@ snapshot for every ticker in the universe. Outputs raw_scores.json:
 This is the input to llm_report.py, which turns raw scores into the
 plain-language scoresheet that gets handed to Claude.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import json
 import logging
 

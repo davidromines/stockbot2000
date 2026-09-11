@@ -17,6 +17,7 @@ phase 07. Results are an optimistic ceiling even when the dates are honest.
 
 Usage: python backtest.py --threshold 70
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import argparse
 import json
 import logging

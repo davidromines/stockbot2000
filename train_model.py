@@ -5,6 +5,7 @@ predict whether the stock rises >= up_threshold_pct within horizon_days.
 Run this occasionally (weekly/monthly) offline as history accumulates.
 Not part of the daily scoring pipeline.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import json
 import logging
 
@@ -76,6 +77,7 @@ def chronological_split(df: pd.DataFrame, test_fraction: float, horizon_days: in
 
 
 def main():
+    runtime.be_nice()
     cfg = load_config()
     features = pd.read_parquet(cfg["data"]["features_file"])
     history = pd.read_parquet(cfg["data"]["history_file"])[["ticker", "date", "close"]]
@@ -115,6 +117,7 @@ def main():
         colsample_bytree=0.8,
         eval_metric="auc",
         random_state=cfg["model"]["random_state"],
+        n_jobs=runtime.MAX_THREADS,
     )
     model.fit(X_train, y_train)
 

@@ -20,6 +20,7 @@ Usage:
 
 For the full run, use nohup — see README.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import argparse
 import logging
 import random
@@ -332,6 +333,7 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
+    runtime.be_nice()
 
     if args.status:
         show_status(config)

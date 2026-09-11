@@ -21,6 +21,7 @@ Usage:
     python build_features.py --status       # coverage, no computing
     python build_features.py --rebuild      # recompute everything from scratch
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import argparse
 import logging
 import signal
@@ -140,6 +141,7 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
+    runtime.be_nice()
     if args.status:
         show_status(config)
         return

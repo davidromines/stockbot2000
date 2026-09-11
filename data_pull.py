@@ -4,6 +4,7 @@ Saves one long-format parquet file: columns = [date, ticker, open, high, low, cl
 
 Run this daily (pre-market, via cron) to refresh data before scoring.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import logging
 import time
 
