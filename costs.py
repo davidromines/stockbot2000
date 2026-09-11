@@ -31,6 +31,7 @@ depends on costs being small.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 
+import numpy as np
 import pandas as pd
 
 # Spread estimates by average daily dollar volume. Round numbers on purpose:
@@ -45,24 +46,31 @@ SPREAD_TIERS = [
 ]
 
 
-def estimate_spread_pct(dollar_volume) -> "pd.Series | float":
+def estimate_spread_pct(dollar_volume):
     """
     Round-trip spread as a fraction of price, from average daily dollar volume.
 
     Liquidity is the only spread proxy available from daily bars. It is a decent
     one: spread and turnover are strongly related in US equities.
+
+    Accepts a scalar, a Series or an ndarray — the simulator works in numpy for
+    speed while the backtest works in pandas, and both need the same numbers.
     """
+    if np.isscalar(dollar_volume):
+        for floor, spread in SPREAD_TIERS:
+            if dollar_volume >= floor:
+                return spread
+        return SPREAD_TIERS[-1][1]
+
+    dv = np.asarray(dollar_volume, dtype="float64")
+    dv = np.nan_to_num(dv, nan=0.0)
+    # Tiers descend, so the first matching condition is the tightest applicable.
+    conditions = [dv >= floor for floor, _ in SPREAD_TIERS[:-1]]
+    choices = [spread for _, spread in SPREAD_TIERS[:-1]]
+    out = np.select(conditions, choices, default=SPREAD_TIERS[-1][1])
     if isinstance(dollar_volume, pd.Series):
-        out = pd.Series(SPREAD_TIERS[-1][1], index=dollar_volume.index, dtype="float64")
-        for floor, spread in SPREAD_TIERS[:-1]:
-            out = out.mask(dollar_volume >= floor, spread)
-            # mask() applies to rows still above this floor, and tiers descend,
-            # so the tightest matching tier wins.
-        return out
-    for floor, spread in SPREAD_TIERS:
-        if dollar_volume >= floor:
-            return spread
-    return SPREAD_TIERS[-1][1]
+        return pd.Series(out, index=dollar_volume.index)
+    return out
 
 
 class CostModel:
@@ -97,9 +105,10 @@ class CostModel:
         sec_fee = notional_usd * self.sec_fee_rate            # sell side only
         taf = 0.0
         if shares is not None:
-            taf = (shares * self.finra_taf_per_share).clip(upper=self.finra_taf_cap) \
-                if isinstance(shares, pd.Series) else \
-                min(shares * self.finra_taf_per_share, self.finra_taf_cap)
+            taf = np.minimum(np.asarray(shares, dtype="float64") * self.finra_taf_per_share,
+                             self.finra_taf_cap)
+            if np.isscalar(shares):
+                taf = float(taf)
         return spread_cost + slip_cost + commission + sec_fee + taf
 
     def describe(self) -> str:
