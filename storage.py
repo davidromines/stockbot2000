@@ -91,7 +91,11 @@ def init_db(conn: sqlite3.Connection) -> None:
     if "security_type" not in existing:
         conn.execute("ALTER TABLE symbols ADD COLUMN security_type TEXT")
         log.info("Migrated symbols table: added security_type")
+    if "data_quality" not in existing:
+        conn.execute("ALTER TABLE symbols ADD COLUMN data_quality TEXT")
+        log.info("Migrated symbols table: added data_quality")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_symbols_type ON symbols(security_type)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_symbols_quality ON symbols(data_quality)")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS ingest_state (
@@ -455,7 +459,8 @@ def _feature_where(feature_cols, types, start_date, end_date,
         where.append("f.dollar_volume_20 >= ?"); params.append(float(min_dollar_volume))
     if types:
         where.append(f"f.ticker IN (SELECT ticker FROM symbols "
-                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
+                     f"WHERE security_type IN ({','.join('?' * len(types))}) "
+                     f"AND data_quality IS NULL)")
         params += list(types)
     if start_date:
         where.append("f.date >= ?"); params.append(start_date)
@@ -477,7 +482,8 @@ def feature_dates(conn: sqlite3.Connection, types: list[str] | None = None,
     params: list = []
     if types:
         clause.append(f"ticker IN (SELECT ticker FROM symbols "
-                      f"WHERE security_type IN ({','.join('?' * len(types))}))")
+                      f"WHERE security_type IN ({','.join('?' * len(types))}) "
+                      f"AND data_quality IS NULL)")
         params += list(types)
     if start_date:
         clause.append("date >= ?"); params.append(start_date)
@@ -664,7 +670,7 @@ def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
     if types:
         where.append(f"f.ticker IN (SELECT ticker FROM symbols "
                      f"WHERE security_type IN ({','.join('?' * len(types))}) "
-                     f"AND is_active = 1)")
+                     f"AND is_active = 1 AND data_quality IS NULL)")
         params += list(types)
 
     newest = conn.execute("SELECT MAX(date) FROM features").fetchone()[0]
@@ -722,7 +728,8 @@ def record_symbols(conn: sqlite3.Connection, symbols: list[dict], seen_on: str |
 def tickers_by_type(conn: sqlite3.Connection, types: list[str], active_only: bool = True) -> list[str]:
     """Tickers of the given security types, e.g. ['common_stock', 'etf']."""
     placeholders = ",".join("?" * len(types))
-    sql = f"SELECT ticker FROM symbols WHERE security_type IN ({placeholders})"
+    sql = (f"SELECT ticker FROM symbols WHERE security_type IN ({placeholders}) "
+           f"AND data_quality IS NULL")
     if active_only:
         sql += " AND is_active = 1"
     return [r["ticker"] for r in conn.execute(sql + " ORDER BY ticker", types).fetchall()]
@@ -805,6 +812,46 @@ def ingest_summary(conn: sqlite3.Connection) -> dict:
 # --------------------------------------------------------------------------
 # Point-in-time reconstruction (Internet Archive)
 # --------------------------------------------------------------------------
+
+# Highest close ever printed by a US common stock is Berkshire A, near $800k.
+# Anything above $1M is definitively an adjustment artifact, not a price.
+MAX_PLAUSIBLE_CLOSE = 1_000_000.0
+MAX_PLAUSIBLE_RATIO = 1_000_000.0
+
+
+def flag_price_anomalies(conn: sqlite3.Connection) -> int:
+    """
+    Mark tickers whose adjusted history is physically impossible.
+
+    yfinance back-adjusts for splits, and serial reverse-splitters compound: TOPS
+    carries a maximum adjusted close of $549 *trillion* per share. 425,964 rows
+    across 333 tickers sit above $10,000.
+
+    These pass every filter we have. `min_price` is a floor, so an inflated price
+    clears it trivially, and `dollar_volume_20` is close x volume, so the same
+    tickers look maximally liquid — the guards designed to keep us in tradeable
+    names actively prefer them.
+
+    The rule is absolute price plus range, not range alone. Berkshire A really does
+    trade near $800k, and Monster Beverage really is up 15,352x — a range-only
+    rule at 10,000x would discard both. Validated against NVDA, AAPL, AMZN, MSFT,
+    BRK-A/B, TSLA, MNST, GE and F: none are flagged.
+    """
+    n = conn.execute("""
+        UPDATE symbols SET data_quality = 'price_anomaly'
+        WHERE ticker IN (
+            SELECT ticker FROM (
+                SELECT ticker, MAX(close) mx, MIN(close) mn,
+                       MAX(close) / MIN(close) ratio
+                FROM prices GROUP BY ticker HAVING MIN(close) > 0
+            ) WHERE mx > ? OR ratio > ?
+        )
+    """, (MAX_PLAUSIBLE_CLOSE, MAX_PLAUSIBLE_RATIO)).rowcount
+    conn.commit()
+    if n:
+        log.warning(f"Flagged {n} tickers with impossible adjusted prices")
+    return n
+
 
 def archived_snapshots(conn: sqlite3.Connection) -> set:
     """Snapshot keys already stored — makes the fetch resumable across runs."""
