@@ -23,7 +23,19 @@ the ones that went to zero — biasing it sharply upward. The Strategy Lab searc
 the strategies whose apparent edge depends on the missing data.** A flat penalty
 moves the distribution without touching that selection effect.
 
-- [ ] **Research how others solve this.** Before spending money, find out what
+- [x] ~~**Research how others solve this.**~~ Done 2026-09-11. Shumway (1997)
+  on missing delisting returns; corrections of -30% NYSE/AMEX and -55% Nasdaq.
+  Norgate delisted add-on ~$270/yr, Sharadar low hundreds/mo, CRSP institutional.
+  Ken French's library is free, CRSP-based and survivorship-free — used for the
+  benchmark below.
+- [x] ~~**Reconstruct the historical universe from the Internet Archive.**~~
+  Partly done 2026-09-11 — `reconstruct_universe.py`, 55 NASDAQ captures,
+  2008-2020. **Coverage was 29.5% in 2008.** Still to do: the NYSE half and the
+  2020-2026 tail; archive.org rate-limits hard, and the run is resumable.
+- [x] ~~**Quantify the bias.**~~ Done 2026-09-11 — `bias_benchmark.py` measures
+  **10.4 percentage points a year** against CRSP. Apply this as a haircut to any
+  backtest figure until delisted prices exist.
+- [ ] **Old item, kept for reference — research how others solve this.** Before spending money, find out what
   practitioners actually do — quant blogs, r/algotrading, QuantConnect and
   Zipline docs on their delisting handling, academic treatment of delisting
   returns (Shumway 1997 is the standard reference on the missing-return bias).

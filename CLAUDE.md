@@ -103,6 +103,14 @@ Immediate next steps (as of 2026-09-11):
   Found on 8 tickers during the 20-year pull, and the guard has run over the full 13,121-instrument load since. `storage.is_valid_ohlcv()` now rejects these at
   write time — do not remove that guard, and do not "fix" impossible bars by
   taking absolute values. The adjusted series for those tickers is simply wrong.
+- **yfinance produces impossible prices for serial reverse-splitters.** TOPS
+  carries a maximum adjusted close of **$549 trillion per share**; 425,964 rows
+  across 333 tickers sit above $10,000. These passed every filter — `min_price`
+  is a floor, and `dollar_volume_20` is close x volume, so inflated tickers looked
+  maximally *liquid*. `storage.flag_price_anomalies()` marks them via
+  `symbols.data_quality` (120 tickers) and every type-scoped query excludes them.
+  The rule is absolute price **and** range, never range alone: Berkshire A really
+  trades near $800k and Monster Beverage really is up 15,352x.
 - **yfinance does not serve delisted tickers.** This is a real correctness problem
   for backtesting — see the survivorship-bias item under Open Decisions.
 - Long backfills must be run under `nohup`/`tmux`/`screen`. SSH sessions to this
@@ -174,6 +182,8 @@ Pipeline stages, in execution order:
 | `storage.py` | Owns `market_data.db` — schema, upserts, ingest state. Only module writing SQL to it. |
 | `backfill.py` | Resumable 20-year OHLCV loader for the full universe. Adaptive Yahoo rate limiting. |
 | `build_features.py` | Computes the 20 indicators across all history into the `features` table. |
+| `reconstruct_universe.py` | Replays Internet Archive captures of the symbol directory to measure the survivorship gap. |
+| `bias_benchmark.py` | Quantifies that bias in %/year against Ken French's CRSP-based series. |
 | `data_pull.py` | Fetches OHLCV history via yfinance. |
 | `features.py` | Computes **20** technical indicators per (ticker, date). No third-party TA lib. |
 | `train_model.py` | Trains the XGBoost classifier. Owns `FEATURE_COLS`. |
@@ -326,7 +336,33 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
 
 ## Open decisions — do not assume answers
 
-1. **Survivorship-bias data source — interim decision made, still needs work.**
+1. **Survivorship bias — now MEASURED. ~10 percentage points a year.**
+
+   **Every backtest figure this project produces should be read as roughly 10
+   points a year optimistic.** That is not borrowed from a paper; it is measured
+   against our own data.
+
+   - `bias_benchmark.py` compares our equal-weighted market return against the
+     same measure built from Ken French's 48 Industry Portfolios, which are CRSP
+     based and therefore survivorship-free. 2006-2026: **ours 17.8%/yr, CRSP
+     7.4%/yr, gap 10.4 points.** Free data, no account, no purchase.
+   - `reconstruct_universe.py` replays Wayback captures of the NASDAQ symbol
+     directory. Coverage of NASDAQ common stock: **29.5% in 2008**, 41.0% in 2013,
+     58.3% by 2020. Across all captures, **5,905 common stocks existed and we hold
+     prices for 1,918** — 3,987 are gone.
+   - Treat 10.4 points as an **upper bound**: it also contains composition
+     differences, since CRSP covers microcaps and OTC names a directory-built
+     universe never had.
+   - Still unfixed, and unfixable without delisted prices, which cost money.
+     Norgate's delisted add-on is **~$270/yr**, far cheaper than the $720-1,080
+     estimated earlier. If a vendor is ever bought, ask whether they supply
+     delisting *returns* rather than just prices up to the delisting date — the
+     standard corrections are -30% (NYSE/AMEX) and -55% (Nasdaq), per Shumway.
+   - **Reconstruction is incomplete**: NASDAQ only, 2008-01 to 2020-07, 55
+     captures. archive.org rate-limits hard. Re-run `--fetch` to continue; it is
+     resumable and caches to disk.
+
+2. **Survivorship-bias data source — interim decision made, still needs work.**
    yfinance omits delisted companies, so the universe excludes every bankruptcy and
    acquisition since 1962. Decided 2026-09-08: collect now and accept the bias, with
    `source` recorded per row and the symbol directory snapshotted daily so the gap
@@ -335,9 +371,9 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
    preferentially discovers the ones that exploit it. Full reasoning and a costed
    research path — free Internet Archive reconstruction first, paid point-in-time
    data second — are the first section of `BACKLOG.md`.
-2. **Arena provisioning** — confirm 100 GB datastore availability and identify
+3. **Arena provisioning** — confirm 100 GB datastore availability and identify
    the other VM's quiet hours for the overnight search window.
-3. **Paper-trading duration and funding stake** — no concrete rule agreed yet.
+4. **Paper-trading duration and funding stake** — no concrete rule agreed yet.
    Note this sits awkwardly against the $100 account cap: the Strategy Lab's
    promotion ladder ends in "funded, small fixed stake", but the mandate above
    caps total exposure at $100. Either the cap rises when the Lab goes live, or
