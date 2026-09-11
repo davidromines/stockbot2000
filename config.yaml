@@ -36,6 +36,19 @@ data:
   features_file: "data/features_latest.parquet"
   history_file: "data/ohlcv_history.parquet"
 
+# Phase 07 trading costs. Every P&L figure before this was gross, and at ~0.43%
+# per trade costs are plausibly the whole result rather than a rounding error.
+# Deliberately pessimistic: a strategy that survives an overstated cost
+# assumption is interesting; one that dies under it was never viable.
+costs:
+  enabled: true
+  commission_per_trade_usd: 0.0     # Robinhood is commission-free
+  slippage_pct_per_side: 0.05       # market orders move the price against you
+  spread_multiplier: 1.0            # scale the liquidity-tiered spread estimate
+  sec_fee_per_million_usd: 27.80    # sell side
+  finra_taf_per_share_usd: 0.000166
+  finra_taf_cap_usd: 8.30
+
 # Survivorship correction applied to every backtest figure.
 # Measured 2026-09-11 by bias_benchmark.py against Ken French's CRSP-based series:
 # our universe returned 17.8%/yr against CRSP's 7.4%/yr over 2006-2026. Expressed

@@ -158,6 +158,47 @@ def init_db(conn: sqlite3.Connection) -> None:
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_oos_date ON oos_predictions(date)")
 
+    # --- Experiment ledger -------------------------------------------------
+    # One row per test, backtest or paper, ranked by money. Every idea this
+    # project ever tries lands here so they can be compared on the only metric
+    # that settles anything.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS experiments (
+            id            TEXT PRIMARY KEY,
+            name          TEXT NOT NULL,
+            kind          TEXT NOT NULL,        -- backtest | paper | live
+            config        TEXT NOT NULL,        -- JSON snapshot of what was tested
+            period_start  TEXT, period_end TEXT,
+            n_trades      INTEGER NOT NULL DEFAULT 0,
+            capital_usd   REAL,
+            net_pnl_usd   REAL,                 -- THE number
+            net_pnl_pct   REAL,
+            gross_pnl_usd REAL,
+            costs_usd     REAL,
+            win_rate_pct  REAL,
+            max_drawdown_pct REAL,
+            avg_days_held REAL,
+            notes         TEXT,
+            created_at    TEXT NOT NULL
+        ) STRICT
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS experiment_trades (
+            experiment_id TEXT NOT NULL,
+            ticker        TEXT NOT NULL,
+            entry_date    TEXT NOT NULL,
+            exit_date     TEXT,
+            entry_price   REAL, exit_price REAL,
+            shares        REAL,
+            gross_pnl_usd REAL, costs_usd REAL, net_pnl_usd REAL,
+            pnl_pct       REAL,
+            exit_reason   TEXT,
+            PRIMARY KEY (experiment_id, ticker, entry_date)
+        ) STRICT, WITHOUT ROWID
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exp_pnl ON experiments(net_pnl_usd DESC)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_exptrade_exp ON experiment_trades(experiment_id)")
+
     _init_features_table(conn)
     conn.commit()
 
@@ -613,9 +654,15 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
                        start_date: str | None = None,
                        end_date: str | None = None,
                        min_price: float | None = None,
-                       min_dollar_volume: float | None = None) -> pd.DataFrame:
+                       min_dollar_volume: float | None = None,
+                       include_liquidity: bool = False) -> pd.DataFrame:
     """
     Features joined to close price, for model training and backtesting.
+
+    `include_liquidity` adds `dollar_volume_20`, which the cost model needs to
+    estimate spreads. Off by default so training never sees it — a classifier
+    given liquidity would learn "thin names move more", which is the artifact the
+    liquidity floors exist to remove.
 
     Two memory choices matter at this scale. Indicators come back as `float32`,
     which halves ~15M rows from 2.5 GB to 1.25 GB at no cost to a model that
@@ -626,7 +673,8 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     Rows with any null indicator are excluded here rather than downstream, so the
     caller receives only usable rows.
     """
-    cols = ", ".join(f"f.{c}" for c in feature_cols)
+    select_cols = list(feature_cols) + (["dollar_volume_20"] if include_liquidity else [])
+    cols = ", ".join(f"f.{c}" for c in select_cols)
     where_sql, params = _feature_where(feature_cols, types, start_date, end_date,
                                        min_price, min_dollar_volume)
     where = [where_sql]
@@ -1016,6 +1064,69 @@ def overall_oos(conn: sqlite3.Connection) -> dict:
         from sklearn.metrics import roc_auc_score
         auc = roc_auc_score(df["label"], df["score"])
     return {"n": r["n"], "base": r["base"], "top_hit": top["hit"] or 0.0, "auc": auc}
+
+
+# --------------------------------------------------------------------------
+# Experiment ledger — every test, ranked by money
+# --------------------------------------------------------------------------
+
+def record_experiment(conn: sqlite3.Connection, exp: dict, trades: pd.DataFrame | None = None) -> str:
+    """
+    Store one test and its trades.
+
+    Deliberately one table for backtests and paper runs alike. The question this
+    project keeps needing to answer is "is idea 2 better than idea 1", and that
+    is settled by comparing net P&L on a like-for-like basis — not by comparing a
+    backtest AUC against a paper-trading win rate.
+
+    Absolute figures from backtests remain survivorship-inflated. Relative ones
+    are far more robust, since both ideas carry the same bias. That holds best
+    between similar strategies; a dip-buyer is inflated more than a
+    trend-follower, because the dips that never recovered are exactly what is
+    missing.
+    """
+    cols = ["id", "name", "kind", "config", "period_start", "period_end", "n_trades",
+            "capital_usd", "net_pnl_usd", "net_pnl_pct", "gross_pnl_usd", "costs_usd",
+            "win_rate_pct", "max_drawdown_pct", "avg_days_held", "notes", "created_at"]
+    exp = {**exp}
+    exp.setdefault("created_at", _now())
+    row = [exp.get(c) for c in cols]
+    conn.execute(f"INSERT OR REPLACE INTO experiments ({','.join(cols)}) "
+                 f"VALUES ({','.join('?' * len(cols))})", row)
+
+    if trades is not None and not trades.empty:
+        conn.execute("DELETE FROM experiment_trades WHERE experiment_id = ?", (exp["id"],))
+        tcols = ["ticker", "entry_date", "exit_date", "entry_price", "exit_price", "shares",
+                 "gross_pnl_usd", "costs_usd", "net_pnl_usd", "pnl_pct", "exit_reason"]
+        rows = []
+        for t in trades.to_dict("records"):
+            rows.append([exp["id"]] + [
+                (str(t[c])[:10] if c.endswith("_date") and t.get(c) is not None else t.get(c))
+                for c in tcols])
+        conn.executemany(
+            f"INSERT OR REPLACE INTO experiment_trades (experiment_id,{','.join(tcols)}) "
+            f"VALUES ({','.join('?' * (len(tcols) + 1))})", rows)
+    conn.commit()
+    return exp["id"]
+
+
+def leaderboard(conn: sqlite3.Connection, kind: str | None = None, limit: int = 25) -> list[dict]:
+    """Every experiment, best money first."""
+    sql = "SELECT * FROM experiments"
+    params: list = []
+    if kind:
+        sql += " WHERE kind = ?"; params.append(kind)
+    sql += " ORDER BY net_pnl_usd DESC NULLS LAST LIMIT ?"
+    params.append(limit)
+    return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def max_drawdown_pct(equity: pd.Series) -> float:
+    """Worst peak-to-trough fall of an equity curve, as a positive percentage."""
+    if equity.empty:
+        return 0.0
+    peak = equity.cummax()
+    return float((1 - equity / peak).max() * 100)
 
 
 def _now() -> str:
