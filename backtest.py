@@ -62,8 +62,9 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
         conn, FEATURE_COLS,
         types=cfg["universe"]["tradeable_types"],
         start_date=split["test_start"], end_date=split["test_end"],
+        min_price=cfg["risk"].get("min_price"),
+        min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
     )
-    conn.close()
 
     log.info(f"Out-of-sample only: {split['test_start']} -> {split['test_end']} "
              f"({len(features):,} rows, {features['ticker'].nunique():,} tickers)")
@@ -71,17 +72,30 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
         raise SystemExit("No feature rows in the held-out period — retrain first.")
 
     features = features.sort_values(["ticker", "date"]).reset_index(drop=True)
-    history = features[["ticker", "date", "close"]]
+
+    # Exits price off the UNFILTERED table. Floors gate entries only — a position
+    # already open must still be priced on days the name dips below them.
+    price_lookup = storage.price_series(
+        conn, sorted(features["ticker"].astype(str).unique()),
+        split["test_start"], split["test_end"])
+    log.info(f"Exit price lookup: {len(price_lookup):,} unfiltered bars")
+    conn.close()
 
     model = xgb.XGBClassifier()
     model.load_model(cfg["model"]["path"])
 
     features["score"] = model.predict_proba(features[FEATURE_COLS])[:, 1] * 100
 
-    price_lookup = history.set_index(["ticker", "date"])["close"].to_dict()
     horizon = cfg["labeling"]["horizon_days"]
     max_positions = cfg["risk"]["max_open_positions"]
     position_size = cfg["risk"]["position_size_usd"]
+
+    # top_n fills the open slots with the best available each day. A fixed cutoff
+    # selected nothing at all: see config.yaml and the note in CLAUDE.md.
+    mode = cfg["risk"].get("selection_mode", "top_n")
+    min_score = threshold if mode == "threshold" else cfg["risk"].get("min_score")
+    log.info(f"Selection: {mode}"
+             + (f", floor {min_score}" if min_score is not None else ", no score floor"))
 
     trades = []
     open_positions = {}  # ticker -> dict(entry_date, entry_price, stop_price, days_held)
@@ -90,10 +104,12 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
         # 1. check exits first
         for ticker in list(open_positions.keys()):
             pos = open_positions[ticker]
-            price = price_lookup.get((ticker, date))
+            pos["days_held"] += 1          # the clock runs whether or not we can price it
+            price = price_lookup.get((str(ticker), str(date)[:10]))
             if price is None:
+                if pos["days_held"] >= horizon * 4:
+                    del open_positions[ticker]   # no prices at all: abandon, do not hold forever
                 continue
-            pos["days_held"] += 1
             exit_reason = None
             if price <= pos["stop_price"]:
                 exit_reason = "stop_loss"
@@ -112,7 +128,9 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
 
         # 2. check new entries (only if room available)
         if len(open_positions) < max_positions:
-            candidates = day_df[(day_df["score"] >= threshold) & (~day_df["ticker"].isin(open_positions))]
+            candidates = day_df[~day_df["ticker"].isin(open_positions)]
+            if min_score is not None:
+                candidates = candidates[candidates["score"] >= min_score]
             candidates = candidates.sort_values("score", ascending=False)
             slots_open = max_positions - len(open_positions)
             for _, row in candidates.head(slots_open).iterrows():
@@ -129,7 +147,7 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
 
     win_rate = (trades_df["pnl_pct"] > 0).mean()
     summary = {
-        "threshold": threshold,
+        "selection": mode if mode != "threshold" else f"threshold {threshold}",
         "period": f"{split['test_start']} -> {split['test_end']} (out-of-sample)",
         "num_trades": len(trades_df),
         "win_rate_pct": round(win_rate * 100, 1),

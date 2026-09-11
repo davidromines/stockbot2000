@@ -68,6 +68,24 @@ model:
 risk:
   position_size_usd: 10.0
   max_open_positions: 10
+
+  # How candidates are chosen each day.
+  #   top_n     — rank by score, fill open slots with the best. The system always
+  #               wants exactly max_open_positions, so a rank is the right
+  #               instrument and it survives the model being recalibrated.
+  #   threshold — buy anything at or above min_score. Kept for experiments.
+  # A fixed cutoff of 70 was unreachable: the score is a calibrated probability of
+  # a ~27%-base-rate event, and the highest seen in 183k out-of-sample rows was 66.
+  # Tradeability floors. Without these, top_n selects penny stocks: the top-ranked
+  # rows had a median price of $3.32 with 15% under $1, and their 21%-per-trade
+  # backtest was sub-$1 volatility rather than skill. Micro-caps are also where
+  # survivorship bias bites hardest, since the ones that went to zero are absent
+  # from the data entirely.
+  min_price: 5.0                 # no sub-$5 names
+  min_dollar_volume: 1000000.0   # >= $1M average daily turnover over 20 sessions
+
+  selection_mode: "top_n"
+  min_score: null          # optional floor under top_n; null = take the best regardless
   stop_loss_type: "atr"        # atr | fixed_pct
   stop_loss_atr_multiple: 2.0  # exit if price drops 2x ATR(14) below entry
   stop_loss_fixed_pct: 8.0     # used only if stop_loss_type: fixed_pct
