@@ -732,7 +732,9 @@ def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
     than today's date, so the filter behaves correctly over a weekend, a market
     holiday, or a database that has not been topped up yet.
     """
-    cols = ", ".join(f"f.{c}" for c in feature_cols)
+    # dollar_volume_20 is returned as well as filtered on: the cost model needs
+    # it to estimate spreads, and re-querying per ticker would be wasteful.
+    cols = ", ".join(f"f.{c}" for c in list(feature_cols) + ["dollar_volume_20"])
     where = [f"f.{c} IS NOT NULL" for c in feature_cols]
     params: list = []
     if min_price is not None:

@@ -161,6 +161,20 @@ Telegram daily scorecard and lab digest; LLM report refinements.
 
 ---
 
+### Paper trading ✅
+`paper_trading.py` built 2026-09-11. Forward testing, day by day, with costs
+charged through the same `costs.py` the backtest and the Lab use.
+
+**This is the only measurement in the project with no survivorship bias at all.**
+A backtest can only buy companies that still exist; paper trading buys what is
+listed today and finds out what happens. Whatever the ~10-point haircut on
+backtests over- or understates, none of it applies here.
+
+It is also the slowest way to learn anything, which is why it sits at the end of
+the promotion ladder. Backtests discard ideas cheaply; this one is for trusting
+the survivors. Closing a run files it in the same ledger as the backtests, so
+forward and historical results compare on net P&L directly.
+
 ### Experiment ledger ✅
 `experiments.py` built 2026-09-11. One leaderboard for backtests, paper runs and
 lab strategies, ranked by net P&L. `--compare A B` puts two ideas side by side.
