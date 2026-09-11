@@ -68,17 +68,25 @@ look-ahead leakage from the random train/test split — phase 07 work, not a res
 
 ## Infrastructure
 
-### 05 · Migration to Arena hypervisor 🟡 85%
-VM is provisioned and the project now lives on it — hostname `stockbot2000`,
-repo at `~/stockbot2000`, Ubuntu 26.04 LTS.
+### 05 · Migration to Arena hypervisor ✅ 100%
+Complete 2026-09-11. Running on the Arena VM — hostname `stockpicker2000`, repo at
+`~/stockbot2000`, Ubuntu 26.04 LTS, pushed to a private GitHub remote over SSH.
 
-Measured allocation: **4 vCPU / 11 GB RAM / 97 GB disk** (83 GB free). Note the RAM
-is 11 GB, not the 12 GB planned — the Strategy Lab compute budget assumes 12 GB and
-should be re-sized against the real figure.
+Measured allocation: **4 vCPU / 10.9 GB RAM / 97 GB disk**.
 
-**Remaining:** install Python 3.12 (deadsnakes has 3.12.13 built for Ubuntu 26.04),
-build the venv, initialize git. Code arrived by manual file transfer, so there is no
-git history prior to this point.
+- ✅ Python 3.12.13 from deadsnakes, venv built, requirements install clean
+- ✅ git initialised with the migration reconstructed as real commits, remote pushed
+- ✅ Strategy Lab compute plan re-sized against measured RAM rather than the planned
+  12 GB — see `STRATEGY_LAB.md`. The shared search matrix turned out not to be the
+  binding constraint; concurrency with Ollama is
+
+Two things this phase leaves behind deliberately, tracked elsewhere:
+
+- The VM hostname and Linux user still read `stockpicker`. They predate the rename
+  and are unrelated to the project name — not a leftover to tidy.
+- Code arrived by manual file transfer, so **there is no git history before
+  2026-09-08.** Recoverable from the old `betbot9000` box only if that box is ever
+  reachable again; not worth blocking on.
 
 ### 06 · Data infrastructure scale-up 🟡 90%
 **The market database is built.** `data/market_data.db` holds 35,425,982 price
