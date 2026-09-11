@@ -44,6 +44,31 @@ re-run tops it up rather than refetching. Check before trusting any score.
 | `backtest.py` | ran; **result is invalid, see below** |
 | `llm_report.py` | ran in fallback mode — Ollama is not installed on this VM |
 
+### Walk-forward result — 2026-09-11
+
+**The edge is stable.** 31 rolling retrains, 2011-2026, each trained on the prior
+5 years and predicting the next 6 months. 7,597,510 out-of-sample predictions.
+
+| | |
+|---|---|
+| AUC mean / min / max | 0.629 / 0.582 / 0.670 |
+| Folds above 0.5 | **31 of 31** |
+| Pooled AUC | 0.633 |
+| Top-decile hit rate | **37.8%** vs 24.5% base (1.54x lift) |
+
+This is the first evidence in the project that the signal persists rather than
+being an artifact of where the data was cut. Run it with `walk_forward.py --run`;
+it is resumable by fold, and `--report` prints the table.
+
+Mild decay: folds before 2019 average 0.642, folds from 2020 average 0.611.
+Consistent with alpha decay or regime change — still positive throughout.
+
+**What this does not establish.** The measurement sits on survivorship-biased
+data, so part of the lift may be survivors recovering rather than skill. AUC 0.63
+is real but weak. And the strategy's 0.43% raw per-trade return (0.247% after the
+survivorship haircut) is still inside the unmodelled cost-and-slippage band — a
+stable signal is not the same as a profitable strategy.
+
 ### Do not trust the backtest number
 
 `backtest.py --threshold 70` reports a **97.9% win rate over 47 trades**. This is
