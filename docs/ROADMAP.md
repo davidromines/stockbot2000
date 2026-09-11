@@ -126,13 +126,20 @@ Full specification in `STRATEGY_LAB.md`.
 `genome.py`, `simulator.py`, `reward.py`. The searchable strategy definition and
 the vectorized engine that scores one against history.
 
-### 09 · Evolutionary search & idea ledger 🟡 40%
+### 09 · Evolutionary search & idea ledger ✅ 100%
 `ledger.py` built 2026-09-11 — strategies, evaluations, promotions and lab_runs.
 Records parentage so lineage is inspectable, and a `trial_index` per evaluation so
 the deflated Sharpe correction has a true trial count rather than an estimate.
 Genomes stored as JSON, so any strategy can be re-run exactly.
 
-**Remaining:** `evolve.py`, the population loop.
+✅ `evolve.py` built 2026-09-11 — tournament selection, elitism, mutation and
+crossover, with selection pressure on net P&L after costs. Smoke run over
+2018-2019 showed the population improving: profitable candidates went 11/40 to
+25/40 to 34/40 across three generations. ~4 evaluations/sec on one core.
+
+The loop is deliberately plain. The risk in this design is the fitness function
+and the validation ladder, not the optimiser — a clever optimiser pointed at a
+bad objective just finds bad answers faster.
 `evolve.py`, `ledger.py`. Population loop with parallel scoring; every idea ever
 tried recorded with parentage and results. ~200k evaluations per overnight run,
 full re-search weekly.

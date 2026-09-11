@@ -49,6 +49,19 @@ costs:
   finra_taf_per_share_usd: 0.000166
   finra_taf_cap_usd: 8.30
 
+# Strategy Lab. The search window is the one specified in STRATEGY_LAB.md:
+# 2006-2019 for the search, 2020-2022 for validation, 2023+ sealed.
+lab:
+  search_start: "2006-01-01"
+  search_end: "2019-12-31"
+  validation_start: "2020-01-01"
+  validation_end: "2022-12-31"
+  sealed_start: "2023-01-01"      # opened once per strategy, at the funding decision
+  max_depth: 4                    # rule tree depth cap
+  max_entries_per_eval: 20000     # signals sampled per candidate
+  elite_fraction: 0.15
+  mutation_rate: 0.6
+
 # Survivorship correction applied to every backtest figure.
 # Measured 2026-09-11 by bias_benchmark.py against Ken French's CRSP-based series:
 # our universe returned 17.8%/yr against CRSP's 7.4%/yr over 2006-2026. Expressed
