@@ -406,15 +406,35 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
 
 
 def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
-                         types: list[str] | None = None) -> pd.DataFrame:
-    """Most recent feature row per ticker — what the daily scorer ranks."""
+                         types: list[str] | None = None,
+                         max_staleness_days: int = 5) -> pd.DataFrame:
+    """
+    Most recent feature row per ticker — what the daily scorer ranks.
+
+    `max_staleness_days` is not optional hygiene. "Latest row for this ticker"
+    and "current" are different things: a halted or delisted name keeps a latest
+    row forever, and without this filter the scorer will happily rank a stock
+    whose most recent bar is from 2018 and propose buying it. Observed in the
+    real table, not hypothetical.
+
+    Staleness is measured against the newest date in the features table rather
+    than today's date, so the filter behaves correctly over a weekend, a market
+    holiday, or a database that has not been topped up yet.
+    """
     cols = ", ".join(f"f.{c}" for c in feature_cols)
     where = [f"f.{c} IS NOT NULL" for c in feature_cols]
     params: list = []
     if types:
         where.append(f"f.ticker IN (SELECT ticker FROM symbols "
-                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
+                     f"WHERE security_type IN ({','.join('?' * len(types))}) "
+                     f"AND is_active = 1)")
         params += list(types)
+
+    newest = conn.execute("SELECT MAX(date) FROM features").fetchone()[0]
+    if newest and max_staleness_days is not None:
+        cutoff = (pd.Timestamp(newest) - pd.Timedelta(days=max_staleness_days)).strftime("%Y-%m-%d")
+        where.append("f.date >= ?")
+        params.append(cutoff)
 
     sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "

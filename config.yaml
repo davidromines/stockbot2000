@@ -84,5 +84,6 @@ llm:
   max_tickers_per_batch: 25              # batch tickers per LLM call to keep prompts small
 
 scoresheet:
+  max_staleness_days: 5     # skip tickers whose newest bar is older than this (halted/delisted)
   output_file: "data/scoresheet.json"
   top_n: 25                # only send Claude the top N candidates, not the whole universe
