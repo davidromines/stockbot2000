@@ -60,6 +60,7 @@ labeling:
 
 model:
   path: "models/xgb_uptrend.json"
+  max_train_rows: 6000000   # cap the training set; subsampled in SQL if exceeded
   test_fraction: 0.2                     # last 20% of the TIMELINE held out, not 20% of rows
   split_metadata_path: "models/split.json"  # backtest.py reads this to stay out-of-sample
   random_state: 42

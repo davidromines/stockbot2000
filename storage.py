@@ -365,6 +365,175 @@ def feature_stats(conn: sqlite3.Connection) -> dict:
     return dict(row)
 
 
+CHUNK_ROWS = 500_000
+
+
+def _read_downcast(conn, sql, params, feature_cols, chunk_rows: int = CHUNK_ROWS) -> pd.DataFrame:
+    """
+    Read a large result set in chunks, narrowing dtypes as each chunk arrives.
+
+    This is the difference between fitting in memory and being OOM-killed, and
+    the reason is not obvious: `pd.read_sql_query` materialises the *entire*
+    result set as Python objects before it builds a DataFrame. Every float is a
+    24-byte Python object inside a tuple, so downcasting afterwards is far too
+    late — the peak has already happened.
+
+    Measured on this database: a 2.6M-row query produced a 0.25 GB frame with a
+    4.32 GB peak, a ratio of 17.5x. Extrapolated to the 12M-row training set that
+    is roughly 20 GB, against 11.7 GB of RAM. Two runs were killed at 10.4 GB
+    resident before this was found.
+
+    Reading in chunks caps the object-overhead peak at one chunk's worth, so peak
+    tracks the final frame instead of the row count.
+    """
+    frames = []
+    for chunk in pd.read_sql_query(sql, conn, params=params, chunksize=chunk_rows):
+        for c in feature_cols:
+            chunk[c] = chunk[c].astype("float32")
+        if "close" in chunk:
+            chunk["close"] = chunk["close"].astype("float32")
+        if "label" in chunk:
+            chunk["label"] = chunk["label"].astype("int8")
+        if "ticker" in chunk:
+            chunk["ticker"] = chunk["ticker"].astype("category")
+        if "date" in chunk:
+            chunk["date"] = pd.to_datetime(chunk["date"])
+        frames.append(chunk)
+
+    if not frames:
+        return pd.DataFrame(columns=["ticker", "date", "close", *feature_cols])
+    df = pd.concat(frames, ignore_index=True, copy=False)
+    del frames
+    # Categories are per-chunk until unified; without this the column keeps one
+    # category set per chunk and costs more than the plain strings it replaced.
+    if "ticker" in df:
+        df["ticker"] = df["ticker"].astype("category")
+    return df
+
+
+def _feature_where(feature_cols, types, start_date, end_date):
+    """Shared WHERE clause and bound parameters for the feature loaders."""
+    where = [f"f.{c} IS NOT NULL" for c in feature_cols]
+    params: list = []
+    if types:
+        where.append(f"f.ticker IN (SELECT ticker FROM symbols "
+                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
+        params += list(types)
+    if start_date:
+        where.append("f.date >= ?"); params.append(start_date)
+    if end_date:
+        where.append("f.date <= ?"); params.append(end_date)
+    return " AND ".join(where), params
+
+
+def feature_dates(conn: sqlite3.Connection, types: list[str] | None = None,
+                  start_date: str | None = None, end_date: str | None = None) -> list[str]:
+    """
+    Distinct dates with usable feature rows, in order.
+
+    Cheap enough to run before loading anything, which is the point: the
+    train/test boundary can be chosen from dates alone, so each side is loaded
+    separately and the full frame never exists in memory at once.
+    """
+    clause = []
+    params: list = []
+    if types:
+        clause.append(f"ticker IN (SELECT ticker FROM symbols "
+                      f"WHERE security_type IN ({','.join('?' * len(types))}))")
+        params += list(types)
+    if start_date:
+        clause.append("date >= ?"); params.append(start_date)
+    if end_date:
+        clause.append("date <= ?"); params.append(end_date)
+    sql = "SELECT DISTINCT date FROM features"
+    if clause:
+        sql += " WHERE " + " AND ".join(clause)
+    return [r[0] for r in conn.execute(sql + " ORDER BY date", params).fetchall()]
+
+
+def count_labeled_rows(conn: sqlite3.Connection, feature_cols: list[str],
+                       types: list[str] | None = None,
+                       start_date: str | None = None,
+                       end_date: str | None = None) -> int:
+    """Row count for a prospective load — so memory can be budgeted before committing to it."""
+    where, params = _feature_where(feature_cols, types, start_date, end_date)
+    return conn.execute(
+        f"SELECT COUNT(*) FROM features f JOIN prices p "
+        f"ON f.ticker = p.ticker AND f.date = p.date WHERE {where}", params
+    ).fetchone()[0]
+
+
+def load_labeled_frame(conn: sqlite3.Connection, feature_cols: list[str],
+                       horizon_days: int, up_threshold_pct: float,
+                       types: list[str] | None = None,
+                       start_date: str | None = None,
+                       end_date: str | None = None,
+                       sample_per_mille: int | None = None) -> pd.DataFrame:
+    """
+    Features, close, and the forward-return label — labelled in SQL, not pandas.
+
+    Doing the label in SQL matters for memory, not elegance. The pandas version
+    (`sort_values` then `groupby.shift`) copies the entire frame twice, and at
+    15M rows that was the difference between fitting and being OOM-killed with
+    10.4 GB resident. A `LEAD()` window does it inside SQLite with no Python-side
+    copy at all.
+
+    It also purges the boundary for free: `LEAD` returns NULL for the final
+    `horizon_days` rows of each ticker in the loaded range, so those rows drop
+    out. Load the train range and the test range separately and no training
+    label can reach into the test period.
+
+    Dates come back as `datetime64`, never strings — 15M Python strings cost
+    about 1.5 GB on their own.
+    """
+    horizon = int(horizon_days)          # interpolated, so force it to an int
+    where, params = _feature_where(feature_cols, types, start_date, end_date)
+
+    # Subsample in SQL, not pandas. Sampling after loading would not help: the
+    # peak happens while the full result set is still a pile of Python objects.
+    # Applied to `base` so the LEAD window still sees every row — sampling before
+    # the window would compute forward returns across gaps and silently corrupt
+    # every label.
+    sample_clause = ""
+    if sample_per_mille is not None and sample_per_mille < 1000:
+        sample_clause = f" AND (abs(random()) % 1000) < {int(sample_per_mille)}"
+    cols = ", ".join(f"f.{c}" for c in feature_cols)
+    sel = ", ".join(feature_cols)
+
+    sql = f"""
+        WITH base AS (
+            SELECT f.ticker, f.date, p.close, {cols}
+            FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date
+            WHERE {where}
+        ), lab AS (
+            SELECT *, LEAD(close, {horizon}) OVER (
+                          PARTITION BY ticker ORDER BY date) AS future_close
+            FROM base
+        )
+        SELECT ticker, date, close, {sel},
+               CASE WHEN (future_close / close - 1) * 100 >= ? THEN 1 ELSE 0 END AS label
+        FROM lab
+        WHERE future_close IS NOT NULL AND close > 0{sample_clause}
+    """
+    return _read_downcast(conn, sql, params + [up_threshold_pct], feature_cols)
+
+
+def frame_memory_gb(df: pd.DataFrame) -> float:
+    return float(df.memory_usage(deep=True).sum()) / 1e9
+
+
+def available_memory_gb() -> float:
+    """Read MemAvailable from /proc — no psutil dependency needed."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) / 1e6
+    except OSError:
+        pass
+    return float("inf")
+
+
 def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
                        types: list[str] | None = None,
                        start_date: str | None = None,
@@ -398,11 +567,7 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
            f"WHERE {' AND '.join(where)}")
 
-    df = pd.read_sql_query(sql, conn, params=params)
-    df["ticker"] = df["ticker"].astype("category")
-    for c in feature_cols + ["close"]:
-        df[c] = df[c].astype("float32")
-    return df
+    return _read_downcast(conn, sql, params, feature_cols)
 
 
 def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],

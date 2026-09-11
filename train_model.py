@@ -7,6 +7,7 @@ Not part of the daily scoring pipeline.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas/xgboost
 import json
+import gc
 import logging
 
 import pandas as pd
@@ -29,44 +30,29 @@ FEATURE_COLS = [
 ]
 
 
-def build_labels(history: pd.DataFrame, horizon_days: int, up_threshold_pct: float) -> pd.DataFrame:
-    history = history.sort_values(["ticker", "date"]).reset_index(drop=True)
-    history["future_close"] = history.groupby("ticker", observed=True)["close"].shift(-horizon_days)
-    history["forward_return_pct"] = (history["future_close"] / history["close"] - 1) * 100
-    history["label"] = (history["forward_return_pct"] >= up_threshold_pct).astype(int)
-    return history.dropna(subset=["label"])
-
-
-def chronological_split(df: pd.DataFrame, test_fraction: float, horizon_days: int):
+def plan_split(dates: list[str], test_fraction: float, horizon_days: int) -> dict | None:
     """
-    Split by date, not at random, and purge the boundary.
+    Choose the train/test boundary from the date list alone, before loading rows.
 
-    Two separate leaks are being closed here.
+    Splitting on dates rather than after loading is what keeps this within memory:
+    each side is then queried separately and the combined frame never exists. The
+    previous version loaded everything, sorted it and grouped it in pandas, which
+    peaked at 10.4 GB on 15M rows and was killed by the OOM reaper.
 
-    The obvious one: a shuffled split over time-ordered rows puts tomorrow in the
-    training set and yesterday in the test set. The model then "predicts" days it
-    has already seen.
-
-    The subtle one: labels look forward `horizon_days`. A training row dated D
-    carries a label derived from the close at D+horizon. If D sits within
-    `horizon` days of the cutoff, that label encodes prices from the test period
-    even though the row itself does not. So the last `horizon` trading days
-    before the cutoff are dropped entirely — the standard purge. Without it the
-    split looks clean and still leaks.
+    The last `horizon_days` dates before the cutoff are excluded from training.
+    Labels look forward, so a row dated within the horizon of the boundary carries
+    a label derived from test-period prices even though the row itself does not.
+    SQL `LEAD` would drop those rows anyway, but doing it explicitly here makes the
+    purge visible and intentional rather than a side effect.
     """
-    dates = sorted(df["date"].unique())
     if len(dates) < horizon_days * 3:
-        return df.iloc[0:0], df.iloc[0:0], {}
-
+        return None
     cutoff = int(len(dates) * (1 - test_fraction))
     train_dates = dates[: max(cutoff - horizon_days, 0)]
     test_dates = dates[cutoff:]
     if not train_dates or not test_dates:
-        return df.iloc[0:0], df.iloc[0:0], {}
-
-    train = df[df["date"].isin(train_dates)]
-    test = df[df["date"].isin(test_dates)]
-    meta = {
+        return None
+    return {
         "train_start": str(train_dates[0])[:10],
         "train_end": str(train_dates[-1])[:10],
         "test_start": str(test_dates[0])[:10],
@@ -75,48 +61,60 @@ def chronological_split(df: pd.DataFrame, test_fraction: float, horizon_days: in
         "horizon_days": horizon_days,
         "test_fraction": test_fraction,
     }
-    return train, test, meta
 
 
 def main():
     runtime.be_nice()
     cfg = load_config()
+    horizon = cfg["labeling"]["horizon_days"]
+    threshold = cfg["labeling"]["up_threshold_pct"]
+    types = cfg["universe"]["tradeable_types"]
+    start = cfg["data"].get("train_start")
+
     conn = storage.connect(cfg["database"]["market_data_path"])
 
-    merged = storage.load_training_frame(
-        conn, FEATURE_COLS,
-        types=cfg["universe"]["tradeable_types"],
-        start_date=cfg["data"].get("train_start"),
-    )
-    conn.close()
-    log.info(f"Loaded {len(merged):,} rows from market_data.db "
-             f"({merged['ticker'].nunique():,} tickers, "
-             f"{merged.memory_usage(deep=True).sum()/1e9:.2f} GB)")
-
-    merged = build_labels(merged, cfg["labeling"]["horizon_days"],
-                          cfg["labeling"]["up_threshold_pct"])
-    if merged.empty:
-        log.error("No labeled rows — check the database has prices and features.")
-        return
-
-    train, test, split = chronological_split(
-        merged,
-        test_fraction=cfg["model"].get("test_fraction", 0.2),
-        horizon_days=cfg["labeling"]["horizon_days"],
-    )
-    if train.empty or test.empty:
+    dates = storage.feature_dates(conn, types=types, start_date=start)
+    split = plan_split(dates, cfg["model"].get("test_fraction", 0.2), horizon)
+    if not split:
         log.error("Not enough history to build a purged chronological split.")
         return
+    log.info(f"{len(dates):,} trading days available from {dates[0]}")
+    log.info(f"Split: train {split['train_start']} -> {split['train_end']} | "
+             f"test {split['test_start']} -> {split['test_end']} | "
+             f"purge {horizon}d")
 
-    X_train, y_train = train[FEATURE_COLS], train["label"]
+    avail = storage.available_memory_gb()
+    log.info(f"{avail:.1f} GB memory available")
+
+    cap = cfg["model"].get("max_train_rows")
+
+    def load(a, b, what, apply_cap=False):
+        n = storage.count_labeled_rows(conn, FEATURE_COLS, types=types,
+                                       start_date=a, end_date=b)
+        per_mille = None
+        if apply_cap and cap and n > cap:
+            per_mille = max(1, int(1000 * cap / n))
+            log.info(f"  {what}: {n:,} rows exceeds max_train_rows={cap:,}; "
+                     f"sampling {per_mille/10:.1f}% in SQL")
+        df = storage.load_labeled_frame(conn, FEATURE_COLS, horizon, threshold,
+                                        types=types, start_date=a, end_date=b,
+                                        sample_per_mille=per_mille)
+        log.info(f"  {what}: {len(df):,} rows, {storage.frame_memory_gb(df):.2f} GB, "
+                 f"positive {df['label'].mean():.2%}")
+        return df
+
+    test = load(split["test_start"], split["test_end"], "test ")
+    train = load(split["train_start"], split["train_end"], "train", apply_cap=True)
+    conn.close()
+
+    if train.empty or test.empty:
+        log.error("Empty train or test set — check the database.")
+        return
+
     X_test, y_test = test[FEATURE_COLS], test["label"]
-
-    log.info(f"Train {len(X_train):,} rows  {split['train_start']} -> {split['train_end']}  "
-             f"(positive {y_train.mean():.2%})")
-    log.info(f"Test  {len(X_test):,} rows  {split['test_start']} -> {split['test_end']}  "
-             f"(positive {y_test.mean():.2%})")
-    log.info(f"Purged {split['purged_days']} trading days between them "
-             f"(label horizon = {split['horizon_days']})")
+    X_train, y_train = train[FEATURE_COLS], train["label"]
+    del test, train
+    gc.collect()
 
     model = xgb.XGBClassifier(
         n_estimators=300,
@@ -138,14 +136,11 @@ def main():
     model.save_model(cfg["model"]["path"])
     log.info(f"Model saved to {cfg['model']['path']}")
 
-    # backtest.py reads this to restrict itself to out-of-sample dates. Without
-    # it a backtest silently replays the training period and reports fiction.
     split_path = cfg["model"].get("split_metadata_path", "models/split.json")
     split["n_train"], split["n_test"] = int(len(X_train)), int(len(X_test))
     with open(split_path, "w") as f:
         json.dump(split, f, indent=2)
     log.info(f"Split metadata saved to {split_path}")
-
 
 if __name__ == "__main__":
     main()
