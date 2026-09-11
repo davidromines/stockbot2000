@@ -386,10 +386,14 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
      same measure built from Ken French's 48 Industry Portfolios, which are CRSP
      based and therefore survivorship-free. 2006-2026: **ours 17.8%/yr, CRSP
      7.4%/yr, gap 10.4 points.** Free data, no account, no purchase.
-   - `reconstruct_universe.py` replays Wayback captures of the NASDAQ symbol
-     directory. Coverage of NASDAQ common stock: **29.5% in 2008**, 41.0% in 2013,
-     58.3% by 2020. Across all captures, **5,905 common stocks existed and we hold
-     prices for 1,918** — 3,987 are gone.
+   - `reconstruct_universe.py` replays Wayback captures of the symbol directory.
+     **Complete as of 2026-09-11: 119 captures, both NASDAQ and NYSE, 2008-2026.**
+     Coverage of US common stock: **~30% in 2008**, ~46% by 2010, rising to 99.7%
+     at the most recent capture — the recent figure is high only because those
+     companies have not had time to die yet.
+     Across all captures, **15,012 common stocks existed and we hold prices for
+     5,983 — 9,029 are gone, 60% of the total.** The NASDAQ-only figure quoted
+     before was 3,987; adding NYSE more than doubled it.
    - Treat 10.4 points as an **upper bound**: it also contains composition
      differences, since CRSP covers microcaps and OTC names a directory-built
      universe never had.
@@ -398,9 +402,10 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
      estimated earlier. If a vendor is ever bought, ask whether they supply
      delisting *returns* rather than just prices up to the delisting date — the
      standard corrections are -30% (NYSE/AMEX) and -55% (Nasdaq), per Shumway.
-   - **Reconstruction is incomplete**: NASDAQ only, 2008-01 to 2020-07, 55
-     captures. archive.org rate-limits hard. Re-run `--fetch` to continue; it is
-     resumable and caches to disk.
+   - Reconstruction is **complete**. `reconstruct_universe.py` now paces itself
+     against archive.org's rate limiting rather than dying at it: a fixed gap
+     between requests that doubles on refusal, backoff waits to 30 minutes, and a
+     retried index request. Re-run `--fetch` any time to pick up new captures.
 
 2. **Survivorship-bias data source — interim decision made, still needs work.**
    yfinance omits delisted companies, so the universe excludes every bankruptcy and
