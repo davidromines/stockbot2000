@@ -7,15 +7,20 @@ This is a SIMPLE walk-forward simulation, not a production-grade backtester:
 - Position sizing fixed at risk.position_size_usd per entry.
 - Enforces risk.max_open_positions concurrently.
 - One entry per ticker at a time (no pyramiding).
-- Caveat: train_model.py trains on the full history including these dates
-  (no strict train/test time split yet). Treat results as a sanity check of
-  the strategy LOGIC, not a true out-of-sample performance estimate, until
-  the "make it good" pass adds a proper walk-forward train/test split.
+Out-of-sample enforcement: train_model.py writes models/split.json recording
+the held-out date range. This script simulates ONLY from test_start onward and
+refuses to run without that file. Backtesting across the training period is what
+produced the earlier 97.9% win rate, which was leakage, not performance.
+
+Still not production-grade: no costs, no slippage, no liquidity floor. Those are
+phase 07. Results are an optimistic ceiling even when the dates are honest.
 
 Usage: python backtest.py --threshold 70
 """
 import argparse
+import json
 import logging
+import os
 
 import pandas as pd
 import xgboost as xgb
@@ -28,6 +33,24 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("backtest")
 
 
+def load_split(cfg: dict) -> dict:
+    """
+    Read the held-out date range written by train_model.py.
+
+    Hard failure rather than a warning if it is missing. A backtest that quietly
+    replays the training period returns a number that looks like performance and
+    is not — which is exactly the failure this file used to have.
+    """
+    path = cfg["model"].get("split_metadata_path", "models/split.json")
+    if not os.path.exists(path):
+        raise SystemExit(
+            f"{path} not found. Run train_model.py first — without it this "
+            f"backtest would score the training period and report leakage as profit."
+        )
+    with open(path) as f:
+        return json.load(f)
+
+
 def run_backtest(threshold: float, cfg: dict) -> dict:
     features = pd.read_parquet(cfg["data"]["features_file"]).sort_values(["ticker", "date"])
     history = pd.read_parquet(cfg["data"]["history_file"])[["ticker", "date", "close"]]
@@ -36,6 +59,15 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
     model.load_model(cfg["model"]["path"])
 
     features = features.dropna(subset=FEATURE_COLS).reset_index(drop=True)
+
+    split = load_split(cfg)
+    before = len(features)
+    features = features[features["date"].astype(str) >= split["test_start"]].reset_index(drop=True)
+    log.info(f"Out-of-sample only: {split['test_start']} -> {split['test_end']} "
+             f"({len(features):,} of {before:,} feature rows)")
+    if features.empty:
+        raise SystemExit("No feature rows in the held-out period — retrain first.")
+
     features["score"] = model.predict_proba(features[FEATURE_COLS])[:, 1] * 100
 
     price_lookup = history.set_index(["ticker", "date"])["close"].to_dict()
@@ -90,6 +122,7 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
     win_rate = (trades_df["pnl_pct"] > 0).mean()
     summary = {
         "threshold": threshold,
+        "period": f"{split['test_start']} -> {split['test_end']} (out-of-sample)",
         "num_trades": len(trades_df),
         "win_rate_pct": round(win_rate * 100, 1),
         "avg_pnl_pct": round(trades_df["pnl_pct"].mean(), 2),
