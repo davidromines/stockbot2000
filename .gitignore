@@ -7,6 +7,7 @@ data/*.db
 data/raw/
 data/symbol_snapshots/
 data/archive_snapshots/
+data/french/
 logs/*.log
 models/*.json
 .env
