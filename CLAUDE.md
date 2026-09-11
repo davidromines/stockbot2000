@@ -346,8 +346,16 @@ Key design points (do not silently change these — they were deliberate):
 
 - **Reward is risk-adjusted, not raw profit.** Raw P&L maximization reliably
   discovers strategies that make enormous concentrated bets.
-- **The action space is parameter tuning**, not per-ticker RL actions and not
-  open-ended rule synthesis. Keeps results interpretable and fast to evaluate.
+- **The action space is open-ended rule synthesis** as of 2026-09-11, changed
+  from parameter tuning with the user's explicit agreement. The search composes
+  entry and exit rules from primitives and operators; risk parameters stay as
+  tuned genes. Reversed because parameter tuning can only re-tune an idea that
+  already loses money after costs, and because net-of-cost fitness now exists to
+  make open search survivable. Complexity is penalised so trees cannot grow until
+  they memorise history.
+- **Net P&L in dollars is the headline metric.** Not AUC, not win rate, not
+  Sharpe. Those are diagnostics of *why*; money is the test of *whether*. Report
+  it first, everywhere.
 - **The sealed holdout period is sealed.** Each strategy may be evaluated
   against it exactly once, ever. No peeking for early stopping, ranking, or
   "just checking."

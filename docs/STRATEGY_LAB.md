@@ -25,9 +25,62 @@ before any real dollars are involved. That gauntlet is the point of the design.
 
 ---
 
+## Scope change — 2026-09-11
+
+**The action space was widened from parameter tuning to open-ended rule
+synthesis.** The original spec said:
+
+> "The action space is parameter tuning, not per-ticker RL actions and not
+> open-ended rule synthesis. Keeps results interpretable and fast to evaluate."
+
+That was a deliberate decision and it is now deliberately reversed. Two reasons:
+
+1. **Parameter tuning cannot invent anything.** It can only produce a
+   differently-tuned version of the idea already encoded. The baseline strategy
+   loses **-$26.69** after costs; re-tuning its knobs will most likely find
+   slightly-less-losing knob settings, not a different idea.
+2. **The guard that makes open search survivable now exists.** Fitness is net of
+   realistic trading costs (`costs.py`, phase 07). Noise strategies are typically
+   high-turnover and costs punish turnover specifically, so net-of-cost P&L is a
+   far harder target to fake than the gross returns the original spec would have
+   optimised against.
+
+What has **not** changed: the sealed holdout, the once-only rule, trial-count
+recording and deflated Sharpe. Those matter more under open search, not less —
+a larger space means more chances to find convincing noise.
+
+---
+
 ## The genome
 
-Each candidate strategy is one setting of every gene below.
+A strategy is an **entry rule**, an **exit rule**, and a set of risk parameters.
+Rules are expression trees composed by the search from the primitives below;
+nobody writes them. Risk parameters evolve alongside as ordinary genes.
+
+### Rule grammar
+
+| Kind | Members |
+|---|---|
+| **Primitives** | the 20 indicators, plus `close`, `volume`, `returns`, `dollar_volume_20` |
+| **Transforms** | `zscore(x, n)`, `rank(x)` (cross-sectional), `lag(x, n)`, `delta(x, n)`, `pct_change(x, n)` |
+| **Comparisons** | `>`, `<`, `crosses_above`, `crosses_below` |
+| **Logic** | `and`, `or`, `not` |
+| **Constants** | sampled from each primitive's own observed distribution |
+
+So the search can compose, and did not have to be told to:
+
+```
+rank(rsi_14) < 0.2  AND  zscore(volume, 20) > 1.5  AND  close > sma_50
+```
+
+Readable, inventable, and unlike anything in the original ten-knob genome.
+
+**Complexity is penalised.** Without that, trees grow until they memorise
+history. Node count enters the fitness function directly.
+
+### Risk genes
+
+Each candidate strategy also carries one setting of every gene below.
 
 | Gene | Controls | Range |
 |---|---|---|
@@ -42,10 +95,9 @@ Each candidate strategy is one setting of every gene below.
 | `min_liquidity` | Dollar-volume floor for tradeable names | $1M … $50M/day |
 | `regime_filter` | Stand down when the broad market trends down | on/off + threshold |
 
-This is deliberately a **tuning** space rather than open-ended rule synthesis. It
-reuses the existing scoring pipeline, evaluates fast enough to test hundreds of
-thousands of candidates per night, and keeps every result interpretable — you can
-read a winning genome and understand what it does.
+Risk genes remain a tuning space even though rules are now synthesised. Stops,
+sizing and caps have a natural numeric range and nothing is gained by letting the
+search invent structure there — while a great deal of interpretability is lost.
 
 ---
 
@@ -53,7 +105,7 @@ read a winning genome and understand what it does.
 
 ```
 # per walk-forward window
-window_score = sharpe(daily_returns_net_of_costs)
+window_score = sharpe(daily_returns_net_of_costs)   # costs from costs.py, phase 07
              × (1 − max_drawdown)                  # drawdown penalty
              × sqrt(n_trades / (n_trades + 30))    # small-sample shrinkage
 
@@ -73,6 +125,13 @@ Each term blocks a specific failure mode:
   Shrinkage pulls low-trade-count scores toward zero.
 - **Consistency across time.** Subtracting the standard deviation across windows
   penalizes strategies that made all their money in one lucky year.
+- **Complexity penalty.** Added with rule synthesis. An unconstrained tree grows
+  until it memorises history; node count is charged against fitness so a simple
+  rule beats an elaborate one of equal performance.
+
+**Net P&L in dollars is the headline metric for every evaluation.** Sharpe and the
+terms above shape the search; money decides whether anything was worth it. A
+strategy that loses money is not interesting regardless of its Sharpe ratio.
 
 ---
 
