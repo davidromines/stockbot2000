@@ -45,16 +45,70 @@ WAYBACK = "https://web.archive.org/web/{ts}id_/https://www.nasdaqtrader.com/dyna
 FILES = ("nasdaqlisted", "otherlisted")
 
 
-def snapshot_list(file: str, timeout: int = 60) -> list[str]:
-    """Timestamps of archived captures whose content differs from the previous one."""
-    resp = requests.get(CDX.format(file=file), timeout=timeout)
-    resp.raise_for_status()
-    rows = resp.json()
-    return [r[0] for r in rows[1:]] if len(rows) > 1 else []
+def snapshot_list(file: str, timeout: int = 60, attempts: int = 6) -> list[str]:
+    """
+    Timestamps of archived captures whose content differs from the previous one.
+
+    Retried patiently: the index request is refused just as readily as a capture,
+    and a failure here previously skipped an entire file — which is why the NYSE
+    half of the reconstruction never ran.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = requests.get(CDX.format(file=file), timeout=timeout)
+            resp.raise_for_status()
+            rows = resp.json()
+            return [r[0] for r in rows[1:]] if len(rows) > 1 else []
+        except Exception as e:
+            wait = min(30 * (2 ** (attempt - 1)), 900)
+            log.warning(f"{file}: index request failed ({type(e).__name__}); "
+                        f"retry {attempt}/{attempts} in {wait}s")
+            if attempt < attempts:
+                time.sleep(wait * random.uniform(0.8, 1.2))
+    return []
 
 
 class ArchiveBlocked(Exception):
-    """The Wayback Machine has stopped answering — back off and resume later."""
+    """The Wayback Machine has stopped answering — back off and wait."""
+
+
+class RateLimiter:
+    """
+    Paces requests to the Wayback Machine so the run finishes instead of failing.
+
+    archive.org refuses connections outright once it decides you are asking too
+    often, and refuses them for a while afterwards — the previous run died at
+    exactly that point, twice. The answer is not more retries but a slower
+    baseline: a fixed gap between requests, widened whenever a refusal happens
+    and narrowed again only after a long clean streak.
+
+    Patience is cheap here. There are ~120 captures in total and no deadline;
+    waiting ten minutes to get all of them beats finishing half in two.
+    """
+
+    def __init__(self, base_delay: float = 4.0, max_delay: float = 120.0,
+                 jitter: float = 0.35):
+        self.base = base_delay
+        self.delay = base_delay
+        self.max_delay = max_delay
+        self.jitter = jitter
+        self._clean = 0
+
+    def wait(self) -> None:
+        time.sleep(self.delay * random.uniform(1 - self.jitter, 1 + self.jitter))
+
+    def refused(self, strike: int) -> float:
+        """Widen the gap and return how long to sleep before trying again."""
+        self.delay = min(self.delay * 2, self.max_delay)
+        self._clean = 0
+        pause = min(60 * (2 ** (strike - 1)), 1800)
+        return pause * random.uniform(0.8, 1.2)
+
+    def ok(self) -> None:
+        self._clean += 1
+        if self._clean >= 15 and self.delay > self.base:
+            self.delay = max(self.base, self.delay / 1.5)
+            self._clean = 0
 
 
 def fetch_snapshot(file: str, ts: str, cache_dir: Path, timeout: int = 60) -> str | None:
@@ -126,7 +180,7 @@ def parse_snapshot(text: str, file: str) -> list[dict]:
     return out
 
 
-def fetch_all(config: dict, pause: float = 3.0) -> None:
+def fetch_all(config: dict, pause: float = 4.0) -> None:
     conn = storage.connect(config["database"]["market_data_path"])
     storage.init_db(conn)
     cache = Path(config["universe"].get("archive_cache_dir", "data/archive_snapshots"))
@@ -134,7 +188,8 @@ def fetch_all(config: dict, pause: float = 3.0) -> None:
     done = storage.archived_snapshots(conn)
     log.info(f"{len(done)} snapshots already stored")
     blocked = stored = 0
-    max_blocked = 4
+    max_blocked = 12          # patient: there is no deadline, only ~120 captures
+    limiter = RateLimiter(base_delay=pause)
 
     for file in FILES:
         try:
@@ -156,17 +211,19 @@ def fetch_all(config: dict, pause: float = 3.0) -> None:
                 blocked += 1
                 if blocked >= max_blocked:
                     log.error(
-                        f"archive.org is refusing connections after {stored} new snapshots. "
-                        f"Rate limited — progress is saved, re-run later to continue.")
+                        f"archive.org still refusing after {blocked} waits and "
+                        f"{stored} new snapshots. Progress is saved; re-run to continue.")
                     conn.close()
                     return
-                wait = min(60 * (2 ** (blocked - 1)), 900)
-                log.warning(f"Connection refused ({blocked}/{max_blocked}); waiting {wait}s")
+                wait = limiter.refused(blocked)
+                log.warning(f"Refused ({blocked}/{max_blocked}) — waiting {wait:.0f}s, "
+                            f"pacing now {limiter.delay:.1f}s between requests")
                 time.sleep(wait)
                 continue
             if text is None:
                 continue
             blocked = 0
+            limiter.ok()
             rows = parse_snapshot(text, file)
             if not rows:
                 log.warning(f"{file} {ts}: parsed zero listings")
@@ -175,7 +232,7 @@ def fetch_all(config: dict, pause: float = 3.0) -> None:
             n = storage.record_historical_listings(conn, day, key, rows)
             stored += 1
             log.info(f"{file} {ts[:8]}: {n:,} listings ({i}/{len(stamps)})")
-            time.sleep(pause * random.uniform(0.7, 1.4))
+            limiter.wait()
 
     conn.close()
 
