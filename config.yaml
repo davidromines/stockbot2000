@@ -58,6 +58,7 @@ lab:
   validation_end: "2022-12-31"
   sealed_start: "2023-01-01"      # opened once per strategy, at the funding decision
   max_depth: 4                    # rule tree depth cap
+  workers: 3                      # leave one core free; see compute.max_threads
   max_entries_per_eval: 20000     # signals sampled per candidate
   elite_fraction: 0.15
   mutation_rate: 0.6

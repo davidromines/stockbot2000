@@ -14,9 +14,13 @@ faster.
 Strategies that lose money score exactly zero, so they neither reproduce nor
 anchor the population.
 
-Parallelism: workers each get a copy of the panel through fork. Copy-on-write
-keeps that cheap on Linux as long as nothing writes to it, which nothing does —
-the panel is read-only after construction.
+Parallelism: workers inherit the panel through fork rather than receiving it over
+a pipe. Copy-on-write keeps that nearly free on Linux as long as nothing writes to
+it, and nothing does — the panel is read-only once built. Pickling a 1.3 GB panel
+to each worker instead would cost more than the parallelism saves.
+
+Measured on the full 2006-2019 window: 0.97 evaluations/sec on one core, so the
+200k-per-night figure in STRATEGY_LAB.md was only ever reachable with workers.
 
 Usage:
     python evolve.py --generations 10 --population 200
@@ -26,6 +30,8 @@ Usage:
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
 import logging
+import multiprocessing as mp
+import os
 import random
 import signal
 import sys
@@ -53,6 +59,21 @@ def _handle_interrupt(signum, frame):
         sys.exit(130)
     _stop = True
     log.warning("Interrupt received. Finishing this generation, then stopping.")
+
+
+_W: dict = {}     # per-worker state, populated by fork
+
+
+def _init_worker(panel, cost_model, position_size, capital, max_entries, null_pct):
+    """Runs once per worker. The panel arrives by fork, not by pickle."""
+    _W.update(panel=panel, cost_model=cost_model, position_size=position_size,
+              capital=capital, max_entries=max_entries, null_pct=null_pct)
+
+
+def _eval_worker(genome_dict):
+    return evaluate_one(genome_dict, _W["panel"], _W["cost_model"],
+                        _W["position_size"], _W["capital"], _W["max_entries"],
+                        _W["null_pct"])
 
 
 def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_entries,
@@ -110,6 +131,16 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
                             {"lab": lab, "risk": config["risk"], "costs": config["costs"]})
     log.info(f"Run {run_id}: {generations} generations x {population} candidates")
 
+    workers = int(lab.get("workers", max(1, (os.cpu_count() or 2) - 1)))
+    pool = None
+    if workers > 1:
+        # fork so the panel is inherited rather than pickled to each worker.
+        ctx = mp.get_context("fork")
+        pool = ctx.Pool(workers, initializer=_init_worker,
+                        initargs=(panel, cost_model, position_size, capital,
+                                  max_entries, null["net_pct"]))
+        log.info(f"Evaluating across {workers} workers")
+
     trial = 0
     pop: list = []
     started = time.time()
@@ -136,13 +167,18 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
                     _, b, _ = tournament(pop, rng)
                     candidates.append((grammar.crossover(a, b), "crossover", aid))
 
+        genomes = [g for g, _, _ in candidates]
+        if pool is not None:
+            # chunksize 1: evaluation time varies a lot between genomes, and
+            # larger chunks leave workers idle at the end of a generation.
+            scores = pool.map(_eval_worker, genomes, chunksize=1)
+        else:
+            scores = [evaluate_one(g, panel, cost_model, position_size, capital,
+                                   max_entries, null["net_pct"]) for g in genomes]
+
         scored_pop = []
-        for g, origin, parent_id in candidates:
-            if _stop:
-                break
+        for (g, origin, parent_id), scored in zip(candidates, scores):
             trial += 1
-            scored = evaluate_one(g, panel, cost_model, position_size, capital,
-                                  max_entries, null["net_pct"])
             sid = ledger.record(conn, run_id, gen, origin, g, gn.describe,
                                 gn.complexity(g), parent_id, scored, window, trial)
             scored_pop.append((scored, g, sid))
@@ -159,6 +195,9 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
                  f"best excess ${money.get('excess_pnl_usd', 0):+,.0f}  "
                  f"beating the null {profitable}/{len(pop)}  {rate:.1f} evals/s")
 
+    if pool is not None:
+        pool.close()
+        pool.join()
     ledger.finish_run(conn, run_id, trial)
     s = ledger.run_stats(conn, run_id)
     log.info("-" * 60)
