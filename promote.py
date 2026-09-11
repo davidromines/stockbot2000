@@ -178,6 +178,7 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
 def validate(conn, cfg, run_id: str) -> list[str]:
     """Stage 03. Re-run the shortlist on 2020-2022 — data the search never saw."""
     lab = cfg["lab"]
+    gates = lab.get("gates", {"min_excess_pnl_usd": 0.0, "min_sharpe": 0.0, "min_trades": 20})
     window = (lab["validation_start"], lab["validation_end"])
     ids = [r["strategy_id"] for r in conn.execute("""
         SELECT p.strategy_id FROM promotions p JOIN strategies s ON s.id = p.strategy_id
@@ -194,12 +195,17 @@ def validate(conn, cfg, run_id: str) -> list[str]:
         scored = _evaluate_window(conn, cfg, json.loads(row["genome"]), window)
         if scored is None:
             continue
-        # Must beat the null, not merely zero. Under the old rule 52% of random
-        # strategies passed this gate.
-        passed = scored.get("excess_pnl_usd", 0) > 0 and scored["n_trades"] >= 20
+        # Calibrated against noise, not set at zero. Beating the null alone still
+        # admitted 27% of random strategies; these thresholds are the 95th
+        # percentile of what pure chance achieves on the same window.
+        passed = (scored.get("excess_pnl_usd", 0) >= gates["min_excess_pnl_usd"]
+                  and scored.get("sharpe", 0) >= gates["min_sharpe"]
+                  and scored["n_trades"] >= gates["min_trades"])
         _decide(conn, sid, "validation", passed,
-                {"net_pnl_usd": scored["net_pnl_usd"], "sharpe": scored["sharpe"],
-                 "n_trades": scored["n_trades"], "window": window})
+                {"net_pnl_usd": scored["net_pnl_usd"],
+                 "excess_pnl_usd": scored.get("excess_pnl_usd"),
+                 "sharpe": scored["sharpe"], "n_trades": scored["n_trades"],
+                 "gates": gates, "window": window})
         if passed:
             survivors.append(sid)
         if i % 25 == 0:
@@ -247,7 +253,9 @@ def seal(conn, cfg, sid: str) -> None:
 
     trials = int(row["trial_index"] or 1)
     dsr = deflated_sharpe(scored["sharpe"], trials, max(scored["n_trades"], 2))
-    passed = scored.get("excess_pnl_usd", 0) > 0 and dsr > 0.95
+    gates = cfg["lab"].get("gates", {})
+    passed = (scored.get("excess_pnl_usd", 0) >= gates.get("min_excess_pnl_usd", 0)
+              and dsr > 0.95)
 
     _decide(conn, sid, "sealed", passed, {
         "net_pnl_usd": scored["net_pnl_usd"], "sharpe": scored["sharpe"],

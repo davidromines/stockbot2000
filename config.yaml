@@ -62,6 +62,16 @@ lab:
   elite_fraction: 0.15
   mutation_rate: 0.6
 
+  # Promotion gates, calibrated against the random-strategy control rather than
+  # set at zero. These are the 95th percentile of what pure noise achieves, so a
+  # candidate clearing them is in the top 5% of chance outcomes at worst.
+  # Re-run `control.py --calibrate` after any change to fitness or the simulator;
+  # a gate that has never been tested against noise is an assumption.
+  gates:
+    min_excess_pnl_usd: 12.05    # 95th pct of random-strategy excess
+    min_sharpe: 0.569            # 95th pct of random-strategy Sharpe
+    min_trades: 20
+
 # Survivorship correction applied to every backtest figure.
 # Measured 2026-09-11 by bias_benchmark.py against Ken French's CRSP-based series:
 # our universe returned 17.8%/yr against CRSP's 7.4%/yr over 2006-2026. Expressed

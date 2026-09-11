@@ -353,6 +353,13 @@ Key design points (do not silently change these — they were deliberate):
   already loses money after costs, and because net-of-cost fitness now exists to
   make open search survivable. Complexity is penalised so trees cannot grow until
   they memorise history.
+- **Score against the null, never against zero.** Buying at random and holding
+  five days was profitable in every window this project tests on, because the
+  market rose. Scoring against zero rewards being long in a bull market, not
+  selection — it let 57% of random strategies pass validation. `benchmark.py`
+  computes what chance earns per window; fitness and every gate measure excess
+  over it. **Re-run `control.py --calibrate` after any change to fitness, the
+  simulator or the gates.** A gate never tested against noise is an assumption.
 - **Net P&L in dollars is the headline metric.** Not AUC, not win rate, not
   Sharpe. Those are diagnostics of *why*; money is the test of *whether*. Report
   it first, everywhere.

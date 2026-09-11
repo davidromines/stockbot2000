@@ -203,9 +203,25 @@ similar strategies — a dip-buyer is inflated more than a trend-follower.
 
 ---
 
-### Benchmark-relative scoring ✅ (1 of 3)
+### Benchmark-relative scoring ✅ (all 3)
 `benchmark.py` built 2026-09-11. Computes and caches the null — what buying at
 random and holding the horizon actually earns in a given window, net of costs.
+
+`reward.py` now scores **excess over that null** rather than raw P&L, and
+`control.py` measures the ladder's false-positive rate by running random,
+never-evolved strategies through the live gates.
+
+Measured progression of how much noise the validation gate admits:
+
+| Gate | Random strategies passing |
+|---|---|
+| net P&L > 0 (original) | **57%** |
+| excess over null > 0 | 30% |
+| calibrated thresholds | **0%** |
+
+Thresholds come from the 95th percentile of what pure chance achieves — excess
+≥ $12.05 and Sharpe ≥ 0.569 — not from a round number. `control.py` reads the
+same config the ladder enforces, so the two cannot drift apart.
 
 Built because a control experiment showed **52% of random, never-evolved
 strategies passed the validation gate**. The cause: every score in the project
