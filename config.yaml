@@ -52,7 +52,8 @@ labeling:
 
 model:
   path: "models/xgb_uptrend.json"
-  train_test_split: 0.2
+  test_fraction: 0.2                     # last 20% of the TIMELINE held out, not 20% of rows
+  split_metadata_path: "models/split.json"  # backtest.py reads this to stay out-of-sample
   random_state: 42
 
 risk:

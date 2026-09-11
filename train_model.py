@@ -5,11 +5,11 @@ predict whether the stock rises >= up_threshold_pct within horizon_days.
 Run this occasionally (weekly/monthly) offline as history accumulates.
 Not part of the daily scoring pipeline.
 """
+import json
 import logging
 
 import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, roc_auc_score
 
 from universe import load_config
@@ -34,6 +34,47 @@ def build_labels(history: pd.DataFrame, horizon_days: int, up_threshold_pct: flo
     return history.dropna(subset=["label"])
 
 
+def chronological_split(df: pd.DataFrame, test_fraction: float, horizon_days: int):
+    """
+    Split by date, not at random, and purge the boundary.
+
+    Two separate leaks are being closed here.
+
+    The obvious one: a shuffled split over time-ordered rows puts tomorrow in the
+    training set and yesterday in the test set. The model then "predicts" days it
+    has already seen.
+
+    The subtle one: labels look forward `horizon_days`. A training row dated D
+    carries a label derived from the close at D+horizon. If D sits within
+    `horizon` days of the cutoff, that label encodes prices from the test period
+    even though the row itself does not. So the last `horizon` trading days
+    before the cutoff are dropped entirely — the standard purge. Without it the
+    split looks clean and still leaks.
+    """
+    dates = sorted(df["date"].unique())
+    if len(dates) < horizon_days * 3:
+        return df.iloc[0:0], df.iloc[0:0], {}
+
+    cutoff = int(len(dates) * (1 - test_fraction))
+    train_dates = dates[: max(cutoff - horizon_days, 0)]
+    test_dates = dates[cutoff:]
+    if not train_dates or not test_dates:
+        return df.iloc[0:0], df.iloc[0:0], {}
+
+    train = df[df["date"].isin(train_dates)]
+    test = df[df["date"].isin(test_dates)]
+    meta = {
+        "train_start": str(train_dates[0])[:10],
+        "train_end": str(train_dates[-1])[:10],
+        "test_start": str(test_dates[0])[:10],
+        "test_end": str(test_dates[-1])[:10],
+        "purged_days": horizon_days,
+        "horizon_days": horizon_days,
+        "test_fraction": test_fraction,
+    }
+    return train, test, meta
+
+
 def main():
     cfg = load_config()
     features = pd.read_parquet(cfg["data"]["features_file"])
@@ -47,14 +88,24 @@ def main():
         log.error("No labeled rows after merge — need more history before training.")
         return
 
-    X = merged[FEATURE_COLS]
-    y = merged["label"]
-    log.info(f"Training on {len(X)} rows. Positive rate: {y.mean():.2%}")
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=cfg["model"]["train_test_split"],
-        random_state=cfg["model"]["random_state"], stratify=y,
+    train, test, split = chronological_split(
+        merged,
+        test_fraction=cfg["model"].get("test_fraction", 0.2),
+        horizon_days=cfg["labeling"]["horizon_days"],
     )
+    if train.empty or test.empty:
+        log.error("Not enough history to build a purged chronological split.")
+        return
+
+    X_train, y_train = train[FEATURE_COLS], train["label"]
+    X_test, y_test = test[FEATURE_COLS], test["label"]
+
+    log.info(f"Train {len(X_train):,} rows  {split['train_start']} -> {split['train_end']}  "
+             f"(positive {y_train.mean():.2%})")
+    log.info(f"Test  {len(X_test):,} rows  {split['test_start']} -> {split['test_end']}  "
+             f"(positive {y_test.mean():.2%})")
+    log.info(f"Purged {split['purged_days']} trading days between them "
+             f"(label horizon = {split['horizon_days']})")
 
     model = xgb.XGBClassifier(
         n_estimators=300,
@@ -74,6 +125,14 @@ def main():
 
     model.save_model(cfg["model"]["path"])
     log.info(f"Model saved to {cfg['model']['path']}")
+
+    # backtest.py reads this to restrict itself to out-of-sample dates. Without
+    # it a backtest silently replays the training period and reports fiction.
+    split_path = cfg["model"].get("split_metadata_path", "models/split.json")
+    split["n_train"], split["n_test"] = int(len(X_train)), int(len(X_test))
+    with open(split_path, "w") as f:
+        json.dump(split, f, indent=2)
+    log.info(f"Split metadata saved to {split_path}")
 
 
 if __name__ == "__main__":
