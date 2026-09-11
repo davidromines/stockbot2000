@@ -164,6 +164,7 @@ Pipeline stages, in execution order:
 | File | Role |
 |---|---|
 | `universe.py` | Builds the ticker list (`sp500` / `all_us` / `custom`). Also owns `load_config()`, imported everywhere. |
+| `runtime.py` | CPU thread caps and nice level. **Must be imported before numpy/pandas/xgboost.** |
 | `storage.py` | Owns `market_data.db` — schema, upserts, ingest state. Only module writing SQL to it. |
 | `backfill.py` | Resumable 20-year OHLCV loader for the full universe. Adaptive Yahoo rate limiting. |
 | `build_features.py` | Computes the 20 indicators across all history into the `features` table. |
@@ -267,9 +268,20 @@ Now running on the "Arena" VM. Hostname is `stockpicker2000` and the Linux user 
 `stockpicker` — both predate the rename to Stockbot2000 and were left alone; only
 the project is renamed. Repo at `~/stockbot2000`. Ubuntu 26.04 LTS.
 
-Measured: **4 vCPU / 11 GB RAM / 97 GB disk** (83 GB free at migration).
-Note the RAM is ~11 GB, not the 12 GB planned — the strategy-search memory
-budget should be sized against the real number.
+Measured: **4 vCPU (1 socket) / 11.7 GB RAM / 194 GB disk** (165 GB free).
+
+The disk was resized 2026-09-11 — the volume group had ~98 GB unclaimed, so `/`
+was 97 GB against a 200 GB device. `lvextend -l +100%FREE` plus `resize2fs`
+recovered it. Worth re-checking after any VM reconfiguration.
+
+RAM is 11.7 GB, not the 12 GB planned. The Strategy Lab compute plan is sized
+against the measured figure — see `docs/STRATEGY_LAB.md`.
+
+**CPU is capped deliberately.** `runtime.py` holds OpenBLAS, OpenMP and XGBoost to
+`compute.max_threads` (3 of 4 cores) and batch jobs call `be_nice()`. It must be
+the *first* import in any entry point: those libraries read their thread counts
+once at load time, so setting the variables after numpy is imported does nothing,
+silently. Do not reorder those imports.
 
 The old host (`betbot9000`) is not reachable from this VM. Code arrived by
 manual file transfer, so **there is no git history before this point.**
