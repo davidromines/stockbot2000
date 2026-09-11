@@ -110,6 +110,26 @@ def init_db(conn: sqlite3.Connection) -> None:
     # every batch.
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ingest_status ON ingest_state(status)")
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS historical_listings (
+            snapshot_date TEXT NOT NULL,
+            ticker        TEXT NOT NULL,
+            name          TEXT,
+            security_type TEXT,
+            exchange      TEXT,
+            PRIMARY KEY (snapshot_date, ticker)
+        ) STRICT, WITHOUT ROWID
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS archive_snapshots (
+            key           TEXT PRIMARY KEY,
+            snapshot_date TEXT NOT NULL,
+            listings      INTEGER NOT NULL,
+            fetched_at    TEXT NOT NULL
+        ) STRICT
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_ticker ON historical_listings(ticker)")
+
     _init_features_table(conn)
     conn.commit()
 
@@ -780,6 +800,81 @@ def mark_failed(conn: sqlite3.Connection, ticker: str, error: str) -> None:
 def ingest_summary(conn: sqlite3.Connection) -> dict:
     rows = conn.execute("SELECT status, COUNT(*) AS n FROM ingest_state GROUP BY status").fetchall()
     return {r["status"]: r["n"] for r in rows}
+
+
+# --------------------------------------------------------------------------
+# Point-in-time reconstruction (Internet Archive)
+# --------------------------------------------------------------------------
+
+def archived_snapshots(conn: sqlite3.Connection) -> set:
+    """Snapshot keys already stored — makes the fetch resumable across runs."""
+    return {r[0] for r in conn.execute("SELECT key FROM archive_snapshots")}
+
+
+def record_historical_listings(conn: sqlite3.Connection, snapshot_date: str,
+                               key: str, rows: list[dict]) -> int:
+    """Store one archived directory capture."""
+    conn.executemany("""
+        INSERT INTO historical_listings (snapshot_date, ticker, name, security_type, exchange)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(snapshot_date, ticker) DO UPDATE SET
+            name=excluded.name, security_type=excluded.security_type,
+            exchange=excluded.exchange
+    """, [(snapshot_date, r["ticker"], r.get("name"), r.get("security_type"),
+           r.get("exchange")) for r in rows])
+    conn.execute("""
+        INSERT INTO archive_snapshots (key, snapshot_date, listings, fetched_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET listings=excluded.listings, fetched_at=excluded.fetched_at
+    """, (key, snapshot_date, len(rows), _now()))
+    conn.commit()
+    return len(rows)
+
+
+def coverage_by_snapshot(conn: sqlite3.Connection, security_type: str = "common_stock") -> list[dict]:
+    """
+    For each archived capture: how many common stocks were listed, and how many of
+    them we hold any price history for.
+
+    The shortfall is the survivorship gap, measured rather than assumed. A ticker
+    counts as covered if `prices` holds *any* bar for it — a deliberately generous
+    test, so the gap reported is a lower bound on what is really missing.
+    """
+    rows = conn.execute("""
+        SELECT h.snapshot_date,
+               COUNT(*) AS listed,
+               SUM(CASE WHEN EXISTS (SELECT 1 FROM prices p WHERE p.ticker = h.ticker)
+                        THEN 1 ELSE 0 END) AS covered
+        FROM historical_listings h
+        WHERE h.security_type = ?
+        GROUP BY h.snapshot_date
+        ORDER BY h.snapshot_date
+    """, (security_type,)).fetchall()
+    return [dict(r) for r in rows if r["listed"]]
+
+
+def total_ever_listed(conn: sqlite3.Connection, security_type: str = "common_stock") -> dict:
+    row = conn.execute("""
+        SELECT COUNT(DISTINCT ticker) AS ever,
+               COUNT(DISTINCT CASE WHEN EXISTS
+                   (SELECT 1 FROM prices p WHERE p.ticker = h.ticker)
+                   THEN ticker END) AS covered
+        FROM historical_listings h WHERE security_type = ?
+    """, (security_type,)).fetchone()
+    return dict(row)
+
+
+def missing_tickers(conn: sqlite3.Connection, year: str, limit: int = 25) -> list[dict]:
+    """Common stocks listed in `year` for which we hold no price history at all."""
+    rows = conn.execute("""
+        SELECT h.ticker, MIN(h.snapshot_date) AS snapshot_date, h.name
+        FROM historical_listings h
+        WHERE h.security_type = 'common_stock'
+          AND h.snapshot_date LIKE ?
+          AND NOT EXISTS (SELECT 1 FROM prices p WHERE p.ticker = h.ticker)
+        GROUP BY h.ticker ORDER BY h.ticker LIMIT ?
+    """, (f"{year}%", limit)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def _now() -> str:

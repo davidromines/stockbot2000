@@ -6,6 +6,7 @@ data/*.json
 data/*.db
 data/raw/
 data/symbol_snapshots/
+data/archive_snapshots/
 logs/*.log
 models/*.json
 .env

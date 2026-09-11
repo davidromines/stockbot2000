@@ -24,7 +24,8 @@ universe:
   # too thin and erratic for rolling indicators to mean anything.
   feature_types: ["common_stock", "adr", "etf", "closed_end_fund"]
   request_timeout_seconds: 30
-  snapshot_dir: "data/symbol_snapshots"   # dated raw copies of each directory fetch
+  snapshot_dir: "data/symbol_snapshots"
+  archive_cache_dir: "data/archive_snapshots"   # cached Wayback captures   # dated raw copies of each directory fetch
 
 data:
   source: "sqlite"          # sqlite | parquet — parquet is the legacy 18-ticker smoke-test path
