@@ -141,6 +141,9 @@ def compute_features_for_ticker(df: pd.DataFrame) -> pd.DataFrame:
 
     df["vol_sma_20"] = sma(volume, 20)
     df["vol_ratio"] = volume / df["vol_sma_20"]
+    # Tradeability, not signal: average dollars traded per day over 20 sessions.
+    # Kept out of FEATURE_COLS on purpose — see storage.LIQUIDITY_COLS.
+    df["dollar_volume_20"] = close * df["vol_sma_20"]
 
     # --- Additional indicators (added after competitive-landscape review) ---
     df["atr_14"] = atr(high, low, close, 14)  # volatility -> feeds stop-loss sizing

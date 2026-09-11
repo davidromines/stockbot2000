@@ -30,6 +30,12 @@ log = logging.getLogger("storage")
 
 PRICE_COLUMNS = ["ticker", "date", "open", "high", "low", "close", "volume", "source"]
 
+# Stored alongside the indicators but deliberately NOT in FEATURE_COLS. These are
+# tradeability filters, not model inputs — feeding liquidity to the classifier
+# would let it learn "small illiquid names move more", which is exactly the
+# artifact the filters exist to remove.
+LIQUIDITY_COLS = ["dollar_volume_20"]
+
 
 def connect(db_path: str) -> sqlite3.Connection:
     """
@@ -117,7 +123,7 @@ def _init_features_table(conn: sqlite3.Connection) -> None:
     """
     from train_model import FEATURE_COLS
 
-    cols = ",\n            ".join(f"{c} REAL" for c in FEATURE_COLS)
+    cols = ",\n            ".join(f"{c} REAL" for c in FEATURE_COLS + LIQUIDITY_COLS)
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS features (
             ticker TEXT NOT NULL,
@@ -126,6 +132,12 @@ def _init_features_table(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (ticker, date)
         ) STRICT, WITHOUT ROWID
     """)
+    # Migration for tables created before the liquidity columns existed.
+    have = {r[1] for r in conn.execute("PRAGMA table_info(features)")}
+    for c in LIQUIDITY_COLS:
+        if c not in have:
+            conn.execute(f"ALTER TABLE features ADD COLUMN {c} REAL")
+            log.info(f"Migrated features table: added {c}")
 
 
 # --------------------------------------------------------------------------
@@ -250,13 +262,14 @@ def upsert_features(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     if df.empty:
         return 0
 
-    cols = ["ticker", "date"] + FEATURE_COLS
+    stored = FEATURE_COLS + [c for c in LIQUIDITY_COLS if c in df.columns]
+    cols = ["ticker", "date"] + stored
     frame = df.copy()
     frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
     frame = frame[cols]
 
     placeholders = ",".join("?" * len(cols))
-    updates = ",".join(f"{c}=excluded.{c}" for c in FEATURE_COLS)
+    updates = ",".join(f"{c}=excluded.{c}" for c in stored)
     sql = (f"INSERT INTO features ({','.join(cols)}) VALUES ({placeholders}) "
            f"ON CONFLICT(ticker, date) DO UPDATE SET {updates}")
 
@@ -411,10 +424,15 @@ def _read_downcast(conn, sql, params, feature_cols, chunk_rows: int = CHUNK_ROWS
     return df
 
 
-def _feature_where(feature_cols, types, start_date, end_date):
+def _feature_where(feature_cols, types, start_date, end_date,
+                   min_price=None, min_dollar_volume=None):
     """Shared WHERE clause and bound parameters for the feature loaders."""
     where = [f"f.{c} IS NOT NULL" for c in feature_cols]
     params: list = []
+    if min_price is not None:
+        where.append("p.close >= ?"); params.append(float(min_price))
+    if min_dollar_volume is not None:
+        where.append("f.dollar_volume_20 >= ?"); params.append(float(min_dollar_volume))
     if types:
         where.append(f"f.ticker IN (SELECT ticker FROM symbols "
                      f"WHERE security_type IN ({','.join('?' * len(types))}))")
@@ -454,9 +472,12 @@ def feature_dates(conn: sqlite3.Connection, types: list[str] | None = None,
 def count_labeled_rows(conn: sqlite3.Connection, feature_cols: list[str],
                        types: list[str] | None = None,
                        start_date: str | None = None,
-                       end_date: str | None = None) -> int:
+                       end_date: str | None = None,
+                       min_price: float | None = None,
+                       min_dollar_volume: float | None = None) -> int:
     """Row count for a prospective load — so memory can be budgeted before committing to it."""
-    where, params = _feature_where(feature_cols, types, start_date, end_date)
+    where, params = _feature_where(feature_cols, types, start_date, end_date,
+                                   min_price, min_dollar_volume)
     return conn.execute(
         f"SELECT COUNT(*) FROM features f JOIN prices p "
         f"ON f.ticker = p.ticker AND f.date = p.date WHERE {where}", params
@@ -468,7 +489,9 @@ def load_labeled_frame(conn: sqlite3.Connection, feature_cols: list[str],
                        types: list[str] | None = None,
                        start_date: str | None = None,
                        end_date: str | None = None,
-                       sample_per_mille: int | None = None) -> pd.DataFrame:
+                       sample_per_mille: int | None = None,
+                       min_price: float | None = None,
+                       min_dollar_volume: float | None = None) -> pd.DataFrame:
     """
     Features, close, and the forward-return label — labelled in SQL, not pandas.
 
@@ -487,7 +510,8 @@ def load_labeled_frame(conn: sqlite3.Connection, feature_cols: list[str],
     about 1.5 GB on their own.
     """
     horizon = int(horizon_days)          # interpolated, so force it to an int
-    where, params = _feature_where(feature_cols, types, start_date, end_date)
+    where, params = _feature_where(feature_cols, types, start_date, end_date,
+                                   min_price, min_dollar_volume)
 
     # Subsample in SQL, not pandas. Sampling after loading would not help: the
     # peak happens while the full result set is still a pile of Python objects.
@@ -537,7 +561,9 @@ def available_memory_gb() -> float:
 def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
                        types: list[str] | None = None,
                        start_date: str | None = None,
-                       end_date: str | None = None) -> pd.DataFrame:
+                       end_date: str | None = None,
+                       min_price: float | None = None,
+                       min_dollar_volume: float | None = None) -> pd.DataFrame:
     """
     Features joined to close price, for model training and backtesting.
 
@@ -551,17 +577,9 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     caller receives only usable rows.
     """
     cols = ", ".join(f"f.{c}" for c in feature_cols)
-    where = [f"f.{c} IS NOT NULL" for c in feature_cols]
-    params: list = []
-
-    if types:
-        where.append(f"f.ticker IN (SELECT ticker FROM symbols "
-                     f"WHERE security_type IN ({','.join('?' * len(types))}))")
-        params += list(types)
-    if start_date:
-        where.append("f.date >= ?"); params.append(start_date)
-    if end_date:
-        where.append("f.date <= ?"); params.append(end_date)
+    where_sql, params = _feature_where(feature_cols, types, start_date, end_date,
+                                       min_price, min_dollar_volume)
+    where = [where_sql]
 
     sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
@@ -570,9 +588,39 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     return _read_downcast(conn, sql, params, feature_cols)
 
 
+def price_series(conn: sqlite3.Connection, tickers: list[str],
+                 start_date: str, end_date: str) -> dict:
+    """
+    Unfiltered closes for the given tickers, keyed (ticker, date).
+
+    Exits must never use the same filtered view as entries. Tradeability floors
+    decide what may be *bought*; a position already open has to be priced and
+    closed on schedule even on days the name slips below the floor. Using the
+    filtered set for both made held positions invisible on those days, so the
+    holding clock stopped and average hold ran to 58 days against a 5-day
+    horizon.
+    """
+    if not tickers:
+        return {}
+    out = {}
+    CH = 900  # stay under SQLite's variable limit
+    for i in range(0, len(tickers), CH):
+        block = tickers[i:i + CH]
+        ph = ",".join("?" * len(block))
+        rows = conn.execute(
+            f"SELECT ticker, date, close FROM prices "
+            f"WHERE ticker IN ({ph}) AND date BETWEEN ? AND ?",
+            (*block, start_date, end_date)).fetchall()
+        for r in rows:
+            out[(r[0], r[1])] = r[2]
+    return out
+
+
 def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
                          types: list[str] | None = None,
-                         max_staleness_days: int = 5) -> pd.DataFrame:
+                         max_staleness_days: int = 5,
+                         min_price: float | None = None,
+                         min_dollar_volume: float | None = None) -> pd.DataFrame:
     """
     Most recent feature row per ticker — what the daily scorer ranks.
 
@@ -589,6 +637,10 @@ def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
     cols = ", ".join(f"f.{c}" for c in feature_cols)
     where = [f"f.{c} IS NOT NULL" for c in feature_cols]
     params: list = []
+    if min_price is not None:
+        where.append("p.close >= ?"); params.append(float(min_price))
+    if min_dollar_volume is not None:
+        where.append("f.dollar_volume_20 >= ?"); params.append(float(min_dollar_volume))
     if types:
         where.append(f"f.ticker IN (SELECT ticker FROM symbols "
                      f"WHERE security_type IN ({','.join('?' * len(types))}) "

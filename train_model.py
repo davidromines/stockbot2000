@@ -87,10 +87,13 @@ def main():
     log.info(f"{avail:.1f} GB memory available")
 
     cap = cfg["model"].get("max_train_rows")
+    floors = (cfg["risk"].get("min_price"), cfg["risk"].get("min_dollar_volume"))
+    log.info(f"Tradeability floors: price >= {floors[0]}, dollar volume >= {floors[1]:,.0f}")
 
     def load(a, b, what, apply_cap=False):
         n = storage.count_labeled_rows(conn, FEATURE_COLS, types=types,
-                                       start_date=a, end_date=b)
+                                       start_date=a, end_date=b,
+                                       min_price=floors[0], min_dollar_volume=floors[1])
         per_mille = None
         if apply_cap and cap and n > cap:
             per_mille = max(1, int(1000 * cap / n))
@@ -98,7 +101,8 @@ def main():
                      f"sampling {per_mille/10:.1f}% in SQL")
         df = storage.load_labeled_frame(conn, FEATURE_COLS, horizon, threshold,
                                         types=types, start_date=a, end_date=b,
-                                        sample_per_mille=per_mille)
+                                        sample_per_mille=per_mille,
+                                        min_price=floors[0], min_dollar_volume=floors[1])
         log.info(f"  {what}: {len(df):,} rows, {storage.frame_memory_gb(df):.2f} GB, "
                  f"positive {df['label'].mean():.2%}")
         return df

@@ -29,6 +29,8 @@ def main():
         conn, FEATURE_COLS,
         types=cfg["universe"]["tradeable_types"],
         max_staleness_days=cfg["scoresheet"].get("max_staleness_days", 5),
+        min_price=cfg["risk"].get("min_price"),
+        min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
     )
     conn.close()
 
