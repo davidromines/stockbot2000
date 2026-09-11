@@ -143,8 +143,12 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     # against the scale of Sharpe, and gets it wrong the moment that scale moves —
     # the first version wiped out every candidate because a 0.1 penalty swamped
     # Sharpe values around 0.1. A multiplier is scale-free.
-    excess = max(0, complexity - p["complexity_free"])
-    penalty = 1.0 / (1.0 + p["complexity_penalty"] * excess)
+    # Named `excess_nodes`, not `excess`. Reusing the latter silently clobbered
+    # the excess P&L computed above, so every result reported its node overage as
+    # its excess dollars — which read as 0 for simple trees and made the gates
+    # compare node counts against a dollar threshold.
+    excess_nodes = max(0, complexity - p["complexity_free"])
+    penalty = 1.0 / (1.0 + p["complexity_penalty"] * excess_nodes)
 
     score = max(0.0, sr * (1 - dd) * shrink * penalty)
     return {
