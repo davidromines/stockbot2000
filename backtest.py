@@ -54,6 +54,38 @@ def load_split(cfg: dict) -> dict:
         return json.load(f)
 
 
+def apply_survivorship_haircut(trades: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """
+    Deduct the measured survivorship overstatement from every trade.
+
+    Our universe contains only companies still listed today, so its returns are
+    inflated by everything that failed. `bias_benchmark.py` measured that against
+    CRSP at 9.68% of excess compounding per year.
+
+    Charged per trade in proportion to how long the position was actually held,
+    rather than as a flat deduction: a two-day trade should not carry the same
+    correction as a two-month one.
+
+    This is a correction, not a fix. The delisted companies are still missing, and
+    the figure is an upper bound because it also contains CRSP's microcap and OTC
+    coverage that a directory-built universe never had. Treat adjusted numbers as
+    less wrong, not as right.
+    """
+    scfg = cfg.get("survivorship", {})
+    if not scfg.get("enabled", False):
+        trades["pnl_pct_adj"] = trades["pnl_pct"]
+        return trades
+
+    annual = float(scfg.get("excess_return_pct_per_year", 0.0)) / 100.0
+    held = (pd.to_datetime(trades["exit_date"]) - pd.to_datetime(trades["entry_date"])).dt.days
+    held = held.clip(lower=1)
+    drag_pct = ((1 + annual) ** (held / 365.0) - 1) * 100.0
+
+    trades["survivorship_drag_pct"] = drag_pct
+    trades["pnl_pct_adj"] = trades["pnl_pct"] - drag_pct
+    return trades
+
+
 def run_backtest(threshold: float, cfg: dict) -> dict:
     split = load_split(cfg)
 
@@ -141,11 +173,14 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
                 }
 
     trades_df = pd.DataFrame(trades)
+    if not trades_df.empty:
+        trades_df = apply_survivorship_haircut(trades_df, cfg)
     if trades_df.empty:
         log.warning("No trades generated at this threshold.")
         return {"threshold": threshold, "num_trades": 0}
 
     win_rate = (trades_df["pnl_pct"] > 0).mean()
+    adj = trades_df["pnl_pct_adj"]
     summary = {
         "selection": mode if mode != "threshold" else f"threshold {threshold}",
         "period": f"{split['test_start']} -> {split['test_end']} (out-of-sample)",
@@ -155,6 +190,11 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
         "total_pnl_usd": round(trades_df["pnl_usd"].sum(), 2),
         "avg_days_held": round((pd.to_datetime(trades_df["exit_date"]) - pd.to_datetime(trades_df["entry_date"])).dt.days.mean(), 1),
         "stopped_out_pct": round((trades_df["exit_reason"] == "stop_loss").mean() * 100, 1),
+        "--- survivorship-adjusted ---": "",
+        "avg_drag_pct": round(trades_df.get("survivorship_drag_pct", pd.Series([0])).mean(), 3),
+        "adj_win_rate_pct": round((adj > 0).mean() * 100, 1),
+        "adj_avg_pnl_pct": round(adj.mean(), 3),
+        "adj_total_pnl_usd": round((position_size * adj / 100).sum(), 2),
     }
     return summary
 

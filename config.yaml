@@ -36,6 +36,16 @@ data:
   features_file: "data/features_latest.parquet"
   history_file: "data/ohlcv_history.parquet"
 
+# Survivorship correction applied to every backtest figure.
+# Measured 2026-09-11 by bias_benchmark.py against Ken French's CRSP-based series:
+# our universe returned 17.8%/yr against CRSP's 7.4%/yr over 2006-2026. Expressed
+# as a ratio that is 1.178/1.074 = 9.68% of excess compounding per year.
+# This is a haircut, not a fix — the delisted companies are still absent.
+survivorship:
+  enabled: true
+  excess_return_pct_per_year: 9.68   # ratio-based, not the raw 10.4pt difference
+  note: "Upper bound; also contains CRSP microcap/OTC coverage we never had."
+
 backfill:
   period: "max"                    # full available history per instrument
   interval: "1d"
