@@ -56,34 +56,38 @@ STAGES = ("shortlist", "validation", "sealed", "paper", "funded")
 def deflated_sharpe(observed: float, n_trials: int, n_obs: int,
                     skew: float = 0.0, kurt: float = 3.0) -> float:
     """
-    Probability that the observed Sharpe is genuinely above zero, given how many
-    strategies were tried.
+    Probability that an observed Sharpe reflects skill rather than the luck of
+    having tried many candidates.
 
-    Bailey and López de Prado's deflated Sharpe, simplified. The intuition is the
-    part that matters: the maximum of many random Sharpes is well above zero by
-    construction, so the bar a winner must clear rises with the number of
-    candidates tested. Testing 200,000 strategies and keeping the best is not
-    evidence of skill unless the best is far better than the best of 200,000
-    coin flips.
+    Bailey and López de Prado. The intuition is what matters: the maximum of many
+    noisy Sharpe estimates is well above zero by construction, so the bar a winner
+    must clear rises with the number tried. Beating the best of 200,000 coin flips
+    takes far more than beating the best of 200.
 
-    **Known calibration issue — not yet fixed.** `reward.sharpe` returns an
-    annualised figure while `n_obs` here is a trade count, and the formula assumes
-    both are at the same frequency. The structure of the correction is right and
-    it moves in the right direction with trial count, but the absolute threshold
-    is currently too strict: a Sharpe of 1.5 over 500 observations scores 0.126 at
-    10 trials, which is far harsher than it should be. Recorded in BACKLOG.md.
-    Until it is fixed, read stage 04 as directional rather than as a calibrated
-    probability.
+    `observed` must be a **per-trade** Sharpe measured over `n_obs` trades — not an
+    annualised one. The formula compares it against the expected maximum of Sharpe
+    *estimates* drawn from the same sample size, and mixing an annualised figure
+    with a trade count compares two different quantities.
+
+    The expected maximum is scaled by the standard error of the Sharpe estimator.
+    Omitting that scaling was the original bug here: it left the threshold in the
+    wrong units entirely, rejecting a Sharpe of 1.5 over 500 observations at only
+    10 trials, which should pass easily.
     """
     if n_trials < 2 or n_obs < 2:
         return 0.0
     euler = 0.5772156649
-    # Expected maximum Sharpe from n_trials draws of pure noise.
-    e_max = ((1 - euler) * _z(1 - 1.0 / n_trials)
-             + euler * _z(1 - 1.0 / (n_trials * math.e)))
-    denom = math.sqrt(max(1e-12,
-                          (1 - skew * observed + (kurt - 1) / 4 * observed ** 2) / (n_obs - 1)))
-    return float(_norm_cdf((observed - e_max) / denom))
+
+    # Standard error of a Sharpe estimate over n_obs observations. This is the
+    # scale on which "how high does noise reach" must be measured.
+    se = math.sqrt(max(1e-12, (1 - skew * observed + (kurt - 1) / 4 * observed ** 2)
+                       / (n_obs - 1)))
+
+    # Expected maximum of n_trials draws from that noise distribution.
+    e_max = se * ((1 - euler) * _z(1 - 1.0 / n_trials)
+                  + euler * _z(1 - 1.0 / (n_trials * math.e)))
+
+    return float(_norm_cdf((observed - e_max) / se))
 
 
 def _z(p: float) -> float:
@@ -252,7 +256,9 @@ def seal(conn, cfg, sid: str) -> None:
         return
 
     trials = int(row["trial_index"] or 1)
-    dsr = deflated_sharpe(scored["sharpe"], trials, max(scored["n_trades"], 2))
+    # Per-trade Sharpe, matching the trade count passed as the sample size.
+    dsr = deflated_sharpe(scored.get("sharpe_per_trade", 0.0), trials,
+                          max(scored["n_trades"], 2))
     gates = cfg["lab"].get("gates", {})
     passed = (scored.get("excess_pnl_usd", 0) >= gates.get("min_excess_pnl_usd", 0)
               and dsr > 0.95)
@@ -263,7 +269,8 @@ def seal(conn, cfg, sid: str) -> None:
         "deflated_sharpe_prob": dsr, "window": window})
 
     log.info(f"  NET P&L          ${scored['net_pnl_usd']:+,.2f}")
-    log.info(f"  raw Sharpe       {scored['sharpe']:.3f}")
+    log.info(f"  Sharpe (annual)  {scored['sharpe']:.3f}")
+    log.info(f"  Sharpe (/trade)  {scored.get('sharpe_per_trade', 0):.4f}")
     log.info(f"  trials to find   {trials:,}")
     log.info(f"  deflated Sharpe  {dsr:.3f}  (needs > 0.95)")
     log.info(f"  VERDICT          {'PASS' if passed else 'FAIL'}")

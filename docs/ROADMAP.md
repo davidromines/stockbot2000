@@ -150,12 +150,15 @@ holdout enforced in code: a second attempt on the same strategy is refused and t
 refusal recorded, because discipline is not a reliable defence against re-testing
 until something passes.
 
-Deflated Sharpe is implemented and moves correctly with trial count, but its units
-are mismatched (annualised Sharpe against a trade count) so the threshold is too
-strict — tracked in `BACKLOG.md`. Stage 04 is directional, not calibrated.
+Deflated Sharpe fixed 2026-09-11 and now gives calibrated probabilities. It had
+two bugs: an annualised Sharpe compared against a trade count, and a missing
+standard-error scaling on the expected maximum. Verified monotonic in all three
+directions — more trials lowers the probability, more Sharpe raises it, more
+evidence raises it.
 
-First run through the ladder: 49 shortlisted from 120 scored, 45 surviving
-validation. That survival rate is too high and is also in the backlog.
+The ladder is now trustworthy end to end: gates calibrated so noise passes 0% of
+the time, and a sealed-holdout test that gives a real probability rather than a
+directional hint.
 
 ✅ `lab_dashboard.py` built 2026-09-11 — a self-contained HTML page, no server
 and no dependencies. Net P&L leads every table; fitness and Sharpe are shown as

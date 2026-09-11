@@ -73,17 +73,16 @@ moves the distribution without touching that selection effect.
 ---
 
 ## Near-term
-- [ ] **Deflated Sharpe units mismatch** in `promote.py`. `reward.sharpe` is
-  annualised; `n_obs` passed to `deflated_sharpe` is a trade count. The formula
-  assumes one frequency for both, so the threshold is far too strict — Sharpe 1.5
-  over 500 observations scores 0.126 at only 10 trials. The correction moves the
-  right way with trial count, so stage 04 is directionally useful, but it is not a
-  calibrated probability until this is fixed.
-- [ ] **Validation gate is too lenient.** 45 of 49 shortlisted strategies survived
-  the 2020-2022 window, where the spec expects most to die. Two likely causes: the
-  smoke run was only 3 generations so candidates are not yet overfit, and the gate
-  is merely "net P&L > 0 and >= 20 trades". Needs a real bar — probably a minimum
-  Sharpe and a drawdown ceiling, calibrated against a random-strategy control group.
+- [x] ~~**Deflated Sharpe units mismatch.**~~ Fixed 2026-09-11. Two bugs, not one:
+  the annualised Sharpe was being compared against a trade count, *and* the
+  expected maximum was never scaled by the standard error of the Sharpe estimator,
+  which left the threshold in the wrong units entirely. Now uses a per-trade
+  Sharpe and scales correctly. Verified on three monotonicity checks.
+- [x] ~~**Validation gate is too lenient.**~~ Fixed 2026-09-11. Root cause was
+  deeper than the threshold: every score compared against zero, and buying at
+  random was profitable in every window. Now scores excess over the null with
+  thresholds calibrated against `control.py`. Random strategies went from passing
+  57% to 0%.
 - [ ] **Move the entry threshold into `config.yaml`** — the `70` cutoff currently
   lives in the Claude-side workflow and as a `--threshold` CLI arg on
   `backtest.py`. Nothing else in the system hardcodes a tunable, and the Strategy

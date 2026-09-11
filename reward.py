@@ -47,6 +47,24 @@ DEFAULTS = {
 }
 
 
+def sharpe_per_trade(pnl: np.ndarray) -> float:
+    """
+    Sharpe in per-trade units: mean over standard deviation, unannualised.
+
+    The deflated Sharpe correction needs this, not the annualised figure. Its
+    formula compares an observed Sharpe against the expected maximum of many
+    noisy Sharpe *estimates*, and both have to be measured over the same
+    observations. Feeding it an annualised number while telling it the sample
+    size is a trade count compares two different quantities.
+    """
+    if pnl.size < 2:
+        return 0.0
+    sd = float(pnl.std(ddof=1))
+    if sd == 0 or not np.isfinite(sd):
+        return 0.0
+    return float(pnl.mean() / sd)
+
+
 def sharpe(pnl: np.ndarray, periods_per_year: float = 252.0,
            avg_hold_days: float = 5.0) -> float:
     """
@@ -136,6 +154,7 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
         "benchmark_pnl_usd": float(benchmark_usd),
         "n_trades": n,
         "sharpe": float(sr),
+        "sharpe_per_trade": sharpe_per_trade(excess_pnl),
         "max_drawdown": float(dd),
         "shrinkage": float(shrink),
         "complexity_multiplier": float(penalty),
@@ -147,5 +166,6 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
 def _zero(net: float, n: int, why: str, excess: float = 0.0) -> dict:
     return {"fitness": 0.0, "net_pnl_usd": net, "excess_pnl_usd": float(excess),
             "benchmark_pnl_usd": 0.0, "n_trades": n, "sharpe": 0.0,
+            "sharpe_per_trade": 0.0,
             "max_drawdown": 0.0, "shrinkage": 0.0, "complexity_multiplier": 0.0,
             "avg_net_return_per_trade": 0.0, "verdict": why}
