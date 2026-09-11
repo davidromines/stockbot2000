@@ -134,6 +134,30 @@ def init_db(conn: sqlite3.Connection) -> None:
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_ticker ON historical_listings(ticker)")
 
+    # Walk-forward output. Each row was scored by a model trained only on data
+    # preceding its date, so the whole table is a continuous out-of-sample series.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS oos_predictions (
+            ticker TEXT NOT NULL,
+            date   TEXT NOT NULL,
+            fold   TEXT NOT NULL,
+            score  REAL NOT NULL,
+            label  INTEGER NOT NULL,
+            PRIMARY KEY (ticker, date)
+        ) STRICT, WITHOUT ROWID
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS oos_folds (
+            fold        TEXT PRIMARY KEY,
+            train_start TEXT NOT NULL, train_end TEXT NOT NULL,
+            test_start  TEXT NOT NULL, test_end  TEXT NOT NULL,
+            n           INTEGER NOT NULL,
+            auc         REAL,
+            computed_at TEXT NOT NULL
+        ) STRICT
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_oos_date ON oos_predictions(date)")
+
     _init_features_table(conn)
     conn.commit()
 
@@ -922,6 +946,76 @@ def missing_tickers(conn: sqlite3.Connection, year: str, limit: int = 25) -> lis
         GROUP BY h.ticker ORDER BY h.ticker LIMIT ?
     """, (f"{year}%", limit)).fetchall()
     return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------
+# Walk-forward out-of-sample predictions
+# --------------------------------------------------------------------------
+
+def completed_folds(conn: sqlite3.Connection) -> set:
+    """Folds already computed — walk-forward is long, so it must be resumable."""
+    return {r[0] for r in conn.execute("SELECT fold FROM oos_folds")}
+
+
+def record_oos_predictions(conn: sqlite3.Connection, fold: str, window: dict,
+                           test: pd.DataFrame, probs, auc: float) -> int:
+    """Store one fold's out-of-sample scores."""
+    rows = [(str(t), str(d)[:10], fold, float(p) * 100.0, int(l))
+            for t, d, p, l in zip(test["ticker"], test["date"], probs, test["label"])]
+    conn.executemany("""
+        INSERT INTO oos_predictions (ticker, date, fold, score, label)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(ticker, date) DO UPDATE SET
+            fold=excluded.fold, score=excluded.score, label=excluded.label
+    """, rows)
+    conn.execute("""
+        INSERT INTO oos_folds (fold, train_start, train_end, test_start, test_end,
+                               n, auc, computed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(fold) DO UPDATE SET n=excluded.n, auc=excluded.auc,
+                                        computed_at=excluded.computed_at
+    """, (fold, window["train_start"], window["train_end"], window["test_start"],
+          window["test_end"], len(rows), None if auc != auc else float(auc), _now()))
+    conn.commit()
+    return len(rows)
+
+
+def fold_summary(conn: sqlite3.Connection) -> list[dict]:
+    """Per-fold AUC plus the top-decile hit rate, which is what selection cares about."""
+    out = []
+    for f in conn.execute("SELECT * FROM oos_folds ORDER BY test_start").fetchall():
+        r = conn.execute("""
+            SELECT AVG(label) AS base, COUNT(*) AS n FROM oos_predictions WHERE fold = ?
+        """, (f["fold"],)).fetchone()
+        if not r["n"]:
+            continue
+        cutoff = conn.execute("""
+            SELECT score FROM oos_predictions WHERE fold = ?
+            ORDER BY score DESC LIMIT 1 OFFSET ?
+        """, (f["fold"], max(int(r["n"] * 0.1) - 1, 0))).fetchone()
+        top = conn.execute("""
+            SELECT AVG(label) AS hit FROM oos_predictions WHERE fold = ? AND score >= ?
+        """, (f["fold"], cutoff[0] if cutoff else 0)).fetchone()
+        out.append({"test_start": f["test_start"], "test_end": f["test_end"],
+                    "n": r["n"], "auc": f["auc"] if f["auc"] is not None else float("nan"),
+                    "base": r["base"], "top_hit": top["hit"] or 0.0})
+    return out
+
+
+def overall_oos(conn: sqlite3.Connection) -> dict:
+    """Pooled statistics across every fold."""
+    r = conn.execute("SELECT COUNT(*) n, AVG(label) base FROM oos_predictions").fetchone()
+    cutoff = conn.execute("""
+        SELECT score FROM oos_predictions ORDER BY score DESC LIMIT 1 OFFSET ?
+    """, (max(int(r["n"] * 0.1) - 1, 0),)).fetchone()
+    top = conn.execute("SELECT AVG(label) hit FROM oos_predictions WHERE score >= ?",
+                       (cutoff[0] if cutoff else 0,)).fetchone()
+    df = pd.read_sql_query("SELECT score, label FROM oos_predictions", conn)
+    auc = float("nan")
+    if df["label"].nunique() > 1:
+        from sklearn.metrics import roc_auc_score
+        auc = roc_auc_score(df["label"], df["score"])
+    return {"n": r["n"], "base": r["base"], "top_hit": top["hit"] or 0.0, "auc": auc}
 
 
 def _now() -> str:
