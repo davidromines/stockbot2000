@@ -215,6 +215,21 @@ Two distinct stores, different purposes:
 
 ## Conventions
 
+### How to communicate
+
+- **Be brief.** Default to fewer words. Include what is needed to act or decide,
+  and stop. No preamble, no restating the question, no summarising work the user
+  just watched happen. Length is not thoroughness.
+- **Prefer structure over prose.** Bullets, tables, short lists, diagrams and
+  charts wherever they carry the information better than paragraphs. Numbers
+  belong in tables; comparisons belong side by side; sequences belong in
+  ordered lists.
+- These two work together: structure is what makes brevity possible. A table of
+  six figures replaces a paragraph nobody finishes reading.
+- Brevity does not mean omitting bad news. Caveats, risks and failures stay —
+  state them in one line instead of three.
+
+
 - **Commit on every change. No exceptions.** This is the project's primary rule and
   it overrides any instinct to batch work up. Every edit — code, config, docs,
   a one-line typo fix — gets its own commit before moving to the next thing. The
