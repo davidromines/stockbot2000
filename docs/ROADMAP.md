@@ -161,6 +161,17 @@ Telegram daily scorecard and lab digest; LLM report refinements.
 
 ---
 
+### Experiment ledger ✅
+`experiments.py` built 2026-09-11. One leaderboard for backtests, paper runs and
+lab strategies, ranked by net P&L. `--compare A B` puts two ideas side by side.
+
+The premise, agreed with the user: absolute backtest figures stay
+survivorship-inflated, but both ideas carry the same bias, so the *gap* between
+them is far more trustworthy than either number alone. That holds best between
+similar strategies — a dip-buyer is inflated more than a trend-follower.
+
+---
+
 ## Open items
 
 | Item | Status |
