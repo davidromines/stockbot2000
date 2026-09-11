@@ -203,6 +203,18 @@ similar strategies — a dip-buyer is inflated more than a trend-follower.
 
 ---
 
+### Benchmark-relative scoring ✅ (1 of 3)
+`benchmark.py` built 2026-09-11. Computes and caches the null — what buying at
+random and holding the horizon actually earns in a given window, net of costs.
+
+Built because a control experiment showed **52% of random, never-evolved
+strategies passed the validation gate**. The cause: every score in the project
+compared against zero, and buying at random was profitable in every window
+because the market went up. "Net P&L > 0" was testing whether a strategy was long
+in a bull market, not whether it picked well.
+
+---
+
 ## Open items
 
 | Item | Status |
