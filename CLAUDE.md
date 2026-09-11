@@ -126,9 +126,15 @@ the code. They bound everything else.
 - **Swing trading, days to weeks — never intraday.** Not a style preference: US
   pattern-day-trader rules require $25k equity to day-trade without restriction, so
   a $100 account cannot day-trade. Any change toward intraday breaks this.
-- **Entry threshold: score >= 70.** Currently hardcoded in the Claude-side workflow
-  and passed as `--threshold` to `backtest.py`. It is *not* in `config.yaml` yet,
-  which violates the config-over-hardcoding rule. See `BACKLOG.md`.
+- **Selection: the top 10 by score each day** (`risk.selection_mode: top_n`),
+  subject to tradeability floors of `min_price` $5 and `min_dollar_volume` $1M/day.
+
+  The old rule was "score >= 70". **It was unreachable and always selected
+  nothing.** The score is a calibrated probability of a ~27%-base-rate event, so
+  it rarely exceeds 50 — the highest in 183k out-of-sample rows was 66. Threshold
+  and score were on different scales. Changed 2026-09-11 with the user's
+  agreement. Do not reinstate an absolute cutoff without first checking it
+  against the score distribution.
 
 ### Robinhood order mechanics — these shape the design
 
@@ -150,8 +156,8 @@ assume a broker-side stop exists.
 
 Claude reads exactly two files — `data/scoresheet.json` and `data/exits_needed.json`
 — and nothing else. Not the raw data, features, or model. For entries it filters to
-score >= 70, checks tradability and fractional eligibility, checks the open-position
-count against the cap, presents the list for approval, and on approval places $10
+the top candidates by score, checks tradability and fractional eligibility,
+checks the open-position count against the cap, presents the list for approval, and on approval places $10
 market orders. Fill prices are reported back so the ledger can be written
 server-side; Claude has no direct database access.
 
