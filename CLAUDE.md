@@ -22,8 +22,23 @@ model. Phases 01-05 are done; phase 06 is at 90%.
 tickers, 730 days. Nothing consumes the database yet. Repointing `data_pull.py` /
 `features.py` / `train_model.py` / `score.py` at SQLite is the next piece of work.
 
-**Data freshness:** the last bar is 2026-09-04. `backfill.py` is incremental, so a
-re-run tops it up rather than refetching. Check before trusting any score.
+**Data freshness: `daily.sh` runs at 07:00 on weekdays via cron** (installed
+2026-09-12). It records the symbol directory, tops up prices, rebuilds features
+and steps paper trading. Check `logs/daily.log` before trusting any score.
+
+**Step 1 is the survivorship-critical one.** Recording the listing directory is
+what stamps a ticker inactive on the day it disappears. The backwards bias
+cannot be fixed — 5 tickers stopped trading in the whole 2006-2019 window
+against 9,029 the Internet Archive says existed — but from 2026-09-12 forward
+the record is point-in-time, and **a missed day loses that day's delistings
+permanently.** If the VM is down for a week, that week is gone.
+
+**`backfill.py` needs `--top-up` for daily use.** Plain `backfill.py` resumes an
+*interrupted initial load*; it does not fetch new bars for tickers already
+marked `done`, which after the historical load is all of them. That made a daily
+re-run a silent no-op: on 2026-09-12 the database held bars to 2026-09-04 for
+12,750 tickers and a full pipeline run advanced 28. Earlier wording here called
+the loader "incremental", which was true of resumability and false of top-up.
 
 ---
 

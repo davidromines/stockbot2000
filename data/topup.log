@@ -1,0 +1,11 @@
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-12_nasdaqlisted.txt
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-12_otherlisted.txt
+INFO:universe:Symbol directory: 5605 NASDAQ rows, 7609 other-listed rows.
+INFO:universe:Universe: 13181 listings — etf 5672, common_stock 5376, preferred 466, warrant 439, unit 372, adr 276, closed_end_fund 273, note 165, right 129, etn 13
+INFO:backfill:Top-up mode: 13,114 tickers behind the latest bar
+INFO:backfill:Universe 13181 tickers | 67 done | 13114 outstanding | fetching 13114 this run | period=3mo
+ERROR:yfinance:$NMCO-RT: No data found, symbol may be delisted
+ERROR:yfinance:
+1 Failed download:
+ERROR:yfinance:['NMCO-RT']: No data found, symbol may be delisted
+INFO:backfill:batch 1 | 50/13114 tickers | 2,838 rows | 1 failed | 18.0 tickers/s | ETA 12.1 min
