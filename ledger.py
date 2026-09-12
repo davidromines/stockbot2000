@@ -36,7 +36,7 @@ def init(conn) -> None:
             parent_id   TEXT,
             run_id      TEXT NOT NULL,
             generation  INTEGER NOT NULL,
-            origin      TEXT NOT NULL,        -- random | mutation | crossover
+            origin      TEXT NOT NULL,        -- seed | random | mutation | crossover
             genome      TEXT NOT NULL,        -- JSON, re-runnable exactly
             complexity  INTEGER NOT NULL,
             entry_desc  TEXT,

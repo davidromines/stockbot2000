@@ -24,6 +24,7 @@ Measured on the full 2006-2019 window: 0.97 evaluations/sec on one core, so the
 
 Usage:
     python evolve.py --generations 10 --population 200
+    python evolve.py --seeds                  # start from published strategies
     python evolve.py --report                 # best strategies by money
     python evolve.py --lineage <strategy_id>  # how a winner was arrived at
 """
@@ -42,6 +43,7 @@ import costs as costs_mod
 import genome as gn
 import ledger
 import reward
+import seeds as seed_lib
 import simulator
 import storage
 from train_model import FEATURE_COLS
@@ -98,7 +100,7 @@ def tournament(pop, rng, k: int = 3):
 
 
 def run(config: dict, generations: int, population: int, window: tuple[str, str],
-        seed: int | None = None) -> str:
+        seed: int | None = None, use_seeds: bool = False) -> str:
     lab = config.get("lab", {})
     max_entries = lab.get("max_entries_per_eval", 20000)
     elite_frac = lab.get("elite_fraction", 0.15)
@@ -160,7 +162,15 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
         candidates = []
 
         if gen == 0:
-            for _ in range(population):
+            if use_seeds:
+                # Published strategies enter as ordinary members of generation 0:
+                # same scoring, same mutation, no protection. They are a starting
+                # point for the search, not a shortlist.
+                for g in seed_lib.genomes():
+                    candidates.append((g, "seed", None))
+                log.info(f"Seeded generation 0 with {len(candidates)} published "
+                         f"strategies; {population - len(candidates)} random")
+            while len(candidates) < population:
                 candidates.append((grammar.random_genome(), "random", None))
         else:
             n_elite = max(1, int(population * elite_frac))
@@ -258,7 +268,9 @@ def main():
     parser.add_argument("--population", type=int, default=200)
     parser.add_argument("--start", default=None, help="Search window start (default from config).")
     parser.add_argument("--end", default=None, help="Search window end.")
-    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=None, help="RNG seed.")
+    parser.add_argument("--seeds", action="store_true", dest="use_seeds",
+                        help="Start generation 0 from the published strategies in seeds.py.")
     parser.add_argument("--report", action="store_true")
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--lineage", metavar="ID")
@@ -277,7 +289,7 @@ def main():
               args.end or lab.get("search_end", "2019-12-31"))
     signal.signal(signal.SIGINT, _handle_interrupt)
     signal.signal(signal.SIGTERM, _handle_interrupt)
-    run(config, args.generations, args.population, window, args.seed)
+    run(config, args.generations, args.population, window, args.seed, args.use_seeds)
 
 
 if __name__ == "__main__":
