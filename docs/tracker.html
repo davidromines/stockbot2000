@@ -139,14 +139,15 @@
     <tr><th>Question</th><th>Answer</th></tr>
     <tr><td>Is there signal in the model?</td><td><strong>Yes, weak.</strong> AUC 0.633 across 31 of 31 walk-forward folds</td></tr>
     <tr><td>Does it survive trading costs?</td><td><strong>No.</strong> Costs consume 87% of gross profit</td></tr>
-    <tr><td>Has the strategy search found anything?</td><td><strong>Not yet.</strong> Every result so far traced to a measurement flaw</td></tr>
+    <tr><td>Has the strategy search found anything?</td><td><strong>Not yet.</strong> All three results so far traced to a measurement flaw — the latest, a price filter, on 2026-09-12</td></tr>
+    <tr><td>Do published strategies work here?</td><td><strong>No.</strong> 15 of 20 made money; <strong>0 of 20</strong> beat the null of the stocks they bought</td></tr>
     <tr><td>Is survivorship bias handled?</td><td><strong>Measured, not fixed.</strong> ~10.4 points/year, subtracted automatically</td></tr>
     <tr><td>Can we trust the backtests?</td><td><strong>To rank, not to predict.</strong> Absolute figures stay optimistic</td></tr>
   </table></div>
 </section>
 
 <section>
-  <h2>Two flaws the search found before we did</h2>
+  <h2>Three flaws the search found before we did</h2>
   <p class="cap">Both produced results that looked like discoveries. This is exactly the
   failure mode the project was warned about — a large search over noisy data will find
   the weaknesses in its own scoreboard first.</p>
@@ -164,10 +165,19 @@
       <td>Strategies earned "excess" by holding longer. Benchmark understated <strong>32&times;</strong> at a 40-day hold. 107 of 200 passed validation on it</td>
       <td>Fixed</td>
     </tr>
+    <tr>
+      <td><strong>Price-blind benchmark</strong><br>one null for the whole market</td>
+      <td>The search's best answer was <span class="mono">sma_200 &lt; 8</span> — buy stocks under eight dollars. A price filter, not a strategy. 58 of 66 "survivors" were the same rule with a different constant. Understated <strong>4.6&times;</strong> for cheap names</td>
+      <td>Fixed</td>
+    </tr>
   </table></div>
-  <p class="note warn"><b>The validation result is void.</b> 107 survivors were an artifact
-  of the second flaw — the population had learned to exploit the measurement rather than
-  the market. Re-running with the corrected benchmark.</p>
+  <p class="note warn"><b>All 66 validation survivors are void</b> (2026-09-12), along with
+  the 200 shortlist entries behind them. Re-scored against the null of the stocks they
+  actually bought, <strong>0 of the top 25 still clear the gate</strong>. The best of them
+  made <span class="mono">+$26,166</span> in the simulator and had an excess of
+  <span class="mono">&minus;$585</span> — every dollar of it was the benchmark. The verdicts
+  are recorded as <em>void</em>, not <em>fail</em>: the strategies were never judged on
+  correct terms, and are eligible to be judged again.</p>
 </section>
 
 <section>
@@ -176,11 +186,21 @@
   Scoring against zero therefore measured market exposure, not skill — which is why 57% of
   random strategies used to pass validation. Every score now measures excess over this.</p>
   <div class="wrapx"><table>
-    <caption>Validation window, net of costs. Drift accrues with time held, so the null has
-    to scale with holding period — a fixed-horizon benchmark is what produced the void result above.</caption>
-    <tr><th>Hold</th><th class="num">1d</th><th class="num">5d</th><th class="num">13d</th><th class="num">21d</th><th class="num">45d</th><th class="num">60d</th></tr>
-    <tr><td>Null return</td><td class="num">&minus;0.146%</td><td class="num">+0.066%</td><td class="num">+0.486%</td><td class="num">+0.971%</td><td class="num">+2.464%</td><td class="num">+3.705%</td></tr>
+    <caption>Validation window, net of costs. The null varies on <em>two</em> axes, and a flat
+    benchmark on either one was a loophole the search found immediately. Each trade is now charged
+    the null of its own entry price, at its own holding period.</caption>
+    <tr><th>Entry price</th><th class="num">2d</th><th class="num">5d</th><th class="num">13d</th><th class="num">21d</th><th class="num">45d</th></tr>
+    <tr><td>$5&ndash;6</td><td class="num">+1.291%</td><td class="num">+3.607%</td><td class="num">+8.976%</td><td class="num">+13.202%</td><td class="num"><strong>+25.219%</strong></td></tr>
+    <tr><td>$6&ndash;7</td><td class="num">&minus;0.026%</td><td class="num">+0.771%</td><td class="num">+3.114%</td><td class="num">+5.988%</td><td class="num">+13.856%</td></tr>
+    <tr><td>$7&ndash;8</td><td class="num">&minus;0.003%</td><td class="num">+0.521%</td><td class="num">+2.022%</td><td class="num">+4.039%</td><td class="num">+9.691%</td></tr>
+    <tr><td>$8&ndash;10</td><td class="num">&minus;0.072%</td><td class="num">+0.243%</td><td class="num">+1.010%</td><td class="num">+2.226%</td><td class="num">+6.091%</td></tr>
+    <tr><td>$10&ndash;20</td><td class="num">&minus;0.151%</td><td class="num">+0.080%</td><td class="num">+0.714%</td><td class="num">+1.352%</td><td class="num">+3.602%</td></tr>
+    <tr><td>$100+</td><td class="num">&minus;0.248%</td><td class="num">&minus;0.315%</td><td class="num">&minus;0.439%</td><td class="num">&minus;0.488%</td><td class="num"><strong>&minus;0.535%</strong></td></tr>
+    <tr><td><em>whole market</em> — what we used to charge</td><td class="num">&minus;0.092%</td><td class="num">+0.066%</td><td class="num">+0.486%</td><td class="num">+0.971%</td><td class="num"><em>+2.464%</em></td></tr>
   </table></div>
+  <p class="note warn">Read the last row against the first. A strategy buying $5&ndash;6 stocks
+  on a 45-day hold was charged <span class="mono">+2.46%</span> when chance alone earned
+  <span class="mono">+25.22%</span>. That gap <em>was</em> the discovery.</p>
 </section>
 
 <section>
@@ -215,10 +235,35 @@
     <div class="ph"><span class="n">08</span><span class="t">Genome, simulator, reward <span>— open-ended rule synthesis</span></span><span class="pill done">Complete</span></div>
     <div class="ph"><span class="n">09</span><span class="t">Evolutionary search &amp; ledger <span>— 15,000 candidates/run</span></span><span class="pill done">Complete</span></div>
     <div class="ph"><span class="n">10</span><span class="t">Promotion ladder &amp; dashboard <span>— sealed holdout enforced in code</span></span><span class="pill done">Complete</span></div>
-    <div class="ph"><span class="n">&mdash;</span><span class="t">Recalibrate gates, re-run the search <span>— in progress now</span></span><span class="pill next">Active</span></div>
-    <div class="ph"><span class="n">11</span><span class="t">Live integration &amp; paper trading <span>— harness built, forward test running</span></span><span class="pill progress">Started</span></div>
-    <div class="ph"><span class="n">12</span><span class="t">Notifications &amp; polish <span>— Telegram, Ollama not installed</span></span><span class="pill backlog">Backlog</span></div>
+    <div class="ph"><span class="n">&mdash;</span><span class="t">Price-bucketed null, effect-size reward <span>— built, gates recalibrated, 0/60 noise passes</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">11</span><span class="t">Seed strategies <span>— 20 published rules as genomes, measured and seeding the search</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">&mdash;</span><span class="t">Seeded search re-run <span>— 50 &times; 300 under the corrected null, running now</span></span><span class="pill next">Active</span></div>
+    <div class="ph"><span class="n">12</span><span class="t">Live integration &amp; paper trading <span>— harness built, forward test running</span></span><span class="pill progress">Started</span></div>
+    <div class="ph"><span class="n">13</span><span class="t">Notifications &amp; polish <span>— Telegram, Ollama not installed</span></span><span class="pill backlog">Backlog</span></div>
   </div>
+</section>
+
+<section>
+  <h2>Published strategies, measured</h2>
+  <p class="cap">Twenty documented rules — Wilder's RSI, Appel's MACD, Bollinger's bands,
+  Jegadeesh &amp; Titman momentum, Donchian breakouts — run on our data, after costs, against
+  the null of the stocks each one bought. They now also seed generation&nbsp;0 of the search.</p>
+  <div class="wrapx"><table>
+    <caption>Search window 2006&ndash;2019. The column that matters is <b>excess</b>, not net P&amp;L.</caption>
+    <tr><th>Strategy</th><th class="num">Net P&amp;L</th><th class="num">Excess</th><th class="num">Sharpe</th><th>Verdict</th></tr>
+    <tr><td>rsi_oversold <span style="color:#8A8D85">Wilder 1978</span></td><td class="num">+2,883</td><td class="num">+1,215</td><td class="num">0.17</td><td>Beats the null, fails Sharpe</td></tr>
+    <tr><td>williams_r_oversold</td><td class="num">+1,316</td><td class="num">+681</td><td class="num">0.19</td><td>Beats the null, fails Sharpe</td></tr>
+    <tr><td>stochastic_crossover</td><td class="num">+1,262</td><td class="num">+576</td><td class="num">0.15</td><td>Beats the null, fails Sharpe</td></tr>
+    <tr><td>momentum_pullback</td><td class="num">+615</td><td class="num">+386</td><td class="num">0.44</td><td>Clears Sharpe, fails excess</td></tr>
+    <tr><td>golden_cross</td><td class="num">+3,672</td><td class="num">+34</td><td class="num">0.00</td><td>Profit was the market</td></tr>
+    <tr><td>trend_following_adx</td><td class="num">+1,173</td><td class="num"><strong>&minus;1,191</strong></td><td class="num">0.00</td><td>Made money, lost to chance</td></tr>
+    <tr><td>donchian_breakout</td><td class="num">&minus;597</td><td class="num">&minus;1,706</td><td class="num">0.00</td><td>Unprofitable</td></tr>
+  </table></div>
+  <p class="note"><b>15 of 20 made money. 0 of 20 cleared the bar.</b> That is the useful
+  calibration: the gate is demanding but not impossible — one seed clears the excess leg,
+  another clears the Sharpe leg, none clears both. <span class="mono">trend_following_adx</span>
+  is the clearest proof the null works: <span class="mono">+$1,173</span> earned,
+  <span class="mono">&minus;$1,191</span> excess, because it is barely more than being long.</p>
 </section>
 
 <section>
