@@ -12,3 +12,11 @@ data/french/
 logs/*.log
 models/*.json
 .env
+
+# SQLite databases and their write-ahead logs. NEVER version these.
+# A tracked -wal/-shm is not merely large: `git checkout` will drop a stale
+# write-ahead log on top of a live database and corrupt it. That happened on
+# 2026-09-12 and cost a rebuild of market_data.db.
+data/*.db
+data/*.db-wal
+data/*.db-shm
