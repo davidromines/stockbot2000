@@ -125,8 +125,24 @@ def _decide(conn, sid: str, stage: str, passed: bool, evidence: dict) -> None:
 
 
 def _already(conn, sid: str, stage: str):
-    return conn.execute("SELECT * FROM promotions WHERE strategy_id=? AND stage=?",
-                        (sid, stage)).fetchone()
+    """
+    Has this strategy already been judged at this stage?
+
+    A decision marked `void` — one reached against a benchmark later found to be
+    wrong — does not count at the earlier stages: the verdict was withdrawn, so
+    the strategy is eligible to be judged again on correct terms.
+
+    **The sealed stage is the exception, and deliberately so.** Voiding a sealed
+    result withdraws the verdict, not the fact that the strategy was shown the
+    sealed data. Its out-of-sample-ness is spent either way, and letting a bad
+    benchmark buy a second look at sealed history is exactly the loophole the
+    seal exists to close.
+    """
+    row = conn.execute("SELECT * FROM promotions WHERE strategy_id=? AND stage=?",
+                       (sid, stage)).fetchone()
+    if row and stage != "sealed" and row["decision"] == "void":
+        return None
+    return row
 
 
 _PANELS: dict = {}
@@ -220,7 +236,7 @@ def validate(conn, cfg, run_id: str) -> list[str]:
     window = (lab["validation_start"], lab["validation_end"])
     ids = [r["strategy_id"] for r in conn.execute("""
         SELECT p.strategy_id FROM promotions p JOIN strategies s ON s.id = p.strategy_id
-        WHERE p.stage='shortlist' AND p.decision='pass' AND s.run_id = ?
+        WHERE p.stage='shortlist' AND p.decision IN ('pass','void') AND s.run_id = ?
     """, (run_id,)).fetchall()]
     if not ids:
         log.warning("Nothing shortlisted — run --shortlist first.")
@@ -318,7 +334,8 @@ def status(conn) -> None:
     print("-" * 28)
     for stage in STAGES:
         r = conn.execute("""
-            SELECT SUM(decision='pass') p, SUM(decision='fail') f
+            SELECT SUM(decision='pass') p, SUM(decision='fail') f,
+                   SUM(decision='void') v
             FROM promotions WHERE stage = ?
         """, (stage,)).fetchone()
         print(f"{stage:>12} {r['p'] or 0:>7} {r['f'] or 0:>7}")
