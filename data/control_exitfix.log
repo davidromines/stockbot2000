@@ -1,0 +1,18 @@
+INFO:control:Loading panels
+INFO:control:Null surface (validation), market-wide: +0.066% at 5d, +2.464% at 45d
+INFO:control:  25/60 — 0 passing
+INFO:control:  50/60 — 0 passing
+
+  RANDOM-STRATEGY CONTROL — 60 never-evolved genomes
+  --------------------------------------------------------------
+  profitable against zero (the old gate) :   26/60     43%
+  beats the null                         :    9/60     15%
+  PASSES THE VALIDATION GATE             :    0/60      0%
+
+  verdict: GOOD — noise is being filtered   (target is under 5%)
+
+  Calibration — thresholds that would admit under 5% of noise:
+    excess P&L (USD)     95th pct of noise =    527.151   99th =   1593.790
+    Sharpe               95th pct of noise =      0.123   99th =      0.330
+
+  Set the gate above the 95th percentile of these, not at zero.

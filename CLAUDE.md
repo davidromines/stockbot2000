@@ -560,6 +560,53 @@ every forward test survived a corruption that cost 5,767 strategy rows. Keep it.
 
 ---
 
+## The exit-pricing bug — 2026-09-12. Read this before trusting any old number.
+
+**71% of the Lab's reported profit was a defect in its own simulator.**
+
+`simulator.Panel` built its forward-price matrix by shifting within the
+*filtered* panel. Tradeability floors decide what may be **bought**; they were
+also deciding what an open position could be **sold** for. When a holding fell
+below the $5 floor its rows left the frame, the forward price became NaN, and the
+exit was booked at "the last price we have" — the last bar *above* the floor. A
+company falling from $6 to $0.20 exited near $5.50 and its collapse never
+happened.
+
+Measured on the search's best strategy, 2006-2019:
+
+| | filtered exits | true exits |
+|---|---:|---:|
+| net P&L | +26,065 | **+7,575** |
+| mean trade return | 13.46% | **4.22%** |
+| median trade return | 3.54% | **0.26%** |
+| win rate | 60.7% | **49.2%** |
+
+11.9% of its 20,000 trades had a truncated forward series; those returned -0.02%
+against +15.29% for the rest.
+
+**`benchmark.py` had the identical bug**, so the null was inflated the same way.
+Both are fixed via `storage.load_exit_prices()`, and every `simulator.Panel`
+construction in the project now passes unfiltered closes. **If you add another,
+pass them.**
+
+Three consequences worth holding on to:
+
+1. **The crash-buying artifact was mostly this, not survivorship bias.** The
+   search kept discovering "buy falling stocks" because the simulator refused to
+   let falling stocks finish falling.
+2. **The price gradient was partly this too.** The null for $5-6 names at a
+   45-day hold fell from +6.19% to +3.85% once exits were priced honestly, so
+   roughly half of "cheap stocks earn more" was truncation rather than a market
+   fact.
+3. **Noise lost its edge as well.** Random genomes beating the null fell from
+   45% to 15%.
+
+The same defect was found and fixed once before in the daily pipeline — see the
+`storage.price_series` note. The Lab kept it for months. **A filter that decides
+what you may buy must never decide what you may sell.**
+
+---
+
 ## A standing caution
 
 This system searches a large space of strategies against fixed historical data.

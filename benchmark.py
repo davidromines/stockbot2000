@@ -161,6 +161,52 @@ def _store(conn, rec) -> None:
                                 "net_pct", "computed_at")))
 
 
+def _forward_unfiltered(df, full, horizon: int):
+    """
+    Forward return over `horizon` bars, priced off the **unfiltered** series.
+
+    The null has to be measured the same way a strategy is, or the comparison is
+    rigged. Shifting inside the tradeable frame caps a random entry's downside at
+    the $5 floor exactly as it capped a strategy's — so once exits were fixed in
+    the simulator but not here, every strategy was being charged a benchmark that
+    still enjoyed the truncation it had just lost. Measured effect of fixing the
+    simulator alone: random genomes beating the null fell from 45% to 15%, which
+    is the size of the distortion this removes from the other side.
+    """
+    import pandas as pd
+    full = full.copy()
+    full["date"] = pd.to_datetime(full["date"])
+    full = full.sort_values(["ticker", "date"])
+    by = {t: (g["date"].to_numpy(dtype="datetime64[ns]"),
+              g["close"].to_numpy(dtype="float64"))
+          for t, g in full.groupby("ticker", observed=True)}
+
+    tick = df["ticker"].astype(str).to_numpy()
+    dates = pd.to_datetime(df["date"]).to_numpy(dtype="datetime64[ns]")
+    close = df["close"].to_numpy(dtype="float64")
+    out = np.full(len(df), np.nan)
+
+    order = np.argsort(tick, kind="stable")
+    i = 0
+    while i < len(order):
+        j = i
+        t = tick[order[i]]
+        while j < len(order) and tick[order[j]] == t:
+            j += 1
+        rows = order[i:j]
+        ent = by.get(t)
+        if ent is not None:
+            fd, fc = ent
+            pos = np.clip(np.searchsorted(fd, dates[rows]), 0, len(fc) - 1)
+            nxt = pos + horizon
+            ok = nxt < len(fc)
+            vals = np.full(len(rows), np.nan)
+            vals[ok] = fc[nxt[ok]] / np.maximum(close[rows][ok], 1e-9) - 1.0
+            out[rows] = vals
+        i = j
+    return pd.Series(out, index=df.index)
+
+
 def _forward(df, horizon: int):
     """
     Forward return over `horizon` bars, computed on the **whole** frame.
@@ -229,7 +275,10 @@ def compute(conn, cfg: dict, window: tuple[str, str], horizon: int | None = None
     if df.empty:
         return {"net_pct": 0.0, "gross_pct": 0.0, "cost_pct": 0.0, "n_obs": 0}
     df = df.sort_values(["ticker", "date"])
-    rec = _cell(df, _forward(df, horizon), cfg, window, horizon, band, mp, mv)
+    full = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                    window[0], window[1])
+    rec = _cell(df, _forward_unfiltered(df, full, horizon), cfg, window, horizon,
+                band, mp, mv)
     _store(conn, rec)
     conn.commit()
     log.info(f"  null: {rec['gross_pct']:+.3f}% gross, {rec['cost_pct']:.3f}% costs, "
@@ -285,10 +334,12 @@ def null_surface(conn, cfg: dict, window: tuple[str, str],
         if df.empty:
             return Surface({b: {h: 0.0 for h in anchors} for b in bands}, {})
         df = df.sort_values(["ticker", "date"])
+        full = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                        window[0], window[1])
         # Grouped by horizon so each forward-return pass over five million rows is
         # computed once and reused across every price band.
         for h in sorted({h for _, h in missing}):
-            fwd = _forward(df, h)
+            fwd = _forward_unfiltered(df, full, h)
             for b in [b for b, hh in missing if hh == h]:
                 rec = _cell(df, fwd, cfg, window, h, b, mp, mv)
                 _store(conn, rec)

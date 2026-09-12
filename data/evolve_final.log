@@ -1,0 +1,26 @@
+INFO:evolve:Loading panel 2006-01-01 -> 2019-12-31
+INFO:evolve:Panel: 5,185,067 rows, 1.31 GB
+INFO:evolve:Null surface for this window (11 price bands x 10 holding periods):
+INFO:evolve:  $     5-$     6  +0.295% at 5d, +3.848% at 45d
+INFO:evolve:  $     6-$     7  +0.119% at 5d, +3.381% at 45d
+INFO:evolve:  $     7-$     8  +0.079% at 5d, +2.912% at 45d
+INFO:evolve:  $     8-$    10  +0.029% at 5d, +2.494% at 45d
+INFO:evolve:  $    10-$    12  -0.012% at 5d, +2.156% at 45d
+INFO:evolve:  $    12-$    15  -0.017% at 5d, +1.972% at 45d
+INFO:evolve:  $    15-$    20  -0.081% at 5d, +1.663% at 45d
+INFO:evolve:  $    20-$    30  -0.099% at 5d, +1.312% at 45d
+INFO:evolve:  $    30-$    50  -0.055% at 5d, +1.142% at 45d
+INFO:evolve:  $    50-$   100  -0.054% at 5d, +1.111% at 45d
+INFO:evolve:  $   100-$99,999  -0.231% at 5d, -0.446% at 45d
+INFO:evolve:  each strategy is charged the null of the stocks it actually bought, at its own holding period
+INFO:evolve:Run 5ba61f2eed5b: 50 generations x 300 candidates
+INFO:evolve:Evaluating across 3 workers
+INFO:evolve:Seeded generation 0 with 20 published strategies; 280 random
+INFO:evolve:gen 1/50  best fitness 0.160  best excess $+1,792  beating the null 69/300  300 distinct ideas  2.0 evals/s
+INFO:evolve:gen 2/50  best fitness 0.160  best excess $+1,792  beating the null 142/300  253 distinct ideas  2.1 evals/s
+INFO:evolve:gen 3/50  best fitness 0.210  best excess $+1,890  beating the null 217/300  239 distinct ideas  2.3 evals/s
+INFO:evolve:gen 4/50  best fitness 0.239  best excess $+2,349  beating the null 277/300  213 distinct ideas  2.4 evals/s
+INFO:evolve:gen 5/50  best fitness 0.258  best excess $+2,346  beating the null 286/300  220 distinct ideas  2.4 evals/s
+INFO:evolve:gen 6/50  best fitness 0.263  best excess $+2,749  beating the null 291/300  211 distinct ideas  2.4 evals/s
+INFO:evolve:gen 7/50  best fitness 0.266  best excess $+3,201  beating the null 291/300  213 distinct ideas  2.4 evals/s
+INFO:evolve:gen 8/50  best fitness 0.380  best excess $+2,749  beating the null 294/300  206 distinct ideas  2.4 evals/s
