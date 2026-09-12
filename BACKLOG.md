@@ -72,6 +72,12 @@ moves the distribution without touching that selection effect.
 
 ---
 
+## Capped deliberately — do not reopen
+
+- [x] **Search capacity.** Four searches, four scoreboard artifacts. Capped at
+  50 x 300 per run on 2026-09-12; see CLAUDE.md. The constraint is data, not
+  compute. Add paper-trading calendar time instead.
+
 ## Near-term
 
 - [ ] **Seed the search with known strategies.** The search currently starts from

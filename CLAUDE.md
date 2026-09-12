@@ -484,6 +484,34 @@ Three things to take from it:
 
 ---
 
+## Search capacity is capped deliberately — 2026-09-12
+
+**Do not add generations, population, or nightly evaluation budget.** The
+`docs/STRATEGY_LAB.md` figure of 200,000 evaluations a night is obsolete and
+should not be chased.
+
+Four searches have now run. Every one found its result in the scoreboard rather
+than in the market, and each fix revealed the next:
+
+| Search | What it "found" | What it actually was |
+|---|---|---|
+| 1 | `sma_200 < 8` | a price filter, benchmarked against the whole market |
+| 2 | one rule, 199 of 200 shortlist slots | monoculture; dedup compared text, not structure |
+| 3 | 60 "distinct" entry rules | one rule with 60 dead branches; bloat as mutation armour |
+| 4 | `pct_change(sma_200, 20) < -0.1` | buy the crash — 85% of entries in names this data has almost none of the failures for |
+
+More search does not help because the binding constraint is not search. It is
+that **5 tickers stopped trading in the whole 2006-2019 window against 9,029
+companies the Internet Archive says existed.** A larger search over the same
+data finds the same holes faster.
+
+What to add instead, in order: forward paper-trading time (the only unbiased
+measurement, and it accrues only in calendar time), then exposure diagnostics
+like `bias_exposure.py`, then — if money is ever available — point-in-time
+delisted prices at roughly $270/yr, which closes this permanently.
+
+---
+
 ## A standing caution
 
 This system searches a large space of strategies against fixed historical data.
