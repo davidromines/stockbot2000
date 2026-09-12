@@ -73,6 +73,31 @@ moves the distribution without touching that selection effect.
 ---
 
 ## Near-term
+
+- [ ] **Seed the search with known strategies.** The search currently starts from
+  random genomes every time, which wastes most of generation zero rediscovering
+  that `macd_hist > 0.4` is not a strategy. Research documented approaches —
+  momentum, mean reversion, moving-average crossovers, RSI extremes, Bollinger
+  reversion, breakout, dual momentum, turtle rules — encode each as a genome, and
+  seed the initial population with them alongside random ones.
+
+  Two benefits beyond speed. Each seed gets a **baseline P&L of its own**, so the
+  ledger gains a row for "textbook momentum" against which everything else is
+  compared. And mutation starts from structures that already make sense rather
+  than from noise, so the lineage becomes interpretable — "this began as a moving
+  average crossover and evolved a volume filter" is a far more trustworthy story
+  than "this appeared at generation 23".
+
+  Caveat to hold onto: a published strategy that still worked would not be
+  published. Expect the seeds to lose money after costs, exactly as our baseline
+  does. Their value is as reference points, not as candidates.
+
+- [ ] **Paired-ETF experiment (ERX/ERY).** A separate, much smaller simulator over
+  just the leveraged energy bull/bear pair. See the note below on why the core
+  premise does not hold — but the machinery is cheap to build and the question is
+  worth settling with data rather than argument. Frame it as an experiment, not a
+  second production system, and calibrate its own control: two instruments over
+  one underlying is a vastly higher overfitting risk than 5,000 tickers.
 - [x] ~~**Deflated Sharpe units mismatch.**~~ Fixed 2026-09-11. Two bugs, not one:
   the annualised Sharpe was being compared against a trade count, *and* the
   expected maximum was never scaled by the standard error of the Sharpe estimator,
