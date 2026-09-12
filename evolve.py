@@ -66,12 +66,17 @@ def _handle_interrupt(signum, frame):
 _W: dict = {}     # per-worker state, populated by fork
 
 
-def _init_worker(panel, cost_model, position_size, capital, max_entries, surface,
-                 reward_params):
-    """Runs once per worker. The panel arrives by fork, not by pickle."""
-    _W.update(panel=panel, cost_model=cost_model, position_size=position_size,
-              capital=capital, max_entries=max_entries, surface=surface,
-              reward_params=reward_params)
+def _init_worker(state: dict):
+    """
+    Runs once per worker. The panel arrives by fork, not by pickle.
+
+    Takes a single dict rather than a positional tuple. A pool initializer's
+    arguments are only unpacked inside the worker processes, so an arity
+    mismatch surfaces as a traceback in every child while the parent sits there
+    looking healthy and producing nothing — which it did, twice, after this
+    signature gained an argument. One dict cannot go out of step.
+    """
+    _W.update(state)
 
 
 def _eval_worker(genome_dict):
@@ -147,9 +152,10 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
     if workers > 1:
         # fork so the panel is inherited rather than pickled to each worker.
         ctx = mp.get_context("fork")
-        pool = ctx.Pool(workers, initializer=_init_worker,
-                        initargs=(panel, cost_model, position_size, capital,
-                                  max_entries, surface))
+        pool = ctx.Pool(workers, initializer=_init_worker, initargs=({
+            "panel": panel, "cost_model": cost_model, "position_size": position_size,
+            "capital": capital, "max_entries": max_entries, "surface": surface,
+            "reward_params": reward_params},))
         log.info(f"Evaluating across {workers} workers")
 
     trial = 0
