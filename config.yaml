@@ -69,12 +69,13 @@ lab:
   # Re-run `control.py --calibrate` after any change to fitness or the simulator;
   # a gate that has never been tested against noise is an assumption.
   gates:
-    min_excess_pnl_usd: 3108.0   # 95th pct of random-strategy excess
-    # Note the scale: excess is measured over max_entries_per_eval sampled
-    # signals at position_size each, so it is ~$200k of notional, not the $100
-    # account. It is a ranking quantity. The earlier value of 12.05 was derived
-    # while a variable-shadowing bug was zeroing every excess figure.
-    min_sharpe: 0.569            # 95th pct of random-strategy Sharpe
+    min_excess_pnl_usd: 885.0    # 95th pct of random-strategy excess
+    # Recalibrated twice. The first value (12.05) was set while a shadowing bug
+    # zeroed every excess figure; the second (3108) while the benchmark was
+    # horizon-mismatched and inflating excess for long holds. Both are fixed.
+    # Scale note: excess is measured over max_entries_per_eval sampled signals at
+    # position_size each — a ranking quantity, not account P&L.
+    min_sharpe: 0.353            # 95th pct of random-strategy Sharpe
     min_trades: 20
 
 # Survivorship correction applied to every backtest figure.
