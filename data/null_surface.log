@@ -1,3 +1,38 @@
 INFO:benchmark:Dropping the pre-bucketed benchmark cache — price is now part of the key
 INFO:benchmark:Computing 60 null cells for 2006-01-01 -> 2019-12-31
 INFO:benchmark:Computing 60 null cells for 2020-01-01 -> 2022-12-31
+INFO:benchmark:Computing 60 null cells for 2023-01-01 -> 2099-12-31
+
+  search  2006-01-01 -> 2019-12-31   net null %, by entry price and holding period
+  price band                2d        5d       13d       21d       45d
+  --------------------------------------------------------------------
+  $5-$10               +0.044    +0.539    +1.781    +2.952    +6.190 
+  $10-$20              -0.175    +0.008    +0.481    +0.936    +2.342 
+  $20-$50              -0.128    -0.013    +0.287    +0.577    +1.398 
+  $50-$100             -0.140    -0.043    +0.207    +0.448    +1.208 
+  $100+                -0.208    -0.213    -0.277    -0.325    -0.402 
+  whole market         -0.184    -0.012    +0.427    +0.848    +2.076 
+
+  validation  2020-01-01 -> 2022-12-31   net null %, by entry price and holding period
+  price band                2d        5d       13d       21d       45d
+  --------------------------------------------------------------------
+  $5-$10               +0.273    +1.076    +3.068    +5.236   +11.415 
+  $10-$20              -0.151    +0.080    +0.714    +1.352    +3.602 
+  $20-$50              -0.224    -0.112    +0.213    +0.607    +1.815 
+  $50-$100             -0.173    -0.124    -0.009    +0.180    +0.830 
+  $100+                -0.248    -0.315    -0.439    -0.488    -0.535 
+  whole market         -0.092    +0.066    +0.486    +0.971    +2.464 
+
+  sealed  2023-01-01 -> 2099-12-31   net null %, by entry price and holding period
+  price band                2d        5d       13d       21d       45d
+  --------------------------------------------------------------------
+  $5-$10               +0.315    +1.190    +3.236    +4.983    +9.669 
+  $10-$20              -0.149    +0.083    +0.673    +1.278    +3.001 
+  $20-$50              -0.101    +0.037    +0.431    +0.825    +2.049 
+  $50-$100             -0.113    +0.003    +0.335    +0.673    +1.863 
+  $100+                -0.121    -0.080    +0.019    +0.152    +0.634 
+  whole market         -0.042    +0.182    +0.743    +1.273    +2.821 
+
+  A strategy is charged the null of the stocks it actually bought.
+  Beating zero only demonstrates it was long in a rising market;
+  beating the market-wide null can still just mean it bought cheap stocks.

@@ -47,6 +47,45 @@ PRICE_CEIL = 1e12
 ALL_PRICES = (0.0, PRICE_CEIL)
 
 
+class Surface:
+    """
+    The measured null, indexed by price band and holding period.
+
+    Behaves like the plain `{band: {hold: pct}}` dict it replaced, so existing
+    `surface[band][5]` lookups still work, but it also carries each band's
+    representative price. Those anchors are what let the charge vary continuously
+    with price instead of in steps — see `null_vector`.
+
+    Plain attributes, so it survives the fork pool without a custom reducer.
+    """
+
+    def __init__(self, cells: dict, anchors: dict):
+        self.cells = cells
+        self.anchors = anchors      # band -> median entry price within it
+
+    def __getitem__(self, band):
+        return self.cells[band]
+
+    def __contains__(self, band):
+        return band in self.cells
+
+    def __iter__(self):
+        return iter(self.cells)
+
+    def __bool__(self):
+        return bool(self.cells)
+
+    def get(self, band, default=None):
+        return self.cells.get(band, default)
+
+    def ladder(self, hold_days: float) -> list[tuple[float, float]]:
+        """(price, null %) pairs at this holding period, ascending by price."""
+        pts = [(self.anchors[b], null_for_hold(self.cells[b], hold_days))
+               for b in self.cells
+               if b != ALL_PRICES and self.anchors.get(b)]
+        return sorted(pts)
+
+
 def price_bands(cfg: dict) -> list[tuple[float, float]]:
     """The price bands the null is measured in, from config or the default."""
     edges = tuple(cfg.get("benchmark", {}).get("price_band_edges") or PRICE_BAND_EDGES)
@@ -68,7 +107,7 @@ def init(conn) -> None:
                        "AND name='benchmarks'").fetchone()
     if row:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(benchmarks)")}
-        if "price_lo" not in cols:
+        if "price_lo" not in cols or "median_price" not in cols:
             log.info("Dropping the pre-bucketed benchmark cache — price is now part of the key")
             conn.execute("DROP TABLE benchmarks")
     conn.execute("""
@@ -79,6 +118,7 @@ def init(conn) -> None:
             price_lo      REAL NOT NULL,   -- entry-price band, inclusive
             price_hi      REAL NOT NULL,   -- exclusive
             min_price     REAL, min_dollar_volume REAL,
+            median_price  REAL,             -- the band's representative price
             n_obs         INTEGER NOT NULL,
             gross_pct     REAL NOT NULL,    -- avg forward return per trade
             cost_pct      REAL NOT NULL,
@@ -112,11 +152,13 @@ def _store(conn, rec) -> None:
     conn.execute("""
         INSERT OR REPLACE INTO benchmarks
             (window_start, window_end, horizon_days, price_lo, price_hi,
-             min_price, min_dollar_volume, n_obs, gross_pct, cost_pct, net_pct, computed_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+             min_price, min_dollar_volume, median_price, n_obs, gross_pct, cost_pct,
+             net_pct, computed_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, tuple(rec[k] for k in ("window_start", "window_end", "horizon_days", "price_lo",
-                                "price_hi", "min_price", "min_dollar_volume", "n_obs",
-                                "gross_pct", "cost_pct", "net_pct", "computed_at")))
+                                "price_hi", "min_price", "min_dollar_volume",
+                                "median_price", "n_obs", "gross_pct", "cost_pct",
+                                "net_pct", "computed_at")))
 
 
 def _forward(df, horizon: int):
@@ -136,8 +178,8 @@ def _cell(df, fwd, cfg, window, horizon, band, mp, mv) -> dict:
     """The null for one (holding period, price band) cell, from an in-memory frame."""
     rec = {"window_start": window[0], "window_end": window[1], "horizon_days": horizon,
            "price_lo": band[0], "price_hi": band[1], "min_price": mp,
-           "min_dollar_volume": mv, "n_obs": 0, "gross_pct": 0.0, "cost_pct": 0.0,
-           "net_pct": 0.0, "computed_at": storage._now()}
+           "min_dollar_volume": mv, "median_price": None, "n_obs": 0, "gross_pct": 0.0,
+           "cost_pct": 0.0, "net_pct": 0.0, "computed_at": storage._now()}
 
     in_band = (slice(None) if band == ALL_PRICES
                else (df["close"] >= band[0]) & (df["close"] < band[1]))
@@ -157,7 +199,7 @@ def _cell(df, fwd, cfg, window, horizon, band, mp, mv) -> dict:
 
     gross = float(valid.mean()) * 100
     rec.update(n_obs=int(len(valid)), gross_pct=gross, cost_pct=cost_pct,
-               net_pct=gross - cost_pct)
+               net_pct=gross - cost_pct, median_price=median_px)
     return rec
 
 
@@ -197,7 +239,7 @@ def compute(conn, cfg: dict, window: tuple[str, str], horizon: int | None = None
 
 def null_surface(conn, cfg: dict, window: tuple[str, str],
                  anchors: tuple[int, ...] = ANCHORS,
-                 refresh: bool = False) -> dict[tuple[float, float], dict[int, float]]:
+                 refresh: bool = False) -> Surface:
     """
     The null at every holding period **and every price level**, not just one.
 
@@ -225,12 +267,15 @@ def null_surface(conn, cfg: dict, window: tuple[str, str],
     bands = price_bands(cfg) + [ALL_PRICES]
 
     surface: dict[tuple[float, float], dict[int, float]] = {b: {} for b in bands}
+    centres: dict[tuple[float, float], float] = {}
     missing = []
     for b in bands:
         for h in anchors:
             row = None if refresh else _cached(conn, window, h, b, mp, mv)
             if row:
                 surface[b][h] = float(row["net_pct"])
+                if row["median_price"]:
+                    centres[b] = float(row["median_price"])
             else:
                 missing.append((b, h))
 
@@ -238,7 +283,7 @@ def null_surface(conn, cfg: dict, window: tuple[str, str],
         log.info(f"Computing {len(missing)} null cells for {window[0]} -> {window[1]}")
         df = _load(conn, cfg, window)
         if df.empty:
-            return {b: {h: 0.0 for h in anchors} for b in bands}
+            return Surface({b: {h: 0.0 for h in anchors} for b in bands}, {})
         df = df.sort_values(["ticker", "date"])
         # Grouped by horizon so each forward-return pass over five million rows is
         # computed once and reused across every price band.
@@ -248,6 +293,8 @@ def null_surface(conn, cfg: dict, window: tuple[str, str],
                 rec = _cell(df, fwd, cfg, window, h, b, mp, mv)
                 _store(conn, rec)
                 surface[b][h] = float(rec["net_pct"])
+                if rec["median_price"]:
+                    centres[b] = float(rec["median_price"])
             del fwd
         conn.commit()
         del df
@@ -261,7 +308,8 @@ def null_surface(conn, cfg: dict, window: tuple[str, str],
         for h in anchors:
             if not np.isfinite(surface[b].get(h, np.nan)) or _thin(conn, window, h, b, mp, mv):
                 surface[b][h] = surface[ALL_PRICES][h]
-    return surface
+                centres.pop(b, None)
+    return Surface(surface, centres)
 
 
 def _thin(conn, window, horizon, band, mp, mv, floor: int = 5000) -> bool:
@@ -284,10 +332,18 @@ def null_for_hold(curve: dict[int, float], hold_days: float) -> float:
     return curve[ks[-1]]
 
 
-def null_vector(surface: dict, entry_prices, hold_days: float,
-                bands: list[tuple[float, float]] | None = None):
+def null_vector(surface, entry_prices, hold_days: float, bands=None):
     """
     The null charged to each trade individually, as an array of percentages.
+
+    **Interpolated across price, not stepped.** Bands are a convenience for
+    measuring; the market has no edge at $10.00. Charging a flat rate inside each
+    band leaves a gradient the search will ride straight to the band floor — and
+    it did: with hard bands the surviving rules moved from `sma_200 < 8` to
+    `sma_200 < 6.81`, entering at a median $6.64 against a $5-10 band whose own
+    median was nearer $7.30, collecting the difference as "excess". Interpolating
+    between band centres in log price removes that step, so buying cheaper raises
+    the bar continuously rather than for free until the next edge.
 
     Per trade rather than per strategy because the excess P&L *series* — not just
     its total — feeds Sharpe and drawdown. Subtracting one average null from every
@@ -299,6 +355,16 @@ def null_vector(surface: dict, entry_prices, hold_days: float,
     if px.size == 0 or not surface:
         return np.full(px.shape, market, dtype="float64")
 
+    ladder = surface.ladder(hold_days) if hasattr(surface, "ladder") else []
+    if len(ladder) >= 2:
+        xs = np.log(np.array([p for p, _ in ladder], dtype="float64"))
+        ys = np.array([v for _, v in ladder], dtype="float64")
+        safe = np.where(np.isfinite(px) & (px > 0), px, np.exp(xs[-1]))
+        # np.interp clamps outside the range, which is what we want: the cheapest
+        # and dearest bands set the floor and ceiling of the charge.
+        return np.interp(np.log(safe), xs, ys)
+
+    # Not enough measured bands to interpolate — fall back to hard buckets.
     out = np.full(px.shape, market, dtype="float64")
     for b in (bands or [b for b in surface if b != ALL_PRICES]):
         sel = np.isfinite(px) & (px >= b[0]) & (px < b[1])
