@@ -1,0 +1,3 @@
+INFO:benchmark:Dropping the pre-bucketed benchmark cache — price is now part of the key
+INFO:benchmark:Computing 60 null cells for 2006-01-01 -> 2019-12-31
+INFO:benchmark:Computing 60 null cells for 2020-01-01 -> 2022-12-31

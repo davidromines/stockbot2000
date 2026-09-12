@@ -176,14 +176,24 @@ def _evaluate_window(conn, cfg, genome_dict, window):
 
 def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
     """
-    Stage 02. Take the best by net P&L, deduplicated by rule text.
+    Stage 02. Take the best by **excess over the null**, deduplicated by rule text.
+
+    Ranked by excess rather than raw net P&L, which is what the gate downstream
+    actually tests. Ranking by net P&L filled the shortlist with strategies that
+    had simply held longer or bought cheaper than average and drifted upward with
+    their corner of the market — they led on money and then died at validation,
+    having displaced candidates that were genuinely selecting.
 
     Deduplication matters more than it sounds: elitism and mutation produce many
     near-identical copies of whatever is currently winning, and carrying twenty
     clones into validation would waste the budget and overstate how many distinct
-    ideas survived.
+    ideas survived. It is keyed on rule *text*, so `sma_200 < 7.05` and
+    `sma_200 < 7.83` still count as two — see `_shapes` for the stronger version.
     """
-    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 5)
+    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 10)
+    # Older rows predate the excess column; fall back so they still rank.
+    rows.sort(key=lambda r: (r["excess_pnl_usd"] if r["excess_pnl_usd"] is not None
+                             else r["net_pnl_usd"]), reverse=True)
     seen, out = set(), []
     for r in rows:
         if r["net_pnl_usd"] <= 0:
@@ -194,10 +204,12 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
         seen.add(key)
         out.append(r["id"])
         _decide(conn, r["id"], "shortlist", True,
-                {"net_pnl_usd": r["net_pnl_usd"], "trial_index": r["trial_index"]})
+                {"net_pnl_usd": r["net_pnl_usd"], "excess_pnl_usd": r["excess_pnl_usd"],
+                 "trial_index": r["trial_index"]})
         if len(out) >= keep:
             break
-    log.info(f"Shortlisted {len(out)} distinct profitable strategies from {len(rows)} scored")
+    log.info(f"Shortlisted {len(out)} distinct profitable strategies from {len(rows)} scored, "
+             f"ranked by excess over the null")
     return out
 
 

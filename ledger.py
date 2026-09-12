@@ -52,6 +52,8 @@ def init(conn) -> None:
             trial_index   INTEGER NOT NULL,   -- for the deflated Sharpe correction
             fitness       REAL NOT NULL,
             net_pnl_usd   REAL NOT NULL,      -- the number that matters
+            excess_pnl_usd REAL,               -- net, less what the null earned
+            benchmark_pnl_usd REAL,            -- what the null earned on these trades
             gross_pnl_usd REAL,
             costs_usd     REAL,
             sharpe        REAL,
@@ -62,6 +64,13 @@ def init(conn) -> None:
             PRIMARY KEY (strategy_id, window_start)
         ) STRICT, WITHOUT ROWID
     """)
+    # Added after the fact: excess over the null was computed on every evaluation
+    # but never stored, so the shortlist could only rank by net P&L and spent its
+    # slots on strategies that had merely drifted upward with the market.
+    have = {r[1] for r in conn.execute("PRAGMA table_info(evaluations)")}
+    for col in ("excess_pnl_usd", "benchmark_pnl_usd"):
+        if col not in have:
+            conn.execute(f"ALTER TABLE evaluations ADD COLUMN {col} REAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS promotions (
             strategy_id TEXT NOT NULL,
@@ -132,10 +141,12 @@ def record(conn, run_id: str, generation: int, origin: str, genome_dict: dict,
     conn.execute("""
         INSERT OR REPLACE INTO evaluations
             (strategy_id, window_start, window_end, trial_index, fitness, net_pnl_usd,
+             excess_pnl_usd, benchmark_pnl_usd,
              gross_pnl_usd, costs_usd, sharpe, max_drawdown, n_trades, win_rate, verdict)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (sid, window[0], window[1], trial_index,
           float(result.get("fitness", 0.0)), float(result.get("net_pnl_usd", 0.0)),
+          result.get("excess_pnl_usd"), result.get("benchmark_pnl_usd"),
           result.get("gross_pnl_usd"), result.get("costs_usd"),
           result.get("sharpe"), result.get("max_drawdown"),
           result.get("n_trades"), result.get("win_rate"), result.get("verdict")))
@@ -146,7 +157,8 @@ def top_by_pnl(conn, run_id: str | None = None, limit: int = 20) -> list[dict]:
     """Best strategies by money. The default ranking, deliberately."""
     sql = """
         SELECT s.id, s.generation, s.origin, s.complexity, s.entry_desc, s.exit_desc,
-               e.net_pnl_usd, e.fitness, e.sharpe, e.max_drawdown, e.n_trades, e.trial_index
+               e.net_pnl_usd, e.excess_pnl_usd, e.benchmark_pnl_usd, e.fitness,
+               e.sharpe, e.max_drawdown, e.n_trades, e.trial_index
         FROM evaluations e JOIN strategies s ON s.id = e.strategy_id
     """
     params: list = []
