@@ -149,17 +149,18 @@ def _window_panel(conn, cfg, window):
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
     entry = (None, None) if df.empty else (simulator.Panel(df),
-                                           bench.null_curve(conn, cfg, window))
+                                           bench.null_surface(conn, cfg, window))
     _PANELS[window] = entry
     if entry[0] is not None:
+        market = entry[1][bench.ALL_PRICES]
         log.info(f"Panel for {window[0]} -> {window[1]}: {entry[0].n:,} rows, "
-                 f"null {entry[1][5]:+.3f}% at 5d / {entry[1][45]:+.3f}% at 45d")
+                 f"market-wide null {market[5]:+.3f}% at 5d / {market[45]:+.3f}% at 45d")
     return entry
 
 
 def _evaluate_window(conn, cfg, genome_dict, window):
     """Simulate one genome over an arbitrary window. Used by every gate."""
-    panel, curve = _window_panel(conn, cfg, window)
+    panel, surface = _window_panel(conn, cfg, window)
     if panel is None:
         return None
     cm = costs_mod.CostModel(cfg)
@@ -168,7 +169,7 @@ def _evaluate_window(conn, cfg, genome_dict, window):
     res = simulator.simulate(genome_dict, panel, cm, size,
                              max_entries=cfg["lab"].get("max_entries_per_eval", 20000))
     scored = reward.fitness(res, gn.complexity(genome_dict), capital_usd=capital,
-                            benchmark_curve=curve, position_size_usd=size)
+                            benchmark_surface=surface, position_size_usd=size)
     scored["pnl_series"] = res.get("pnl_series")
     return scored
 

@@ -51,6 +51,14 @@ costs:
 
 # Strategy Lab. The search window is the one specified in STRATEGY_LAB.md:
 # 2006-2019 for the search, 2020-2022 for validation, 2023+ sealed.
+# The null hypothesis a strategy is scored against. Measured, not assumed.
+benchmark:
+  # Entry-price bands, in dollars. A strategy is charged the null of the stocks
+  # it actually bought, so "buy anything under $8" is measured against other
+  # sub-$8 stocks rather than against the whole market. Without this the search's
+  # best answer was a bare price filter. Bands below risk.min_price are dropped.
+  price_band_edges: [10, 20, 50, 100]
+
 lab:
   search_start: "2006-01-01"
   search_end: "2019-12-31"

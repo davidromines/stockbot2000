@@ -17,12 +17,18 @@ This module computes that null so everything downstream can be scored as **exces
 over it**. A strategy that beats zero is uninteresting; one that beats buying at
 random, after costs, is the entire point.
 
+The null is a **surface, not a number**: it varies with how long a strategy holds
+*and* with how expensive the stocks it buys are. Both dimensions are loopholes if
+left flat — see `null_surface`.
+
 Benchmarks are cached per window because the null does not depend on the strategy
 being tested, and recomputing it for every candidate would dominate a search.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
 import logging
+
+import numpy as np
 
 import costs as costs_mod
 import storage
@@ -32,27 +38,131 @@ from universe import load_config
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("benchmark")
 
+ANCHORS = (1, 2, 3, 5, 8, 13, 21, 34, 45, 60)
+
+# Price-band edges in dollars. The open band above the last edge is closed at
+# PRICE_CEIL so the value can sit in a STRICT table's primary key.
+PRICE_BAND_EDGES = (10.0, 20.0, 50.0, 100.0)
+PRICE_CEIL = 1e12
+ALL_PRICES = (0.0, PRICE_CEIL)
+
+
+def price_bands(cfg: dict) -> list[tuple[float, float]]:
+    """The price bands the null is measured in, from config or the default."""
+    edges = tuple(cfg.get("benchmark", {}).get("price_band_edges") or PRICE_BAND_EDGES)
+    lo = float(cfg.get("risk", {}).get("min_price") or 0.0)
+    bounds = [lo] + [e for e in sorted(float(e) for e in edges) if e > lo] + [PRICE_CEIL]
+    return [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1)]
+
 
 def init(conn) -> None:
+    """
+    Create the cache table, replacing the pre-bucketed schema if present.
+
+    The old table keyed the null on (window, horizon) alone. Price is now part of
+    the key, and a STRICT table's primary key cannot be altered in place — so an
+    old cache is dropped rather than migrated. It is a cache; recomputing is the
+    correct response to it being wrong.
+    """
+    row = conn.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                       "AND name='benchmarks'").fetchone()
+    if row:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(benchmarks)")}
+        if "price_lo" not in cols:
+            log.info("Dropping the pre-bucketed benchmark cache — price is now part of the key")
+            conn.execute("DROP TABLE benchmarks")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS benchmarks (
             window_start  TEXT NOT NULL,
             window_end    TEXT NOT NULL,
             horizon_days  INTEGER NOT NULL,
+            price_lo      REAL NOT NULL,   -- entry-price band, inclusive
+            price_hi      REAL NOT NULL,   -- exclusive
             min_price     REAL, min_dollar_volume REAL,
             n_obs         INTEGER NOT NULL,
             gross_pct     REAL NOT NULL,    -- avg forward return per trade
             cost_pct      REAL NOT NULL,
             net_pct       REAL NOT NULL,    -- what a random entry actually earns
             computed_at   TEXT NOT NULL,
-            PRIMARY KEY (window_start, window_end, horizon_days, min_price, min_dollar_volume)
+            PRIMARY KEY (window_start, window_end, horizon_days, price_lo, price_hi,
+                         min_price, min_dollar_volume)
         ) STRICT
     """)
     conn.commit()
 
 
-def compute(conn, cfg: dict, window: tuple[str, str],
-            horizon: int | None = None, refresh: bool = False) -> dict:
+def _load(conn, cfg, window):
+    return storage.load_training_frame(
+        conn, FEATURE_COLS, types=cfg["universe"]["tradeable_types"],
+        start_date=window[0], end_date=window[1],
+        min_price=cfg["risk"].get("min_price"),
+        min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
+        include_liquidity=True)
+
+
+def _cached(conn, window, horizon, band, mp, mv):
+    return conn.execute("""
+        SELECT * FROM benchmarks WHERE window_start=? AND window_end=?
+          AND horizon_days=? AND price_lo=? AND price_hi=?
+          AND min_price IS ? AND min_dollar_volume IS ?
+    """, (window[0], window[1], horizon, band[0], band[1], mp, mv)).fetchone()
+
+
+def _store(conn, rec) -> None:
+    conn.execute("""
+        INSERT OR REPLACE INTO benchmarks
+            (window_start, window_end, horizon_days, price_lo, price_hi,
+             min_price, min_dollar_volume, n_obs, gross_pct, cost_pct, net_pct, computed_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    """, tuple(rec[k] for k in ("window_start", "window_end", "horizon_days", "price_lo",
+                                "price_hi", "min_price", "min_dollar_volume", "n_obs",
+                                "gross_pct", "cost_pct", "net_pct", "computed_at")))
+
+
+def _forward(df, horizon: int):
+    """
+    Forward return over `horizon` bars, computed on the **whole** frame.
+
+    Computed before any price filtering, deliberately. Filtering to a price band
+    first and then calling pct_change would measure the gap between a ticker's
+    surviving rows — two observations that happen to both sit under $10, whatever
+    the calendar distance between them — instead of its return over the next
+    `horizon` trading days.
+    """
+    return df.groupby("ticker", observed=True)["close"].pct_change(horizon).shift(-horizon)
+
+
+def _cell(df, fwd, cfg, window, horizon, band, mp, mv) -> dict:
+    """The null for one (holding period, price band) cell, from an in-memory frame."""
+    rec = {"window_start": window[0], "window_end": window[1], "horizon_days": horizon,
+           "price_lo": band[0], "price_hi": band[1], "min_price": mp,
+           "min_dollar_volume": mv, "n_obs": 0, "gross_pct": 0.0, "cost_pct": 0.0,
+           "net_pct": 0.0, "computed_at": storage._now()}
+
+    in_band = (slice(None) if band == ALL_PRICES
+               else (df["close"] >= band[0]) & (df["close"] < band[1]))
+    sub = df if band == ALL_PRICES else df[in_band]
+    valid = (fwd if band == ALL_PRICES else fwd[in_band]).dropna()
+    if sub.empty or valid.empty:
+        return rec
+
+    cm = costs_mod.CostModel(cfg)
+    size = cfg["risk"]["position_size_usd"]
+    # Cost of the median name actually traded in THIS band, not of a hypothetical
+    # one. Cheap stocks are less liquid and pay a wider spread; charging them the
+    # whole market's cost would understate what they have to overcome.
+    median_dv = float(sub["dollar_volume_20"].median()) if "dollar_volume_20" in sub else 0.0
+    median_px = float(sub["close"].median()) or 1.0
+    cost_pct = float(cm.round_trip(size, median_dv, size / median_px) / size * 100)
+
+    gross = float(valid.mean()) * 100
+    rec.update(n_obs=int(len(valid)), gross_pct=gross, cost_pct=cost_pct,
+               net_pct=gross - cost_pct)
+    return rec
+
+
+def compute(conn, cfg: dict, window: tuple[str, str], horizon: int | None = None,
+            band: tuple[float, float] = ALL_PRICES, refresh: bool = False) -> dict:
     """
     Average net return of a random entry held `horizon` days in this window.
 
@@ -64,80 +174,99 @@ def compute(conn, cfg: dict, window: tuple[str, str],
     """
     init(conn)
     horizon = horizon or cfg["labeling"]["horizon_days"]
-    mp = cfg["risk"].get("min_price")
-    mv = cfg["risk"].get("min_dollar_volume")
+    mp, mv = cfg["risk"].get("min_price"), cfg["risk"].get("min_dollar_volume")
 
     if not refresh:
-        row = conn.execute("""
-            SELECT * FROM benchmarks WHERE window_start=? AND window_end=?
-              AND horizon_days=? AND min_price=? AND min_dollar_volume=?
-        """, (window[0], window[1], horizon, mp, mv)).fetchone()
+        row = _cached(conn, window, horizon, band, mp, mv)
         if row:
             return dict(row)
 
-    log.info(f"Computing the null for {window[0]} -> {window[1]} ({horizon}d hold)")
-    df = storage.load_training_frame(
-        conn, FEATURE_COLS, types=cfg["universe"]["tradeable_types"],
-        start_date=window[0], end_date=window[1], min_price=mp, min_dollar_volume=mv,
-        include_liquidity=True)
+    log.info(f"Computing the null for {window[0]} -> {window[1]} ({horizon}d hold, "
+             f"${band[0]:,.0f}-${band[1]:,.0f})")
+    df = _load(conn, cfg, window)
     if df.empty:
         return {"net_pct": 0.0, "gross_pct": 0.0, "cost_pct": 0.0, "n_obs": 0}
-
     df = df.sort_values(["ticker", "date"])
-    fwd = df.groupby("ticker", observed=True)["close"].pct_change(horizon).shift(-horizon)
-    valid = fwd.dropna()
-
-    cm = costs_mod.CostModel(cfg)
-    size = cfg["risk"]["position_size_usd"]
-    # Cost of the median name actually traded, not of a hypothetical one.
-    median_dv = float(df["dollar_volume_20"].median()) if "dollar_volume_20" in df else 0.0
-    cost_pct = float(cm.round_trip(size, median_dv, size / 50) / size * 100)
-
-    gross = float(valid.mean()) * 100
-    rec = {"window_start": window[0], "window_end": window[1], "horizon_days": horizon,
-           "min_price": mp, "min_dollar_volume": mv, "n_obs": int(len(valid)),
-           "gross_pct": gross, "cost_pct": cost_pct, "net_pct": gross - cost_pct,
-           "computed_at": storage._now()}
-    conn.execute("""
-        INSERT OR REPLACE INTO benchmarks
-            (window_start, window_end, horizon_days, min_price, min_dollar_volume,
-             n_obs, gross_pct, cost_pct, net_pct, computed_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?)
-    """, tuple(rec[k] for k in ("window_start", "window_end", "horizon_days", "min_price",
-                                "min_dollar_volume", "n_obs", "gross_pct", "cost_pct",
-                                "net_pct", "computed_at")))
+    rec = _cell(df, _forward(df, horizon), cfg, window, horizon, band, mp, mv)
+    _store(conn, rec)
     conn.commit()
-    log.info(f"  null: {gross:+.3f}% gross, {cost_pct:.3f}% costs, "
-             f"{rec['net_pct']:+.3f}% net over {len(valid):,} observations")
+    log.info(f"  null: {rec['gross_pct']:+.3f}% gross, {rec['cost_pct']:.3f}% costs, "
+             f"{rec['net_pct']:+.3f}% net over {rec['n_obs']:,} observations")
     return rec
 
 
-ANCHORS = (1, 2, 3, 5, 8, 13, 21, 34, 45, 60)
-
-
-def null_curve(conn, cfg: dict, window: tuple[str, str],
-               anchors: tuple[int, ...] = ANCHORS) -> dict[int, float]:
+def null_surface(conn, cfg: dict, window: tuple[str, str],
+                 anchors: tuple[int, ...] = ANCHORS,
+                 refresh: bool = False) -> dict[tuple[float, float], dict[int, float]]:
     """
-    The null at every holding period, not just one.
+    The null at every holding period **and every price level**, not just one.
 
-    A fixed-horizon null is wrong the moment strategies hold for different
-    lengths of time, and they do — holding periods are a gene ranging from 2 to
-    60 days. Measured here: the null is **+0.066% at a 5-day hold and +2.128% at
-    40 days**, so benchmarking a 40-day strategy against the 5-day figure
-    understates what it should have to beat by a factor of 32.
+    Two dimensions, because a flat null is a loophole in each of them:
 
-    That is not a rounding error, it is the whole result. Market drift accrues
-    with time held, so under a fixed-horizon null a strategy earns "excess"
-    simply by holding longer — and the search duly learned to do exactly that,
-    drifting to a median hold of 20.5 days.
+    *Holding period.* The null is +0.066% at a 5-day hold and +2.128% at 40 days,
+    so benchmarking a 40-day strategy against the 5-day figure understates what it
+    should beat by a factor of 32. Market drift accrues with time held, and the
+    search duly learned to hold longer, drifting to a median hold of 20.5 days.
 
-    Computed at anchor horizons and interpolated between them. Sixty separate
-    passes over five million rows would cost more than the accuracy is worth.
+    *Price.* This is the one that mattered. Charged a single market-wide null, the
+    search's best answer was `sma_200 < 8` — "buy stocks under about eight
+    dollars" — which is a price filter, not a strategy. Cheap stocks have their
+    own return and volatility profile, and they are also exactly where
+    survivorship bias bites hardest, since the sub-$8 names that went to zero are
+    absent from this database. Scored against other cheap stocks instead of
+    against the whole market, that rule has to show it picked *well among them*.
+
+    Computed at anchor horizons and interpolated between them, and cached cell by
+    cell. The frame is loaded from SQL once for the whole surface: fifty separate
+    passes over five million rows would cost far more than the accuracy is worth.
     """
-    curve = {}
-    for h in anchors:
-        curve[h] = compute(conn, cfg, window, horizon=h)["net_pct"]
-    return curve
+    init(conn)
+    mp, mv = cfg["risk"].get("min_price"), cfg["risk"].get("min_dollar_volume")
+    bands = price_bands(cfg) + [ALL_PRICES]
+
+    surface: dict[tuple[float, float], dict[int, float]] = {b: {} for b in bands}
+    missing = []
+    for b in bands:
+        for h in anchors:
+            row = None if refresh else _cached(conn, window, h, b, mp, mv)
+            if row:
+                surface[b][h] = float(row["net_pct"])
+            else:
+                missing.append((b, h))
+
+    if missing:
+        log.info(f"Computing {len(missing)} null cells for {window[0]} -> {window[1]}")
+        df = _load(conn, cfg, window)
+        if df.empty:
+            return {b: {h: 0.0 for h in anchors} for b in bands}
+        df = df.sort_values(["ticker", "date"])
+        # Grouped by horizon so each forward-return pass over five million rows is
+        # computed once and reused across every price band.
+        for h in sorted({h for _, h in missing}):
+            fwd = _forward(df, h)
+            for b in [b for b, hh in missing if hh == h]:
+                rec = _cell(df, fwd, cfg, window, h, b, mp, mv)
+                _store(conn, rec)
+                surface[b][h] = float(rec["net_pct"])
+            del fwd
+        conn.commit()
+        del df
+
+    # A band with too little data to measure falls back to the market-wide null
+    # rather than to zero. Zero would be a free pass for any strategy that found
+    # a thinly populated corner of the price range.
+    for b in bands:
+        if b == ALL_PRICES:
+            continue
+        for h in anchors:
+            if not np.isfinite(surface[b].get(h, np.nan)) or _thin(conn, window, h, b, mp, mv):
+                surface[b][h] = surface[ALL_PRICES][h]
+    return surface
+
+
+def _thin(conn, window, horizon, band, mp, mv, floor: int = 5000) -> bool:
+    row = _cached(conn, window, horizon, band, mp, mv)
+    return bool(row) and int(row["n_obs"]) < floor
 
 
 def null_for_hold(curve: dict[int, float], hold_days: float) -> float:
@@ -155,6 +284,47 @@ def null_for_hold(curve: dict[int, float], hold_days: float) -> float:
     return curve[ks[-1]]
 
 
+def null_vector(surface: dict, entry_prices, hold_days: float,
+                bands: list[tuple[float, float]] | None = None):
+    """
+    The null charged to each trade individually, as an array of percentages.
+
+    Per trade rather than per strategy because the excess P&L *series* — not just
+    its total — feeds Sharpe and drawdown. Subtracting one average null from every
+    trade would leave a strategy that mixes $6 and $600 names looking steadier
+    than it was.
+    """
+    px = np.asarray(entry_prices, dtype="float64") if entry_prices is not None else np.array([])
+    market = null_for_hold(surface.get(ALL_PRICES, {}), hold_days) if surface else 0.0
+    if px.size == 0 or not surface:
+        return np.full(px.shape, market, dtype="float64")
+
+    out = np.full(px.shape, market, dtype="float64")
+    for b in (bands or [b for b in surface if b != ALL_PRICES]):
+        sel = np.isfinite(px) & (px >= b[0]) & (px < b[1])
+        if sel.any():
+            out[sel] = null_for_hold(surface[b], hold_days)
+    return out
+
+
+def null_for_trades(surface: dict, entry_prices, hold_days: float,
+                    bands: list[tuple[float, float]] | None = None) -> float:
+    """
+    The null for a strategy that bought *these* stocks at *these* prices.
+
+    Each trade is charged the null of the price band it entered in, and the
+    result is the trade-weighted average. A strategy that only buys sub-$10 names
+    is therefore measured against sub-$10 names — which is the whole correction.
+    Falls back to the market-wide curve when no prices are available.
+    """
+    if not surface:
+        return 0.0
+    vec = null_vector(surface, entry_prices, hold_days, bands)
+    if vec.size == 0:
+        return null_for_hold(surface.get(ALL_PRICES, {}), hold_days)
+    return float(np.mean(vec))
+
+
 def report(conn, cfg: dict) -> None:
     lab = cfg["lab"]
     windows = [
@@ -162,14 +332,21 @@ def report(conn, cfg: dict) -> None:
         (lab["validation_start"], lab["validation_end"], "validation"),
         (lab["sealed_start"], "2099-12-31", "sealed"),
     ]
-    print(f"\n  {'window':<28}{'gross':>9}{'costs':>9}{'NET NULL':>11}{'obs':>12}")
-    print("  " + "-" * 70)
+    bands = price_bands(cfg)
     for a, b, label in windows:
-        r = compute(conn, cfg, (a, b))
-        print(f"  {label + ' ' + a[:7] + '-' + b[:7]:<28}{r['gross_pct']:>8.3f}%"
-              f"{r['cost_pct']:>8.3f}%{r['net_pct']:>10.3f}%{r['n_obs']:>12,}")
-    print("\n  A strategy must beat the NET NULL to have demonstrated anything.")
-    print("  Beating zero only demonstrates it was long in a rising market.")
+        surface = null_surface(conn, cfg, (a, b))
+        print(f"\n  {label}  {a} -> {b}   net null %, by entry price and holding period")
+        print(f"  {'price band':<18}" + "".join(f"{h:>9}d" for h in (2, 5, 13, 21, 45)))
+        print("  " + "-" * 68)
+        for band in bands + [ALL_PRICES]:
+            name = ("whole market" if band == ALL_PRICES else
+                    f"${band[0]:,.0f}-${band[1]:,.0f}" if band[1] < PRICE_CEIL
+                    else f"${band[0]:,.0f}+")
+            cells = "".join(f"{null_for_hold(surface[band], h):>+9.3f} " for h in (2, 5, 13, 21, 45))
+            print(f"  {name:<18}{cells}")
+    print("\n  A strategy is charged the null of the stocks it actually bought.")
+    print("  Beating zero only demonstrates it was long in a rising market;")
+    print("  beating the market-wide null can still just mean it bought cheap stocks.")
 
 
 def main():
@@ -187,7 +364,7 @@ def main():
         for a, b in [(lab["search_start"], lab["search_end"]),
                      (lab["validation_start"], lab["validation_end"]),
                      (lab["sealed_start"], "2099-12-31")]:
-            compute(conn, cfg, (a, b), refresh=True)
+            null_surface(conn, cfg, (a, b), refresh=True)
     report(conn, cfg)
     conn.close()
 

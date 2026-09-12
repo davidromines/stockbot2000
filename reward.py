@@ -34,6 +34,15 @@ long in a bull market rather than picking well, and 52% of random strategies
 passed the validation gate as a result. Fitness now measures **excess return over
 what a random entry earns in the same window**, net of costs. A strategy that beats
 zero has demonstrated nothing; one that beats the null has demonstrated selection.
+
+**And the null is matched to the stocks the strategy bought, not just to the
+window.** Charged a single market-wide null, the search's best answer was
+`sma_200 < 8` — a price filter dressed as a strategy, and 58 of its 66 validation
+survivors were the same rule with a different constant. Cheap stocks earn and
+behave differently from expensive ones, and they are where survivorship bias is
+worst, so "beat the market" was a gift to anything that simply bought cheap. Each
+trade is now charged the null of its own price band; the rule has to beat the
+cheap stocks it chose among.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 
@@ -103,7 +112,8 @@ def max_drawdown(pnl: np.ndarray, capital_usd: float) -> float:
 
 def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
             benchmark_net_pct: float = 0.0, position_size_usd: float = 10.0,
-            benchmark_curve: dict | None = None, cfg: dict | None = None) -> dict:
+            benchmark_curve: dict | None = None, cfg: dict | None = None,
+            benchmark_surface: dict | None = None) -> dict:
     """
     Score one simulated strategy. Returns the fitness and every component.
 
@@ -124,13 +134,25 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     # longer: the null is +0.066% over 5 days and +2.128% over 40, so scoring a
     # 40-day strategy against the 5-day figure hands it 32x more credit than it
     # earned. The search found that loophole immediately.
+    #
+    # The price dimension is charged the same way: each trade against the null of
+    # the band it entered in, averaged over the trades actually taken. A strategy
+    # whose entries are all sub-$10 is measured against sub-$10 stocks.
     hold = float(result.get("avg_hold_days", 5.0) or 5.0)
-    if benchmark_curve:
+    null_pct = None
+    if benchmark_surface:
+        from benchmark import null_vector
+        null_pct = null_vector(benchmark_surface, result.get("entry_price"), hold)
+        benchmark_net_pct = float(null_pct.mean()) if null_pct.size else 0.0
+    elif benchmark_curve:
         from benchmark import null_for_hold
         benchmark_net_pct = null_for_hold(benchmark_curve, hold)
     benchmark_usd = position_size_usd * (benchmark_net_pct / 100.0) * n
     excess = net - benchmark_usd
-    excess_pnl = pnl - position_size_usd * (benchmark_net_pct / 100.0)
+    if null_pct is not None and null_pct.size == pnl.size:
+        excess_pnl = pnl - position_size_usd * (null_pct / 100.0)
+    else:
+        excess_pnl = pnl - position_size_usd * (benchmark_net_pct / 100.0)
 
     if net <= 0:
         # Deliberately flat rather than negative: "loses less" is not a gradient
