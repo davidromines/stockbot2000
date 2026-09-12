@@ -109,6 +109,18 @@ lab:
 # our universe returned 17.8%/yr against CRSP's 7.4%/yr over 2006-2026. Expressed
 # as a ratio that is 1.178/1.074 = 9.68% of excess compounding per year.
 # This is a haircut, not a fix — the delisted companies are still absent.
+# Survivorship stress test. Puts the missing companies back as an assumption and
+# re-scores, to bound how much of a result depends on their absence. Every value
+# is an estimate — stress_test.py --sweep shows how much the answer moves.
+stress:
+  base_hazard_per_year: 0.06       # whole-universe delisting rate
+  hazard_at_full_drawdown: 0.45    # a name 100% off its own high, per year
+  failure_share_base: 0.45         # of delistings, the share that are failures not mergers
+  failure_share_deep: 0.90         # same, for deeply drawn-down names
+  failure_return: -0.55            # Shumway 1997, Nasdaq. The harsher of the two figures.
+  merger_return: 0.15              # acquisitions pay a premium; ignoring this overstates harm
+  draws: 200
+
 survivorship:
   enabled: true
   # Exposure limit, not a haircut. A strategy taking more than this share of its

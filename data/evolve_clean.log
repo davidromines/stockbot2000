@@ -56,3 +56,8 @@ INFO:evolve:gen 37/50  best fitness 2.059  best excess $+1,641  beating the null
 INFO:evolve:gen 38/50  best fitness 2.059  best excess $+1,821  beating the null 293/300  232 distinct ideas  1.4 evals/s
 INFO:evolve:gen 39/50  best fitness 2.059  best excess $+2,260  beating the null 293/300  223 distinct ideas  1.4 evals/s
 INFO:evolve:gen 40/50  best fitness 2.059  best excess $+1,275  beating the null 286/300  243 distinct ideas  1.4 evals/s
+INFO:evolve:gen 41/50  best fitness 2.059  best excess $+1,302  beating the null 290/300  213 distinct ideas  1.4 evals/s
+INFO:evolve:gen 42/50  best fitness 2.059  best excess $+2,105  beating the null 282/300  235 distinct ideas  1.4 evals/s
+INFO:evolve:gen 43/50  best fitness 2.195  best excess $+1,584  beating the null 281/300  219 distinct ideas  1.3 evals/s
+INFO:evolve:gen 44/50  best fitness 2.195  best excess $+1,693  beating the null 291/300  229 distinct ideas  1.3 evals/s
+INFO:evolve:gen 45/50  best fitness 2.195  best excess $+1,426  beating the null 287/300  249 distinct ideas  1.3 evals/s

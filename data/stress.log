@@ -1,0 +1,42 @@
+INFO:stress:Loading panel 2006-01-01 -> 2019-12-31
+
+  SURVIVORSHIP STRESS TEST — the dead companies put back as an assumption
+  200 draws per strategy. Failures priced at -55% (Shumway, Nasdaq); mergers at +15%.
+
+     reported   stressed    5th pct  still +ve  entry rule
+  --------------------------------------------------------------------------------------------------------
+      +26,065    +23,230    +22,976      100%   (pct_change(sma_200, 10) < -0.0818 or crosses_below(
+      +25,871    +22,839    +22,591      100%   (pct_change(sma_200, 20) < -0.1747 or crosses_above(
+      +24,411    +21,202    +20,893      100%   (pct_change(sma_200, 20) < -0.1277 or sma_50 < pct_c
+      +22,001    +18,873    +18,615      100%   (pct_change(sma_200, 20) < -0.0964 or crosses_below(
+      +21,930    +19,571    +19,319      100%   (pct_change(sma_200, 5) < -0.0476 or crosses_below(s
+      +20,722    +18,376    +18,162      100%   (pct_change(sma_200, 10) < -0.07 or crosses_above(sm
+      +20,581    +18,241    +18,025      100%   (pct_change(sma_200, 10) < -0.0693 or crosses_above(
+      +20,001    +17,611    +17,400      100%   (pct_change(sma_200, 20) < -0.1164 or crosses_above(
+      +18,323    +16,260    +16,070      100%   (pct_change(sma_200, 20) < -0.1271 or crosses_below(
+      +16,903    +14,789    +14,572      100%   (pct_change(sma_200, 20) < -0.0964 or crosses_above(
+      +17,178    +15,273    +15,051      100%   (pct_change(sma_200, 10) < -0.1774 or sma_50 < pct_c
+      +16,464    +14,401    +14,171      100%   (pct_change(sma_200, 20) < -0.0964 or stoch_d < pct_
+  --------------------------------------------------------------------------------------------------------
+  12 of 12 stay profitable in at least 95% of draws.
+
+  This is a bound, not a measurement. A strategy that survives it has an edge that
+  does not depend on the missing companies; one that does not is indistinguishable
+  from an artifact of their absence, and this data cannot tell the two apart.
+
+  SENSITIVITY — how much does the answer move with the assumptions?
+     hazard at full DD  failure return   median stressed  still +ve
+  ------------------------------------------------------------------
+                   25%            -30%           +25,096       100%
+                   25%            -55%           +24,540       100%
+                   25%            -80%           +23,995       100%
+                   45%            -30%           +24,269       100%
+                   45%            -55%           +23,249       100%
+                   45%            -80%           +22,229       100%
+                   65%            -30%           +23,213       100%
+                   65%            -55%           +21,584       100%
+                   65%            -80%           +19,948       100%
+
+  Best strategy by reported excess, across the plausible range of assumptions.
+  If it is positive everywhere the conclusion is robust; if it flips, the
+  reported number was never the finding.
