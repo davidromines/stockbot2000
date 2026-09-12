@@ -55,7 +55,12 @@ benchmark:
   # it actually bought, so "buy anything under $8" is measured against other
   # sub-$8 stocks rather than against the whole market. Without this the search's
   # best answer was a bare price filter. Bands below risk.min_price are dropped.
-  price_band_edges: [10, 20, 50, 100]
+  #
+  # Deliberately fine at the bottom. The null runs from +11.4% at $5-10 to -0.5%
+  # at $100+ over a 45-day hold, so almost all of the variation this is correcting
+  # for sits under $20 — and that is also where the search hunts. A band is only
+  # useful if the null is roughly flat inside it.
+  price_band_edges: [6, 7, 8, 10, 12, 15, 20, 30, 50, 100]
 
 # Strategy Lab. The search window is the one specified in STRATEGY_LAB.md:
 # 2006-2019 for the search, 2020-2022 for validation, 2023+ sealed.

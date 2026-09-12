@@ -360,9 +360,19 @@ def null_vector(surface, entry_prices, hold_days: float, bands=None):
         xs = np.log(np.array([p for p, _ in ladder], dtype="float64"))
         ys = np.array([v for _, v in ladder], dtype="float64")
         safe = np.where(np.isfinite(px) & (px > 0), px, np.exp(xs[-1]))
-        # np.interp clamps outside the range, which is what we want: the cheapest
-        # and dearest bands set the floor and ceiling of the charge.
-        return np.interp(np.log(safe), xs, ys)
+        lp = np.log(safe)
+        out = np.interp(lp, xs, ys)
+
+        # Below the cheapest measured band, extend the slope rather than clamping.
+        # Clamping leaves a flat floor between min_price and the lowest anchor —
+        # exactly the stretch the search was already exploiting, so a clamp just
+        # moves the free gradient down instead of closing it. The null keeps
+        # rising as price falls; extrapolating the measured slope says so.
+        below = lp < xs[0]
+        if below.any() and xs[1] > xs[0]:
+            slope = (ys[1] - ys[0]) / (xs[1] - xs[0])
+            out[below] = ys[0] + slope * (lp[below] - xs[0])
+        return out
 
     # Not enough measured bands to interpolate — fall back to hard buckets.
     out = np.full(px.shape, market, dtype="float64")
