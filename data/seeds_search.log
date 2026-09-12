@@ -1,0 +1,30 @@
+INFO:seeds:Loading panel 2006-01-01 -> 2019-12-31
+
+  PUBLISHED STRATEGIES ON OUR DATA — search window 2006-01-01 to 2019-12-31
+  strategy                        net P&L    excess   null%  sharpe  trades  hold  verdict
+  --------------------------------------------------------------------------------------------------------
+  rsi_oversold                     +2,883    +1,215   +0.83    0.17  20,000  17.2  beats the null
+  rsi_oversold_uptrend             +1,706      +703   +0.62    0.17  16,232  16.8  beats the null
+  golden_cross                     +3,672       +34   +2.21    0.00  16,462  41.3  beats the null
+  macd_crossover                     +599      -269   +0.43    0.00  20,000  11.9  no better than the null
+  macd_trend_confirmed               +757      -328   +0.54    0.00  20,000  13.2  no better than the null
+  bollinger_reversion                +430       +52   +0.19    0.02  20,000   7.3  beats the null
+  bollinger_breakout                 -232    -1,154   +0.46    0.00  20,000  13.1  unprofitable
+  cross_sectional_momentum           -240      -962   +0.36    0.00  20,000  10.0  unprofitable
+  dual_momentum                    +1,221      -913   +1.07    0.00  20,000  24.9  no better than the null
+  short_term_reversal                +252      +214   +0.02    0.12  20,000   3.9  beats the null
+  donchian_breakout                  -597    -1,706   +0.55    0.00  20,000  15.8  unprofitable
+  turtle_with_volume                 -443    -1,587   +0.57    0.00  20,000  16.2  unprofitable
+  stochastic_crossover             +1,262      +576   +0.34    0.15  20,000   9.9  beats the null
+  williams_r_oversold              +1,316      +681   +0.32    0.19  20,000   9.5  beats the null
+  cci_extreme                      +1,107      +327   +0.39    0.08  20,000  10.7  beats the null
+  trend_following_adx              +1,173    -1,191   +1.18    0.00  20,000  28.4  no better than the null
+  obv_accumulation                   +506       -15   +0.26    0.00  20,000   8.5  no better than the null
+  chaikin_oscillator                  -60      -445   +0.19    0.00  20,000   8.3  unprofitable
+  mean_reversion_to_sma              +664      +197   +0.23    0.06  20,000   7.9  beats the null
+  momentum_pullback                  +615      +386   +0.59    0.44   3,897  15.7  beats the null
+  --------------------------------------------------------------------------------------------------------
+  15 of 20 made money. 0 of 20 beat the null of the stocks they bought, after costs.
+  None clearing the bar is a result, not a bug: it says these published rules
+  do not survive costs on this universe, which is what most of the literature
+  since the 1990s also says.
