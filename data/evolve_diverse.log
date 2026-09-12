@@ -1,0 +1,40 @@
+INFO:evolve:Loading panel 2006-01-01 -> 2019-12-31
+INFO:evolve:Panel: 5,185,065 rows, 1.31 GB
+INFO:evolve:Null surface for this window (11 price bands x 10 holding periods):
+INFO:evolve:  $     5-$     6  +1.889% at 5d, +12.712% at 45d
+INFO:evolve:  $     6-$     7  +0.442% at 5d, +6.969% at 45d
+INFO:evolve:  $     7-$     8  +0.283% at 5d, +4.905% at 45d
+INFO:evolve:  $     8-$    10  +0.146% at 5d, +3.812% at 45d
+INFO:evolve:  $    10-$    12  +0.073% at 5d, +2.988% at 45d
+INFO:evolve:  $    12-$    15  +0.045% at 5d, +2.472% at 45d
+INFO:evolve:  $    15-$    20  -0.047% at 5d, +1.963% at 45d
+INFO:evolve:  $    20-$    30  -0.081% at 5d, +1.471% at 45d
+INFO:evolve:  $    30-$    50  -0.043% at 5d, +1.230% at 45d
+INFO:evolve:  $    50-$   100  -0.043% at 5d, +1.208% at 45d
+INFO:evolve:  $   100-$99,999  -0.213% at 5d, -0.402% at 45d
+INFO:evolve:  each strategy is charged the null of the stocks it actually bought, at its own holding period
+INFO:evolve:Run a6fd7c58359c: 50 generations x 300 candidates
+INFO:evolve:Evaluating across 3 workers
+INFO:evolve:Seeded generation 0 with 20 published strategies; 280 random
+INFO:evolve:gen 1/50  best fitness 0.135  best excess $+1,931  beating the null 59/300  300 distinct ideas  2.2 evals/s
+INFO:evolve:gen 2/50  best fitness 0.280  best excess $+3,106  beating the null 137/300  265 distinct ideas  2.1 evals/s
+INFO:evolve:gen 3/50  best fitness 0.358  best excess $+3,106  beating the null 228/300  242 distinct ideas  2.2 evals/s
+INFO:evolve:gen 4/50  best fitness 0.358  best excess $+3,106  beating the null 266/300  240 distinct ideas  2.2 evals/s
+INFO:evolve:gen 5/50  best fitness 0.429  best excess $+3,883  beating the null 285/300  225 distinct ideas  2.3 evals/s
+INFO:evolve:gen 6/50  best fitness 0.443  best excess $+4,593  beating the null 272/300  236 distinct ideas  2.4 evals/s
+INFO:evolve:gen 7/50  best fitness 0.473  best excess $+8,012  beating the null 274/300  228 distinct ideas  2.5 evals/s
+INFO:evolve:gen 8/50  best fitness 0.673  best excess $+8,012  beating the null 272/300  219 distinct ideas  2.6 evals/s
+INFO:evolve:gen 9/50  best fitness 0.673  best excess $+9,205  beating the null 279/300  230 distinct ideas  2.6 evals/s
+INFO:evolve:gen 10/50  best fitness 0.731  best excess $+12,641  beating the null 283/300  246 distinct ideas  2.7 evals/s
+INFO:evolve:gen 11/50  best fitness 0.767  best excess $+12,641  beating the null 273/300  247 distinct ideas  2.8 evals/s
+INFO:evolve:gen 12/50  best fitness 0.857  best excess $+12,641  beating the null 283/300  229 distinct ideas  2.9 evals/s
+INFO:evolve:gen 13/50  best fitness 0.908  best excess $+14,617  beating the null 282/300  225 distinct ideas  2.9 evals/s
+INFO:evolve:gen 14/50  best fitness 0.908  best excess $+14,083  beating the null 289/300  228 distinct ideas  3.0 evals/s
+INFO:evolve:gen 15/50  best fitness 0.911  best excess $+16,465  beating the null 287/300  226 distinct ideas  3.1 evals/s
+INFO:evolve:gen 16/50  best fitness 1.095  best excess $+14,657  beating the null 285/300  229 distinct ideas  3.1 evals/s
+INFO:evolve:gen 17/50  best fitness 1.097  best excess $+14,495  beating the null 291/300  229 distinct ideas  3.2 evals/s
+INFO:evolve:gen 18/50  best fitness 1.196  best excess $+15,126  beating the null 295/300  225 distinct ideas  3.2 evals/s
+INFO:evolve:gen 19/50  best fitness 1.245  best excess $+15,796  beating the null 296/300  238 distinct ideas  3.2 evals/s
+INFO:evolve:gen 20/50  best fitness 1.245  best excess $+17,110  beating the null 294/300  232 distinct ideas  3.3 evals/s
+INFO:evolve:gen 21/50  best fitness 1.251  best excess $+18,252  beating the null 297/300  232 distinct ideas  3.3 evals/s
+INFO:evolve:gen 22/50  best fitness 1.260  best excess $+17,482  beating the null 296/300  234 distinct ideas  3.3 evals/s

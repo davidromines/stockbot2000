@@ -1,0 +1,7 @@
+INFO:promote:Shortlisted 87 strategies across 48 distinct structures from 5000 scored, ranked by excess over the null (max 3 settings per structure)
+INFO:promote:Validating 87 strategies on 2020-01-01 -> 2022-12-31
+INFO:promote:Panel for 2020-01-01 -> 2022-12-31: 1,840,483 rows, market-wide null +0.066% at 5d / +2.464% at 45d
+INFO:promote:  25/87 — 2 still standing
+INFO:promote:  50/87 — 8 still standing
+INFO:promote:  75/87 — 16 still standing
+INFO:promote:23 of 87 survived validation. Most candidates dying here is the system working.
