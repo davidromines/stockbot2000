@@ -1,0 +1,4 @@
+INFO:edgar:Parsing 136 quarterly indexes
+INFO:edgar:303,383 annual filings recorded
+INFO:edgar:38,876 distinct companies; 31,752 stopped filing before the last year
+INFO:edgar:Mapped 5,226 CIKs to current tickers from the SEC map

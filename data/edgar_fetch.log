@@ -1,0 +1,15 @@
+WARNING:edgar:1996 Q1: ChunkedEncodingError; retry in 0.6s
+WARNING:edgar:1999 Q3: ChunkedEncodingError; retry in 0.6s
+WARNING:edgar:1999 Q3: ChunkedEncodingError; retry in 2.4s
+INFO:edgar:  20 downloaded (2000 Q1)
+WARNING:edgar:2000 Q3: ChunkedEncodingError; retry in 0.6s
+WARNING:edgar:2000 Q4: ChunkedEncodingError; retry in 0.6s
+WARNING:edgar:2004 Q2: ChunkedEncodingError; retry in 0.6s
+WARNING:edgar:2004 Q3: ChunkedEncodingError; retry in 0.6s
+INFO:edgar:  40 downloaded (2005 Q1)
+INFO:edgar:  60 downloaded (2010 Q1)
+WARNING:edgar:2014 Q3: ChunkedEncodingError; retry in 0.6s
+INFO:edgar:  80 downloaded (2015 Q1)
+INFO:edgar:  100 downloaded (2020 Q1)
+INFO:edgar:  120 downloaded (2025 Q1)
+INFO:edgar:Fetched 127, already had 9, 0 not published

@@ -1,12 +1,12 @@
-Traceback (most recent call last):
-  File "/home/stockpicker/stockbot2000/promote.py", line 524, in <module>
-    main()
-  File "/home/stockpicker/stockbot2000/promote.py", line 513, in main
-    shortlist(conn, cfg, args.shortlist)
-  File "/home/stockpicker/stockbot2000/promote.py", line 299, in shortlist
-    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 25)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/stockpicker/stockbot2000/ledger.py", line 169, in top_by_pnl
-    return [dict(r) for r in conn.execute(sql, params).fetchall()]
-                             ^^^^^^^^^^^^^^^^^^^^^^^^^
-sqlite3.DatabaseError: database disk image is malformed
+INFO:promote:Panel for 2006-01-01 -> 2019-12-31: 5,185,067 rows, market-wide null -0.012% at 5d / +2.076% at 45d
+INFO:promote:Behavioural dedup: 163 candidates trade distinguishably (from 800 considered, overlap threshold 0.7)
+INFO:promote:Shortlisted 163 strategies across 663 distinct structures from 5000 scored, ranked by excess over the null (max 3 settings per structure)
+INFO:promote:Validating 163 strategies on 2020-01-01 -> 2022-12-31
+INFO:promote:Panel for 2020-01-01 -> 2022-12-31: 1,840,845 rows, market-wide null +0.066% at 5d / +2.464% at 45d
+INFO:promote:  25/163 — 2 still standing
+INFO:promote:  50/163 — 11 still standing
+INFO:promote:  75/163 — 17 still standing
+INFO:promote:  100/163 — 24 still standing
+INFO:promote:  125/163 — 29 still standing
+INFO:promote:  150/163 — 38 still standing
+INFO:promote:41 of 163 survived validation. Most candidates dying here is the system working.

@@ -78,6 +78,52 @@ moves the distribution without touching that selection effect.
   50 x 300 per run on 2026-09-12; see CLAUDE.md. The constraint is data, not
   compute. Add paper-trading calendar time instead.
 
+## External data sources — closing the survivorship gap
+
+Sources supplied 2026-09-12. Read each, tested each, results below.
+
+- [x] **SEC EDGAR quarterly indexes — WORKING, free, no account, back to 1993.**
+  `edgar_registry.py`. 136 quarters, 4.0 GB, 303,383 annual filings, **38,876
+  distinct companies of which 31,752 (82%) stopped filing.** Reaches fifteen
+  years further back than the Internet Archive reconstruction (2008) and so
+  covers the financial crisis, which sits inside the search window.
+  Gives the *universe*, not prices.
+
+- [x] **Alpha Vantage LISTING_STATUS — WORKING with the user's free key.**
+  `delistings.py`. One request returns the whole registry: **9,464 delisted
+  listings, 7,480 common stock, of which we hold prices for 418 (5.6%).**
+  7,062 companies a backtest here can never buy, each with an exact delisting
+  date. Independently corroborates the Archive figure of 9,029.
+  **Thin before 2009** — 4 delistings recorded for 2008 — so it does not cover
+  the crisis. Use EDGAR for that era.
+
+- [ ] **Stooq — blocked to automation, needs a human browser.** Every endpoint,
+  including the documented CSV API, sits behind a proof-of-work bot check. Not
+  bypassed deliberately. User downloading `d_us_txt.zip` manually; unknown
+  whether delisted tickers are included, which is the only question that matters.
+
+- [ ] **FirstRateData — the actual fix, and it costs money.** 16,302 tickers
+  including **7,000+ delisted** back to 2000, which matches the size of our hole
+  almost exactly. Free samples are two weeks only. This is the cheapest thing
+  that would close the price half of the problem.
+
+- [x] **CRSP zips — CONTAIN NO DATA.** Both copies identical; they hold WRDS
+  reader scripts for `CRSP_StkDlySecurityData.dat`, a file only a subscriber
+  has. Closed.
+
+- [x] **Shiller — index-level only.** Monthly S&P Composite, dividends, earnings
+  and CPI since 1871. A good long-run benchmark; contains no individual
+  companies and therefore cannot touch survivorship bias. Closed.
+
+- [x] **hfdatalibrary zip — 0 bytes**, a failed download matching the supplied
+  `error.txt` ("Access denied"). Closed.
+
+- [ ] **Next: use the registry instead of the average.** `bias_exposure.py`
+  currently proxies risk by drawdown. With real delisting dates it can ask the
+  exact question — what share of a strategy's entries were in names that
+  actually disappeared within N days — and the flat 10.4-point haircut can be
+  retired for anything after 2009.
+
 ## Near-term
 
 - [ ] **Seed the search with known strategies.** The search currently starts from
