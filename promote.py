@@ -129,21 +129,42 @@ def _already(conn, sid: str, stage: str):
                         (sid, stage)).fetchone()
 
 
-def _evaluate_window(conn, cfg, genome_dict, window):
-    """Simulate one genome over an arbitrary window. Used by every gate."""
+_PANELS: dict = {}
+
+
+def _window_panel(conn, cfg, window):
+    """
+    Build the evaluation panel for a window once and keep it.
+
+    Validation runs hundreds of genomes against the same window, and rebuilding a
+    five-million-row panel for each would take hours of pure setup. Cached by
+    window, so the cost is paid once per gate rather than once per candidate.
+    """
+    if window in _PANELS:
+        return _PANELS[window]
     df = storage.load_training_frame(
         conn, FEATURE_COLS, types=cfg["universe"]["tradeable_types"],
         start_date=window[0], end_date=window[1],
         min_price=cfg["risk"].get("min_price"),
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
-    if df.empty:
+    entry = (None, None) if df.empty else (simulator.Panel(df),
+                                           bench.compute(conn, cfg, window))
+    _PANELS[window] = entry
+    if entry[0] is not None:
+        log.info(f"Panel for {window[0]} -> {window[1]}: {entry[0].n:,} rows, "
+                 f"null {entry[1]['net_pct']:+.3f}%")
+    return entry
+
+
+def _evaluate_window(conn, cfg, genome_dict, window):
+    """Simulate one genome over an arbitrary window. Used by every gate."""
+    panel, null = _window_panel(conn, cfg, window)
+    if panel is None:
         return None
-    panel = simulator.Panel(df)
     cm = costs_mod.CostModel(cfg)
     size = cfg["risk"]["position_size_usd"]
     capital = size * cfg["risk"]["max_open_positions"]
-    null = bench.compute(conn, cfg, window)
     res = simulator.simulate(genome_dict, panel, cm, size,
                              max_entries=cfg["lab"].get("max_entries_per_eval", 20000))
     scored = reward.fitness(res, gn.complexity(genome_dict), capital_usd=capital,
