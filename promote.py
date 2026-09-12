@@ -185,7 +185,8 @@ def _evaluate_window(conn, cfg, genome_dict, window):
     res = simulator.simulate(genome_dict, panel, cm, size,
                              max_entries=cfg["lab"].get("max_entries_per_eval", 20000))
     scored = reward.fitness(res, gn.complexity(genome_dict), capital_usd=capital,
-                            benchmark_surface=surface, position_size_usd=size)
+                            benchmark_surface=surface, position_size_usd=size,
+                            cfg=reward.params_from_config(cfg))
     scored["pnl_series"] = res.get("pnl_series")
     return scored
 

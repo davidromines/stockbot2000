@@ -64,26 +64,28 @@ def _handle_interrupt(signum, frame):
 _W: dict = {}     # per-worker state, populated by fork
 
 
-def _init_worker(panel, cost_model, position_size, capital, max_entries, surface):
+def _init_worker(panel, cost_model, position_size, capital, max_entries, surface,
+                 reward_params):
     """Runs once per worker. The panel arrives by fork, not by pickle."""
     _W.update(panel=panel, cost_model=cost_model, position_size=position_size,
-              capital=capital, max_entries=max_entries, surface=surface)
+              capital=capital, max_entries=max_entries, surface=surface,
+              reward_params=reward_params)
 
 
 def _eval_worker(genome_dict):
     return evaluate_one(genome_dict, _W["panel"], _W["cost_model"],
                         _W["position_size"], _W["capital"], _W["max_entries"],
-                        _W["surface"])
+                        _W["surface"], _W["reward_params"])
 
 
 def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_entries,
-                 benchmark_surface=None):
+                 benchmark_surface=None, reward_params=None):
     """Simulate and score one candidate. Kept separate so it can be parallelised."""
     result = simulator.simulate(genome_dict, panel, cost_model, position_size,
                                 max_entries=max_entries)
     scored = reward.fitness(result, gn.complexity(genome_dict), capital_usd=capital,
                             benchmark_surface=benchmark_surface,
-                            position_size_usd=position_size)
+                            position_size_usd=position_size, cfg=reward_params)
     scored["gross_pnl_usd"] = result.get("gross_pnl_usd")
     scored["costs_usd"] = result.get("costs_usd")
     scored["win_rate"] = result.get("win_rate")
@@ -120,6 +122,7 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
     stats = gn.column_stats(df, FEATURE_COLS + gn.BASE_PRIMITIVES)
     grammar = gn.Grammar(FEATURE_COLS, stats, max_depth=lab.get("max_depth", 4), seed=seed)
     cost_model = costs_mod.CostModel(config)
+    reward_params = reward.params_from_config(config)
     position_size = config["risk"]["position_size_usd"]
     capital = position_size * config["risk"]["max_open_positions"]
 
@@ -180,7 +183,7 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
             scores = pool.map(_eval_worker, genomes, chunksize=1)
         else:
             scores = [evaluate_one(g, panel, cost_model, position_size, capital,
-                                   max_entries, surface) for g in genomes]
+                                   max_entries, surface, reward_params) for g in genomes]
 
         scored_pop = []
         for (g, origin, parent_id), scored in zip(candidates, scores):

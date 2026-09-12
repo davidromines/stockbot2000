@@ -18,3 +18,11 @@ INFO:evolve:Evaluating across 3 workers
 INFO:evolve:gen 1/50  best fitness 4.648  best excess $+4,966  beating the null 52/300  2.5 evals/s
 INFO:evolve:gen 2/50  best fitness 4.648  best excess $+4,966  beating the null 110/300  2.4 evals/s
 INFO:evolve:gen 3/50  best fitness 4.648  best excess $+4,966  beating the null 188/300  2.4 evals/s
+WARNING:evolve:Interrupt received. Finishing this generation, then stopping.
+WARNING:evolve:Interrupt received. Finishing this generation, then stopping.
+WARNING:evolve:Interrupt received. Finishing this generation, then stopping.
+WARNING:evolve:Interrupt received. Finishing this generation, then stopping.
+INFO:evolve:gen 4/50  best fitness 4.648  best excess $+1,044  beating the null 235/300  2.2 evals/s
+INFO:evolve:------------------------------------------------------------
+INFO:evolve:Run 29cf94d01c23: 1,200 evaluated, 788 profitable, best net P&L $+11,467.50
+WARNING:evolve:Stopped early — the run is recorded and the ledger is intact.

@@ -68,6 +68,7 @@ def run(cfg: dict, n: int, calibrate: bool = False, seed: int = 1234) -> dict:
     stats = gn.column_stats(df, FEATURE_COLS + gn.BASE_PRIMITIVES)
     grammar = gn.Grammar(FEATURE_COLS, stats, max_depth=lab.get("max_depth", 4), seed=seed)
     cm = costs_mod.CostModel(cfg)
+    rp = reward.params_from_config(cfg)
     size = cfg["risk"]["position_size_usd"]
     capital = size * cfg["risk"]["max_open_positions"]
     max_entries = lab.get("max_entries_per_eval", 20000)
@@ -80,10 +81,10 @@ def run(cfg: dict, n: int, calibrate: bool = False, seed: int = 1234) -> dict:
         g = grammar.random_genome()
         rs = simulator.simulate(g, search_panel, cm, size, max_entries=max_entries)
         fs = reward.fitness(rs, gn.complexity(g), capital_usd=capital,
-                            benchmark_surface=surf_s, position_size_usd=size)
+                            benchmark_surface=surf_s, position_size_usd=size, cfg=rp)
         rv = simulator.simulate(g, valid_panel, cm, size, max_entries=max_entries)
         fv = reward.fitness(rv, gn.complexity(g), capital_usd=capital,
-                            benchmark_surface=surf_v, position_size_usd=size)
+                            benchmark_surface=surf_v, position_size_usd=size, cfg=rp)
 
         raw_profit += fv["net_pnl_usd"] > 0
         beats_null += fv.get("excess_pnl_usd", 0) > 0

@@ -97,7 +97,8 @@ def run(cfg: dict, stage: str | None, run_id: str | None, limit: int,
         g = json.loads(r["genome"])
         res = simulator.simulate(g, panel, cm, size, max_entries=max_entries)
         sc = reward.fitness(res, gn.complexity(g), capital_usd=capital,
-                            benchmark_surface=surface, position_size_usd=size)
+                            benchmark_surface=surface, position_size_usd=size,
+                            cfg=reward.params_from_config(cfg))
         total += 1
         ok = (sc.get("excess_pnl_usd", 0) >= gates.get("min_excess_pnl_usd", 0)
               and sc.get("sharpe", 0) >= gates.get("min_sharpe", 0)

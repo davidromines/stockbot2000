@@ -26,6 +26,12 @@ Five terms, each closing a specific hole:
 - **Losing strategies score zero.** Not a negative number: zero. A strategy that
   loses money should not be ranked above another that loses more, because
   "less bad" is not a gradient worth climbing when the goal is making money.
+- **Effect size.** Sharpe is a ratio and says nothing about how much money was
+  at stake. Without this term the search's leader was a rule earning **$1 across
+  25 trades** at a Sharpe of 6.92 — tiny, steady, and worthless. It outranked
+  every real candidate and drew the whole population after it. The scale term
+  ties the score to the excess the gate will demand later, so the search climbs
+  toward strategies that could actually pass rather than away from them.
 
 **Scored against the null, not against zero.** This is the correction that matters
 most. Buying at random and holding five days was profitable in every window this
@@ -53,7 +59,27 @@ DEFAULTS = {
     "complexity_free": 10,      # nodes allowed before the penalty starts
     "complexity_penalty": 0.02, # divides fitness as nodes grow beyond the free allowance
     "min_trades": 10,           # below this a result is not evidence of anything
+    # Excess at which the scale term reaches 0.5. Set from the gate the strategy
+    # must eventually clear, which control.py calibrates against noise — so this
+    # is not a free parameter, and moving the gate moves this with it.
+    "scale_half_usd": 900.0,
 }
+
+
+def params_from_config(config: dict) -> dict:
+    """
+    Reward parameters derived from the app config.
+
+    Exists so the scale term cannot drift away from the gate it is meant to
+    track. `control.py` calibrates `lab.gates.min_excess_pnl_usd` against noise;
+    reading it here means recalibrating the gate automatically re-points the
+    search at it, instead of leaving two numbers to be kept in step by hand.
+    """
+    gate = (config.get("lab", {}).get("gates", {}) or {}).get("min_excess_pnl_usd")
+    p = dict(config.get("lab", {}).get("reward", {}) or {})
+    if gate:
+        p.setdefault("scale_half_usd", float(gate))
+    return p
 
 
 def sharpe_per_trade(pnl: np.ndarray) -> float:
@@ -179,7 +205,14 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     excess_nodes = max(0, complexity - p["complexity_free"])
     penalty = 1.0 / (1.0 + p["complexity_penalty"] * excess_nodes)
 
-    score = max(0.0, sr * (1 - dd) * shrink * penalty)
+    # Saturating rather than linear: above the gate, more money should not keep
+    # buying rank indefinitely, or the search drifts back toward concentrated
+    # bets — the failure the risk-adjusted reward exists to prevent. Half weight
+    # at the gate, approaching full weight well above it.
+    half = float(p["scale_half_usd"]) or 1.0
+    scale = excess / (excess + half)
+
+    score = max(0.0, sr * (1 - dd) * shrink * penalty * scale)
     return {
         "fitness": float(score),
         "net_pnl_usd": net,
@@ -193,6 +226,7 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
         "max_drawdown": float(dd),
         "shrinkage": float(shrink),
         "complexity_multiplier": float(penalty),
+        "scale_multiplier": float(scale),
         "avg_net_return_per_trade": float(pnl.mean() / capital_usd * n) if n else 0.0,
         "verdict": "beats the null",
     }
@@ -215,4 +249,5 @@ def _zero(net: float, n: int, why: str, excess: float = 0.0,
             "avg_hold_days": float(hold), "n_trades": n, "sharpe": 0.0,
             "sharpe_per_trade": 0.0,
             "max_drawdown": 0.0, "shrinkage": 0.0, "complexity_multiplier": 0.0,
+            "scale_multiplier": 0.0,
             "avg_net_return_per_trade": 0.0, "verdict": why}
