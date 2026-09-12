@@ -1,0 +1,244 @@
+<title>Stockbot2000 Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F5F1; --surface:#FFFFFF; --surface-2:#EFEDE7; --border:#DEDBD3;
+    --text:#20221F; --text-soft:#5C5F58; --text-mute:#8A8D85;
+    --accent:#2B6E52; --done:#1F8A5F; --done-bg:#E1F1E8;
+    --progress:#B8760B; --progress-bg:#FBEDD6;
+    --planned:#3E6FB0; --planned-bg:#E4EBF5;
+    --backlog:#8B8F98; --backlog-bg:#EBEBEC;
+    --track:#E7E4DC; --caution:#A5471F; --caution-bg:#F7E5DC;
+    --shadow: 0 1px 2px rgba(30,30,25,.06), 0 6px 20px rgba(30,30,25,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#181A17; --surface:#212420; --surface-2:#282B26; --border:#383B35;
+      --text:#ECEAE3; --text-soft:#B2B4AB; --text-mute:#82857D;
+      --accent:#5FBE94; --done:#3ED28C; --done-bg:#1E3329;
+      --progress:#E3A83E; --progress-bg:#3A2F18;
+      --planned:#7DAAE6; --planned-bg:#212C3A;
+      --backlog:#A9AEB6; --backlog-bg:#2B2D2F;
+      --track:#33362F; --caution:#E8875B; --caution-bg:#39231A;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#181A17; --surface:#212420; --surface-2:#282B26; --border:#383B35;
+    --text:#ECEAE3; --text-soft:#B2B4AB; --text-mute:#82857D;
+    --accent:#5FBE94; --done:#3ED28C; --done-bg:#1E3329;
+    --progress:#E3A83E; --progress-bg:#3A2F18;
+    --planned:#7DAAE6; --planned-bg:#212C3A;
+    --backlog:#A9AEB6; --backlog-bg:#2B2D2F;
+    --track:#33362F; --caution:#E8875B; --caution-bg:#39231A;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);margin:0;padding:0 20px 70px;
+    font-family:'Public Sans',ui-sans-serif,system-ui,sans-serif;line-height:1.55}
+  .wrap{max-width:980px;margin:0 auto}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+  header{padding:44px 0 22px;border-bottom:1px solid var(--border);margin-bottom:30px}
+  .eyebrow{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12.5px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{font-size:clamp(27px,4vw,36px);line-height:1.15;margin:0 0 10px;letter-spacing:-.01em}
+  h2{font-size:19px;margin:0 0 6px;letter-spacing:-.005em}
+  .sub{color:var(--text-soft);font-size:16px;max-width:66ch;margin:0 0 16px}
+  .meta{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--text-mute);
+    font-family:'IBM Plex Mono',ui-monospace,monospace}
+
+  .headline{border:1px solid var(--caution);background:var(--caution-bg);
+    border-radius:10px;padding:20px 22px;margin-bottom:32px}
+  .headline .big{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:32px;
+    font-weight:600;color:var(--caution);font-variant-numeric:tabular-nums}
+  .headline .lab{font-size:13px;color:var(--text-soft);margin-top:4px;max-width:74ch}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    border:1px solid var(--border);border-radius:10px;overflow:hidden;
+    background:var(--surface);margin-bottom:32px}
+  .tile{padding:16px 18px;border-right:1px solid var(--border)}
+  .tile:last-child{border-right:none}
+  .tile .v{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:22px;
+    font-weight:600;font-variant-numeric:tabular-nums}
+  .tile .k{font-size:12.5px;color:var(--text-soft);margin-top:3px}
+  .ok{color:var(--done)} .bad{color:var(--caution)}
+
+  section{margin-bottom:34px}
+  .cap{font-size:13.5px;color:var(--text-mute);margin:0 0 16px;max-width:76ch}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  caption{text-align:left;font-size:13px;color:var(--text-mute);padding-bottom:10px;
+    max-width:78ch;line-height:1.5}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--text-mute);padding:0 8px 8px 0;border-bottom:1px solid var(--border)}
+  td{padding:8px 8px 8px 0;border-bottom:1px solid var(--border);color:var(--text-soft)}
+  td.num{text-align:right;font-family:'IBM Plex Mono',ui-monospace,monospace;
+    font-variant-numeric:tabular-nums;color:var(--text)}
+  td strong{color:var(--text)}
+  .wrapx{overflow-x:auto}
+
+  .pill{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;
+    letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;
+    white-space:nowrap}
+  .pill.done{color:var(--done);background:var(--done-bg)}
+  .pill.progress{color:var(--progress);background:var(--progress-bg)}
+  .pill.planned{color:var(--planned);background:var(--planned-bg)}
+  .pill.backlog{color:var(--backlog);background:var(--backlog-bg)}
+  .pill.next{color:var(--caution);background:var(--caution-bg)}
+
+  .phases{display:grid;gap:0}
+  .ph{display:grid;grid-template-columns:32px 1fr auto;gap:14px;padding:11px 0;
+    border-bottom:1px solid var(--border);align-items:baseline}
+  .ph .n{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12.5px;color:var(--text-mute)}
+  .ph .t{font-size:14.5px}
+  .ph .t span{color:var(--text-mute);font-size:13px}
+
+  .note{font-size:13.5px;color:var(--text-mute);border-left:2px solid var(--border);
+    padding-left:12px;margin:14px 0;max-width:78ch;line-height:1.55}
+  .note.warn{border-left-color:var(--caution);color:var(--text-soft)}
+  .note.good{border-left-color:var(--done);color:var(--text-soft)}
+  .note b{color:var(--text)}
+  footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);
+    color:var(--text-mute);font-size:13px}
+  @media(max-width:640px){.tile{border-right:none;border-bottom:1px solid var(--border)}
+    .tile:last-child{border-bottom:none}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Project Tracker · for review</p>
+  <h1>Stockbot2000</h1>
+  <p class="sub">Swing-trade scanner and strategy-discovery engine. Searches for trading
+  rules against decades of market history, and promotes only what survives a validation
+  ladder to real money.</p>
+  <div class="meta">
+    <span>UPDATED 2026-09-12</span><span>12 PHASES</span><span>10 BUILT</span>
+    <span>NOTHING PROFITABLE YET</span>
+  </div>
+</header>
+
+<div class="headline">
+  <div class="big">&minus;$26.69</div>
+  <div class="lab"><b>Best result so far, and it loses money.</b> That is the only
+  number that decides anything — net P&amp;L after trading costs and the survivorship
+  correction, on $100 of capital over four years. Everything else on this page
+  explains <em>why</em>, never <em>whether</em>.</div>
+</div>
+
+<div class="tiles">
+  <div class="tile"><div class="v">35.4M</div><div class="k">Price bars, 1962&ndash;2026</div></div>
+  <div class="tile"><div class="v">13,121</div><div class="k">Instruments, six venues</div></div>
+  <div class="tile"><div class="v ok">0%</div><div class="k">Random strategies passing the gate</div></div>
+  <div class="tile"><div class="v bad">0</div><div class="k">Strategies proven profitable</div></div>
+</div>
+
+<section>
+  <h2>The honest state</h2>
+  <p class="cap">The infrastructure is built and, as of today, trustworthy. What it has
+  found so far is that the ideas tested do not make money after costs.</p>
+  <div class="wrapx"><table>
+    <tr><th>Question</th><th>Answer</th></tr>
+    <tr><td>Is there signal in the model?</td><td><strong>Yes, weak.</strong> AUC 0.633 across 31 of 31 walk-forward folds</td></tr>
+    <tr><td>Does it survive trading costs?</td><td><strong>No.</strong> Costs consume 87% of gross profit</td></tr>
+    <tr><td>Has the strategy search found anything?</td><td><strong>Not yet.</strong> Every result so far traced to a measurement flaw</td></tr>
+    <tr><td>Is survivorship bias handled?</td><td><strong>Measured, not fixed.</strong> ~10.4 points/year, subtracted automatically</td></tr>
+    <tr><td>Can we trust the backtests?</td><td><strong>To rank, not to predict.</strong> Absolute figures stay optimistic</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Two flaws the search found before we did</h2>
+  <p class="cap">Both produced results that looked like discoveries. This is exactly the
+  failure mode the project was warned about — a large search over noisy data will find
+  the weaknesses in its own scoreboard first.</p>
+  <div class="wrapx"><table>
+    <caption>Neither was a coding slip that broke something visibly. Both silently made
+    the numbers better, which is the dangerous kind.</caption>
+    <tr><th>Flaw</th><th>What it produced</th><th>Status</th></tr>
+    <tr>
+      <td><strong>Variable shadowing</strong><br><span class="mono" style="font-size:12px">excess</span> reused for node count</td>
+      <td>Every excess P&amp;L reported as 0; gates compared node counts against a dollar threshold</td>
+      <td>Fixed</td>
+    </tr>
+    <tr>
+      <td><strong>Horizon-mismatched benchmark</strong><br>null fixed at 5 days</td>
+      <td>Strategies earned "excess" by holding longer. Benchmark understated <strong>32&times;</strong> at a 40-day hold. 107 of 200 passed validation on it</td>
+      <td>Fixed</td>
+    </tr>
+  </table></div>
+  <p class="note warn"><b>The validation result is void.</b> 107 survivors were an artifact
+  of the second flaw — the population had learned to exploit the measurement rather than
+  the market. Re-running with the corrected benchmark.</p>
+</section>
+
+<section>
+  <h2>The null: what doing nothing clever earns</h2>
+  <p class="cap">Buying at random was profitable in every window, because the market rose.
+  Scoring against zero therefore measured market exposure, not skill — which is why 57% of
+  random strategies used to pass validation. Every score now measures excess over this.</p>
+  <div class="wrapx"><table>
+    <caption>Validation window, net of costs. Drift accrues with time held, so the null has
+    to scale with holding period — a fixed-horizon benchmark is what produced the void result above.</caption>
+    <tr><th>Hold</th><th class="num">1d</th><th class="num">5d</th><th class="num">13d</th><th class="num">21d</th><th class="num">45d</th><th class="num">60d</th></tr>
+    <tr><td>Null return</td><td class="num">&minus;0.146%</td><td class="num">+0.066%</td><td class="num">+0.486%</td><td class="num">+0.971%</td><td class="num">+2.464%</td><td class="num">+3.705%</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Survivorship bias</h2>
+  <p class="cap">Measured with free data and subtracted from every backtest. Not fixed —
+  fixing it needs prices for dead companies, which cost money.</p>
+  <div class="wrapx"><table>
+    <tr><th>Measure</th><th class="num">Value</th><th>Source</th></tr>
+    <tr><td>Annual return overstatement</td><td class="num"><strong>10.4 pts</strong></td><td>vs Ken French / CRSP</td></tr>
+    <tr><td>Companies that existed 2008&ndash;2026</td><td class="num">15,012</td><td>119 Internet Archive captures</td></tr>
+    <tr><td>We hold prices for</td><td class="num">5,983</td><td></td></tr>
+    <tr><td>Missing</td><td class="num"><strong>9,029 (60%)</strong></td><td></td></tr>
+    <tr><td>Coverage in 2008</td><td class="num">~30%</td><td></td></tr>
+    <tr><td>Cost to actually fix</td><td class="num">$270/yr</td><td>Norgate delisted data</td></tr>
+  </table></div>
+  <p class="note good"><b>Live trading has none of this.</b> You buy what is listed today and
+  the future is genuinely unknown. Survivorship only ever distorted the numbers used to
+  <em>choose</em> a strategy — which is why measuring it mattered, and why ranking survives it
+  even though absolute figures do not.</p>
+</section>
+
+<section>
+  <h2>Phases</h2>
+  <div class="phases">
+    <div class="ph"><span class="n">01</span><span class="t">Project foundation <span>— repo, git conventions, remote</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">02</span><span class="t">Core pipeline <span>— 20 indicators, scoring, ledger</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">03</span><span class="t">Environment <span>— Python 3.12, CPU capped at 3 of 4 cores</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">04</span><span class="t">End-to-end smoke test <span>— 4,982 stocks scored daily</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">05</span><span class="t">Arena VM migration <span>— 4 vCPU, 11.7 GB, 194 GB disk</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">06</span><span class="t">Data infrastructure <span>— 35.4M bars in SQLite, pipeline repointed</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">07</span><span class="t">Costs &amp; backtest rigour <span>— spread, slippage, walk-forward, haircut</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">08</span><span class="t">Genome, simulator, reward <span>— open-ended rule synthesis</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">09</span><span class="t">Evolutionary search &amp; ledger <span>— 15,000 candidates/run</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">10</span><span class="t">Promotion ladder &amp; dashboard <span>— sealed holdout enforced in code</span></span><span class="pill done">Complete</span></div>
+    <div class="ph"><span class="n">&mdash;</span><span class="t">Recalibrate gates, re-run the search <span>— in progress now</span></span><span class="pill next">Active</span></div>
+    <div class="ph"><span class="n">11</span><span class="t">Live integration &amp; paper trading <span>— harness built, forward test running</span></span><span class="pill progress">Started</span></div>
+    <div class="ph"><span class="n">12</span><span class="t">Notifications &amp; polish <span>— Telegram, Ollama not installed</span></span><span class="pill backlog">Backlog</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>What would change the verdict</h2>
+  <div class="wrapx"><table>
+    <tr><th>#</th><th>Step</th><th>Why it matters</th></tr>
+    <tr><td class="num">1</td><td>Re-run the search on the corrected benchmark</td><td>Every prior result is void; this is the first honest attempt</td></tr>
+    <tr><td class="num">2</td><td>Anything surviving goes to the sealed holdout</td><td>Openable <strong>once per strategy, ever</strong> — enforced in code</td></tr>
+    <tr><td class="num">3</td><td>Survivors go to forward paper trading</td><td>The only measurement with zero survivorship bias</td></tr>
+    <tr><td class="num">4</td><td>Student CRSP access, if obtainable</td><td>Would tell us whether the 10.4-point haircut is right</td></tr>
+  </table></div>
+  <p class="note"><b>An empty result is a real result.</b> The gates now reject 100% of random
+  strategies by construction. If nothing survives, that is evidence the search space holds no
+  findable edge at this scale — worth knowing before funding anything, and far cheaper to
+  learn here than in the market.</p>
+</section>
+
+<footer>
+  Generated from the repo at <span class="mono">~/stockbot2000</span> ·
+  <span class="mono">docs/tracker.html</span><br><br>
+  Nothing here is investment advice, and no backtested result is a prediction of future returns.
+</footer>
+</div>
