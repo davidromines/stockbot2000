@@ -346,7 +346,8 @@ def evaluate(cfg: dict, window_name: str = "search") -> list[dict]:
         min_price=cfg["risk"].get("min_price"),
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
-    panel = simulator.Panel(df)
+    panel = simulator.Panel(df, exit_prices=storage.load_exit_prices(
+        conn, df["ticker"].astype(str).unique(), window[0], window[1]))
     del df
     surface = bench.null_surface(conn, cfg, window)
 

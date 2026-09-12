@@ -111,7 +111,9 @@ def run(cfg, stage="validation", members=10, limit=12):
     rp = reward.params_from_config(cfg)
     me = lab.get("max_entries_per_eval", 20000)
 
-    base_panel = simulator.Panel(real)
+    exitpx = storage.load_exit_prices(conn, real["ticker"].astype(str).unique(),
+                                      window[0], window[1])
+    base_panel = simulator.Panel(real, exit_prices=exitpx)
     surface = bench.null_surface(conn, cfg, window)
     genomes = []
     for r in rows:
@@ -134,7 +136,11 @@ def run(cfg, stage="validation", members=10, limit=12):
         aug = _augmented_panel(conn, cfg, window, m, real)
         if aug is None:
             continue
-        panel = simulator.Panel(aug)
+        aug_exit = pd.concat([
+            exitpx,
+            aug.loc[aug["synthetic"] == 1, ["ticker", "date", "close"]]
+        ], ignore_index=True) if "synthetic" in aug else exitpx
+        panel = simulator.Panel(aug, exit_prices=aug_exit)
         nsyn = int(aug["synthetic"].sum()) if "synthetic" in aug else 0
         log.info(f"  member {m}: panel {panel.n:,} rows ({nsyn:,} synthetic)")
         for r, g in genomes:

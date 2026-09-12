@@ -161,7 +161,11 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
         min_price=config["risk"].get("min_price"),
         min_dollar_volume=config["risk"].get("min_dollar_volume"),
         include_liquidity=True)
-    panel = simulator.Panel(df)
+    # Exits price off the unfiltered series — see storage.load_exit_prices.
+    exitpx = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                      window[0], window[1])
+    panel = simulator.Panel(df, exit_prices=exitpx)
+    del exitpx
     log.info(f"Panel: {panel.n:,} rows, {panel.memory_gb():.2f} GB")
 
     stats = gn.column_stats(df, FEATURE_COLS + gn.BASE_PRIMITIVES)

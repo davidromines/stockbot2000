@@ -165,7 +165,10 @@ def _window_panel(conn, cfg, window):
         min_price=cfg["risk"].get("min_price"),
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
-    entry = (None, None) if df.empty else (simulator.Panel(df),
+    exitpx = (None if df.empty else
+              storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                       window[0], window[1]))
+    entry = (None, None) if df.empty else (simulator.Panel(df, exit_prices=exitpx),
                                            bench.null_surface(conn, cfg, window))
     _PANELS[window] = entry
     if entry[0] is not None:

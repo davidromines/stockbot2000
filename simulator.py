@@ -38,7 +38,8 @@ class Panel:
     that has to be sized deliberately rather than discovered by an OOM kill.
     """
 
-    def __init__(self, df: pd.DataFrame, max_hold: int = MAX_HOLD_CAP):
+    def __init__(self, df: pd.DataFrame, max_hold: int = MAX_HOLD_CAP,
+                 exit_prices: pd.DataFrame | None = None):
         df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
         if "returns" not in df:
             df["returns"] = df.groupby("ticker", observed=True)["close"].pct_change()
@@ -46,11 +47,28 @@ class Panel:
         self.max_hold = int(max_hold)
         self.n = len(df)
 
-        g = df.groupby("ticker", observed=True)["close"]
         # Forward closes for every possible holding day, computed once.
+        #
+        # **Exits must be priced off the UNFILTERED series.** Tradeability floors
+        # decide what may be *bought*; a position already open has to be priced
+        # wherever it goes. Shifting within the filtered frame silently prices
+        # the exit at the last bar above the $5 floor, so a company that falls
+        # from $6 to $0.20 books an exit near $5.50 and its collapse never
+        # happens. Measured on the top survivor: 11.9% of its 20,000 trades had
+        # a truncated forward series, and those returned -0.02% against +15.29%
+        # for the rest — the downside was being capped by the filter.
+        #
+        # This is the same defect already fixed once in the daily pipeline (see
+        # storage.price_series); the Lab simulator kept it, and it flatters every
+        # strategy that buys falling stocks, which is most of what the search
+        # finds.
         self.fwd = np.full((self.n, self.max_hold + 1), np.nan, dtype="float32")
-        for k in range(1, self.max_hold + 1):
-            self.fwd[:, k] = g.shift(-k).to_numpy(dtype="float32")
+        if exit_prices is None or exit_prices.empty:
+            g = df.groupby("ticker", observed=True)["close"]
+            for k in range(1, self.max_hold + 1):
+                self.fwd[:, k] = g.shift(-k).to_numpy(dtype="float32")
+        else:
+            self._forward_from_unfiltered(df, exit_prices)
 
         self.close = df["close"].to_numpy(dtype="float32")
         self.atr = (df["atr_14"].to_numpy(dtype="float32")
@@ -59,6 +77,48 @@ class Panel:
                    if "dollar_volume_20" in df else np.zeros(self.n))
         self.ticker_codes = df["ticker"].astype("category").cat.codes.to_numpy()
         self.dates = df["date"].to_numpy()
+
+    def _forward_from_unfiltered(self, df: pd.DataFrame, full: pd.DataFrame) -> None:
+        """
+        Fill the forward matrix from the complete price series, per ticker.
+
+        Done ticker by ticker with `searchsorted` rather than by building a
+        forward matrix over the whole unfiltered frame: the unfiltered set for
+        2006-2019 is several times larger than the tradeable one, and a full
+        (rows x 61) float32 matrix over it would not fit in this VM's memory.
+        """
+        # Normalise both date columns to datetime64. The filtered frame arrives
+        # from load_training_frame with real datetimes while a direct SQL read
+        # gives ISO strings, and searchsorted compares them without complaint
+        # right up until it raises.
+        full = full.copy()
+        full["date"] = pd.to_datetime(full["date"])
+        full = full.sort_values(["ticker", "date"])
+        by_ticker = {t: (g["date"].to_numpy(dtype="datetime64[ns]"),
+                         g["close"].to_numpy(dtype="float32"))
+                     for t, g in full.groupby("ticker", observed=True)}
+        tick = df["ticker"].astype(str).to_numpy()
+        dates = pd.to_datetime(df["date"]).to_numpy(dtype="datetime64[ns]")
+        order = np.argsort(tick, kind="stable")
+        start = 0
+        while start < len(order):
+            end = start
+            t = tick[order[start]]
+            while end < len(order) and tick[order[end]] == t:
+                end += 1
+            rows = order[start:end]
+            entry = by_ticker.get(t)
+            if entry is not None:
+                fd, fc = entry
+                pos = np.searchsorted(fd, dates[rows])
+                pos = np.clip(pos, 0, len(fc) - 1)
+                for k in range(1, self.max_hold + 1):
+                    nxt = pos + k
+                    ok = nxt < len(fc)
+                    vals = np.full(len(rows), np.nan, dtype="float32")
+                    vals[ok] = fc[nxt[ok]]
+                    self.fwd[rows, k] = vals
+            start = end
 
     def memory_gb(self) -> float:
         return (self.fwd.nbytes + self.close.nbytes + self.atr.nbytes) / 1e9

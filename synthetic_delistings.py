@@ -203,13 +203,13 @@ def generate_path(archetype: str, n_days: int, start_price: float,
     """Wrapper enforcing consistency with the observed outcome."""
     a = ARCHETYPES[archetype]
     for _ in range(max_tries):
-        p = _raw_path(archetype, n_days, start_price, rng)
+        p, halted = _raw_path(archetype, n_days, start_price, rng)
         if a["terminal"] >= 0:
-            return p                      # acquisitions may legitimately rise
+            return p, halted              # acquisitions may legitimately rise
         if p[-2] <= start_price * FAILURE_CEILING:
-            return p
+            return p, halted
     # Ran out of tries: scale the path down rather than return an inconsistent one.
-    return p * (start_price * FAILURE_CEILING / max(p[-2], 1e-9))
+    return p * (start_price * FAILURE_CEILING / max(p[-2], 1e-9)), halted
 
 
 def _raw_path(archetype: str, n_days: int, start_price: float,
@@ -260,17 +260,64 @@ def _raw_path(archetype: str, n_days: int, start_price: float,
     log_path = np.cumsum(diffusion + jumps)
     px = start_price * np.exp(log_path)
 
-    # The delisting itself: announcement shock then the terminal return.
-    if a["terminal"] < 0 and n_days > 10:
+    halted = np.zeros(n_days, dtype=bool)
+
+    if a["terminal"] < 0 and n_days > 40:
+        # 1. The filing. A discrete -26% that a trailing stop cannot anticipate.
+        file_at = n_days - int(rng.integers(12, 34))
+        px[file_at:] *= (1 + FILING_SHOCK)
+
+        # 2. The halt. Bars are deleted, not marked: there is no trading, so
+        #    there is no price at which a stop can be filled. The position is
+        #    carried across the closure whether or not anyone wants to hold it.
+        if rng.random() < P_HALT.get(archetype, 0.25):
+            hlen = int(rng.integers(HALT_MIN_DAYS, HALT_MAX_DAYS + 1))
+            hstart = min(file_at + int(rng.integers(0, 6)), n_days - hlen - 2)
+            if hstart > 0:
+                halted[hstart:hstart + hlen] = True
+                # 3. The reopen auction, somewhere between -30% and -80%.
+                reopen = rng.uniform(REOPEN_WORST, REOPEN_MILDEST)
+                px[hstart + hlen:] *= (1 + reopen)
+
+        # 4. Delisting notice, then the terminal return on the final bar.
         px[-6:-1] *= (1 + ANNOUNCE_SHOCK)
         px[-1] = px[-2] * (1 + a["terminal"])
-    elif a["terminal"] == 0 and n_days > 5:
-        px[-5:] *= 1.0                       # acquisitions drift to the deal price
+    elif a["terminal"] < 0 and n_days > 10:
+        px[-6:-1] *= (1 + ANNOUNCE_SHOCK)
+        px[-1] = px[-2] * (1 + a["terminal"])
 
-    return np.maximum(px, 0.0001)
+    return np.maximum(px, 0.0001), halted
 
 
 ANNOUNCE_SHOCK = -0.085          # Macey et al.: -8.5% on the delisting announcement
+
+# -- the terminal cascade ----------------------------------------------------
+#
+# A dying company does not glide to zero, and the first version of this module
+# had it do exactly that. The result: 12 of 12 crash-buying strategies survived
+# the ensemble losing only 8-18%, not because they dodged the synthetic failures
+# — 23.5% of their entries landed in them — but because a smooth decline lets a
+# 5-ATR stop (about 34% below entry at these volatilities) fill every time. Real
+# failure is discontinuous, and that discontinuity is the entire risk.
+#
+# What actually happens, with published magnitudes:
+#   - Chapter 11 filing day:      -26% average abnormal return
+#   - Halt pending news:          days to weeks with NO TRADING AT ALL
+#   - Reopen after such a halt:   "a fraction of the price", up to -80%
+#   - Delisting announcement:      -8.5%
+#   - Move to Pink Sheets:        -49% (Macey: $0.95 -> $0.48)
+#   - Post-filing drift:          -12.5% over the following six months
+#
+# The halt is the part that defeats stops, and it is why bars are *removed*
+# rather than marked. A stop cannot fill in a market that is not trading: the
+# position is carried across the closure and priced at whatever the reopen
+# auction decides, which is the mechanism this project already documents as
+# unprotected in live trading.
+FILING_SHOCK = -0.26
+HALT_MIN_DAYS, HALT_MAX_DAYS = 2, 12
+REOPEN_WORST, REOPEN_MILDEST = -0.80, -0.30   # named by severity, not by sign
+P_HALT = {"bankruptcy": 0.75, "sudden_collapse": 0.85, "death_spiral": 0.45,
+          "price_deficiency": 0.30, "slow_decline": 0.20}
 
 
 def characterise(archetype: str, n_sims: int = 1_000_000, n_days: int = 504,
@@ -293,7 +340,7 @@ def characterise(archetype: str, n_sims: int = 1_000_000, n_days: int = 504,
     while done < n_sims:
         k = min(block, n_sims - done)
         for _ in range(k):
-            p = generate_path(archetype, n_days, 100.0, rng)
+            p, _h = generate_path(archetype, n_days, 100.0, rng)
             finals.append(p[-1] / 100.0 - 1.0)
             mins.append(p.min() / 100.0 - 1.0)
         done += k
@@ -316,7 +363,7 @@ def blended_distribution(n: int = 40000, failure_share: float | None = None,
     picks = rng.choice(len(names), size=n, p=w)
     out = np.empty(n)
     for i, k in enumerate(picks):
-        p = generate_path(names[k], n_days, 100.0, rng)
+        p, _h = generate_path(names[k], n_days, 100.0, rng)
         out[i] = p[-1] / 100.0 - 1.0
     return out
 
@@ -447,14 +494,22 @@ def realise(conn, member: int, start_date: str, end_date: str):
     frames = []
     for r in rows:
         rng = np.random.default_rng(r["seed"])
-        px = generate_path(r["archetype"], int(r["n_days"]), float(r["start_price"]), rng)
+        px, halted = generate_path(r["archetype"], int(r["n_days"]),
+                                   float(r["start_price"]), rng)
         end_i = cal_idx.get(r["end_date"][:10], len(cal) - 1)
         start_i = max(0, end_i - len(px) + 1)
-        seg = px[len(px) - (end_i - start_i + 1):]
+        keep = len(px) - (end_i - start_i + 1)
+        seg, seg_halt = px[keep:], halted[keep:]
         dates = cal[start_i:end_i + 1]
         if len(seg) != len(dates) or len(dates) < 30:
             continue
-        frames.append(_bars(r["symbol"], dates, seg, r["archetype"], rng))
+        # Drop halted sessions entirely — the calendar keeps moving, the ticker
+        # simply has no bars, and anything holding it is carried across.
+        live = ~seg_halt
+        if live.sum() < 30:
+            continue
+        frames.append(_bars(r["symbol"], [d for d, k in zip(dates, live) if k],
+                            seg[live], r["archetype"], rng))
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 

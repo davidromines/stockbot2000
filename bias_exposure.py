@@ -125,7 +125,8 @@ def score_stage(cfg: dict, stage: str = "validation") -> list[dict]:
         include_liquidity=True)
     df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
     dd = drawdown_column(df)
-    panel = simulator.Panel(df)
+    panel = simulator.Panel(df, exit_prices=storage.load_exit_prices(
+        conn, df["ticker"].astype(str).unique(), window[0], window[1]))
     del df
 
     cm = costs_mod.CostModel(cfg)

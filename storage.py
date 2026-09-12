@@ -688,6 +688,32 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     return _read_downcast(conn, sql, params, feature_cols)
 
 
+def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
+                     end_date: str) -> "pd.DataFrame":
+    """
+    Unfiltered closes for pricing exits, over a window.
+
+    Entries are chosen from the tradeable universe; **exits are not**. A position
+    already open must be priced wherever the stock goes, including below the
+    $5 floor it can no longer be bought at. Pricing exits inside the filtered
+    frame caps every loss at the boundary: measured on the search's best
+    strategy, that inflated net P&L from +$7,575 to +$26,065 and lifted the win
+    rate from 49.2% to 60.7%, because a company falling from $6 to $0.20 booked
+    its exit near $5.50.
+
+    Deliberately returns only ticker/date/close. The full OHLCV set for an
+    unfiltered decade is several times the tradeable frame and the extra columns
+    are never read.
+    """
+    import pandas as pd
+    q = ("SELECT ticker, date, close FROM prices "
+         "WHERE date BETWEEN ? AND ? AND close > 0")
+    df = pd.read_sql_query(q, conn, params=(start_date, end_date))
+    if tickers is not None:
+        df = df[df["ticker"].isin(set(map(str, tickers)))]
+    return df
+
+
 def price_series(conn: sqlite3.Connection, tickers: list[str],
                  start_date: str, end_date: str) -> dict:
     """

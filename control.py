@@ -46,7 +46,9 @@ def _panel(conn, cfg, window):
         min_price=cfg["risk"].get("min_price"),
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
-    return simulator.Panel(df), df
+    exitpx = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                      window[0], window[1])
+    return simulator.Panel(df, exit_prices=exitpx), df
 
 
 def run(cfg: dict, n: int, calibrate: bool = False, seed: int = 1234) -> dict:
