@@ -236,6 +236,22 @@ def step(conn, cfg: dict) -> None:
     cap = cfg["risk"]["max_open_positions"]
     horizon = cfg["labeling"]["horizon_days"]
 
+    # Trading days elapsed, measured against the calendar rather than counted by
+    # invocation. The old `days_held + 1` counted how many times this function
+    # ran, so a missed cron morning silently extended every open position past
+    # its holding limit — and a catch-up after a gap compressed five days of
+    # price movement into one tick. Verified: a position entered 2026-09-04 and
+    # priced on 2026-09-11 reported two days held against five actually elapsed.
+    calendar = [r[0] for r in conn.execute(
+        "SELECT DISTINCT date FROM prices WHERE date <= ? ORDER BY date DESC LIMIT 400",
+        (today,)).fetchall()]
+    offset = {d: i for i, d in enumerate(calendar)}      # 0 = today, counting back
+
+    def days_since(entry_date: str) -> int:
+        """Trading days between an entry and today. Falls back to the stored count."""
+        e = str(entry_date)[:10]
+        return offset[e] if e in offset else -1
+
     for run in runs:
         run = dict(run)
         # Each run trades its own strategy. A Lab genome brings its own entry
@@ -273,7 +289,8 @@ def step(conn, cfg: dict) -> None:
         # --- exits first, so freed slots can be refilled the same day ---------
         for pos in open_pos[:]:
             px = prices.get(pos["ticker"])
-            held = pos["days_held"] + 1
+            elapsed = days_since(pos["entry_date"])
+            held = elapsed if elapsed >= 0 else pos["days_held"] + 1
             reason = None
             if px is None:
                 # No current price. Not necessarily wrong — it may have stopped

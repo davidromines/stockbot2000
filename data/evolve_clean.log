@@ -42,3 +42,17 @@ INFO:evolve:gen 23/50  best fitness 1.723  best excess $+1,537  beating the null
 INFO:evolve:gen 24/50  best fitness 1.827  best excess $+1,306  beating the null 285/300  221 distinct ideas  1.7 evals/s
 INFO:evolve:gen 25/50  best fitness 1.827  best excess $+1,993  beating the null 288/300  225 distinct ideas  1.6 evals/s
 INFO:evolve:gen 26/50  best fitness 1.888  best excess $+1,704  beating the null 292/300  216 distinct ideas  1.6 evals/s
+INFO:evolve:gen 27/50  best fitness 1.888  best excess $+1,543  beating the null 291/300  236 distinct ideas  1.6 evals/s
+INFO:evolve:gen 28/50  best fitness 1.902  best excess $+2,082  beating the null 294/300  225 distinct ideas  1.6 evals/s
+INFO:evolve:gen 29/50  best fitness 1.917  best excess $+1,248  beating the null 291/300  224 distinct ideas  1.5 evals/s
+INFO:evolve:gen 30/50  best fitness 1.917  best excess $+1,441  beating the null 293/300  220 distinct ideas  1.5 evals/s
+INFO:evolve:gen 31/50  best fitness 1.946  best excess $+1,237  beating the null 286/300  218 distinct ideas  1.5 evals/s
+INFO:evolve:gen 32/50  best fitness 1.946  best excess $+1,780  beating the null 288/300  234 distinct ideas  1.5 evals/s
+INFO:evolve:gen 33/50  best fitness 1.946  best excess $+1,446  beating the null 287/300  235 distinct ideas  1.5 evals/s
+INFO:evolve:gen 34/50  best fitness 1.946  best excess $+1,591  beating the null 287/300  226 distinct ideas  1.5 evals/s
+INFO:evolve:gen 35/50  best fitness 1.946  best excess $+933  beating the null 282/300  232 distinct ideas  1.4 evals/s
+INFO:evolve:gen 36/50  best fitness 2.059  best excess $+2,223  beating the null 295/300  200 distinct ideas  1.4 evals/s
+INFO:evolve:gen 37/50  best fitness 2.059  best excess $+1,641  beating the null 287/300  220 distinct ideas  1.4 evals/s
+INFO:evolve:gen 38/50  best fitness 2.059  best excess $+1,821  beating the null 293/300  232 distinct ideas  1.4 evals/s
+INFO:evolve:gen 39/50  best fitness 2.059  best excess $+2,260  beating the null 293/300  223 distinct ideas  1.4 evals/s
+INFO:evolve:gen 40/50  best fitness 2.059  best excess $+1,275  beating the null 286/300  243 distinct ideas  1.4 evals/s
