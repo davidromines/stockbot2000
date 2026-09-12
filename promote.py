@@ -193,7 +193,7 @@ def _evaluate_window(conn, cfg, genome_dict, window):
 
 def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
     """
-    Stage 02. Take the best by **excess over the null**, deduplicated by rule text.
+    Stage 02. Take the best by **excess over the null**, deduplicated by structure.
 
     Ranked by excess rather than raw net P&L, which is what the gate downstream
     actually tests. Ranking by net P&L filled the shortlist with strategies that
@@ -201,23 +201,36 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
     their corner of the market — they led on money and then died at validation,
     having displaced candidates that were genuinely selecting.
 
-    Deduplication matters more than it sounds: elitism and mutation produce many
-    near-identical copies of whatever is currently winning, and carrying twenty
-    clones into validation would waste the budget and overstate how many distinct
-    ideas survived. It is keyed on rule *text*, so `sma_200 < 7.05` and
-    `sma_200 < 7.83` still count as two — see `_shapes` for the stronger version.
+    Deduplicated **by structure, not by text**, and capped per structure. Elitism
+    and mutation produce many near-identical copies of whatever is winning, and
+    text comparison does not see them as copies: the previous run shortlisted 200
+    "distinct" strategies that were one structure with 33 thresholds, and 199 of
+    them then passed validation together. That reads as 199 findings and is one.
+
+    `per_shape` is the cap. Keeping a few settings of the same idea is useful —
+    the best threshold is not knowable in advance — but past a handful they are
+    just re-tests of a single hypothesis eating the validation budget.
     """
-    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 10)
+    per_shape = int(cfg.get("lab", {}).get("shortlist_per_shape", 3))
+    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 25)
     # Older rows predate the excess column; fall back so they still rank.
     rows.sort(key=lambda r: (r["excess_pnl_usd"] if r["excess_pnl_usd"] is not None
                              else r["net_pnl_usd"]), reverse=True)
-    seen, out = set(), []
+    seen, shapes, out = set(), {}, []
     for r in rows:
         if r["net_pnl_usd"] <= 0:
             continue
         key = (r["entry_desc"], r["exit_desc"])
         if key in seen:
             continue
+        row = conn.execute("SELECT genome FROM strategies WHERE id=?", (r["id"],)).fetchone()
+        try:
+            shp = gn.genome_shape(json.loads(row["genome"]))
+        except Exception:
+            shp = key                     # unparseable: fall back to text identity
+        if shapes.get(shp, 0) >= per_shape:
+            continue
+        shapes[shp] = shapes.get(shp, 0) + 1
         seen.add(key)
         out.append(r["id"])
         _decide(conn, r["id"], "shortlist", True,
@@ -225,8 +238,13 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
                  "trial_index": r["trial_index"]})
         if len(out) >= keep:
             break
-    log.info(f"Shortlisted {len(out)} distinct profitable strategies from {len(rows)} scored, "
-             f"ranked by excess over the null")
+    log.info(f"Shortlisted {len(out)} strategies across {len(shapes)} distinct "
+             f"structures from {len(rows)} scored, ranked by excess over the null "
+             f"(max {per_shape} settings per structure)")
+    if len(shapes) < 5:
+        log.warning(f"Only {len(shapes)} distinct ideas in the whole shortlist — the "
+                    f"search has converged. Treat any validation pass rate as one "
+                    f"result repeated, not as independent findings.")
     return out
 
 

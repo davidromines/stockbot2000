@@ -81,6 +81,12 @@ lab:
   # candidate clearing them is in the top 5% of chance outcomes at worst.
   # Re-run `control.py --calibrate` after any change to fitness or the simulator;
   # a gate that has never been tested against noise is an assumption.
+  # Diversity. The search collapsed onto a single rule structure without these:
+  # 62% of everything evaluated, and 199 of 200 shortlisted strategies, were
+  # `pct_change(sma_200, N) > C` at different thresholds.
+  diversity_sharing: 1.0       # divide fitness by niche size ^ this. 0 disables.
+  shortlist_per_shape: 3       # max settings of one structure on the shortlist
+
   gates:
     min_excess_pnl_usd: 900.0    # 95th pct of random-strategy excess
     # Recalibrated three times, each after a benchmark bug was fixed. 12.05 was

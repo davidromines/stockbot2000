@@ -254,6 +254,44 @@ def complexity(genome: dict) -> int:
     return len(_all_nodes(genome["entry"])) + len(_all_nodes(genome["exit"]))
 
 
+def shape(node: dict) -> str:
+    """
+    The rule's *structure*, with every constant and window erased.
+
+    `pct_change(sma_200, 3) > 0.0199` and `pct_change(sma_200, 3) > 0.0216` are
+    the same idea tuned twice. Text comparison calls them different, which is how
+    a shortlist of 200 "distinct" strategies turned out to be **one structure
+    with 33 thresholds** — and how 199 of them then passed validation together,
+    looking like 199 findings.
+
+    Windows are erased along with thresholds: a 3-day lookback and a 5-day one
+    are the same hypothesis at two settings. What survives is the skeleton —
+    which columns, which operators, in what arrangement.
+    """
+    if "const" in node:
+        return "C"
+    if "col" in node:
+        return node["col"]
+    op, args = node["op"], node.get("args", [])
+    if op == "not":
+        return f"not({shape(args[0])})"
+    if op in ("and", "or"):
+        return f"({shape(args[0])} {op} {shape(args[1])})"
+    if op in TS_TRANSFORMS:
+        return f"{op}({shape(args[0])})"
+    if op == "rank":
+        return f"rank({shape(args[0])})"
+    sym = {"gt": ">", "lt": "<"}.get(op)
+    if sym:
+        return f"{shape(args[0])} {sym} {shape(args[1])}"
+    return f"{op}({shape(args[0])}, {shape(args[1])})"
+
+
+def genome_shape(genome: dict) -> str:
+    """Both rules' shapes together — the identity of an idea, not of a setting."""
+    return f"{shape(genome['entry'])} || {shape(genome['exit'])}"
+
+
 def describe(node: dict) -> str:
     """Render a tree as readable text. Winning strategies have to be explainable."""
     if "const" in node:

@@ -99,9 +99,46 @@ def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_ent
     return scored
 
 
-def tournament(pop, rng, k: int = 3):
+def tournament(pop, rng, k: int = 3, shared=None):
     """Pick the best of k at random. Cheap, and keeps diversity alive."""
-    return max(rng.sample(pop, min(k, len(pop))), key=lambda x: x[0]["fitness"])
+    key = (lambda x: shared.get(id(x), x[0]["fitness"])) if shared else \
+          (lambda x: x[0]["fitness"])
+    return max(rng.sample(pop, min(k, len(pop))), key=key)
+
+
+def share_fitness(pop, strength: float):
+    """
+    Fitness sharing: a crowded idea is worth less per copy.
+
+    Classic niching, and this search needed it. Left alone the population
+    collapsed onto one structure — `pct_change(sma_200, N) > C` — which by the
+    last generation was 62% of everything evaluated and 199 of 200 shortlisted
+    strategies. That is one hypothesis wearing 199 hats, and it defeats the
+    ladder: the survivors all pass or all fail together, so a pass rate stops
+    carrying information about how many ideas actually work.
+
+    Each genome's fitness is divided by how many others share its structure,
+    raised to `strength`. At strength 0 this is off; at 1 a niche of ten is worth
+    a tenth each, so the tenth copy of a good idea ranks below the first copy of
+    a fair one. Selection still favours the *best* member of a crowded niche — it
+    just stops the niche eating the whole population.
+
+    Applied to selection only, never to what is recorded. The ledger stores the
+    fitness a strategy actually earned.
+    """
+    counts: dict = {}
+    shapes = []
+    for scored, g, _ in pop:
+        try:
+            s = gn.genome_shape(g)
+        except Exception:
+            s = "?"
+        shapes.append(s)
+        counts[s] = counts.get(s, 0) + 1
+    out = {}
+    for (item, s) in zip(pop, shapes):
+        out[id(item)] = item[0]["fitness"] / (counts[s] ** strength)
+    return out, len(counts)
 
 
 def run(config: dict, generations: int, population: int, window: tuple[str, str],
@@ -110,6 +147,7 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
     max_entries = lab.get("max_entries_per_eval", 20000)
     elite_frac = lab.get("elite_fraction", 0.15)
     mutation_rate = lab.get("mutation_rate", 0.6)
+    share_strength = float(lab.get("diversity_sharing", 1.0))
     rng = random.Random(seed)
 
     conn = storage.connect(config["database"]["market_data_path"])
@@ -179,17 +217,28 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
             while len(candidates) < population:
                 candidates.append((grammar.random_genome(), "random", None))
         else:
+            shared, n_niches = share_fitness(pop, share_strength)
+            # Elites are taken one per structure before any structure gets a
+            # second, so the elite slots cannot all go to one idea.
+            by_shape: dict = {}
+            for item in sorted(pop, key=lambda x: x[0]["fitness"], reverse=True):
+                by_shape.setdefault(gn.genome_shape(item[1]), []).append(item)
             n_elite = max(1, int(population * elite_frac))
-            elites = sorted(pop, key=lambda x: x[0]["fitness"], reverse=True)[:n_elite]
+            elites, rank = [], 0
+            while len(elites) < n_elite and any(len(v) > rank for v in by_shape.values()):
+                for v in by_shape.values():
+                    if len(v) > rank and len(elites) < n_elite:
+                        elites.append(v[rank])
+                rank += 1
             for scored, g, sid in elites:
                 candidates.append((g, "elite", sid))
             while len(candidates) < population:
                 if rng.random() < mutation_rate or len(pop) < 2:
-                    _, parent, pid = tournament(pop, rng)
+                    _, parent, pid = tournament(pop, rng, shared=shared)
                     candidates.append((grammar.mutate(parent), "mutation", pid))
                 else:
-                    _, a, aid = tournament(pop, rng)
-                    _, b, _ = tournament(pop, rng)
+                    _, a, aid = tournament(pop, rng, shared=shared)
+                    _, b, _ = tournament(pop, rng, shared=shared)
                     candidates.append((grammar.crossover(a, b), "crossover", aid))
 
         genomes = [g for g, _, _ in candidates]
@@ -215,10 +264,12 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
         best = max(pop, key=lambda x: x[0]["fitness"])[0]
         money = max(pop, key=lambda x: x[0].get("excess_pnl_usd", 0))[0]
         profitable = sum(1 for s, _, _ in pop if s.get("excess_pnl_usd", 0) > 0)
+        niches = len({gn.genome_shape(g) for _, g, _ in pop})
         rate = trial / (time.time() - started)
         log.info(f"gen {gen + 1}/{generations}  best fitness {best['fitness']:.3f}  "
                  f"best excess ${money.get('excess_pnl_usd', 0):+,.0f}  "
-                 f"beating the null {profitable}/{len(pop)}  {rate:.1f} evals/s")
+                 f"beating the null {profitable}/{len(pop)}  "
+                 f"{niches} distinct ideas  {rate:.1f} evals/s")
 
     if pool is not None:
         pool.close()
