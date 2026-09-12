@@ -1,0 +1,58 @@
+INFO:bias_exposure:Loading panel 2006-01-01 -> 2019-12-31
+
+  SURVIVORSHIP EXPOSURE — validation survivors, entries scored on 2006-01-01 to 2019-12-31
+     excess  >30% off  >60% off  mean DD  verdict                            entry rule
+  ----------------------------------------------------------------------------------------------------------------------
+    +20,071       85%       52%      59%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.0818 or crosse
+    +19,479       86%       52%      59%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1747 or crosse
+    +18,252       87%       55%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1277 or sma_50
+    +16,526       89%       57%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or crosse
+    +16,490       83%       49%      57%  REFUSE — untestable on this data   (pct_change(sma_200, 5) < -0.0476 or crosses
+    +15,816       86%       56%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.07 or crosses_
+    +15,713       86%       56%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.0693 or crosse
+    +15,331       88%       56%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1164 or crosse
+    +14,012       87%       55%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1271 or crosse
+    +12,996       88%       56%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or crosse
+    +12,656       85%       50%      58%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.1774 or sma_50
+    +12,615       88%       57%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or stoch_
+    +12,576       86%       55%      59%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or crosse
+    +12,556       88%       56%      60%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or crosse
+    +12,114       87%       58%      61%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.063 or crosses
+    +11,943       86%       55%      58%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.0964 or sma_50
+    +11,866       87%       60%      61%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.0594 or sma_50
+    +11,690       90%       54%      61%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.2732 or crosse
+    +11,590       77%       44%      53%  REFUSE — untestable on this data   (pct_change(sma_200, 10) < -0.0964 or crosse
+    +11,355       83%       52%      57%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1277 or sma_50
+    +11,347       83%       52%      58%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1277 or crosse
+    +11,303       86%       51%      59%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1941 or crosse
+    +11,151       86%       52%      59%  REFUSE — untestable on this data   (pct_change(sma_200, 20) < -0.1747 or crosse
+     +6,181       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0221
+     +6,078       36%       15%      25%  REFUSE — untestable on this data   pct_change(sma_50, 3) > 0.0302
+     +5,969       25%       10%      19%  caution                            pct_change(sma_200, 3) > 0.0208
+     +5,929       25%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0216
+     +5,865       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+     +5,336       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0266
+     +5,223       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0221
+     +5,110       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0234
+     +4,978       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+     +4,917       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0257
+     +4,546       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0221
+     +4,297       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0263
+     +4,253       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0263
+     +4,015       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0232
+     +3,963       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.024
+     +3,875       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0266
+     +3,861       26%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0221
+     +3,622       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0257
+     +3,530       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+     +3,398       27%       10%      20%  caution                            pct_change(sma_200, 3) > 0.0263
+     +3,395       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+     +2,845       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+     +2,575       24%        9%      19%  caution                            pct_change(sma_200, 3) > 0.0199
+  ----------------------------------------------------------------------------------------------------------------------
+  Baseline: 15% of all tradeable rows are more than 30% off their own 200-day high.
+  24 of 46 concentrate the bias past the 35% limit and are refused promotion.
+
+  Refused is not 'probably wrong'. It is 'this data cannot answer the question':
+  5 tickers stopped trading in the whole 2006-2019 window, against 9,029 companies
+  the Internet Archive says existed. Paper trading is the only test left for these.

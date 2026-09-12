@@ -416,7 +416,8 @@ def close(conn, cfg: dict, name: str) -> None:
     print("Recorded in the experiment ledger — compare with experiments.py")
 
 
-def promote_survivors(conn, cfg: dict, limit: int = 5, stage: str = "validation") -> list[str]:
+def promote_survivors(conn, cfg: dict, limit: int = 5, stage: str = "validation",
+                      order: str = "excess") -> list[str]:
     """
     Open a paper run for each of the best strategies that cleared `stage`.
 
@@ -437,8 +438,8 @@ def promote_survivors(conn, cfg: dict, limit: int = 5, stage: str = "validation"
         JOIN strategies s ON s.id = p.strategy_id
         JOIN evaluations e ON e.strategy_id = s.id
         WHERE p.stage = ? AND p.decision = 'pass'
-        ORDER BY e.excess_pnl_usd DESC
-    """, (stage,)).fetchall()
+        ORDER BY e.excess_pnl_usd """ + ("ASC" if order == "reverse" else "DESC"),
+        (stage,)).fetchall()
     if not rows:
         log.warning(f"Nothing has passed {stage} — nothing to paper trade.")
         return []
@@ -490,6 +491,9 @@ def main():
                         help="Open paper runs for the best strategies that passed validation.")
     parser.add_argument("--limit", type=int, default=5,
                         help="How many distinct ideas to promote (default 5).")
+    parser.add_argument("--order", default="excess", choices=("excess", "reverse"),
+                        help="'reverse' promotes the weakest survivors — useful for "
+                             "running a low-exposure family alongside a high one.")
     args = parser.parse_args()
 
     cfg = load_config()
@@ -499,7 +503,7 @@ def main():
     init(conn)
 
     if args.promote:
-        promote_survivors(conn, cfg, args.limit)
+        promote_survivors(conn, cfg, args.limit, order=args.order)
     elif args.start:
         start(conn, cfg, args.start)
     elif args.step:

@@ -1,0 +1,7 @@
+INFO:promote:Panel for 2006-01-01 -> 2019-12-31: 5,185,065 rows, market-wide null -0.012% at 5d / +2.076% at 45d
+INFO:promote:Behavioural dedup: 48 candidates trade distinguishably (from 800 considered, overlap threshold 0.7)
+INFO:promote:Shortlisted 48 strategies across 668 distinct structures from 5000 scored, ranked by excess over the null (max 3 settings per structure)
+INFO:promote:Validating 48 strategies on 2020-01-01 -> 2022-12-31
+INFO:promote:Panel for 2020-01-01 -> 2022-12-31: 1,840,483 rows, market-wide null +0.066% at 5d / +2.464% at 45d
+INFO:promote:  25/48 — 6 still standing
+INFO:promote:23 of 48 survived validation. Most candidates dying here is the system working.

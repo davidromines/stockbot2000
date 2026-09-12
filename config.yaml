@@ -111,6 +111,12 @@ lab:
 # This is a haircut, not a fix — the delisted companies are still absent.
 survivorship:
   enabled: true
+  # Exposure limit, not a haircut. A strategy taking more than this share of its
+  # entries in names already deep below their own 200-day high is concentrating
+  # the bias rather than carrying the average of it, and no haircut fixes that —
+  # 5 tickers stopped trading in the whole 2006-2019 window against 9,029
+  # companies the Archive says existed. Over the limit, promotion is refused.
+  max_drawdown_exposure: 0.35
   excess_return_pct_per_year: 9.68   # ratio-based, not the raw 10.4pt difference
   note: "Upper bound; also contains CRSP microcap/OTC coverage we never had."
 

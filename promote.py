@@ -38,6 +38,7 @@ import math
 import numpy as np
 
 import benchmark as bench
+import bias_exposure as bias
 import costs as costs_mod
 import genome as gn
 import ledger
@@ -174,6 +175,24 @@ def _window_panel(conn, cfg, window):
     return entry
 
 
+_DD: dict = {}
+
+
+def _drawdown_for(conn, cfg, window):
+    """Trailing-drawdown column for a window, cached alongside its panel."""
+    if window in _DD:
+        return _DD[window]
+    df = storage.load_training_frame(
+        conn, FEATURE_COLS, types=cfg["universe"]["tradeable_types"],
+        start_date=window[0], end_date=window[1],
+        min_price=cfg["risk"].get("min_price"),
+        min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
+        include_liquidity=True)
+    df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
+    _DD[window] = bias.drawdown_column(df)
+    return _DD[window]
+
+
 def _evaluate_window(conn, cfg, genome_dict, window):
     """Simulate one genome over an arbitrary window. Used by every gate."""
     panel, surface = _window_panel(conn, cfg, window)
@@ -188,6 +207,13 @@ def _evaluate_window(conn, cfg, genome_dict, window):
                             benchmark_surface=surface, position_size_usd=size,
                             cfg=reward.params_from_config(cfg))
     scored["pnl_series"] = res.get("pnl_series")
+    # How much of this result rests on rows where the missing companies would
+    # have been. Recorded on every evaluation; gated at the sealed stage.
+    try:
+        scored["bias_exposure"] = bias.exposure(res, _drawdown_for(conn, cfg, window))
+    except Exception as exc:                       # never fail a gate on a diagnostic
+        log.debug(f"exposure unavailable: {exc}")
+        scored["bias_exposure"] = None
     return scored
 
 
@@ -383,6 +409,33 @@ def seal(conn, cfg, sid: str) -> None:
         return
 
     lab = cfg["lab"]
+    # Checked BEFORE the seal is opened. A strategy this data cannot evaluate must
+    # not spend its one sealed attempt finding that out — the seal would be burnt
+    # on a question the answer cannot settle, and there is no way to un-peek.
+    limit = float(cfg.get("survivorship", {}).get("max_drawdown_exposure", 0.35))
+    search_w = (lab["search_start"], lab["search_end"])
+    try:
+        pre = _evaluate_window(conn, cfg, json.loads(row["genome"]), search_w)
+        ex = (pre or {}).get("bias_exposure") or {}
+    except Exception:
+        ex = {}
+    share = float(ex.get("share_deep", 0.0))
+    if share >= limit:
+        log.error(f"REFUSED, and the seal is NOT opened. {share:.0%} of this "
+                  f"strategy's entries are in names already more than 30% below "
+                  f"their own 200-day high; the limit is {limit:.0%}.")
+        log.error("Five tickers stopped trading in the whole 2006-2019 window "
+                  "against 9,029 companies the Internet Archive says existed, so "
+                  "this data holds almost none of the failures this strategy would "
+                  "have bought. A haircut cannot fix a measurement the search was "
+                  "selected to exploit.")
+        log.error("Paper trading is the only remaining test: "
+                  "python paper_trading.py --promote")
+        _decide(conn, sid, "sealed_refused", False,
+                {"reason": "survivorship exposure", "share_deep": share,
+                 "limit": limit})
+        return
+
     window = (lab["sealed_start"], "2099-12-31")
     log.warning(f"Opening the sealed period for {sid}. This can only happen once.")
     scored = _evaluate_window(conn, cfg, json.loads(row["genome"]), window)
@@ -401,7 +454,8 @@ def seal(conn, cfg, sid: str) -> None:
     _decide(conn, sid, "sealed", passed, {
         "net_pnl_usd": scored["net_pnl_usd"], "sharpe": scored["sharpe"],
         "n_trades": scored["n_trades"], "trials_when_found": trials,
-        "deflated_sharpe_prob": dsr, "window": window})
+        "deflated_sharpe_prob": dsr, "window": window,
+        "bias_share_deep": share})
 
     log.info(f"  NET P&L          ${scored['net_pnl_usd']:+,.2f}")
     log.info(f"  Sharpe (annual)  {scored['sharpe']:.3f}")
