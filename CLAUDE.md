@@ -527,6 +527,27 @@ delisted prices at roughly $270/yr, which closes this permanently.
 
 ---
 
+## Never version the database or its write-ahead log — 2026-09-12
+
+`data/*.db`, `*.db-wal` and `*.db-shm` are gitignored, and must stay that way.
+
+A tracked `-wal` is not just a large file in the repo. **`git checkout` rewrites
+it underneath an open connection**, which is exactly how `market_data.db` was
+corrupted: `git add -A` had swept the WAL in, and switching to a branch dropped a
+stale write-ahead log onto a live 10 GB database.
+
+Recovery worked by rebuilding into a fresh file, not repairing in place — `DROP
+TABLE` cannot run on a corrupt table, because freeing its pages means walking the
+tree that is broken. Prices, features, the Internet Archive snapshots, promotions
+and every paper-trading run came through intact; `strategies` lost 6.3% and
+`evaluations` 0.05%.
+
+**Design note worth keeping:** `paper_runs` stores each strategy's genome inline
+as JSON rather than referencing `strategies.id`. That denormalisation is why
+every forward test survived a corruption that cost 5,767 strategy rows. Keep it.
+
+---
+
 ## A standing caution
 
 This system searches a large space of strategies against fixed historical data.

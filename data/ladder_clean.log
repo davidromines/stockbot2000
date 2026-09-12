@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/stockpicker/stockbot2000/promote.py", line 524, in <module>
+    main()
+  File "/home/stockpicker/stockbot2000/promote.py", line 513, in main
+    shortlist(conn, cfg, args.shortlist)
+  File "/home/stockpicker/stockbot2000/promote.py", line 299, in shortlist
+    rows = ledger.top_by_pnl(conn, run_id, limit=keep * 25)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/stockpicker/stockbot2000/ledger.py", line 169, in top_by_pnl
+    return [dict(r) for r in conn.execute(sql, params).fetchall()]
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.DatabaseError: database disk image is malformed
