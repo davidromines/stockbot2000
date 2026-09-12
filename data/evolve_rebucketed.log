@@ -1,0 +1,20 @@
+INFO:evolve:Loading panel 2006-01-01 -> 2019-12-31
+INFO:evolve:Panel: 5,185,065 rows, 1.31 GB
+INFO:evolve:Null surface for this window (11 price bands x 10 holding periods):
+INFO:evolve:  $     5-$     6  +1.889% at 5d, +12.712% at 45d
+INFO:evolve:  $     6-$     7  +0.442% at 5d, +6.969% at 45d
+INFO:evolve:  $     7-$     8  +0.283% at 5d, +4.905% at 45d
+INFO:evolve:  $     8-$    10  +0.146% at 5d, +3.812% at 45d
+INFO:evolve:  $    10-$    12  +0.073% at 5d, +2.988% at 45d
+INFO:evolve:  $    12-$    15  +0.045% at 5d, +2.472% at 45d
+INFO:evolve:  $    15-$    20  -0.047% at 5d, +1.963% at 45d
+INFO:evolve:  $    20-$    30  -0.081% at 5d, +1.471% at 45d
+INFO:evolve:  $    30-$    50  -0.043% at 5d, +1.230% at 45d
+INFO:evolve:  $    50-$   100  -0.043% at 5d, +1.208% at 45d
+INFO:evolve:  $   100-$99,999  -0.213% at 5d, -0.402% at 45d
+INFO:evolve:  each strategy is charged the null of the stocks it actually bought, at its own holding period
+INFO:evolve:Run 29cf94d01c23: 50 generations x 300 candidates
+INFO:evolve:Evaluating across 3 workers
+INFO:evolve:gen 1/50  best fitness 4.648  best excess $+4,966  beating the null 52/300  2.5 evals/s
+INFO:evolve:gen 2/50  best fitness 4.648  best excess $+4,966  beating the null 110/300  2.4 evals/s
+INFO:evolve:gen 3/50  best fitness 4.648  best excess $+4,966  beating the null 188/300  2.4 evals/s

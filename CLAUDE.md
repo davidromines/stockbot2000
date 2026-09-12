@@ -360,6 +360,17 @@ Key design points (do not silently change these — they were deliberate):
   computes what chance earns per window; fitness and every gate measure excess
   over it. **Re-run `control.py --calibrate` after any change to fitness, the
   simulator or the gates.** A gate never tested against noise is an assumption.
+- **The null is a surface over price and holding period, not a number.** Both
+  dimensions were loopholes while flat, and the search found each immediately.
+  Holding period: the null is +0.07% at 5 days and +2.1% at 45, so a fixed
+  5-day null paid a long-holding strategy 30x for drift it did not earn.
+  **Price: the null runs from +25.2% at $5-6 to -0.5% at $100+ over a 45-day
+  hold** (2020-22), so a market-wide null handed anything that bought cheap
+  stocks an enormous unearned excess. Each trade is charged the null of its own
+  entry price, interpolated in log price between band centres — see the next
+  item for what that cost. Bands are configured in `config.yaml` under
+  `benchmark.price_band_edges`, deliberately fine below $20 where nearly all the
+  variation sits.
 - **Net P&L in dollars is the headline metric.** Not AUC, not win rate, not
   Sharpe. Those are diagnostics of *why*; money is the test of *whether*. Report
   it first, everywhere.
@@ -423,6 +434,53 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
    promotion ladder ends in "funded, small fixed stake", but the mandate above
    caps total exposure at $100. Either the cap rises when the Lab goes live, or
    the funded stake comes out of the same $100. Undecided.
+
+---
+
+## The price-filter result — 2026-09-12
+
+**The Strategy Lab's first 66 "validation survivors" were an artifact of the
+benchmark, and all 66 have been voided.** This is the clearest example so far of
+the standing caution below, and worth reading before trusting any Lab output.
+
+The search's best answers collapsed to five rule structures, 58 of them the same
+idea with a different constant:
+
+| Count | Rule shape |
+|---:|---|
+| 33 | `sma_200 < N` |
+| 25 | `lag(sma_200, N) < N` |
+| 8 | everything else |
+
+The top five were `sma_200 < 7.05 / 7.83 / 8.27 / 8.59 / 8.59` — **"buy stocks
+whose 200-day average price is under about $8."** A price filter, not a strategy.
+They appeared at generations 2-5, barely evolved.
+
+They scored well because they were benchmarked against the whole market while
+trading only its cheapest corner. Re-scored against the null of the stocks they
+actually bought (`rescore.py`), **0 of the top 25 still clear the gate**:
+
+| | was | now |
+|---|---|---|
+| `sma_200 < 7.05` net P&L | +$26,166 | +$26,166 |
+| its excess over the null | large | **-$585** |
+| null charged (45d, ~$6.70 entry) | +2.46% | **+13.38%** |
+| fitness | 0.387 | 0.000 |
+
+Three things to take from it:
+
+1. **Net P&L alone cannot tell you anything.** That strategy really did make
+   $26k in the simulator. Every dollar of it was the benchmark.
+2. **Cheap stocks are where survivorship bias is worst**, since the sub-$8 names
+   that went to zero are absent from this database entirely. Bucketing does not
+   fix that — it stops the search being *paid* for finding it.
+3. **Fixing it in two stages was necessary.** Hard price bands alone were not
+   enough: the search immediately moved to the bottom of the cheapest band
+   (`sma_200 < 6.81`, entering at a median $6.64 against a band median of $7.59)
+   and collected the within-band gradient instead. Interpolating across price,
+   and extrapolating below the cheapest band rather than clamping, closed it.
+
+`control.py` still rejects 60 of 60 random strategies after the change.
 
 ---
 
