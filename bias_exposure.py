@@ -18,6 +18,14 @@ says existed and we do not hold. So every crash this rule bought recovered, by
 construction — not because crashes recover, but because the ones that did not are
 absent. The losing half of the distribution is not understated here. It is gone.
 
+**How good is drawdown as a proxy? Measured, 2026-09-12.** Of all tradeable rows,
+15% sit more than 30% below their own 200-day high. Of rows at the moment a
+company actually delisted, 38% do. So drawdown is genuinely predictive of death —
+a 2.5x enrichment — but it is a **weak** proxy, far weaker than the 5-6x
+concentration the crash-buying strategies showed against baseline. Treat the
+exposure score as an ordering, not a probability, and prefer real delisting dates
+where the registry covers the period (2009 onward; see `delistings.py`).
+
 What this measures: the share of a strategy's entries taken in names that are
 deep below their own recent high. Those are the rows where the missing companies
 would have been, so a strategy concentrated there is untestable on this data at

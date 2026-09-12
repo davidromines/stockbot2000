@@ -97,10 +97,14 @@ Sources supplied 2026-09-12. Read each, tested each, results below.
   **Thin before 2009** — 4 delistings recorded for 2008 — so it does not cover
   the crisis. Use EDGAR for that era.
 
-- [ ] **Stooq — blocked to automation, needs a human browser.** Every endpoint,
-  including the documented CSV API, sits behind a proof-of-work bot check. Not
-  bypassed deliberately. User downloading `d_us_txt.zip` manually; unknown
-  whether delisted tickers are included, which is the only question that matters.
+- [ ] **Stooq — SITE DOWN as of 2026-09-12, retry later.** Blocked to automation
+  regardless: every endpoint, including the documented CSV API, sits behind a
+  proof-of-work bot check, which is not bypassed deliberately. Needs a human with
+  a browser to fetch `d_us_txt.zip` from https://stooq.com/db/h/ once the site
+  returns. **Value is unknown and may be nil** — nothing in their docs says
+  whether delisted tickers are included, and that is the only question that
+  matters. Check the ticker count in the zip against ~12,000 active names; a
+  match means no dead companies and the source can be closed.
 
 - [ ] **FirstRateData — the actual fix, and it costs money.** 16,302 tickers
   including **7,000+ delisted** back to 2000, which matches the size of our hole

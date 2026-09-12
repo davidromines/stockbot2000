@@ -19,6 +19,8 @@ Tables:
   ingest_state  Per-ticker backfill progress. This is what makes the long
                 backfill resumable.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas. Both modules
+                #   have a __main__ block, so they are entry points too.
 import logging
 import sqlite3
 from datetime import date

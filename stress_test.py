@@ -31,6 +31,25 @@ Every number above is in `config.yaml` under `stress`. They are estimates, and
 the point of the tool is to show how much the answer moves when they change —
 which is why `--sweep` exists.
 
+**Why these were not recalibrated against our own delisted names (2026-09-12).**
+The registry gave us 418 delisted companies we hold prices for, and measuring
+their final year looks reassuring: median drawdown of 20% at delisting, a mean
+return of **+1.3% over the final 60 trading days**, and a median last traded
+price of $17.12. Read directly, that says delistings are nearly harmless and
+every parameter here is far too harsh.
+
+That reading would be wrong, and taking it would repeat the exact mistake this
+project keeps making. Those 418 are the delisted names that *survived the
+survivorship filter* — yfinance retains history for a cleanly acquired company
+far more often than for a bankruptcy, so the sample is selected toward benign
+delistings, which is why it looks benign. 7,062 delisted companies have no price
+data here at all, and they are not missing at random.
+
+So the sample can say something about **mergers** — acquisitions really do delist
+near their highs at roughly flat final returns — and nothing trustworthy about
+**failures**. The failure figures therefore stay at Shumway's, which were
+measured on CRSP, where the whole population is present.
+
 Usage:
     python stress_test.py --stage validation
     python stress_test.py --stage validation --sweep    # sensitivity to the assumptions

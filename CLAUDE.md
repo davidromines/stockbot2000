@@ -223,6 +223,10 @@ Pipeline stages, in execution order:
 | `backfill.py` | Resumable 20-year OHLCV loader for the full universe. Adaptive Yahoo rate limiting. |
 | `build_features.py` | Computes the 20 indicators across all history into the `features` table. |
 | `reconstruct_universe.py` | Replays Internet Archive captures of the symbol directory to measure the survivorship gap. |
+| `edgar_registry.py` | Point-in-time registry of every SEC annual filer, 1993-now. The only source here reaching before 2008. |
+| `delistings.py` | The delisting registry — which companies died and when. Reads the API key from `~/.alphavantage_key`, never the repo. |
+| `stress_test.py` | Bounds how much a result depends on the missing companies. |
+| `bias_exposure.py` | Scores a strategy's dependence on deeply drawn-down names; gates the sealed stage. |
 | `bias_benchmark.py` | Quantifies that bias in %/year against Ken French's CRSP-based series. |
 | `data_pull.py` | Fetches OHLCV history via yfinance. |
 | `features.py` | Computes **20** technical indicators per (ticker, date). No third-party TA lib. |
@@ -402,36 +406,44 @@ New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
 
 ## Open decisions — do not assume answers
 
-1. **Survivorship bias — now MEASURED. ~10 percentage points a year.**
+1. **Survivorship bias — now ENUMERATED, not just estimated (2026-09-12).**
 
-   **Every backtest figure this project produces should be read as roughly 10
-   points a year optimistic.** That is not borrowed from a paper; it is measured
-   against our own data.
+   **Every backtest figure is still roughly 10 points a year optimistic**, but
+   the hole is now a list rather than an average.
 
-   - `bias_benchmark.py` compares our equal-weighted market return against the
-     same measure built from Ken French's 48 Industry Portfolios, which are CRSP
-     based and therefore survivorship-free. 2006-2026: **ours 17.8%/yr, CRSP
-     7.4%/yr, gap 10.4 points.** Free data, no account, no purchase.
-   - `reconstruct_universe.py` replays Wayback captures of the symbol directory.
-     **Complete as of 2026-09-11: 119 captures, both NASDAQ and NYSE, 2008-2026.**
-     Coverage of US common stock: **~30% in 2008**, ~46% by 2010, rising to 99.7%
-     at the most recent capture — the recent figure is high only because those
-     companies have not had time to die yet.
-     Across all captures, **15,012 common stocks existed and we hold prices for
-     5,983 — 9,029 are gone, 60% of the total.** The NASDAQ-only figure quoted
-     before was 3,987; adding NYSE more than doubled it.
-   - Treat 10.4 points as an **upper bound**: it also contains composition
-     differences, since CRSP covers microcaps and OTC names a directory-built
-     universe never had.
-   - Still unfixed, and unfixable without delisted prices, which cost money.
-     Norgate's delisted add-on is **~$270/yr**, far cheaper than the $720-1,080
-     estimated earlier. If a vendor is ever bought, ask whether they supply
-     delisting *returns* rather than just prices up to the delisting date — the
-     standard corrections are -30% (NYSE/AMEX) and -55% (Nasdaq), per Shumway.
-   - Reconstruction is **complete**. `reconstruct_universe.py` now paces itself
-     against archive.org's rate limiting rather than dying at it: a fixed gap
-     between requests that doubles on refusal, backoff waits to 30 minutes, and a
-     retried index request. Re-run `--fetch` any time to pick up new captures.
+   - `delistings.py` holds the Alpha Vantage registry: **9,464 delisted
+     listings, 7,480 of them common stock, and we hold prices for 418 (5.6%).
+     7,062 companies a backtest here can never buy**, each with an exact
+     delisting date. That independently corroborates the Internet Archive
+     figure of 9,029 by a completely unrelated method.
+   - **Thin before 2009** — the registry records 4 delistings for all of 2008 —
+     so it does *not* cover the financial crisis, which sits inside the
+     2006-2019 search window. Use EDGAR for that era.
+   - `edgar_registry.py` builds a point-in-time company registry from the SEC
+     quarterly indexes, **1993 to now**: 303,383 annual filings, 38,876
+     distinct companies, **31,752 (82%) that stopped filing**. Coverage of
+     10-K filers by our price data runs **14% in 1998, 26% in 2007, 50% in
+     2019, 77% in 2025** — improving toward the present, which is the signature
+     of survivorship bias rather than of better collection.
+   - `bias_benchmark.py` still gives the headline 10.4 points/year against Ken
+     French's CRSP-based series. Treat it as an upper bound; it also contains
+     composition differences.
+   - **Prices for the dead remain unavailable from any free source.**
+     FirstRateData sells 16,302 tickers including 7,000+ delisted back to 2000,
+     which matches the size of our hole almost exactly, and is the cheapest
+     thing that would close it. CRSP via WRDS is the academic standard and free
+     with a university affiliation.
+
+   **A trap worth remembering.** Measuring the 418 delisted names we *do* hold
+   suggests delisting is nearly harmless: median drawdown 20%, mean final-60-day
+   return **+1.3%**. That is wrong, and the reason is the whole problem in
+   miniature — those 418 are the delistings that survived the survivorship
+   filter, because a clean acquisition keeps its price history and a bankruptcy
+   does not. Never calibrate the failure case on that sample.
+
+   **Drawdown as a proxy for death is real but weak.** 15% of all rows sit more
+   than 30% below their 200-day high; 38% of rows at actual delisting do. A 2.5x
+   enrichment. `bias_exposure.py` is an ordering, not a probability.
 
 2. **Survivorship-bias data source — interim decision made, still needs work.**
    yfinance omits delisted companies, so the universe excludes every bankruptcy and

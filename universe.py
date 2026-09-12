@@ -18,6 +18,8 @@ Note the deliberate difference in failure behaviour: "sp500" falls back silently
 "all_us" raises. A silent fallback from 6,100 tickers to 18 would look like a
 successful run and quietly poison everything downstream.
 """
+import runtime  # noqa: F401  — must precede numpy/pandas. Both modules
+                #   have a __main__ block, so they are entry points too.
 import logging
 import re
 from collections import Counter
