@@ -64,25 +64,25 @@ def _handle_interrupt(signum, frame):
 _W: dict = {}     # per-worker state, populated by fork
 
 
-def _init_worker(panel, cost_model, position_size, capital, max_entries, null_pct):
+def _init_worker(panel, cost_model, position_size, capital, max_entries, curve):
     """Runs once per worker. The panel arrives by fork, not by pickle."""
     _W.update(panel=panel, cost_model=cost_model, position_size=position_size,
-              capital=capital, max_entries=max_entries, null_pct=null_pct)
+              capital=capital, max_entries=max_entries, curve=curve)
 
 
 def _eval_worker(genome_dict):
     return evaluate_one(genome_dict, _W["panel"], _W["cost_model"],
                         _W["position_size"], _W["capital"], _W["max_entries"],
-                        _W["null_pct"])
+                        _W["curve"])
 
 
 def evaluate_one(genome_dict, panel, cost_model, position_size, capital, max_entries,
-                 benchmark_net_pct=0.0):
+                 benchmark_curve=None):
     """Simulate and score one candidate. Kept separate so it can be parallelised."""
     result = simulator.simulate(genome_dict, panel, cost_model, position_size,
                                 max_entries=max_entries)
     scored = reward.fitness(result, gn.complexity(genome_dict), capital_usd=capital,
-                            benchmark_net_pct=benchmark_net_pct,
+                            benchmark_curve=benchmark_curve,
                             position_size_usd=position_size)
     scored["gross_pnl_usd"] = result.get("gross_pnl_usd")
     scored["costs_usd"] = result.get("costs_usd")
@@ -123,9 +123,10 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
     position_size = config["risk"]["position_size_usd"]
     capital = position_size * config["risk"]["max_open_positions"]
 
-    null = bench.compute(conn, config, window)
-    log.info(f"Null for this window: {null['net_pct']:+.3f}% net per trade — "
-             f"strategies are scored on excess over it, not on raw P&L")
+    curve = bench.null_curve(conn, config, window)
+    log.info(f"Null curve for this window: {curve[5]:+.3f}% at a 5-day hold, "
+             f"{curve[45]:+.3f}% at 45 days — each strategy is charged the null "
+             f"for its own holding period")
 
     run_id = ledger.new_run(conn, window, generations, population,
                             {"lab": lab, "risk": config["risk"], "costs": config["costs"]})
@@ -138,7 +139,7 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
         ctx = mp.get_context("fork")
         pool = ctx.Pool(workers, initializer=_init_worker,
                         initargs=(panel, cost_model, position_size, capital,
-                                  max_entries, null["net_pct"]))
+                                  max_entries, curve))
         log.info(f"Evaluating across {workers} workers")
 
     trial = 0
@@ -174,7 +175,7 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
             scores = pool.map(_eval_worker, genomes, chunksize=1)
         else:
             scores = [evaluate_one(g, panel, cost_model, position_size, capital,
-                                   max_entries, null["net_pct"]) for g in genomes]
+                                   max_entries, curve) for g in genomes]
 
         scored_pop = []
         for (g, origin, parent_id), scored in zip(candidates, scores):

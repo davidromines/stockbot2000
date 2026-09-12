@@ -103,7 +103,7 @@ def max_drawdown(pnl: np.ndarray, capital_usd: float) -> float:
 
 def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
             benchmark_net_pct: float = 0.0, position_size_usd: float = 10.0,
-            cfg: dict | None = None) -> dict:
+            benchmark_curve: dict | None = None, cfg: dict | None = None) -> dict:
     """
     Score one simulated strategy. Returns the fitness and every component.
 
@@ -119,9 +119,15 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     if n < p["min_trades"]:
         return _zero(net, n, "too few trades")
 
-    # Excess over the null. `benchmark_net_pct` is what a random entry earned per
-    # trade in this window, net of costs; charging it per trade converts a raw
-    # P&L into "did this select better than chance".
+    # Excess over the null, charged at the strategy's ACTUAL holding period.
+    # A fixed-horizon null lets a strategy manufacture excess by simply holding
+    # longer: the null is +0.066% over 5 days and +2.128% over 40, so scoring a
+    # 40-day strategy against the 5-day figure hands it 32x more credit than it
+    # earned. The search found that loophole immediately.
+    hold = float(result.get("avg_hold_days", 5.0) or 5.0)
+    if benchmark_curve:
+        from benchmark import null_for_hold
+        benchmark_net_pct = null_for_hold(benchmark_curve, hold)
     benchmark_usd = position_size_usd * (benchmark_net_pct / 100.0) * n
     excess = net - benchmark_usd
     excess_pnl = pnl - position_size_usd * (benchmark_net_pct / 100.0)
@@ -156,6 +162,8 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
         "net_pnl_usd": net,
         "excess_pnl_usd": float(excess),
         "benchmark_pnl_usd": float(benchmark_usd),
+        "benchmark_net_pct": float(benchmark_net_pct),
+        "avg_hold_days": hold,
         "n_trades": n,
         "sharpe": float(sr),
         "sharpe_per_trade": sharpe_per_trade(excess_pnl),

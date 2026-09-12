@@ -59,9 +59,9 @@ def run(cfg: dict, n: int, calibrate: bool = False, seed: int = 1234) -> dict:
     log.info("Loading panels")
     search_panel, df = _panel(conn, cfg, search_w)
     valid_panel, _ = _panel(conn, cfg, valid_w)
-    null_s = bench.compute(conn, cfg, search_w)
-    null_v = bench.compute(conn, cfg, valid_w)
-    log.info(f"Null: search {null_s['net_pct']:+.3f}%, validation {null_v['net_pct']:+.3f}%")
+    curve_s = bench.null_curve(conn, cfg, search_w)
+    curve_v = bench.null_curve(conn, cfg, valid_w)
+    log.info(f"Null curve (validation): {curve_v[5]:+.3f}% at 5d, {curve_v[45]:+.3f}% at 45d")
 
     stats = gn.column_stats(df, FEATURE_COLS + gn.BASE_PRIMITIVES)
     grammar = gn.Grammar(FEATURE_COLS, stats, max_depth=lab.get("max_depth", 4), seed=seed)
@@ -78,10 +78,10 @@ def run(cfg: dict, n: int, calibrate: bool = False, seed: int = 1234) -> dict:
         g = grammar.random_genome()
         rs = simulator.simulate(g, search_panel, cm, size, max_entries=max_entries)
         fs = reward.fitness(rs, gn.complexity(g), capital_usd=capital,
-                            benchmark_net_pct=null_s["net_pct"], position_size_usd=size)
+                            benchmark_curve=curve_s, position_size_usd=size)
         rv = simulator.simulate(g, valid_panel, cm, size, max_entries=max_entries)
         fv = reward.fitness(rv, gn.complexity(g), capital_usd=capital,
-                            benchmark_net_pct=null_v["net_pct"], position_size_usd=size)
+                            benchmark_curve=curve_v, position_size_usd=size)
 
         raw_profit += fv["net_pnl_usd"] > 0
         beats_null += fv.get("excess_pnl_usd", 0) > 0
