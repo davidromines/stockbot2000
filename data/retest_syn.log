@@ -1,0 +1,7 @@
+INFO:retest:Loading the real panel 2006-01-01 -> 2019-12-31
+INFO:retest:Baseline on real data for 12 strategies
+INFO:retest:  member 0: panel 6,474,022 rows (0 synthetic)
+INFO:retest:  member 1: panel 6,482,294 rows (0 synthetic)
+INFO:retest:  member 2: panel 6,463,318 rows (0 synthetic)
+INFO:retest:  member 3: panel 6,458,739 rows (0 synthetic)
+INFO:retest:  member 4: panel 6,464,896 rows (0 synthetic)

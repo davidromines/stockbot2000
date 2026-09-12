@@ -1,0 +1,24 @@
+INFO:synvalidate:Realising synthetic bars
+INFO:synvalidate:Computing indicators on the synthetic series
+INFO:synvalidate:  1,978,098 synthetic feature rows from 4,047 tickers
+INFO:synvalidate:Loading REAL delisted companies for comparison
+INFO:synvalidate:  519,549 rows from 255 real delisted names
+INFO:synvalidate:  1,263,555 synthetic rows survive the tradeability floors
+
+  SYNTHETIC vs REAL DELISTED COMPANIES — 2006-01-01 to 2019-12-31
+  60,000 synthetic rows against 60,000 real rows, 20 indicators
+
+    classifier AUC : 0.985
+    verdict        : STRONG TELL — fix the generator before using this
+
+    most discriminating indicators (what gives it away):
+      atr_14                  0.207
+      sma_50                  0.175
+      sma_200                 0.096
+      chaikin_osc             0.091
+      willr_14                0.065
+      price_above_sma50       0.037
+
+  A purpose-built classifier with every feature is a far stronger adversary
+  than an expression tree of a few nodes. If it cannot separate them, the
+  search cannot either.

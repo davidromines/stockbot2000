@@ -1,0 +1,23 @@
+INFO:synvalidate:Realising synthetic bars
+INFO:synvalidate:Computing indicators on the synthetic series
+INFO:synvalidate:  1,461,648 synthetic feature rows from 2,941 tickers
+INFO:synvalidate:Loading a matched sample of real rows
+INFO:synvalidate:  736,496 synthetic rows survive the tradeability floors
+
+  SYNTHETIC-VS-REAL DISCRIMINABILITY — 2010-01-01 to 2015-12-31
+  60,000 synthetic rows against 60,000 real rows, 20 indicators
+
+    classifier AUC : 0.996
+    verdict        : STRONG TELL — fix the generator before using this
+
+    most discriminating indicators (what gives it away):
+      sma_50                  0.315
+      atr_14                  0.243
+      sma_200                 0.117
+      vol_ratio               0.050
+      roc_10                  0.038
+      stoch_d                 0.034
+
+  A purpose-built classifier with every feature is a far stronger adversary
+  than an expression tree of a few nodes. If it cannot separate them, the
+  search cannot either.

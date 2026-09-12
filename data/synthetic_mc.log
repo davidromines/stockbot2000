@@ -1,0 +1,78 @@
+INFO:synthetic:    bankruptcy: 100,000/1,000,000
+INFO:synthetic:    bankruptcy: 200,000/1,000,000
+INFO:synthetic:    bankruptcy: 300,000/1,000,000
+INFO:synthetic:    bankruptcy: 400,000/1,000,000
+INFO:synthetic:    bankruptcy: 500,000/1,000,000
+INFO:synthetic:    bankruptcy: 600,000/1,000,000
+INFO:synthetic:    bankruptcy: 700,000/1,000,000
+INFO:synthetic:    bankruptcy: 800,000/1,000,000
+INFO:synthetic:    bankruptcy: 900,000/1,000,000
+INFO:synthetic:    bankruptcy: 1,000,000/1,000,000
+  bankruptcy         median  -94.6%  mean  -89.3%  p05  -99.8%  p95  -61.2%  <-80% 80.3%  [35s]
+INFO:synthetic:    price_deficiency: 100,000/1,000,000
+INFO:synthetic:    price_deficiency: 200,000/1,000,000
+INFO:synthetic:    price_deficiency: 300,000/1,000,000
+INFO:synthetic:    price_deficiency: 400,000/1,000,000
+INFO:synthetic:    price_deficiency: 500,000/1,000,000
+INFO:synthetic:    price_deficiency: 600,000/1,000,000
+INFO:synthetic:    price_deficiency: 700,000/1,000,000
+INFO:synthetic:    price_deficiency: 800,000/1,000,000
+INFO:synthetic:    price_deficiency: 900,000/1,000,000
+INFO:synthetic:    price_deficiency: 1,000,000/1,000,000
+  price_deficiency   median  -91.0%  mean  -86.0%  p05  -99.2%  p95  -55.7%  <-80% 74.1%  [66s]
+INFO:synthetic:    death_spiral: 100,000/1,000,000
+INFO:synthetic:    death_spiral: 200,000/1,000,000
+INFO:synthetic:    death_spiral: 300,000/1,000,000
+INFO:synthetic:    death_spiral: 400,000/1,000,000
+INFO:synthetic:    death_spiral: 500,000/1,000,000
+INFO:synthetic:    death_spiral: 600,000/1,000,000
+INFO:synthetic:    death_spiral: 700,000/1,000,000
+INFO:synthetic:    death_spiral: 800,000/1,000,000
+INFO:synthetic:    death_spiral: 900,000/1,000,000
+INFO:synthetic:    death_spiral: 1,000,000/1,000,000
+  death_spiral       median  -96.9%  mean  -92.1%  p05  -99.9%  p95  -66.6%  <-80% 87.2%  [96s]
+INFO:synthetic:    slow_decline: 100,000/1,000,000
+INFO:synthetic:    slow_decline: 200,000/1,000,000
+INFO:synthetic:    slow_decline: 300,000/1,000,000
+INFO:synthetic:    slow_decline: 400,000/1,000,000
+INFO:synthetic:    slow_decline: 500,000/1,000,000
+INFO:synthetic:    slow_decline: 600,000/1,000,000
+INFO:synthetic:    slow_decline: 700,000/1,000,000
+INFO:synthetic:    slow_decline: 800,000/1,000,000
+INFO:synthetic:    slow_decline: 900,000/1,000,000
+INFO:synthetic:    slow_decline: 1,000,000/1,000,000
+  slow_decline       median  -72.1%  mean  -68.3%  p05  -93.9%  p95  -31.3%  <-80% 34.7%  [130s]
+INFO:synthetic:    sudden_collapse: 100,000/1,000,000
+INFO:synthetic:    sudden_collapse: 200,000/1,000,000
+INFO:synthetic:    sudden_collapse: 300,000/1,000,000
+INFO:synthetic:    sudden_collapse: 400,000/1,000,000
+INFO:synthetic:    sudden_collapse: 500,000/1,000,000
+INFO:synthetic:    sudden_collapse: 600,000/1,000,000
+INFO:synthetic:    sudden_collapse: 700,000/1,000,000
+INFO:synthetic:    sudden_collapse: 800,000/1,000,000
+INFO:synthetic:    sudden_collapse: 900,000/1,000,000
+INFO:synthetic:    sudden_collapse: 1,000,000/1,000,000
+  sudden_collapse    median  -92.7%  mean  -87.3%  p05  -99.9%  p95  -58.4%  <-80% 74.5%  [167s]
+INFO:synthetic:    acquisition: 100,000/1,000,000
+INFO:synthetic:    acquisition: 200,000/1,000,000
+INFO:synthetic:    acquisition: 300,000/1,000,000
+INFO:synthetic:    acquisition: 400,000/1,000,000
+INFO:synthetic:    acquisition: 500,000/1,000,000
+INFO:synthetic:    acquisition: 600,000/1,000,000
+INFO:synthetic:    acquisition: 700,000/1,000,000
+INFO:synthetic:    acquisition: 800,000/1,000,000
+INFO:synthetic:    acquisition: 900,000/1,000,000
+INFO:synthetic:    acquisition: 1,000,000/1,000,000
+  acquisition        median  +16.1%  mean  +49.5%  p05  -62.3%  p95 +271.7%  <-80%  0.5%  [190s]
+INFO:synthetic:    going_private: 100,000/1,000,000
+INFO:synthetic:    going_private: 200,000/1,000,000
+INFO:synthetic:    going_private: 300,000/1,000,000
+INFO:synthetic:    going_private: 400,000/1,000,000
+INFO:synthetic:    going_private: 500,000/1,000,000
+INFO:synthetic:    going_private: 600,000/1,000,000
+INFO:synthetic:    going_private: 700,000/1,000,000
+INFO:synthetic:    going_private: 800,000/1,000,000
+INFO:synthetic:    going_private: 900,000/1,000,000
+INFO:synthetic:    going_private: 1,000,000/1,000,000
+  going_private      median   +1.8%  mean  +22.4%  p05  -62.2%  p95 +175.9%  <-80%  0.3%  [213s]
+  written to data/synthetic_mc_1m.json
