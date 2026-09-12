@@ -86,6 +86,8 @@ lab:
   # `pct_change(sma_200, N) > C` at different thresholds.
   diversity_sharing: 1.0       # divide fitness by niche size ^ this. 0 disables.
   shortlist_per_shape: 3       # max settings of one structure on the shortlist
+  behavioural_dedup: true      # also drop candidates that TRADE alike, however written
+  overlap_threshold: 0.7       # Jaccard overlap of entry rows above which two are one
 
   gates:
     min_excess_pnl_usd: 900.0    # 95th pct of random-strategy excess

@@ -191,6 +191,64 @@ def _evaluate_window(conn, cfg, genome_dict, window):
     return scored
 
 
+def _overlap(a: set, b: set) -> float:
+    """Jaccard overlap of two trade sets. 1.0 means they traded identically."""
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    return inter / (len(a) + len(b) - inter)
+
+
+def _behavioural_dedup(conn, cfg, ids: list[str], keep: int,
+                       threshold: float = 0.7) -> list[str]:
+    """
+    Drop candidates that *trade* like one already kept, however they are written.
+
+    Structural deduplication was not enough. The search learned to bolt a dead
+    branch onto a working rule: every one of 174 survivors had an entry of the
+    form `(real_condition or junk)`, where the junk compared a price against a
+    fraction — `sma_50 < pct_change(rsi_14, 5)` — and so was never true. Sixty
+    "distinct structures" were one rule with sixty inert appendages, and syntax
+    cannot tell the difference because the dead branch is real syntax.
+
+    What cannot be faked is which rows a strategy actually bought. Two rules that
+    enter on the same days in the same names are the same strategy. Candidates
+    are kept in order of excess, and one is dropped when it overlaps an already
+    kept trade set by more than `threshold`.
+
+    Costs one simulation per candidate considered, which is why it runs on the
+    shortlist rather than on the whole search.
+    """
+    panel, surface = _window_panel(conn, cfg, (cfg["lab"]["search_start"],
+                                               cfg["lab"]["search_end"]))
+    if panel is None:
+        return ids[:keep]
+    cm = costs_mod.CostModel(cfg)
+    size = cfg["risk"]["position_size_usd"]
+    max_entries = cfg["lab"].get("max_entries_per_eval", 20000)
+
+    kept, kept_sets = [], []
+    for sid in ids:
+        if len(kept) >= keep:
+            break
+        row = conn.execute("SELECT genome FROM strategies WHERE id=?", (sid,)).fetchone()
+        try:
+            g = json.loads(row["genome"])
+        except Exception:
+            continue
+        res = simulator.simulate(g, panel, cm, size, max_entries=max_entries)
+        rows_hit = set(res.get("entry_rows", []).tolist())
+        if not rows_hit:
+            continue
+        if any(_overlap(rows_hit, s) > threshold for s in kept_sets):
+            continue
+        kept.append(sid)
+        kept_sets.append(rows_hit)
+    log.info(f"Behavioural dedup: {len(kept)} candidates trade distinguishably "
+             f"(from {len(ids)} considered, overlap threshold {threshold})")
+    return kept
+
+
 def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
     """
     Stage 02. Take the best by **excess over the null**, deduplicated by structure.
@@ -216,7 +274,7 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
     # Older rows predate the excess column; fall back so they still rank.
     rows.sort(key=lambda r: (r["excess_pnl_usd"] if r["excess_pnl_usd"] is not None
                              else r["net_pnl_usd"]), reverse=True)
-    seen, shapes, out = set(), {}, []
+    seen, shapes, out, meta = set(), {}, [], {}
     for r in rows:
         if r["net_pnl_usd"] <= 0:
             continue
@@ -233,11 +291,19 @@ def shortlist(conn, cfg, run_id: str, keep: int = 200) -> list[str]:
         shapes[shp] = shapes.get(shp, 0) + 1
         seen.add(key)
         out.append(r["id"])
-        _decide(conn, r["id"], "shortlist", True,
-                {"net_pnl_usd": r["net_pnl_usd"], "excess_pnl_usd": r["excess_pnl_usd"],
-                 "trial_index": r["trial_index"]})
-        if len(out) >= keep:
+        meta[r["id"]] = {"net_pnl_usd": r["net_pnl_usd"],
+                         "excess_pnl_usd": r["excess_pnl_usd"],
+                         "trial_index": r["trial_index"]}
+        if len(out) >= keep * 4:      # oversample; behaviour trims it to `keep`
             break
+
+    if cfg.get("lab", {}).get("behavioural_dedup", True):
+        out = _behavioural_dedup(conn, cfg, out, keep,
+                                 float(cfg["lab"].get("overlap_threshold", 0.7)))
+    else:
+        out = out[:keep]
+    for sid in out:
+        _decide(conn, sid, "shortlist", True, meta.get(sid, {}))
     log.info(f"Shortlisted {len(out)} strategies across {len(shapes)} distinct "
              f"structures from {len(rows)} scored, ranked by excess over the null "
              f"(max {per_shape} settings per structure)")

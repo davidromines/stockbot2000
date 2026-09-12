@@ -1,0 +1,12 @@
+INFO:promote:Shortlisted 200 strategies across 180 distinct structures from 5000 scored, ranked by excess over the null (max 3 settings per structure)
+INFO:promote:Validating 200 strategies on 2020-01-01 -> 2022-12-31
+INFO:promote:Panel for 2020-01-01 -> 2022-12-31: 1,840,483 rows, market-wide null +0.066% at 5d / +2.464% at 45d
+INFO:promote:  25/200 — 8 still standing
+INFO:promote:  50/200 — 30 still standing
+INFO:promote:  75/200 — 54 still standing
+INFO:promote:  100/200 — 77 still standing
+INFO:promote:  125/200 — 101 still standing
+INFO:promote:  150/200 — 126 still standing
+INFO:promote:  175/200 — 150 still standing
+INFO:promote:  200/200 — 174 still standing
+INFO:promote:174 of 200 survived validation. Most candidates dying here is the system working.

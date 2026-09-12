@@ -100,8 +100,22 @@ class Grammar:
                 return c
         return None
 
-    def random_condition(self, depth: int = 0) -> dict:
-        """A boolean-valued subtree — the thing a rule ultimately is."""
+    def random_condition(self, depth: int = 0, tries: int = 6) -> dict:
+        """
+        A boolean-valued subtree — the thing a rule ultimately is.
+
+        Resampled when the result would be degenerate, so a condition whose
+        answer is fixed before any data arrives never enters the population. Give
+        up after `tries` and return the last attempt: an occasional dead branch
+        is harmless, and looping forever on an awkward column is not.
+        """
+        for _ in range(tries):
+            node = self._random_condition(depth)
+            if not is_degenerate(node, self.stats):
+                return node
+        return node
+
+    def _random_condition(self, depth: int = 0) -> dict:
         if depth < self.max_depth - 1 and self.rng.random() < 0.45:
             op = self.rng.choice(LOGIC)
             if op == "not":
@@ -132,8 +146,24 @@ class Grammar:
 
     # -- variation ---------------------------------------------------------
 
-    def mutate(self, genome: dict, rate: float = 0.3) -> dict:
-        """Change one thing. Small steps make the lineage meaningful."""
+    def mutate(self, genome: dict, rate: float = 0.3, tries: int = 4) -> dict:
+        """
+        Change one thing. Small steps make the lineage meaningful.
+
+        Retried when the change produces a degenerate rule. Mutation is how the
+        dead branches arrived: it can graft a value subtree where a constant was,
+        turning `sma_50 < 35` into `sma_50 < pct_change(rsi_14, 5)`, which is
+        never true and therefore invisible to fitness while still counting as
+        structure.
+        """
+        for _ in range(tries):
+            out = self._mutate(genome, rate)
+            if not (is_degenerate(out["entry"], self.stats)
+                    or is_degenerate(out["exit"], self.stats)):
+                return out
+        return out
+
+    def _mutate(self, genome: dict, rate: float = 0.3) -> dict:
         g = _clone(genome)
         choice = self.rng.random()
         if choice < 0.4:
@@ -171,7 +201,16 @@ class Grammar:
             return self.random_condition()
         return node
 
-    def crossover(self, a: dict, b: dict) -> dict:
+    def crossover(self, a: dict, b: dict, tries: int = 4) -> dict:
+        """Recombine two parents, retrying if the child is degenerate."""
+        for _ in range(tries):
+            out = self._crossover(a, b)
+            if not (is_degenerate(out["entry"], self.stats)
+                    or is_degenerate(out["exit"], self.stats)):
+                return out
+        return out
+
+    def _crossover(self, a: dict, b: dict) -> dict:
         """Take the entry rule from one parent and the exit and risk from the other."""
         child = _clone(a)
         if self.rng.random() < 0.5:
@@ -252,6 +291,69 @@ def _as_bool(s: pd.Series) -> pd.Series:
 def complexity(genome: dict) -> int:
     """Node count across both rules — what the fitness function charges for."""
     return len(_all_nodes(genome["entry"])) + len(_all_nodes(genome["exit"]))
+
+
+def value_range(node: dict, stats: dict) -> tuple[float, float]:
+    """
+    A cheap static estimate of the values a numeric subtree can take.
+
+    Used to catch comparisons that can never be informative. Deliberately
+    approximate — it only has to be right about orders of magnitude, and it is
+    computed from the same quantiles the constant sampler already uses.
+    """
+    if "const" in node:
+        c = float(node["const"])
+        return (c, c)
+    if "col" in node:
+        q = stats.get(node["col"], {}).get("quantiles")
+        return (float(q[0]), float(q[-1])) if q else (-1e9, 1e9)
+    op = node.get("op")
+    args = node.get("args", [])
+    if op == "rank":
+        return (0.0, 1.0)
+    if op == "zscore":
+        return (-4.0, 4.0)
+    if op in ("pct_change", "delta"):
+        # Returns and first differences live near zero; a price does not.
+        lo, hi = value_range(args[0], stats) if args else (0.0, 1.0)
+        if op == "delta":
+            span = abs(hi - lo)
+            return (-span, span)
+        return (-1.0, 1.0)
+    if op == "lag":
+        return value_range(args[0], stats) if args else (-1e9, 1e9)
+    return (-1e9, 1e9)
+
+
+def is_degenerate(node: dict, stats: dict) -> bool:
+    """
+    True when a condition's outcome is effectively fixed before any data arrives.
+
+    The search found this loophole and exploited it thoroughly: every one of 174
+    validation survivors had an entry shaped `(real_condition or junk)` where the
+    junk compared a price against a fraction — `sma_50 < pct_change(rsi_14, 5)`,
+    a number around 50 against one around 0.01. Never true, so the rule was
+    really just its first half, and sixty "distinct" structures were one idea
+    with sixty inert appendages.
+
+    Always-true branches are the same defect mirrored: `or` a tautology and the
+    strategy buys everything, which then scores as market exposure rather than
+    selection.
+
+    Checked statically from column quantiles, so it costs nothing at generation
+    time. Conservative by design — it only rejects comparisons whose ranges do
+    not overlap **at all**, never merely lopsided ones.
+    """
+    op = node.get("op")
+    args = node.get("args", [])
+    if op in ("and", "or"):
+        return any(is_degenerate(a, stats) for a in args)
+    if op == "not":
+        return is_degenerate(args[0], stats) if args else False
+    if op in ("gt", "lt", "crosses_above", "crosses_below") and len(args) == 2:
+        (alo, ahi), (blo, bhi) = value_range(args[0], stats), value_range(args[1], stats)
+        return ahi < blo or bhi < alo      # ranges disjoint: the answer never changes
+    return False
 
 
 def shape(node: dict) -> str:

@@ -38,3 +38,33 @@ INFO:evolve:gen 19/50  best fitness 1.245  best excess $+15,796  beating the nul
 INFO:evolve:gen 20/50  best fitness 1.245  best excess $+17,110  beating the null 294/300  232 distinct ideas  3.3 evals/s
 INFO:evolve:gen 21/50  best fitness 1.251  best excess $+18,252  beating the null 297/300  232 distinct ideas  3.3 evals/s
 INFO:evolve:gen 22/50  best fitness 1.260  best excess $+17,482  beating the null 296/300  234 distinct ideas  3.3 evals/s
+INFO:evolve:gen 23/50  best fitness 1.260  best excess $+17,268  beating the null 297/300  230 distinct ideas  3.3 evals/s
+INFO:evolve:gen 24/50  best fitness 1.260  best excess $+17,589  beating the null 296/300  239 distinct ideas  3.3 evals/s
+INFO:evolve:gen 25/50  best fitness 1.270  best excess $+16,587  beating the null 296/300  233 distinct ideas  3.4 evals/s
+INFO:evolve:gen 26/50  best fitness 1.270  best excess $+16,557  beating the null 296/300  241 distinct ideas  3.4 evals/s
+INFO:evolve:gen 27/50  best fitness 1.270  best excess $+14,562  beating the null 299/300  231 distinct ideas  3.4 evals/s
+INFO:evolve:gen 28/50  best fitness 1.289  best excess $+16,292  beating the null 298/300  229 distinct ideas  3.4 evals/s
+INFO:evolve:gen 29/50  best fitness 1.289  best excess $+16,628  beating the null 295/300  230 distinct ideas  3.4 evals/s
+INFO:evolve:gen 30/50  best fitness 1.302  best excess $+17,441  beating the null 297/300  238 distinct ideas  3.5 evals/s
+INFO:evolve:gen 31/50  best fitness 1.302  best excess $+19,684  beating the null 298/300  229 distinct ideas  3.5 evals/s
+INFO:evolve:gen 32/50  best fitness 1.307  best excess $+15,331  beating the null 298/300  235 distinct ideas  3.5 evals/s
+INFO:evolve:gen 33/50  best fitness 1.390  best excess $+16,701  beating the null 297/300  235 distinct ideas  3.5 evals/s
+INFO:evolve:gen 34/50  best fitness 1.390  best excess $+17,110  beating the null 297/300  227 distinct ideas  3.5 evals/s
+INFO:evolve:gen 35/50  best fitness 1.390  best excess $+18,130  beating the null 299/300  234 distinct ideas  3.5 evals/s
+INFO:evolve:gen 36/50  best fitness 1.390  best excess $+22,190  beating the null 295/300  227 distinct ideas  3.5 evals/s
+INFO:evolve:gen 37/50  best fitness 1.402  best excess $+19,155  beating the null 298/300  230 distinct ideas  3.5 evals/s
+INFO:evolve:gen 38/50  best fitness 1.402  best excess $+18,452  beating the null 298/300  238 distinct ideas  3.5 evals/s
+INFO:evolve:gen 39/50  best fitness 1.404  best excess $+18,786  beating the null 295/300  223 distinct ideas  3.5 evals/s
+INFO:evolve:gen 40/50  best fitness 1.404  best excess $+17,532  beating the null 300/300  239 distinct ideas  3.5 evals/s
+INFO:evolve:gen 41/50  best fitness 1.453  best excess $+19,915  beating the null 296/300  234 distinct ideas  3.5 evals/s
+INFO:evolve:gen 42/50  best fitness 1.453  best excess $+19,323  beating the null 299/300  228 distinct ideas  3.5 evals/s
+INFO:evolve:gen 43/50  best fitness 1.453  best excess $+20,351  beating the null 293/300  236 distinct ideas  3.5 evals/s
+INFO:evolve:gen 44/50  best fitness 1.456  best excess $+20,071  beating the null 297/300  230 distinct ideas  3.4 evals/s
+INFO:evolve:gen 45/50  best fitness 1.505  best excess $+19,479  beating the null 298/300  225 distinct ideas  3.4 evals/s
+INFO:evolve:gen 46/50  best fitness 1.505  best excess $+18,422  beating the null 299/300  217 distinct ideas  3.4 evals/s
+INFO:evolve:gen 47/50  best fitness 1.505  best excess $+18,212  beating the null 297/300  231 distinct ideas  3.4 evals/s
+INFO:evolve:gen 48/50  best fitness 1.505  best excess $+20,353  beating the null 295/300  226 distinct ideas  3.4 evals/s
+INFO:evolve:gen 49/50  best fitness 1.505  best excess $+17,331  beating the null 297/300  226 distinct ideas  3.4 evals/s
+INFO:evolve:gen 50/50  best fitness 1.505  best excess $+17,719  beating the null 297/300  233 distinct ideas  3.4 evals/s
+INFO:evolve:------------------------------------------------------------
+INFO:evolve:Run a6fd7c58359c: 15,000 evaluated, 14,449 profitable, best net P&L $+30,602.47
