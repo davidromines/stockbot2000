@@ -1,0 +1,12 @@
+INFO:promote:Shortlisted 200 distinct profitable strategies from 2000 scored, ranked by excess over the null
+INFO:promote:Validating 200 strategies on 2020-01-01 -> 2022-12-31
+INFO:promote:Panel for 2020-01-01 -> 2022-12-31: 1,840,483 rows, market-wide null +0.066% at 5d / +2.464% at 45d
+INFO:promote:  25/200 — 24 still standing
+INFO:promote:  50/200 — 49 still standing
+INFO:promote:  75/200 — 74 still standing
+INFO:promote:  100/200 — 99 still standing
+INFO:promote:  125/200 — 124 still standing
+INFO:promote:  150/200 — 149 still standing
+INFO:promote:  175/200 — 174 still standing
+INFO:promote:  200/200 — 199 still standing
+INFO:promote:199 of 200 survived validation. Most candidates dying here is the system working.

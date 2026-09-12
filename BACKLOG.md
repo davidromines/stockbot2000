@@ -92,40 +92,46 @@ moves the distribution without touching that selection effect.
   published. Expect the seeds to lose money after costs, exactly as our baseline
   does. Their value is as reference points, not as candidates.
 
-- [ ] **Paired-ETF switching experiment (ERX/ERY) — run it, then close it.**
+- [x] **Paired-ETF switching experiment (ERX/ERY) — CLOSED, FAILED, 2026-09-12.**
 
   The idea: hold ERX when the signal says energy rises, switch to ERY when it says
-  energy falls. Never both at once. Structurally sound, and it solves a real
-  constraint — **ERY gives a cash-only, long-only account a bear position it
-  otherwise cannot take.**
+  energy falls. Never both at once. Structurally sound, and it solved a real
+  constraint — ERY gives a cash-only, long-only account a bear position it
+  otherwise cannot take. Run with `paired_etf.py`; the pass/fail rule was written
+  into `verdict()` before the numbers were seen.
 
-  First measurement, 4,475 days from 2008-11, costs charged per switch:
+  4,475 days, 2008-11-19 to 2026-09-04, costs charged on every switch:
 
-  | strategy | CAGR | max DD | switches |
-  |---|---|---|---|
-  | perfect foresight | astronomical | 0% | 2,224 |
-  | buy & hold ERX | -5.4% | 100% | 1 |
-  | ERX above 50-day SMA | -18.8% | 99% | 333 |
-  | 20-day momentum | -22.5% | 99% | 429 |
-  | **random switching (the null)** | **-50.0%** | 100% | 2,319 |
+  | strategy | CAGR | max DD | switches | $100 becomes |
+  |---|---|---|---|---|
+  | buy & hold ERX | -5.4% | 100% | — | — |
+  | buy & hold ERY | -40.2% | 100% | — | — |
+  | **random switching (the null)** | **-24.6%** | — | — | (95th pct -6.3%) |
+  | MACD (best signal) | **-11.1%** | 99% | 354 | $12.44 |
+  | sma_50 | -18.8% | 99% | 334 | $2.48 |
+  | momentum_20 | -22.4% | 99% | 430 | $1.09 |
+  | rsi_14 | -27.4% | 100% | 528 | $0.34 |
+  | dual_sma | -33.9% | 100% | 216 | $0.06 |
 
-  Two readings. The ceiling is enormous, so 2x leverage would amplify any genuine
-  edge hard. But every simple signal tested is *worse than doing nothing*, and the
-  99-100% drawdowns mean being wrong takes the whole account.
+  **Verdict on the four pre-registered conditions:**
 
-  What makes it worth a real test: **the null is strongly negative here.** In the
-  stock universe, buying at random made money, which is what made that null so
-  treacherous. Losing 50% a year by chance is a bar that is genuinely hard to
-  clear by luck — so a positive result would mean more here than there.
+  | # | Condition | Result |
+  |---|---|---|
+  | 1 | Positive CAGR after costs | **FAIL** — -11.1% |
+  | 2 | Beats the random-switch null | **FAIL** — -11.1% vs -6.3% (95th pct) |
+  | 3 | Survives 2020-2022 validation | PASS — +93.9% vs null +87.7% |
+  | 4 | Under 5% of random signals pass | PASS — 3% |
 
-  **Pass/fail, decided in advance so the result cannot be argued with:**
+  Failing either of the first two closes it, and both failed. **The best signal
+  tested loses money faster than switching at random.** Condition 3 passing is
+  not a reprieve: 2020-2022 is the oil crash and the energy boom that followed,
+  the single most favourable regime a trend signal on this pair could be handed,
+  and even there it beat the null by only 6 points.
 
-  - PASS requires all four: positive CAGR after costs; beats the random-switch
-    null; survives the 2020-2022 validation window; and a control showing under
-    5% of random genomes passing the same gate.
-  - FAIL on any one of them. Then **mark this closed and record the numbers** —
-    a settled negative is worth more than an open question, and this one has been
-    open a long time.
+  Why it fails is structural, not a matter of finding a better signal. Both legs
+  are 2x leveraged and both decay; you are always holding a decaying asset, and
+  every switch pays a round trip. The switching idea was sound — the instruments
+  are not. **Do not reopen without a non-decaying pair.**
 
 - [ ] **Move the entry threshold into `config.yaml`** — the `70` cutoff currently
   lives in the Claude-side workflow and as a `--threshold` CLI arg on

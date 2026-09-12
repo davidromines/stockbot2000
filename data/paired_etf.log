@@ -1,0 +1,28 @@
+INFO:paired_etf:4,475 days both traded, 2008-11-19 to 2026-09-04
+INFO:paired_etf:Best signal is macd; running the pre-registered gate on it
+
+  PAIRED-ETF SWITCHING — ERX / ERY, one leg at a time
+  4,475 trading days, 2008-11-19 to 2026-09-04, costs charged on every switch
+
+  reference                   CAGR   max DD  switches
+  ----------------------------------------------------
+  buy & hold ERX             -5.4%     100%         2
+  buy & hold ERY            -40.2%     100%         1
+  random switching          -24.6%        —         —   <- the null (95th pct -6.3%)
+
+  signal                      CAGR   max DD  switches  final $100
+  ----------------------------------------------------------------
+  sma_50                    -18.8%      99%       334        2.48
+  momentum_20               -22.4%      99%       430        1.09
+  macd                      -11.1%      99%       354       12.44
+  dual_sma                  -33.9%     100%       216        0.06
+  rsi_14                    -27.4%     100%       528        0.34
+
+  PRE-REGISTERED VERDICT — best signal: macd
+  ------------------------------------------------------------------------
+  FAIL  positive CAGR after costs             -11.1%
+  FAIL  beats the random-switch null          -11.1% vs 95th pct of null -6.3%
+  PASS  survives 2020-2022 validation         +93.9% vs null +87.7%
+  PASS  under 5% of random signals pass       3% of random signals passed
+  ------------------------------------------------------------------------
+  RESULT: FAIL — the experiment is closed and the numbers recorded.
