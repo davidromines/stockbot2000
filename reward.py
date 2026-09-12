@@ -157,11 +157,12 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     if net <= 0:
         # Deliberately flat rather than negative: "loses less" is not a gradient
         # worth climbing when the objective is making money.
-        return _zero(net, n, "unprofitable", excess)
+        return _zero(net, n, "unprofitable", excess, benchmark_net_pct, benchmark_usd, hold)
     if excess <= 0:
         # Profitable but no better than buying at random. This is the case that
         # used to score well and should not.
-        return _zero(net, n, "no better than the null", excess)
+        return _zero(net, n, "no better than the null", excess,
+                     benchmark_net_pct, benchmark_usd, hold)
 
     sr = sharpe(excess_pnl, avg_hold_days=result.get("avg_hold_days", 5.0))
     dd = max_drawdown(excess_pnl, capital_usd)
@@ -197,9 +198,21 @@ def fitness(result: dict, complexity: int, capital_usd: float = 100.0,
     }
 
 
-def _zero(net: float, n: int, why: str, excess: float = 0.0) -> dict:
+def _zero(net: float, n: int, why: str, excess: float = 0.0,
+          benchmark_net_pct: float = 0.0, benchmark_usd: float = 0.0,
+          hold: float = 0.0) -> dict:
+    """
+    A scored-zero result, carrying the benchmark that produced it.
+
+    The benchmark fields used to be hardcoded to zero here, which made a
+    rejection unreadable: a strategy that failed *because* it was charged a 9%
+    null reported having been charged nothing. The fitness is zero; the reason
+    should still be legible.
+    """
     return {"fitness": 0.0, "net_pnl_usd": net, "excess_pnl_usd": float(excess),
-            "benchmark_pnl_usd": 0.0, "n_trades": n, "sharpe": 0.0,
+            "benchmark_pnl_usd": float(benchmark_usd),
+            "benchmark_net_pct": float(benchmark_net_pct),
+            "avg_hold_days": float(hold), "n_trades": n, "sharpe": 0.0,
             "sharpe_per_trade": 0.0,
             "max_drawdown": 0.0, "shrinkage": 0.0, "complexity_multiplier": 0.0,
             "avg_net_return_per_trade": 0.0, "verdict": why}
