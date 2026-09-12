@@ -160,9 +160,15 @@ def fetch_batch(tickers: list[str], period: str, interval: str, attempts: int,
 
 
 def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = False,
-                 batch_size: int | None = None, period_override: str | None = None) -> None:
+                 batch_size: int | None = None, period_override: str | None = None,
+                 top_up: bool = False) -> None:
     bcfg = config.get("backfill", {})
-    period = period_override or bcfg.get("period", "max")
+    # A top-up needs recent bars, not sixty years of them. Requesting `max` for
+    # 13,000 tickers every morning would re-download the entire database daily
+    # and get the account rate-limited within the hour; the upsert would discard
+    # almost all of it. `3mo` covers any realistic gap including a long outage.
+    period = period_override or (bcfg.get("top_up_period", "3mo") if top_up
+                                 else bcfg.get("period", "max"))
     interval = bcfg.get("interval", "1d")
     batch_size = batch_size or bcfg.get("batch_size", 50)
     pause = bcfg.get("sleep_between_batches_sec", 1.0)
@@ -196,6 +202,15 @@ def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = Fa
         log.info("Reset failed tickers to pending.")
 
     todo = storage.pending_tickers(conn, all_tickers, max_attempts=max_ticker_attempts)
+    if top_up:
+        # Daily mode. `pending` means "the initial load never finished this one",
+        # which is empty once the historical load completes — so a daily re-run
+        # of pending-only work is a silent no-op. Stale means "behind the newest
+        # bar in the table", which is the question a top-up actually asks.
+        stale = storage.stale_tickers(conn, all_tickers, max_attempts=max_ticker_attempts)
+        seen = set(todo)
+        todo = todo + [t for t in stale if t not in seen]
+        log.info(f"Top-up mode: {len(stale):,} tickers behind the latest bar")
     # Count before --limit truncates, or the summary reports skipped tickers as
     # finished ones.
     outstanding = len(todo)
@@ -327,6 +342,9 @@ def main():
     parser.add_argument("--limit", type=int, help="Only fetch this many tickers (for testing).")
     parser.add_argument("--batch-size", type=int, help="Override config batch size.")
     parser.add_argument("--retry-failed", action="store_true", help="Reset failed tickers and retry.")
+    parser.add_argument("--top-up", action="store_true",
+                        help="Daily mode: also fetch tickers whose last bar is "
+                             "behind the newest bar in the table.")
     parser.add_argument("--period", help="Override the configured period, e.g. 5y, 1y, 5d. "
                                          "Used to rescue instruments too new for period=max.")
     parser.add_argument("--status", action="store_true", help="Show progress and exit.")
@@ -342,7 +360,8 @@ def main():
     signal.signal(signal.SIGINT, _handle_interrupt)
     signal.signal(signal.SIGTERM, _handle_interrupt)
     run_backfill(config, limit=args.limit, retry_failed=args.retry_failed,
-                 batch_size=args.batch_size, period_override=args.period)
+                 batch_size=args.batch_size, period_override=args.period,
+                 top_up=args.top_up)
 
 
 if __name__ == "__main__":

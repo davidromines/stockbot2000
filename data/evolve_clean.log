@@ -18,3 +18,27 @@ INFO:evolve:Evaluating across 3 workers
 INFO:evolve:Seeded generation 0 with 20 published strategies; 280 random
 INFO:evolve:gen 1/50  best fitness 0.271  best excess $+2,765  beating the null 65/300  300 distinct ideas  2.4 evals/s
 INFO:evolve:gen 2/50  best fitness 0.288  best excess $+2,963  beating the null 144/300  250 distinct ideas  2.4 evals/s
+INFO:evolve:gen 3/50  best fitness 0.310  best excess $+3,590  beating the null 215/300  240 distinct ideas  2.5 evals/s
+INFO:evolve:gen 4/50  best fitness 0.365  best excess $+4,257  beating the null 279/300  201 distinct ideas  2.4 evals/s
+INFO:evolve:gen 5/50  best fitness 0.455  best excess $+4,257  beating the null 287/300  231 distinct ideas  2.3 evals/s
+INFO:evolve:gen 6/50  best fitness 0.572  best excess $+6,310  beating the null 291/300  225 distinct ideas  2.3 evals/s
+INFO:evolve:gen 7/50  best fitness 0.572  best excess $+7,146  beating the null 293/300  226 distinct ideas  2.2 evals/s
+INFO:evolve:gen 8/50  best fitness 0.966  best excess $+5,151  beating the null 295/300  231 distinct ideas  2.1 evals/s
+INFO:evolve:gen 9/50  best fitness 1.006  best excess $+5,506  beating the null 295/300  222 distinct ideas  2.1 evals/s
+INFO:evolve:gen 10/50  best fitness 1.366  best excess $+6,132  beating the null 291/300  232 distinct ideas  2.0 evals/s
+INFO:evolve:gen 11/50  best fitness 1.366  best excess $+6,773  beating the null 294/300  217 distinct ideas  2.0 evals/s
+INFO:evolve:gen 12/50  best fitness 1.366  best excess $+6,855  beating the null 286/300  218 distinct ideas  1.9 evals/s
+INFO:evolve:gen 13/50  best fitness 1.385  best excess $+6,855  beating the null 292/300  220 distinct ideas  1.9 evals/s
+INFO:evolve:gen 14/50  best fitness 1.385  best excess $+6,847  beating the null 293/300  213 distinct ideas  1.9 evals/s
+INFO:evolve:gen 15/50  best fitness 1.385  best excess $+3,874  beating the null 293/300  236 distinct ideas  1.8 evals/s
+INFO:evolve:gen 16/50  best fitness 1.404  best excess $+4,484  beating the null 290/300  213 distinct ideas  1.8 evals/s
+INFO:evolve:gen 17/50  best fitness 1.668  best excess $+4,056  beating the null 289/300  221 distinct ideas  1.8 evals/s
+INFO:evolve:gen 18/50  best fitness 1.710  best excess $+4,056  beating the null 295/300  211 distinct ideas  1.8 evals/s
+INFO:evolve:gen 19/50  best fitness 1.723  best excess $+4,176  beating the null 295/300  211 distinct ideas  1.7 evals/s
+INFO:evolve:gen 20/50  best fitness 1.723  best excess $+3,457  beating the null 296/300  202 distinct ideas  1.7 evals/s
+INFO:evolve:gen 21/50  best fitness 1.723  best excess $+2,242  beating the null 292/300  228 distinct ideas  1.7 evals/s
+INFO:evolve:gen 22/50  best fitness 1.723  best excess $+3,520  beating the null 294/300  231 distinct ideas  1.7 evals/s
+INFO:evolve:gen 23/50  best fitness 1.723  best excess $+1,537  beating the null 289/300  232 distinct ideas  1.7 evals/s
+INFO:evolve:gen 24/50  best fitness 1.827  best excess $+1,306  beating the null 285/300  221 distinct ideas  1.7 evals/s
+INFO:evolve:gen 25/50  best fitness 1.827  best excess $+1,993  beating the null 288/300  225 distinct ideas  1.6 evals/s
+INFO:evolve:gen 26/50  best fitness 1.888  best excess $+1,704  beating the null 292/300  216 distinct ideas  1.6 evals/s

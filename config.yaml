@@ -121,6 +121,10 @@ survivorship:
   note: "Upper bound; also contains CRSP microcap/OTC coverage we never had."
 
 backfill:
+  # Daily top-up fetches only a recent slice. Asking for `max` on 13,000 tickers
+  # every morning would re-download the whole database and get rate-limited
+  # within the hour, and the upsert would discard nearly all of it.
+  top_up_period: "3mo"
   period: "max"                    # full available history per instrument
   interval: "1d"
   batch_size: 50                   # tickers per yfinance request

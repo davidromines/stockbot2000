@@ -857,6 +857,52 @@ def pending_tickers(conn: sqlite3.Connection, tickers: list[str], max_attempts: 
     return [t for t in tickers if t in known or t in unseeded]
 
 
+def stale_tickers(conn: sqlite3.Connection, tickers: list[str],
+                  as_of: str | None = None, max_attempts: int = 3) -> list[str]:
+    """
+    Which of `tickers` are behind the market and should be topped up.
+
+    `pending_tickers` answers a different question — "what did the initial load
+    never finish" — and once the historical backfill marked all 13,121 tickers
+    `done`, it correctly returned nothing forever. That made a daily re-run a
+    no-op while still logging success: on 2026-09-12 the database held bars to
+    2026-09-04 for 12,750 tickers and a full pipeline run advanced 28 of them.
+    The README's claim that the loader was "incremental" was describing
+    resumability, not top-up.
+
+    Stale means the ticker's last stored bar predates the newest bar anywhere in
+    the table. `attempts` stops a genuinely dead listing from being refetched
+    every morning forever; it is reset the moment real data arrives, so an active
+    ticker never accumulates strikes.
+    """
+    as_of = as_of or conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+    if not as_of:
+        return list(tickers)
+    placeholders = ",".join("?" * len(tickers))
+    rows = conn.execute(f"""
+        SELECT ticker FROM ingest_state
+        WHERE ticker IN ({placeholders})
+          AND (last_date IS NULL OR last_date < ?)
+          AND attempts < ?
+    """, (*tickers, as_of, max_attempts)).fetchall()
+    return [r["ticker"] for r in rows]
+
+
+def mark_no_new_data(conn: sqlite3.Connection, ticker: str) -> None:
+    """
+    A top-up that returned nothing. One strike, not a failure.
+
+    Distinct from `mark_failed`: the fetch worked, the ticker simply had no new
+    bar. That is normal for a halted or delisted name, and after `max_attempts`
+    quiet mornings it drops out of the daily top-up without ever being recorded
+    as an error.
+    """
+    conn.execute("""
+        UPDATE ingest_state SET attempts = attempts + 1, updated_at = ?
+        WHERE ticker = ?
+    """, (_now(), ticker))
+
+
 def mark_done(conn: sqlite3.Connection, ticker: str, first_date: str, last_date: str, row_count: int) -> None:
     conn.execute("""
         INSERT INTO ingest_state (ticker, first_date, last_date, row_count, status, attempts, last_error, updated_at)
@@ -864,7 +910,7 @@ def mark_done(conn: sqlite3.Connection, ticker: str, first_date: str, last_date:
         ON CONFLICT(ticker) DO UPDATE SET
             first_date=excluded.first_date, last_date=excluded.last_date,
             row_count=excluded.row_count, status='done', last_error=NULL,
-            updated_at=excluded.updated_at
+            attempts=0, updated_at=excluded.updated_at
     """, (ticker, first_date, last_date, row_count, ticker, _now()))
 
 
