@@ -66,9 +66,17 @@ def _augmented_panel(conn, cfg, window, member, real_df):
         sf = sf[sf["close"] >= mp]
     if mv and "dollar_volume_20" in sf:
         sf = sf[sf["dollar_volume_20"] >= mv]
+    # Keep the provenance flag. Intersecting columns with the real frame silently
+    # dropped it, so the augmented panel carried synthetic bars that no longer
+    # announced themselves — the one property this design promises never to lose.
     cols = [c for c in real_df.columns if c in sf.columns]
-    sf = sf[cols].dropna(subset=[c for c in ("close", "date", "ticker") if c in cols])
-    both = pd.concat([real_df[cols], sf], ignore_index=True)
+    sf = sf[cols + (["synthetic"] if "synthetic" in sf.columns else [])].dropna(
+        subset=[c for c in ("close", "date", "ticker") if c in cols])
+    real_tagged = real_df[cols].copy()
+    real_tagged["synthetic"] = 0
+    if "synthetic" not in sf.columns:
+        sf["synthetic"] = 1
+    both = pd.concat([real_tagged, sf], ignore_index=True)
     both = both.sort_values(["ticker", "date"]).reset_index(drop=True)
     return both
 
@@ -158,6 +166,18 @@ def run(cfg, stage="validation", members=10, limit=12):
     print("  so they cannot have gamed the generator — the ensemble can only take money")
     print("  from them. A large drop means the strategy was living on the absence of")
     print("  the dead.")
+    print("\n  READ A SMALL DROP WITH CARE. Measured 2026-09-12: the crash-buying")
+    print("  survivors took only 8-18% damage, and not because they dodged the")
+    print("  synthetic failures — 23.5% of their entries landed in them, slightly MORE")
+    print("  than the 19.9% those names make up of the panel. They survived because a")
+    print("  60-day holding cap and an ATR stop exit a dying company at -10 or -20%")
+    print("  long before it reaches zero.")
+    print("\n  That is only true while the decline is smooth enough for a stop to fill,")
+    print("  and these paths are. Real bankruptcies gap: the position opens through the")
+    print("  stop with no liquidity behind it, which is a limitation this project already")
+    print("  documents for live trading and which the generator under-represents. The")
+    print("  honest reading is that this ensemble tests slow death well and sudden death")
+    print("  badly.")
     conn.close()
 
 

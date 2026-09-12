@@ -5,3 +5,29 @@ INFO:retest:  member 1: panel 6,482,294 rows (0 synthetic)
 INFO:retest:  member 2: panel 6,463,318 rows (0 synthetic)
 INFO:retest:  member 3: panel 6,458,739 rows (0 synthetic)
 INFO:retest:  member 4: panel 6,464,896 rows (0 synthetic)
+INFO:retest:  member 5: panel 6,459,756 rows (0 synthetic)
+INFO:retest:  member 6: panel 6,461,873 rows (0 synthetic)
+INFO:retest:  member 7: panel 6,481,022 rows (0 synthetic)
+
+  RE-TEST AGAINST THE SYNTHETIC DELISTING ENSEMBLE — 8 members
+         real  ens.median  ens.worst   % loss  still +ve  entry rule
+  ----------------------------------------------------------------------------------------------------------
+      +26,065     +22,898    +21,961     12%       100%  (pct_change(sma_200, 10) < -0.0818 or cros
+      +25,871     +23,761    +22,469      8%       100%  (pct_change(sma_200, 20) < -0.1747 or cros
+      +24,411     +21,184    +20,159     13%       100%  (pct_change(sma_200, 20) < -0.1277 or sma_
+      +22,001     +18,092    +17,637     18%       100%  (pct_change(sma_200, 20) < -0.0964 or cros
+      +21,930     +22,749    +21,704     -4%       100%  (pct_change(sma_200, 5) < -0.0476 or cross
+      +20,722     +18,614    +18,299     10%       100%  (pct_change(sma_200, 10) < -0.07 or crosse
+      +20,581     +18,433    +18,134     10%       100%  (pct_change(sma_200, 10) < -0.0693 or cros
+      +20,001     +17,660    +16,912     12%       100%  (pct_change(sma_200, 20) < -0.1164 or cros
+      +18,323     +16,594    +16,176      9%       100%  (pct_change(sma_200, 20) < -0.1271 or cros
+      +17,178     +18,534    +18,151     -8%       100%  (pct_change(sma_200, 10) < -0.1774 or sma_
+      +16,574     +14,520    +14,097     12%       100%  (pct_change(sma_200, 20) < -0.0964 or cros
+      +15,748     +13,576    +12,944     14%       100%  (pct_change(sma_200, 10) < -0.063 or cross
+  ----------------------------------------------------------------------------------------------------------
+  12 of 12 stay profitable across 95%+ of the ensemble.
+
+  These strategies were evolved on real data and never saw a synthetic bar,
+  so they cannot have gamed the generator — the ensemble can only take money
+  from them. A large drop means the strategy was living on the absence of
+  the dead.
