@@ -92,22 +92,41 @@ moves the distribution without touching that selection effect.
   published. Expect the seeds to lose money after costs, exactly as our baseline
   does. Their value is as reference points, not as candidates.
 
-- [ ] **Paired-ETF experiment (ERX/ERY).** A separate, much smaller simulator over
-  just the leveraged energy bull/bear pair. See the note below on why the core
-  premise does not hold — but the machinery is cheap to build and the question is
-  worth settling with data rather than argument. Frame it as an experiment, not a
-  second production system, and calibrate its own control: two instruments over
-  one underlying is a vastly higher overfitting risk than 5,000 tickers.
-- [x] ~~**Deflated Sharpe units mismatch.**~~ Fixed 2026-09-11. Two bugs, not one:
-  the annualised Sharpe was being compared against a trade count, *and* the
-  expected maximum was never scaled by the standard error of the Sharpe estimator,
-  which left the threshold in the wrong units entirely. Now uses a per-trade
-  Sharpe and scales correctly. Verified on three monotonicity checks.
-- [x] ~~**Validation gate is too lenient.**~~ Fixed 2026-09-11. Root cause was
-  deeper than the threshold: every score compared against zero, and buying at
-  random was profitable in every window. Now scores excess over the null with
-  thresholds calibrated against `control.py`. Random strategies went from passing
-  57% to 0%.
+- [ ] **Paired-ETF switching experiment (ERX/ERY) — run it, then close it.**
+
+  The idea: hold ERX when the signal says energy rises, switch to ERY when it says
+  energy falls. Never both at once. Structurally sound, and it solves a real
+  constraint — **ERY gives a cash-only, long-only account a bear position it
+  otherwise cannot take.**
+
+  First measurement, 4,475 days from 2008-11, costs charged per switch:
+
+  | strategy | CAGR | max DD | switches |
+  |---|---|---|---|
+  | perfect foresight | astronomical | 0% | 2,224 |
+  | buy & hold ERX | -5.4% | 100% | 1 |
+  | ERX above 50-day SMA | -18.8% | 99% | 333 |
+  | 20-day momentum | -22.5% | 99% | 429 |
+  | **random switching (the null)** | **-50.0%** | 100% | 2,319 |
+
+  Two readings. The ceiling is enormous, so 2x leverage would amplify any genuine
+  edge hard. But every simple signal tested is *worse than doing nothing*, and the
+  99-100% drawdowns mean being wrong takes the whole account.
+
+  What makes it worth a real test: **the null is strongly negative here.** In the
+  stock universe, buying at random made money, which is what made that null so
+  treacherous. Losing 50% a year by chance is a bar that is genuinely hard to
+  clear by luck — so a positive result would mean more here than there.
+
+  **Pass/fail, decided in advance so the result cannot be argued with:**
+
+  - PASS requires all four: positive CAGR after costs; beats the random-switch
+    null; survives the 2020-2022 validation window; and a control showing under
+    5% of random genomes passing the same gate.
+  - FAIL on any one of them. Then **mark this closed and record the numbers** —
+    a settled negative is worth more than an open question, and this one has been
+    open a long time.
+
 - [ ] **Move the entry threshold into `config.yaml`** — the `70` cutoff currently
   lives in the Claude-side workflow and as a `--threshold` CLI arg on
   `backtest.py`. Nothing else in the system hardcodes a tunable, and the Strategy
