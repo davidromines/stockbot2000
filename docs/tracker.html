@@ -139,7 +139,7 @@
     <tr><th>Question</th><th>Answer</th></tr>
     <tr><td>Is there signal in the model?</td><td><strong>Yes, weak.</strong> AUC 0.633 across 31 of 31 walk-forward folds</td></tr>
     <tr><td>Does it survive trading costs?</td><td><strong>No.</strong> Costs consume 87% of gross profit</td></tr>
-    <tr><td>Has the strategy search found anything?</td><td><strong>Not yet.</strong> All three results so far traced to a measurement flaw — the latest, a price filter, on 2026-09-12</td></tr>
+    <tr><td>Has the strategy search found anything?</td><td><strong>One candidate worth forward-testing</strong> (2026-09-13). Five earlier "findings" were all measurement flaws; this is the first to survive an honest simulator</td></tr>
     <tr><td>Do published strategies work here?</td><td><strong>No.</strong> 15 of 20 made money; <strong>0 of 20</strong> beat the null of the stocks they bought</td></tr>
     <tr><td>Is survivorship bias handled?</td><td><strong>Measured, not fixed.</strong> ~10.4 points/year, subtracted automatically</td></tr>
     <tr><td>Can we trust the backtests?</td><td><strong>To rank, not to predict.</strong> Absolute figures stay optimistic</td></tr>
@@ -241,6 +241,59 @@
     <div class="ph"><span class="n">12</span><span class="t">Live integration &amp; paper trading <span>— harness built, forward test running</span></span><span class="pill progress">Started</span></div>
     <div class="ph"><span class="n">13</span><span class="t">Notifications &amp; polish <span>— Telegram, Ollama not installed</span></span><span class="pill backlog">Backlog</span></div>
   </div>
+</section>
+
+<section>
+  <h2>The exit-pricing bug &mdash; 71% of all reported profit</h2>
+  <p class="cap">The single most consequential defect found in this project. The simulator
+  built its forward-price matrix inside the <em>tradeable</em> panel, so a filter that
+  decides what may be <strong>bought</strong> was also deciding what an open position could
+  be <strong>sold</strong> for. A holding that fell below the $5 floor left the frame, and the
+  exit was booked at the last bar <em>above</em> it.</p>
+  <div class="wrapx"><table>
+    <caption>The search's best strategy, 2006&ndash;2019. A company falling from $6 to $0.20
+    was booking its exit near $5.50.</caption>
+    <tr><th>Measure</th><th class="num">Filtered exits</th><th class="num">True exits</th></tr>
+    <tr><td>Net P&amp;L</td><td class="num loss">+26,065</td><td class="num">+7,575</td></tr>
+    <tr><td>Mean trade return</td><td class="num loss">13.46%</td><td class="num">4.22%</td></tr>
+    <tr><td>Median trade return</td><td class="num loss">3.54%</td><td class="num">0.26%</td></tr>
+    <tr><td>Win rate</td><td class="num loss">60.7%</td><td class="num">49.2%</td></tr>
+  </table></div>
+  <p class="note warn"><b>The crash-buying artifact was mostly this, not survivorship bias.</b>
+  The search kept finding &ldquo;buy falling stocks&rdquo; because the simulator would not let
+  falling stocks finish falling. <span class="mono">benchmark.py</span> had the identical bug,
+  so the null was inflated the same way &mdash; cheap-stock returns at a 45-day hold fell from
+  +6.19% to +3.85% once fixed. Random genomes beating the null dropped from 45% to 15%.</p>
+</section>
+
+<section>
+  <h2>The first candidate worth forward-testing</h2>
+  <p class="cap">After the fix, the ladder finally behaves like a filter: 3 of 56 survived
+  validation, against 174 of 200 before. And the surviving idea is a documented one &mdash;
+  momentum pullback &mdash; refined from one of the 20 published seeds, not invented.</p>
+  <div class="wrapx"><table>
+    <caption>Buy stocks in the top 30% of the market on momentum that are individually
+    oversold. Exposure baseline is 15%.</caption>
+    <tr><th>Entry rule</th><th class="num">Per trade</th><th class="num">Win</th>
+        <th class="num">Excess</th><th class="num">Exposure</th><th>Gate</th></tr>
+    <tr><td class="mono">rank(macd)&gt;0.7 &amp; roc_10&lt;0.5 &amp; rsi_14&lt;40</td>
+        <td class="num">2.81%</td><td class="num">58.6%</td><td class="num win">+3,706</td>
+        <td class="num">22%</td><td>caution &mdash; <b>best candidate</b></td></tr>
+    <tr><td class="mono">rank(roc_10)&gt;0.7 &amp; below sma200 &amp; rsi_14&lt;40</td>
+        <td class="num">2.44%</td><td class="num">72.6%</td><td class="num">+3,168</td>
+        <td class="num loss">46%</td><td class="loss">REFUSED &mdash; untestable</td></tr>
+    <tr><td class="mono">rank(macd)&gt;0.7 &amp; below sma200 &amp; rsi_14&lt;40</td>
+        <td class="num">3.91%</td><td class="num">63.6%</td><td class="num">+2,978</td>
+        <td class="num">34%</td><td>caution</td></tr>
+  </table></div>
+  <p class="note warn"><b>Read the scale correctly.</b> &ldquo;Net P&amp;L $5,706&rdquo; is
+  <em>not</em> profit on a $100 account. It is the sum over 20,000 separate $10 trades &mdash;
+  $200,000 of capital cycled over 14 years, a <strong>2.85% total return</strong>. It is a
+  number for ranking strategies against each other, not an account result.</p>
+  <p class="note"><b>Nothing has passed the sealed holdout and nothing is funded.</b> The one
+  candidate above has cleared validation and the exposure gate on an honest simulator, which no
+  strategy in this project had done before. That earns it forward paper trading &mdash; the
+  only measurement here with no survivorship bias and no simulator between it and reality.</p>
 </section>
 
 <section>
