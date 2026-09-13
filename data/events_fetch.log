@@ -1,0 +1,6 @@
+INFO:events:Fetching 8-K events for 1,200 companies
+INFO:events:  250/1,200 companies | 49,757 event rows
+INFO:events:  500/1,200 companies | 98,262 event rows
+INFO:events:  750/1,200 companies | 149,217 event rows
+INFO:events:  1,000/1,200 companies | 196,777 event rows
+INFO:events:edgar_events: 238,756 rows
