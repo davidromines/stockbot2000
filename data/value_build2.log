@@ -1,0 +1,46 @@
+INFO:value:Computing metrics for 213,414 filings
+/home/stockpicker/stockbot2000/value_metrics.py:455: RuntimeWarning: overflow encountered in exp
+  return float(1.0 / (1.0 + np.exp(-x)))
+INFO:value:  5,000/213,414
+INFO:value:  10,000/213,414
+INFO:value:  15,000/213,414
+INFO:value:  20,000/213,414
+INFO:value:  25,000/213,414
+INFO:value:  30,000/213,414
+INFO:value:  35,000/213,414
+INFO:value:  40,000/213,414
+INFO:value:  45,000/213,414
+INFO:value:  50,000/213,414
+INFO:value:  55,000/213,414
+INFO:value:  60,000/213,414
+INFO:value:  65,000/213,414
+INFO:value:  70,000/213,414
+INFO:value:  75,000/213,414
+INFO:value:  80,000/213,414
+INFO:value:  85,000/213,414
+INFO:value:  90,000/213,414
+INFO:value:  95,000/213,414
+INFO:value:  100,000/213,414
+INFO:value:  105,000/213,414
+INFO:value:  110,000/213,414
+INFO:value:  115,000/213,414
+INFO:value:  120,000/213,414
+INFO:value:  125,000/213,414
+INFO:value:  130,000/213,414
+INFO:value:  135,000/213,414
+INFO:value:  140,000/213,414
+INFO:value:  145,000/213,414
+INFO:value:  150,000/213,414
+INFO:value:  155,000/213,414
+INFO:value:  160,000/213,414
+INFO:value:  165,000/213,414
+INFO:value:  170,000/213,414
+INFO:value:  175,000/213,414
+INFO:value:  180,000/213,414
+INFO:value:  185,000/213,414
+INFO:value:  190,000/213,414
+INFO:value:  195,000/213,414
+INFO:value:  200,000/213,414
+INFO:value:  205,000/213,414
+INFO:value:  210,000/213,414
+INFO:value:Wrote 212,933 rows; 209,001 resolved more than five metrics

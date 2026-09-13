@@ -1,0 +1,26 @@
+INFO:conviction:piotroski_value: CAGR +14.1%, turnover 10%/mo
+INFO:conviction:magic_formula: CAGR +11.1%, turnover 9%/mo
+INFO:conviction:quality_value: CAGR +14.6%, turnover 3%/mo
+INFO:conviction:conservative: CAGR +13.7%, turnover 30%/mo
+INFO:conviction:deep_value: CAGR +18.4%, turnover 4%/mo
+
+  CONVICTION BOOK — buy and hold, reviewed weekly, sold on deterioration
+  strategy                 CAGR   max DD   Sharpe  turnover/mo   trades  regime
+  ------------------------------------------------------------------------------------
+  deep_value            +18.4%      35%     0.88          4%      150  LOW — costs survivable
+  quality_value         +14.6%      27%     0.81          3%      124  LOW — costs survivable
+  piotroski_value       +14.1%      33%     0.67         10%      400  LOW — costs survivable
+  conservative          +13.7%      35%     0.67         30%    1,196  LOW — costs survivable
+  magic_formula         +11.1%      35%     0.56          9%      346  LOW — costs survivable
+  ------------------------------------------------------------------------------------
+  SPY (same dates)      +14.1%      34%        —           —        —
+
+  Turnover is the number to read first. A conviction strategy that churns
+  has failed regardless of its return: it is back in the regime where the
+  evidence says trading costs eat the edge, which is where every price-based
+  strategy in this project has already died.
+
+  These are backtests on survivorship-biased data — 7,062 delisted companies
+  are absent — and the value screens shop among cheap, distressed-looking
+  names, which is exactly where that bias is worst. Treat as ranking, not
+  forecast, and read bias_exposure.py alongside.

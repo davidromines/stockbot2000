@@ -1,0 +1,11 @@
+INFO:fund_feat:Projecting fundamentals for 5,278 tickers from 2009-01-01
+INFO:fund_feat:  500/5,278 tickers | 938,237 rows
+INFO:fund_feat:  1,000/5,278 tickers | 1,813,288 rows
+INFO:fund_feat:  1,500/5,278 tickers | 2,861,315 rows
+INFO:fund_feat:  2,000/5,278 tickers | 3,852,458 rows
+INFO:fund_feat:  2,500/5,278 tickers | 4,809,639 rows
+INFO:fund_feat:  3,000/5,278 tickers | 5,793,732 rows
+INFO:fund_feat:  3,500/5,278 tickers | 6,779,728 rows
+INFO:fund_feat:  4,000/5,278 tickers | 7,736,118 rows
+INFO:fund_feat:  5,000/5,278 tickers | 9,661,489 rows
+INFO:fund_feat:Wrote 10,185,236 daily rows; 961 tickers had nothing to project
