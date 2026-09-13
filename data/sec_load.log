@@ -1,0 +1,17 @@
+INFO:sec_fund:CIK->ticker map: 8,020 entries
+INFO:sec_fund:Parsing 70 quarters (facts already stored: 731)
+INFO:sec_fund:  5/70 quarters | 70,591 facts | 1s
+INFO:sec_fund:  10/70 quarters | 386,214 facts | 8s
+INFO:sec_fund:  15/70 quarters | 2,060,901 facts | 43s
+INFO:sec_fund:  20/70 quarters | 3,815,012 facts | 88s
+INFO:sec_fund:  25/70 quarters | 5,550,471 facts | 134s
+INFO:sec_fund:  30/70 quarters | 7,138,946 facts | 179s
+INFO:sec_fund:  35/70 quarters | 8,635,374 facts | 222s
+INFO:sec_fund:  40/70 quarters | 10,118,180 facts | 263s
+INFO:sec_fund:  45/70 quarters | 11,615,208 facts | 313s
+INFO:sec_fund:  50/70 quarters | 13,013,983 facts | 362s
+INFO:sec_fund:  55/70 quarters | 14,618,432 facts | 421s
+INFO:sec_fund:  60/70 quarters | 16,232,318 facts | 482s
+INFO:sec_fund:  65/70 quarters | 17,642,092 facts | 554s
+INFO:sec_fund:  70/70 quarters | 18,969,759 facts | 615s
+INFO:sec_fund:Load complete

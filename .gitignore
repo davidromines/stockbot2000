@@ -22,3 +22,5 @@ data/*.db-wal
 data/*.db-shm
 
 data/edgar/
+
+data/sec_fundamentals/
