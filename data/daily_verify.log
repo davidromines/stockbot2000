@@ -1,0 +1,68 @@
+=== 2026-09-13 19:08:56 : Daily capture starting
+=== 2026-09-13 19:08:56 : [1/4] Symbol directory — records listings and delistings
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-13_nasdaqlisted.txt
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-13_otherlisted.txt
+INFO:universe:Symbol directory: 5605 NASDAQ rows, 7609 other-listed rows.
+INFO:universe:Universe: 13181 listings — etf 5672, common_stock 5376, preferred 466, warrant 439, unit 372, adr 276, closed_end_fund 273, note 165, right 129, etn 13
+Recorded 13181 symbols. Active: 13181, no longer listed: 12
+=== 2026-09-13 19:08:58 : [2/4] Price top-up
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-13_nasdaqlisted.txt
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-13_otherlisted.txt
+INFO:universe:Symbol directory: 5605 NASDAQ rows, 7609 other-listed rows.
+INFO:universe:Universe: 13181 listings — etf 5672, common_stock 5376, preferred 466, warrant 439, unit 372, adr 276, closed_end_fund 273, note 165, right 129, etn 13
+INFO:backfill:Top-up mode: 406 tickers behind the latest bar
+INFO:backfill:Universe 13181 tickers | 12775 done | 406 outstanding | fetching 406 this run | period=3mo
+ERROR:yfinance:$UCFIW: possibly delisted; no price data found  (period=3mo)
+ERROR:yfinance:
+1 Failed download:
+ERROR:yfinance:['UCFIW']: possibly delisted; no price data found  (period=3mo)
+INFO:backfill:batch 1 | 50/406 tickers | 190 rows | 1 failed | 22.5 tickers/s | ETA 0.3 min
+INFO:backfill:batch 2 | 100/406 tickers | 270 rows | 1 failed | 19.3 tickers/s | ETA 0.3 min
+INFO:backfill:batch 3 | 150/406 tickers | 391 rows | 1 failed | 17.8 tickers/s | ETA 0.2 min
+WARNING:storage:ILLUW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:IPVVW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:KCHVR: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 4 | 200/406 tickers | 536 rows | 1 failed | 17.4 tickers/s | ETA 0.2 min
+WARNING:storage:MZYX-WT: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 5 | 250/406 tickers | 706 rows | 1 failed | 17.6 tickers/s | ETA 0.1 min
+WARNING:storage:OIMAW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:PTACW: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 6 | 300/406 tickers | 829 rows | 1 failed | 17.0 tickers/s | ETA 0.1 min
+WARNING:storage:SAGU-WT: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 7 | 350/406 tickers | 998 rows | 1 failed | 17.1 tickers/s | ETA 0.1 min
+INFO:backfill:batch 8 | 400/406 tickers | 1,113 rows | 1 failed | 17.3 tickers/s | ETA 0.0 min
+INFO:backfill:batch 9 | 406/406 tickers | 1,119 rows | 1 failed | 16.5 tickers/s | ETA 0.0 min
+INFO:backfill:------------------------------------------------------------
+INFO:backfill:Fetched 405 tickers, 1 failed, 1,119 rows written in 0.4 min
+INFO:backfill:prices table: {'rows': 35479818, 'tickers': 13158, 'first_date': '1962-01-02', 'last_date': '2026-09-11'}
+INFO:backfill:ingest state: {'done': 13167, 'failed': 26}
+=== 2026-09-13 19:09:36 : [3/4] Features
+INFO:build_features:Feature types: common_stock, adr, etf, closed_end_fund
+INFO:build_features:1 tickers need features | computing 1 this run
+INFO:build_features:------------------------------------------------------------
+INFO:build_features:Computed 1 tickers, skipped 0 (under 210 bars), 2,093 rows in 0.0 min
+INFO:build_features:features table: {'rows': 33837111, 'tickers': 9975, 'first_date': '1962-01-02', 'last_date': '2026-09-11'}
+=== 2026-09-13 19:14:31 : [4/4] Paper trading step
+INFO:paper:'baseline_forward' already stepped to 2026-09-11
+INFO:paper:'lab_8d577628' wants 20 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_8d577628' already stepped to 2026-09-11
+INFO:paper:'lab_b1168518' wants 22 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_b1168518' already stepped to 2026-09-11
+INFO:paper:'lab_d9dafbd6' wants 20 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_d9dafbd6' already stepped to 2026-09-11
+INFO:paper:'lab_deec9b34' wants 16 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_deec9b34' already stepped to 2026-09-11
+INFO:paper:'lab_b0fa7e14' already stepped to 2026-09-11
+INFO:paper:'lab_ed6e5b6f' already stepped to 2026-09-11
+INFO:paper:'lab_933f51aa' already stepped to 2026-09-11
+INFO:paper:'lab_19d29f07' wants 16 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_19d29f07' already stepped to 2026-09-11
+INFO:paper:'lab_109c65c6' already stepped to 2026-09-11
+INFO:paper:'lab_8bee5677' wants 26 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_8bee5677' already stepped to 2026-09-11
+INFO:paper:'lab_8f4dbe00' wants 23 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_8f4dbe00' already stepped to 2026-09-11
+INFO:paper:'lab_ef8fc97a' wants 22 positions; $100 at $10 funds 10. Trading the smaller.
+INFO:paper:'lab_ef8fc97a' already stepped to 2026-09-11
+INFO:paper:'survivor_c5b1225d' already stepped to 2026-09-11
+=== 2026-09-13 19:19:26 : Daily capture complete

@@ -1,0 +1,20 @@
+INFO:train_model:5,205 trading days available from 2006-01-03
+INFO:train_model:Split: train 2006-01-03 -> 2022-07-12 | test 2022-07-20 -> 2026-09-11 | purge 5d
+INFO:train_model:4.8 GB memory available
+INFO:train_model:Tradeability floors: price >= 5.0, dollar volume >= 1,000,000
+INFO:train_model:  test : 2,814,796 rows, 0.31 GB, positive 26.71%
+INFO:train_model:  train: 6,724,631 rows exceeds max_train_rows=6,000,000; sampling 89.2% in SQL
+INFO:train_model:  train: 5,982,185 rows, 0.66 GB, positive 24.14%
+INFO:train_model:
+              precision    recall  f1-score   support
+
+           0       0.73      1.00      0.85   2062969
+           1       0.52      0.01      0.02    751827
+
+    accuracy                           0.73   2814796
+   macro avg       0.63      0.50      0.43   2814796
+weighted avg       0.68      0.73      0.62   2814796
+
+INFO:train_model:Test AUC: 0.612
+INFO:train_model:Model saved to models/xgb_uptrend.json
+INFO:train_model:Split metadata saved to models/split.json
