@@ -132,7 +132,29 @@ def _latest_scores(conn, cfg: dict) -> pd.DataFrame:
         return latest
     model = xgb.XGBClassifier()
     model.load_model(cfg["model"]["path"])
-    latest["score"] = model.predict_proba(latest[FEATURE_COLS])[:, 1] * 100
+    # Score with the columns the MODEL was trained on, not with whatever
+    # FEATURE_COLS happens to hold today. Adding four indicators to FEATURE_COLS
+    # made this line raise a feature_names mismatch, and because it runs before
+    # the per-run loop it took down every paper run with it — including the
+    # conviction books, which do not use the classifier at all. A stale model
+    # should degrade one run, never the whole step.
+    # Explicit None checks: feature_names_in_ is a numpy array, and `a or b` on
+    # one raises "truth value of an array is ambiguous" rather than falling back.
+    want = getattr(model, "feature_names_in_", None)
+    if want is None:
+        want = model.get_booster().feature_names
+    want = list(want) if want is not None else list(FEATURE_COLS)
+    missing = [c for c in want if c not in latest.columns]
+    if missing:
+        log.warning(f"Model expects columns not present ({missing}); "
+                    f"classifier scoring skipped this step.")
+        latest["score"] = 0.0
+        return latest
+    if len(want) != len(FEATURE_COLS):
+        log.warning(f"Model was trained on {len(want)} features but FEATURE_COLS "
+                    f"now has {len(FEATURE_COLS)} — scoring on the model's set. "
+                    f"Retrain with train_model.py to use the new indicators.")
+    latest["score"] = model.predict_proba(latest[want])[:, 1] * 100
     return latest.sort_values("score", ascending=False)
 
 
@@ -206,11 +228,131 @@ def _strategy_of(run: dict):
         return None
     try:
         g = json.loads(raw)
+        if isinstance(g, dict) and g.get("conviction"):
+            return None                  # handled separately; not a genome
         return g if isinstance(g, dict) and "entry" in g else None
     except (ValueError, TypeError):
         log.warning(f"Run '{run.get('name')}' has an unreadable strategy; "
                     f"falling back to the classifier.")
         return None
+
+
+def _conviction_of(run: dict) -> str | None:
+    """The conviction screen behind a run, if it is one."""
+    raw = run.get("strategy") or ""
+    if not raw.startswith("{"):
+        return None
+    try:
+        g = json.loads(raw)
+        return g.get("conviction") if isinstance(g, dict) else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
+    """
+    Advance one conviction run. Reviews weekly; does nothing on other days.
+
+    A conviction book is not a swing strategy with a longer hold. It has no
+    holding limit, no stop and no take-profit: the only reason to sell is that
+    the reason for owning has stopped being true. Applying an ATR stop here would
+    convert it back into the high-turnover regime the whole approach exists to
+    escape — and that regime is where every price-based strategy in this project
+    has already died to costs.
+
+    Hysteresis is carried over from the backtest: buy inside the top decile, sell
+    only when a name drops out of the top 40%. The gap is what keeps turnover
+    near 3-10% a month rather than churning on noise at a single threshold.
+    """
+    import conviction as cv
+    import pandas as pd
+
+    name = _conviction_of(run)
+    if name not in cv.SCREENS:
+        return False
+    # Review once a week. `last_review` is stored on the run so a missed cron
+    # morning delays the review rather than skipping it silently.
+    last = run.get("last_review") or ""
+    if last and (pd.Timestamp(today) - pd.Timestamp(last)).days < 6:
+        return True                       # handled, nothing to do today
+
+    sc = cv.SCREENS[name]
+    panel = cv._load_panel(conn, cfg, today, today)
+    if panel.empty:
+        # _load_panel samples Wednesdays; on other days ask for the trailing week.
+        start = str((pd.Timestamp(today) - pd.Timedelta(days=8)).date())
+        panel = cv._load_panel(conn, cfg, start, today)
+        if panel.empty:
+            log.info(f"'{run['name']}' {today}: no fundamental panel this week")
+            return True
+        panel = panel[panel["date"] == panel["date"].max()]
+
+    day = panel.dropna(subset=[c for c in sc["requires"] if c in panel.columns]).copy()
+    if len(day) < 40:
+        log.info(f"'{run['name']}' {today}: only {len(day)} scoreable names, skipping")
+        return True
+    day["score"] = sc["score"](day)
+    day = day.dropna(subset=["score"])
+    day["pct"] = day["score"].rank(pct=True)
+    ranks = dict(zip(day["ticker"].astype(str), day["pct"]))
+
+    size = cfg["risk"]["position_size_usd"]
+    cap = cfg["risk"]["max_open_positions"]
+    open_pos = [dict(r) for r in conn.execute(
+        "SELECT * FROM paper_positions WHERE run_id=?", (run["run_id"],))]
+    cash = run["cash_usd"]
+    sold = bought = 0
+
+    for pos in open_pos[:]:
+        r = ranks.get(pos["ticker"])
+        px = prices.get(pos["ticker"])
+        if px is None or r is None:
+            continue                      # unpriceable or unscoreable: revisit next week
+        if r < 0.60:                      # fell out of the wide band
+            gross = pos["shares"] * (px - pos["entry_price"])
+            notional = pos["shares"] * pos["entry_price"]
+            cost = float(cost_model.round_trip(notional, dv.get(pos["ticker"], 0), pos["shares"]))
+            conn.execute("""INSERT OR REPLACE INTO paper_trades
+                (run_id,ticker,entry_date,exit_date,entry_price,exit_price,shares,
+                 gross_pnl_usd,costs_usd,net_pnl_usd,pnl_pct,exit_reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (run["run_id"], pos["ticker"], pos["entry_date"], today,
+                 pos["entry_price"], px, pos["shares"], gross, cost, gross - cost,
+                 (px / pos["entry_price"] - 1) * 100, "fundamentals_deteriorated"))
+            conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?",
+                         (run["run_id"], pos["ticker"]))
+            cash += pos["shares"] * px - cost
+            open_pos.remove(pos); sold += 1
+
+    held = {p["ticker"] for p in open_pos}
+    for t in day.sort_values("score", ascending=False)["ticker"].astype(str):
+        if len(open_pos) >= cap or cash < size:
+            break
+        if t in held or ranks.get(t, 0) < 0.90:
+            continue
+        px = prices.get(t)
+        if not px or px <= 0:
+            continue
+        shares = size / px
+        conn.execute("""INSERT OR REPLACE INTO paper_positions
+            (run_id,ticker,entry_date,entry_price,shares,stop_price,days_held)
+            VALUES (?,?,?,?,?,NULL,0)""", (run["run_id"], t, today, px, shares))
+        cash -= size
+        open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
+        held.add(t); bought += 1
+
+    pv = sum(p["shares"] * prices.get(p["ticker"], p["entry_price"]) for p in open_pos)
+    equity = cash + pv
+    conn.execute("""INSERT OR REPLACE INTO paper_equity
+        (run_id,date,cash_usd,positions_usd,equity_usd,open_positions)
+        VALUES (?,?,?,?,?,?)""", (run["run_id"], today, cash, pv, equity, len(open_pos)))
+    conn.execute("UPDATE paper_runs SET cash_usd=?, last_step_on=?, last_review=? "
+                 "WHERE run_id=?", (cash, today, today, run["run_id"]))
+    conn.commit()
+    log.info(f"'{run['name']}' {today}: REVIEW — {bought} bought, {sold} sold, "
+             f"{len(open_pos)} held | equity ${equity:,.2f} | "
+             f"NET P&L ${equity - run['capital_usd']:+,.2f}")
+    return True
 
 
 def step(conn, cfg: dict) -> None:
@@ -258,6 +400,12 @@ def step(conn, cfg: dict) -> None:
         # rule, exit rule and risk parameters; those beat the config defaults,
         # because a strategy validated at a 45-day hold is a different strategy
         # if paper trading closes it at 5.
+        # Conviction runs are portfolio-level and weekly; they do not use the
+        # per-trade stop/hold machinery below.
+        if _conviction_of(run):
+            if _conviction_step(conn, cfg, run, today, prices, dv, cost_model):
+                continue
+
         genome = _strategy_of(run)
         if genome is None:
             candidates, exits_today = market, set()
