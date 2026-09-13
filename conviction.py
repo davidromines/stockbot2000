@@ -154,17 +154,33 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
                                    AND REPLACE(f2.filed,'-','') <= REPLACE(d.date,'-',''))
             WHERE d.date BETWEEN ? AND ? AND p.close >= ?
               AND strftime('%w', d.date) = '3'
+              AND d.ticker IN (SELECT ticker FROM symbols
+                               WHERE security_type IN ('common_stock','adr')
+                                 AND data_quality IS NULL)
         """
     else:
         q = f"""SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}
                 FROM daily_fundamentals d
                 JOIN prices p ON p.ticker=d.ticker AND p.date=d.date
                 WHERE d.date BETWEEN ? AND ? AND p.close >= ?
-                  AND strftime('%w', d.date) = '3'"""
+                  AND strftime('%w', d.date) = '3'
+                  AND d.ticker IN (SELECT ticker FROM symbols
+                                   WHERE security_type IN ('common_stock','adr')
+                                     AND data_quality IS NULL)"""
     df = pd.read_sql_query(q, conn, params=(start, end, cfg["risk"].get("min_price") or 0))
     if df.empty:
         return df
     df["date"] = pd.to_datetime(df["date"])
+    # Book-to-market above this is a broken share count, not a cheap company.
+    # National Presto surfaced at B/M 400 because its market cap resolved to
+    # $988k for a company worth hundreds of millions — the shares-outstanding
+    # tag had picked up a fragment. A real equity almost never trades above
+    # about 5x book, and letting these through puts data errors at the top of a
+    # value screen, which is precisely where a value screen is most credulous.
+    if "book_to_market" in df:
+        bad = df["book_to_market"] > 10
+        if bad.any():
+            df.loc[bad, "book_to_market"] = np.nan
     # Beta and idiosyncratic volatility for the Buffett screen's low-beta and
     # safety legs. Sampled monthly in risk_metrics, so joined as-of backwards:
     # a weekly review uses the most recent beta already computed, never a future

@@ -39,17 +39,22 @@ say "Daily capture starting"
 
 # 1. Point-in-time universe. THE survivorship-critical step: this is what stamps
 #    a ticker inactive on the day it leaves the listing directory.
-run "[1/4] Symbol directory — records listings and delistings" $PY universe.py --record
+run "[1/5] Symbol directory — records listings and delistings" $PY universe.py --record
 
 # 2. Prices. Incremental: tops up from the last stored bar per ticker.
-run "[2/4] Price top-up" $PY backfill.py --top-up
+run "[2/5] Price top-up" $PY backfill.py --top-up
 
 # 3. Indicators for whatever bars arrived.
-run "[3/4] Features" $PY build_features.py
+run "[3/5] Features" $PY build_features.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement
 #    in the project with no survivorship bias, and it accrues only in real time.
-run "[4/4] Paper trading step" $PY paper_trading.py --step
+run "[4/5] Paper trading step" $PY paper_trading.py --step
+
+# 5. The daily book: best candidate from every system, sell signals on open
+#    picks, and both recorded so the forward record builds itself.
+run "[5/5] Daily book" $PY daily_picks.py --report --record
+$PY daily_picks.py --report --record > data/daily_book.txt 2>/dev/null || true
 
 if [ "$fail" -eq 0 ]; then
     say "Daily capture complete"

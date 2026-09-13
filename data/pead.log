@@ -1,0 +1,24 @@
+INFO:pead:97,578 earnings events with a computable surprise
+
+  POST-EARNINGS ANNOUNCEMENT DRIFT — 84,771 events sorted by surprise
+  Excess over each stock's own norm. Entry is the session AFTER acceptance,
+  so the overnight reaction is excluded and the drift is understated.
+
+  SUE decile           n       +1d       +5d      +21d      +63d
+  ------------------------------------------------------------------
+  1 (worst)        8,478    -0.01%    +0.00%    +0.40%    +0.71%
+  2                8,477    +0.00%    -0.02%    +0.14%    +0.34%
+  3                8,477    +0.00%    -0.06%    +0.15%    +0.39%
+  4                8,477    +0.00%    +0.00%    +0.16%    +0.24%
+  5                8,477    +0.00%    -0.02%    +0.40%    +0.50%
+  6                8,477    +0.00%    +0.00%    +0.15%    +0.14%
+  7                8,477    +0.00%    +0.00%    +0.16%    +0.19%
+  8                8,477    +0.00%    +0.06%    +0.38%    +0.20%
+  9                8,477    +0.00%    +0.02%    +0.27%    +0.03%
+  10 (best)        8,477    +0.00%    +0.15%    +0.06%    -0.11%
+  ------------------------------------------------------------------
+  10 minus 1                +0.01%    +0.15%    -0.33%    -0.82%
+
+  The spread is the whole test. A monotone rise across deciles and a
+  positive top-minus-bottom is PEAD; a flat table means the surprise is
+  fully priced by the next close, which is what an efficient market does.
