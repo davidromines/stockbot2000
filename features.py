@@ -160,6 +160,43 @@ def compute_features_for_ticker(df: pd.DataFrame) -> pd.DataFrame:
     df["willr_14"] = williams_r(high, low, close, 14)
     df["chaikin_osc"] = chaikin_osc(high, low, close, volume)
 
+    # -- position within the longer-run range -------------------------------
+    #
+    # Three additions (2026-09-13) that use only data already held and close
+    # genuine gaps in what the search could see.
+    #
+    # `pct_of_52w_high` is proximity to the 52-week high, one of the better
+    # documented momentum anomalies (George & Hwang, 2004): stocks near their
+    # yearly high tend to keep outperforming, and the effect is distinct from
+    # ordinary price momentum. The search previously had no way to express it —
+    # the longest window available to it was a 50-day z-score, which is a fifth
+    # of a year.
+    #
+    # `drawdown_200` is the mirror image: how far below the trailing 200-day peak
+    # a name sits. `bias_exposure.py` has been computing exactly this to decide
+    # which strategies are untestable, and it was never exposed to the search
+    # itself — so the Lab could be judged on a variable it could not reference.
+    #
+    # Both are scale-free ratios rather than dollar levels, deliberately. Raw
+    # price levels are what the search turned into `sma_200 < 8`, and a ratio
+    # cannot be used as a price filter.
+    # Liquidity on a usable scale. `dollar_volume_20` already exists and
+    # `rank(dollar_volume_20)` already gave the search a cross-sectional size
+    # percentile — but the raw column spans six orders of magnitude ($1M to
+    # $50B), so any direct comparison against a constant is dominated by scale
+    # rather than by meaning. The log is comparable across the whole universe.
+    # This is a liquidity proxy, not market capitalisation: true market cap
+    # needs shares outstanding, which this database does not hold.
+    df["log_dollar_volume"] = np.log10(df["dollar_volume_20"].clip(lower=1.0))
+
+    win_52w = 252
+    roll_high = close.rolling(win_52w, min_periods=60).max()
+    roll_low = close.rolling(win_52w, min_periods=60).min()
+    df["pct_of_52w_high"] = close / roll_high
+    df["pct_off_52w_low"] = (close - roll_low) / roll_low.replace(0, np.nan)
+    peak_200 = close.rolling(200, min_periods=20).max()
+    df["drawdown_200"] = 1.0 - (close / peak_200)
+
     # Derived binary/relative features (mirror the original indicator list)
     df["price_above_sma50"] = (close > df["sma_50"]).astype(int)
     df["price_above_sma200"] = (close > df["sma_200"]).astype(int)

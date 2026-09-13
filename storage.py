@@ -223,12 +223,19 @@ def _init_features_table(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (ticker, date)
         ) STRICT, WITHOUT ROWID
     """)
-    # Migration for tables created before the liquidity columns existed.
+    # Migrate any column the canonical list has gained since the table was made.
+    #
+    # This used to cover LIQUIDITY_COLS only, so adding an indicator to
+    # FEATURE_COLS silently did nothing to an existing database: the CREATE was
+    # a no-op because the table existed, and the new column was never added.
+    # Everything downstream then read NaN without complaint. Covering both lists
+    # means a new indicator needs one edit, in train_model.py, and nothing else.
     have = {r[1] for r in conn.execute("PRAGMA table_info(features)")}
-    for c in LIQUIDITY_COLS:
+    for c in FEATURE_COLS + LIQUIDITY_COLS:
         if c not in have:
             conn.execute(f"ALTER TABLE features ADD COLUMN {c} REAL")
             log.info(f"Migrated features table: added {c}")
+    conn.commit()
 
 
 # --------------------------------------------------------------------------

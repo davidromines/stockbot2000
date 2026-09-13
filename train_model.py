@@ -27,6 +27,15 @@ FEATURE_COLS = [
     "bb_pct", "vol_ratio",
     "price_above_sma50", "price_above_sma200", "golden_cross",
     "atr_14", "stoch_k", "stoch_d", "obv_rising", "cci_20", "willr_14", "chaikin_osc",
+    # Added 2026-09-13. Position within the longer-run range, which nothing here
+    # previously expressed: the longest window the search could reach was a
+    # 50-day z-score, a fifth of a year. All three are scale-free ratios rather
+    # than dollar levels, because raw price levels are what the search once
+    # turned into `sma_200 < 8`.
+    "pct_of_52w_high",      # George & Hwang (2004) 52-week-high momentum
+    "pct_off_52w_low",
+    "drawdown_200",         # bias_exposure.py judged strategies on this; now they can see it
+    "log_dollar_volume",    # liquidity on a comparable scale, NOT market cap
 ]
 
 
