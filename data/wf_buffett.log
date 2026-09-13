@@ -1,0 +1,20 @@
+INFO:conv_wf:buffett: 15 rolling 2-year windows
+INFO:conv_wf:  buffett: beat SPY in 6/15 windows, mean excess -3.2%
+
+  CONVICTION WALK-FORWARD — rolling 2-year windows vs SPY over the same dates
+
+  screen                 beat SPY   mean excess    median     worst  turnover
+  ----------------------------------------------------------------------------
+  buffett                    6/15        -3.2%     -3.7%    -17.3%       7%
+
+  `beat SPY` is the number to read. A screen winning in most windows has
+  an edge that survives regimes; one winning in half is indistinguishable
+  from a coin, however good its full-period CAGR looks.
+
+  These screens have no fitted parameters — Piotroski, Novy-Marx and
+  Greenblatt all published before our data begins — so this is not a test
+  for overfitting. It is a test for whether one lucky stretch is carrying
+  sixteen years.
+
+  Windows overlap, so they are not independent observations. Read the win
+  count as a description, not as a significance test.

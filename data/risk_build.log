@@ -1,0 +1,11 @@
+INFO:buffett:Computing beta and ivol for 4,317 tickers
+INFO:buffett:  400/4,317 tickers
+INFO:buffett:  800/4,317 tickers
+INFO:buffett:  1,200/4,317 tickers
+INFO:buffett:  1,600/4,317 tickers
+INFO:buffett:  2,000/4,317 tickers
+INFO:buffett:  2,400/4,317 tickers
+INFO:buffett:  2,800/4,317 tickers
+INFO:buffett:  3,200/4,317 tickers
+INFO:buffett:  3,600/4,317 tickers
+INFO:buffett:risk_metrics: 531,684 rows across 3,951 tickers

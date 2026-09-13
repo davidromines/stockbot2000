@@ -58,6 +58,17 @@ log = logging.getLogger("conviction")
 # that must be present for a row to be scoreable at all — a company missing them
 # is skipped rather than scored as zero, because "no data" is not "bad".
 
+def _buffett_score(d: pd.DataFrame) -> pd.Series:
+    """Quality + cheapness + low beta, the two legs of Buffett we can reproduce."""
+    import buffett
+    q = buffett.quality_score(d)
+    val = _rank(d["book_to_market"]) if "book_to_market" in d else 0.0
+    # Betting against beta: low beta is the whole point, so it is ranked inverted
+    # and carried as its own leg rather than folded into the quality safety score.
+    bab = (1 - _rank(d["beta"])) if "beta" in d and d["beta"].notna().any() else 0.0
+    return q.rank(pct=True) * 0.5 + val * 0.3 + (bab * 0.2 if np.ndim(bab) else 0.0)
+
+
 def _rank(s: pd.Series) -> pd.Series:
     """Cross-sectional percentile, 0..1, robust to scale and to outliers."""
     return s.rank(pct=True, na_option="keep")
@@ -97,6 +108,16 @@ SCREENS = {
         score=lambda d: (_rank(d["piotroski_f"]) * 0.5
                          + (1 - _rank(d["asset_growth"])) * 0.25
                          + (1 - _rank(d["chs_distress"])) * 0.25)),
+
+    "buffett": dict(
+        requires=["book_to_market", "roe"],
+        note="Frazzini, Kabiller & Pedersen took Berkshire apart and found the "
+             "alpha vanishes once you control for Betting-Against-Beta and "
+             "Quality-Minus-Junk. So: cheap, safe, quality, low beta. What CANNOT "
+             "be copied is the third leg — about 1.6x leverage funded by "
+             "insurance float at below-Treasury cost, which is a large part of "
+             "the record and unavailable to any retail account.",
+        score=lambda d: _buffett_score(d)),
 
     "deep_value": dict(
         requires=["book_to_market", "earnings_yield", "altman_z"],
@@ -141,8 +162,20 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
                 WHERE d.date BETWEEN ? AND ? AND p.close >= ?
                   AND strftime('%w', d.date) = '3'"""
     df = pd.read_sql_query(q, conn, params=(start, end, cfg["risk"].get("min_price") or 0))
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"])
+    if df.empty:
+        return df
+    df["date"] = pd.to_datetime(df["date"])
+    # Beta and idiosyncratic volatility for the Buffett screen's low-beta and
+    # safety legs. Sampled monthly in risk_metrics, so joined as-of backwards:
+    # a weekly review uses the most recent beta already computed, never a future
+    # one.
+    risk = pd.read_sql_query(
+        "SELECT ticker, date, beta, ivol FROM risk_metrics WHERE date BETWEEN ? AND ?",
+        conn, params=(str(pd.Timestamp(start) - pd.Timedelta(days=400))[:10], end))
+    if not risk.empty:
+        risk["date"] = pd.to_datetime(risk["date"])
+        df = pd.merge_asof(df.sort_values("date"), risk.sort_values("date"),
+                           on="date", by="ticker", direction="backward")
     return df
 
 
