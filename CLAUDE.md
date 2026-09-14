@@ -574,6 +574,66 @@ every forward test survived a corruption that cost 5,767 strategy rows. Keep it.
 
 ---
 
+## Size and liquidity in the fundamental screens — 2026-09-14
+
+Two separate problems, found by asking why the daily book never recommends an
+S&P 500 name. Neither was exclusion: large caps are in the universe and lose on
+rank.
+
+**1. The liquidity floor was missing from the conviction path.** `_load_panel`
+filtered on `min_price` alone, so `min_dollar_volume` — the $1M/day floor the
+scanner has enforced since the penny-stock result — never applied to any
+fundamental screen. Only the classifier and Lab paths had it. It put **MXC at
+the top of the daily book, agreed on by two systems, at $890k/day and a $15M
+market cap**. Fixed; panel 2,674 -> 2,349 names. **If you add another screen,
+apply both floors.**
+
+**2. Value ranks were size ranks in disguise.** Measured on our own panel:
+
+| metric | Spearman vs log market cap |
+|---|---:|
+| **book_to_market** | **-0.352** |
+| earnings_yield | +0.185 |
+| gross_profitability | -0.029 |
+| beta | -0.026 |
+
+B/M and EBIT/EV carry market cap in the denominator, and large companies hold
+most of their worth in brand and goodwill no balance sheet records. So ranking
+on B/M sorts toward small before it sorts toward cheap. Every value pick the
+book made was in the bottom half by size, three of five in the bottom quartile,
+from a universe whose median company is $3.1B.
+
+**The tilt is not wrong in general and was not removed.** The size premium is
+real and these screens are meant to lean small. It is wrong on *this* data:
+microcaps are where the 7,062 missing delisted companies concentrate, so the
+small-cap leg is the least trustworthy thing these screens do.
+
+`conviction._rank(s, d)` now ranks within the row's size bucket. Two details
+that are load-bearing:
+
+- **Buckets are assigned within each review date, never pooled across dates.**
+  The market roughly quadrupled over the backtest window, so pooled buckets
+  would be a calendar variable — a company of unchanged real size would drift
+  from "small" to "large" by doing nothing, and the late years would be almost
+  entirely top-bucket.
+- **Market cap is point-in-time.** `value_metrics._market_cap` multiplies shares
+  taken *from the filing* by the price *on the filing date*. Never substitute a
+  current share count: dilution is exactly what distressed companies do between
+  then and now.
+
+`buffett` was already the least affected screen — its quality and low-beta legs
+pull against the value leg, and its top-10 median sat at the panel median while
+the two pure value screens sat in the bottom quintile. The z-scores inside
+`buffett.quality_score` are deliberately left global; their inputs correlate
+-0.03 with size, so there is nothing to neutralise, and per-bucket z-scores
+would thin each group until they stop meaning anything.
+
+`daily_picks` takes at most one name per bucket, because neutral ranks still
+permit three names from one corner on the days that corner holds the top
+percentiles.
+
+---
+
 ## The exit-pricing bug — 2026-09-12. Read this before trusting any old number.
 
 **71% of the Lab's reported profit was a defect in its own simulator.**
