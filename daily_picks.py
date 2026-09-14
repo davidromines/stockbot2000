@@ -13,11 +13,25 @@ decoration. A pick from a screen that beat SPY in 6 of 15 windows is a different
 object from a pick from a screen that beat it in 1 of 15, and a report that
 printed both as "BUY" without that context would be lying by omission.
 
-  quality_value   conviction, fundamentals   beat SPY 4/15 windows, mean -4.2%
-  deep_value      conviction, fundamentals   beat SPY 6/15 windows, mean -1.5%
-  buffett         QMJ + low beta, unlevered  beat SPY 6/15 windows, Sharpe 0.76
+  deep_value      conviction, fundamentals   beat SPY 7/15 windows, mean +0.8%
+  quality_value   conviction, fundamentals   beat SPY 6/15 windows, mean -3.6%
+  buffett         QMJ + low beta, unlevered  beat SPY 6/15 windows, mean -3.7%
   lab_survivor    evolved momentum rule      cleared validation + exposure gate
   classifier      XGBoost, 24 indicators     AUC 0.612, top-decile lift 1.54x
+
+**Re-measured 2026-09-14 under size-bucket neutralisation**, which moved two of
+the three screens the book uses:
+
+                    was              now
+  deep_value        6/15, -1.5%      7/15, +0.8%
+  quality_value     4/15, -4.2%      6/15, -3.6%
+  buffett           6/15             6/15, -3.7%
+
+That is the right direction, and it is not a result. Read `deep_value` carefully
+before treating +0.8% as an edge: its **median** window is -0.5%, so the positive
+mean is carried by a few good windows rather than by typical ones, and the 15
+windows overlap heavily so they are nowhere near 15 independent observations.
+Seven wins out of fifteen is a coin.
 
 None of these beat the index reliably. That is the honest state of the evidence
 and it is printed on the report itself.
@@ -61,11 +75,11 @@ log = logging.getLogger("picks")
 
 # Measured out-of-sample records, carried onto every pick.
 PROVENANCE = {
-    "deep_value":    dict(kind="value", record="beat SPY in 6/15 windows, mean excess -1.5%",
+    "deep_value":    dict(kind="value", record="beat SPY in 7/15 windows, mean excess +0.8% (median -0.5%)",
                           stop_pct=0.25, hold_days=None),
-    "buffett":       dict(kind="quality", record="beat SPY in 6/15 windows, Sharpe 0.76 (Berkshire's own)",
+    "buffett":       dict(kind="quality", record="beat SPY in 6/15 windows, mean excess -3.7%",
                           stop_pct=0.25, hold_days=None),
-    "quality_value": dict(kind="value", record="beat SPY in 4/15 windows, mean excess -4.2%",
+    "quality_value": dict(kind="value", record="beat SPY in 6/15 windows, mean excess -3.6%",
                           stop_pct=0.25, hold_days=None),
     "lab_survivor":  dict(kind="momentum", record="cleared validation and the survivorship gate; never forward-tested",
                           stop_pct=0.12, hold_days=49),
