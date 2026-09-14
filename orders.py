@@ -19,6 +19,15 @@ five positions has no spare cash, so a buy placed before its matching sell is
 rejected for insufficient funds. Ordering the list correctly removes an entire
 category of morning confusion.
 
+**Every order here is a market order, and the slate no longer says so.** It is
+not a choice being made each morning: a dollar-amount order at Robinhood is
+market-only, and a $100 account across five positions has to be sized in dollars
+to buy fractional shares. Limit and stop orders require whole-share quantities,
+which this account cannot afford at most prices. So "market, regular hours" was
+a constant printed on every line, and a constant repeated five times a day is
+noise that hides the fields that do change. If sizing ever moves to whole shares,
+order type becomes a real decision and belongs back on the slate.
+
 Claude does not place these orders. The spec is deliberately plain text you can
 read and check in ten seconds before acting on it.
 """
@@ -87,8 +96,7 @@ def render(spec: dict) -> str:
         L.append(f"  THEN BUY — {len(spec['buys'])} order(s)\n")
         for b in spec["buys"]:
             L.append(f"    BUY   {b['ticker']:<8} ${spec['size']:.2f}   "
-                     f"market, regular hours   (stop if it closes below "
-                     f"${b['stop_price']:.2f})")
+                     f"(stop if it closes below ${b['stop_price']:.2f})")
     else:
         L.append("  BUY — no free slots\n")
 

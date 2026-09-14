@@ -191,7 +191,6 @@ def format_slate(spec: dict) -> tuple[str, str]:
             both(f"{BUY_DOT} BUY  {x['ticker']}  ${float(x.get('usd', size)):.2f}",
                  f"{BUY_DOT} BUY  <b>{_esc(x['ticker'])}</b>  "
                  f"${float(x.get('usd', size)):.2f}")
-            both("       market order, regular hours")
             if x.get("stop") is not None:
                 both(f"       sell if it closes below ${float(x['stop']):.2f}")
             if x.get("source"):
