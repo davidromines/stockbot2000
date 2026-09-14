@@ -1,0 +1,23 @@
+
+  ORDERS — 2026-09-11
+  ==================================================================
+  $20.00 per position, 5 positions maximum
+
+  SELL — none today
+
+  THEN BUY — 5 order(s)
+
+    BUY   MXC      $20.00   market, regular hours   (stop if it closes below $8.05)
+    BUY   HELE     $20.00   market, regular hours   (stop if it closes below $20.49)
+    BUY   TNON     $20.00   market, regular hours   (stop if it closes below $5.22)
+    BUY   ANTX     $20.00   market, regular hours   (stop if it closes below $4.76)
+    BUY   VISN     $20.00   market, regular hours   (stop if it closes below $4.80)
+
+  ==================================================================
+  Sells are listed first because a fully deployed account has no spare
+  cash: a buy placed before its matching sell is rejected.
+
+  Stops are NOT resting orders. Dollar-based fractional orders are
+  market-only and cannot rest at the broker, so the stop above is an
+  instruction this system checks each day against the close. An
+  overnight gap through it is not protected against.

@@ -175,8 +175,8 @@ model:
   random_state: 42
 
 risk:
-  position_size_usd: 10.0
-  max_open_positions: 10
+  position_size_usd: 20.0
+  max_open_positions: 5
 
   # How candidates are chosen each day.
   #   top_n     — rank by score, fill open slots with the best. The system always

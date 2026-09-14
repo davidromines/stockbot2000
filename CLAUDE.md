@@ -163,12 +163,26 @@ Immediate next steps (as of 2026-09-11):
 These came out of the original design conversation and are **not** derivable from
 the code. They bound everything else.
 
-- **The account is capped at $100.** That is the entire downside. Position sizing
-  (`$10` x 10 positions in `config.yaml`) exists to spend exactly that budget, not
-  as an arbitrary default. Do not propose sizing that assumes a larger account.
-- **Every order is human-approved.** Entries and exits both. The system produces
-  candidates; a person authorizes each trade. This was agreed explicitly at design
-  time and is not a temporary training-wheels measure.
+- **The account is capped at $100.** That is the entire downside. Sizing is
+  **$20 x 5 concentrated positions** (`config.yaml`, changed 2026-09-14 from
+  $10 x 10). Do not propose sizing that assumes a larger account.
+- **Orders are placed by a person, and the pipeline is built around that.**
+  Not as a training-wheels measure: Claude does not execute financial
+  transactions, so the loop is *system generates -> human places -> system
+  reconciles*. `orders.py` writes an exact slate to `data/orders_today.txt` and
+  `.json` each morning; a person places them; the next run reads the real
+  account and records actual fills. Nothing needs to be reported back by hand.
+
+  Two consequences worth knowing rather than rediscovering:
+
+  **Sells are always listed before buys.** A fully deployed $100 account has no
+  spare cash, so a buy placed before its matching sell is rejected for
+  insufficient funds.
+
+  **A `picks` row is `recommended` until the position is confirmed in the
+  account, then `open`.** Marking a proposal as held on the day it is proposed
+  makes the order generator see a full book and refuse to buy the very names it
+  just recommended.
 - **The user owns the outcome.** This is a data-gathering and scoring tool. It does
   not give investment advice, and no backtest figure is a forecast.
 - **Swing trading, days to weeks — never intraday.** Not a style preference: US

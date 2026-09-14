@@ -85,7 +85,12 @@ def init(conn) -> None:
             stop_price  REAL,
             hold_days   INTEGER,
             rationale   TEXT,
-            status      TEXT NOT NULL DEFAULT 'open',
+            -- 'recommended' when the book proposes it, 'open' only once the
+            -- position is confirmed present in the account, 'closed' after exit.
+            -- Marking a proposal as held immediately made the order generator
+            -- see a full book and offer nothing to buy, which is circular: the
+            -- book would recommend five names and then refuse to buy them.
+            status      TEXT NOT NULL DEFAULT 'recommended',
             exit_date   TEXT,
             exit_price  REAL,
             exit_reason TEXT,
@@ -270,14 +275,23 @@ def check_sells(conn, cfg) -> list:
     return sells
 
 
-def record(conn, picks: list) -> int:
+def record(conn, picks: list, cap: int | None = None) -> int:
+    """
+    Write the day's picks, never more than the portfolio can actually hold.
+
+    Recording every candidate looked harmless and was not: with 14 picks on
+    record against a 5-position cap, the order generator computed zero free slots
+    and produced an empty slate. The book is a portfolio, not a watchlist.
+    """
     init(conn)
     today = _latest_date(conn)
+    held = conn.execute("SELECT COUNT(*) FROM picks WHERE status='open'").fetchone()[0]
+    room = max(0, (cap or len(picks)) - held)
     n = 0
-    for p in picks:
+    for p in picks[:room] if cap else picks:
         conn.execute("""INSERT OR IGNORE INTO picks
             (pick_date,ticker,source,rank,price,stop_price,hold_days,rationale,status)
-            VALUES (?,?,?,?,?,?,?,?, 'open')""",
+            VALUES (?,?,?,?,?,?,?,?, 'recommended')""",
             (today, p["ticker"], p["source"], p["rank"], p["price"],
              p["stop_price"], p["hold_days"],
              f"{p['rationale']} | agreement: {','.join(p['agreement'])}"))
@@ -358,7 +372,7 @@ def main():
     picks = gather(conn, cfg)
     print(report(conn, cfg, picks, sells, size))
     if a.record:
-        n = record(conn, picks)
+        n = record(conn, picks, cap=int(cfg["risk"]["max_open_positions"]))
         print(f"\n  recorded {n} picks to the database")
     conn.close()
 
