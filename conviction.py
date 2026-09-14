@@ -137,6 +137,15 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
 
     Sampled weekly rather than daily because the book is reviewed weekly: loading
     every trading day would be seven times the memory to answer the same question.
+
+    **Both tradeability floors apply here, not just price.** This filtered on
+    `min_price` alone for its whole life, so `min_dollar_volume` — the $1M/day
+    floor the scanner has always enforced — was silently absent from every
+    fundamental screen. It surfaced MXC as the book's top pick, agreed on by two
+    systems, at $890k/day against that floor. Value ratios have market cap in the
+    denominator, so a value screen walks toward small and illiquid names on its
+    own; running it with the liquidity floor switched off let it walk all the way
+    to names a $20 order moves.
     """
     extra = [c for c in ("ebit_to_ev", "roic") if c not in FUNDAMENTAL_COLS]
     cols = ",".join(f"d.{c}" for c in FUNDAMENTAL_COLS)
@@ -152,7 +161,9 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
                  AND fu.filed = (SELECT MAX(f2.filed) FROM fundamentals f2
                                  WHERE f2.ticker = d.ticker
                                    AND REPLACE(f2.filed,'-','') <= REPLACE(d.date,'-',''))
+            JOIN features fe ON fe.ticker = d.ticker AND fe.date = d.date
             WHERE d.date BETWEEN ? AND ? AND p.close >= ?
+              AND fe.dollar_volume_20 >= ?
               AND strftime('%w', d.date) = '3'
               AND d.ticker IN (SELECT ticker FROM symbols
                                WHERE security_type IN ('common_stock','adr')
@@ -162,12 +173,16 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
         q = f"""SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}
                 FROM daily_fundamentals d
                 JOIN prices p ON p.ticker=d.ticker AND p.date=d.date
+                JOIN features fe ON fe.ticker=d.ticker AND fe.date=d.date
                 WHERE d.date BETWEEN ? AND ? AND p.close >= ?
+                  AND fe.dollar_volume_20 >= ?
                   AND strftime('%w', d.date) = '3'
                   AND d.ticker IN (SELECT ticker FROM symbols
                                    WHERE security_type IN ('common_stock','adr')
                                      AND data_quality IS NULL)"""
-    df = pd.read_sql_query(q, conn, params=(start, end, cfg["risk"].get("min_price") or 0))
+    df = pd.read_sql_query(q, conn, params=(start, end,
+                                            cfg["risk"].get("min_price") or 0,
+                                            cfg["risk"].get("min_dollar_volume") or 0))
     if df.empty:
         return df
     df["date"] = pd.to_datetime(df["date"])
