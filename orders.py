@@ -152,7 +152,10 @@ def main():
     Path(a.out).write_text(text, encoding="utf-8")
     Path(a.out.replace(".txt", ".json")).write_text(
         json.dumps({"date": spec["date"], "size": spec["size"],
+                    "keeping": spec["keeping"],
                     "sells": [{"side": "SELL", "ticker": s["ticker"],
+                               "source": s["source"], "entry": s["entry"],
+                               "now": s["now"], "pnl_pct": s["pnl_pct"],
                                "reason": s["reason"]} for s in spec["sells"]],
                     "buys": [{"side": "BUY", "ticker": b["ticker"],
                               "usd": spec["size"], "stop": b["stop_price"],
