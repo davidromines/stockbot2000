@@ -632,6 +632,25 @@ would thin each group until they stop meaning anything.
 permit three names from one corner on the days that corner holds the top
 percentiles.
 
+**Re-measured, and it helped.** `conviction_walkforward --all`, 15 rolling
+2-year windows against SPY over the same dates:
+
+| screen | was | now |
+|---|---|---|
+| deep_value | 6/15, -1.5% | **7/15, +0.8%** |
+| quality_value | 4/15, -4.2% | **6/15, -3.6%** |
+| buffett | 6/15 | 6/15, -3.7% |
+
+Two of the three screens the book uses improved, none got worse. That is weak
+evidence the small-cap tilt was costing these screens rather than paying them —
+consistent with the tilt leaning on exactly the part of the sample where our
+missing delistings concentrate.
+
+**Do not read deep_value's +0.8% as an edge.** Its *median* window is -0.5%, so
+a few windows carry the mean; the 15 windows overlap heavily and are nowhere
+near independent; and 7 of 15 is a coin. The three screens the book does not
+use remain poor — magic_formula 1/15, conservative 2/15, piotroski_value 3/15.
+
 ---
 
 ## The exit-pricing bug — 2026-09-12. Read this before trusting any old number.
