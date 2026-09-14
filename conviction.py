@@ -62,15 +62,50 @@ def _buffett_score(d: pd.DataFrame) -> pd.Series:
     """Quality + cheapness + low beta, the two legs of Buffett we can reproduce."""
     import buffett
     q = buffett.quality_score(d)
-    val = _rank(d["book_to_market"]) if "book_to_market" in d else 0.0
+    val = _rank(d["book_to_market"], d) if "book_to_market" in d else 0.0
     # Betting against beta: low beta is the whole point, so it is ranked inverted
     # and carried as its own leg rather than folded into the quality safety score.
-    bab = (1 - _rank(d["beta"])) if "beta" in d and d["beta"].notna().any() else 0.0
-    return q.rank(pct=True) * 0.5 + val * 0.3 + (bab * 0.2 if np.ndim(bab) else 0.0)
+    bab = (1 - _rank(d["beta"], d)) if "beta" in d and d["beta"].notna().any() else 0.0
+    # The quality composite is ranked within bucket too. Its own inputs are left
+    # on global z-scores inside `quality_score`: gross profitability correlates
+    # -0.03 with size and beta -0.03, so there is nothing there to neutralise,
+    # and rebuilding QMJ's internals per bucket would thin each group to the
+    # point where the z-scores stop meaning anything.
+    return _rank(q, d) * 0.5 + val * 0.3 + (bab * 0.2 if np.ndim(bab) else 0.0)
 
 
-def _rank(s: pd.Series) -> pd.Series:
-    """Cross-sectional percentile, 0..1, robust to scale and to outliers."""
+SIZE_COL = "market_cap"
+SIZE_BUCKET_COL = "size_bucket"
+
+
+def _rank(s: pd.Series, d: pd.DataFrame | None = None) -> pd.Series:
+    """
+    Percentile, 0..1 — computed **within the row's size bucket** where one exists.
+
+    Why this is not a plain cross-sectional rank any more. Book-to-market has
+    market cap in its denominator, and large companies carry most of their worth
+    in brand, goodwill and other things a balance sheet does not hold. So B/M
+    correlates -0.35 with log size across our own panel, and ranking on it sorts
+    toward small before it sorts toward cheap. Every "value" pick this book made
+    was in the bottom half of the market by size, three of five in the bottom
+    quartile, from a universe whose median company is $3.1B.
+
+    That tilt is not itself an error — the size premium is real and these screens
+    are supposed to lean small. It is an error *here*, on this data, because
+    microcaps are exactly where our 7,062 missing delisted companies concentrate.
+    The screens were validated on a sample that omits the small companies that
+    died, so their small-cap leg is the least trustworthy thing they do.
+
+    Ranking within bucket asks the question the screen was meant to ask: not
+    "which company is cheapest" — that is mostly "which is smallest" — but "which
+    company is cheapest relative to companies of its own size".
+
+    Pass the frame to neutralise; call it with one argument for a global rank,
+    which is still correct wherever size is not in the denominator.
+    """
+    if d is not None and SIZE_BUCKET_COL in getattr(d, "columns", ()):
+        return s.groupby(d[SIZE_BUCKET_COL], observed=True).rank(
+            pct=True, na_option="keep")
     return s.rank(pct=True, na_option="keep")
 
 
@@ -82,14 +117,14 @@ SCREENS = {
              "market-adjusted return, beating the full value portfolio by 7.5 "
              "points and low-F-Score names by 23. The single best-evidenced "
              "value screen there is.",
-        score=lambda d: _rank(d["book_to_market"]) * 0.5 + _rank(d["piotroski_f"]) * 0.5),
+        score=lambda d: _rank(d["book_to_market"], d) * 0.5 + _rank(d["piotroski_f"], d) * 0.5),
 
     "magic_formula": dict(
         requires=["ebit_to_ev", "roic"],
         note="Greenblatt. Rank on earnings yield (EBIT/EV) and return on capital, "
              "sum the ranks. Coverage is the binding constraint here, not the "
              "idea: roic needs long-term debt, which only ~27% of filings tag.",
-        score=lambda d: _rank(d["ebit_to_ev"]) * 0.5 + _rank(d["roic"]) * 0.5),
+        score=lambda d: _rank(d["ebit_to_ev"], d) * 0.5 + _rank(d["roic"], d) * 0.5),
 
     "quality_value": dict(
         requires=["gross_profitability", "book_to_market"],
@@ -97,7 +132,7 @@ SCREENS = {
              "value': roughly as powerful as book-to-market and nearly "
              "uncorrelated with it, which makes the pair far stronger than "
              "either alone.",
-        score=lambda d: _rank(d["gross_profitability"]) * 0.5 + _rank(d["book_to_market"]) * 0.5),
+        score=lambda d: _rank(d["gross_profitability"], d) * 0.5 + _rank(d["book_to_market"], d) * 0.5),
 
     "conservative": dict(
         requires=["piotroski_f", "asset_growth", "chs_distress"],
@@ -105,9 +140,9 @@ SCREENS = {
              "al (2008) find asset growth the strongest balance-sheet predictor "
              "of poor returns, and CHS predicts outright failure. Buys strong "
              "companies that are not empire-building and not dying.",
-        score=lambda d: (_rank(d["piotroski_f"]) * 0.5
-                         + (1 - _rank(d["asset_growth"])) * 0.25
-                         + (1 - _rank(d["chs_distress"])) * 0.25)),
+        score=lambda d: (_rank(d["piotroski_f"], d) * 0.5
+                         + (1 - _rank(d["asset_growth"], d)) * 0.25
+                         + (1 - _rank(d["chs_distress"], d)) * 0.25)),
 
     "buffett": dict(
         requires=["book_to_market", "roe"],
@@ -125,9 +160,9 @@ SCREENS = {
              "distress screen is how a value portfolio fills up with companies "
              "that are cheap because they are failing — which is exactly the "
              "trap our own search fell into for two days.",
-        score=lambda d: (_rank(d["book_to_market"]) * 0.4
-                         + _rank(d["earnings_yield"]) * 0.4
-                         + _rank(d["altman_z"]) * 0.2)),
+        score=lambda d: (_rank(d["book_to_market"], d) * 0.4
+                         + _rank(d["earnings_yield"], d) * 0.4
+                         + _rank(d["altman_z"], d) * 0.2)),
 }
 
 
@@ -147,39 +182,31 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
     own; running it with the liquidity floor switched off let it walk all the way
     to names a $20 order moves.
     """
+    # `market_cap` and the two Greenblatt inputs live only in `fundamentals`,
+    # so the as-of join is unconditional now. Joining on the latest filing at or
+    # before the review date keeps it point-in-time: `value_metrics._market_cap`
+    # multiplies shares taken FROM the filing by the price ON the filing date,
+    # never by a current share count, which would be look-ahead precisely where
+    # it does most damage — dilution is what distressed companies do next.
     extra = [c for c in ("ebit_to_ev", "roic") if c not in FUNDAMENTAL_COLS]
     cols = ",".join(f"d.{c}" for c in FUNDAMENTAL_COLS)
-    join_extra = ""
-    if extra:
-        # ebit_to_ev and roic live only in `fundamentals`; join them per filing.
-        join_extra = ",".join(f"fu.{c}" for c in extra)
-        q = f"""
-            SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}, {join_extra}
-            FROM daily_fundamentals d
-            JOIN prices p ON p.ticker = d.ticker AND p.date = d.date
-            LEFT JOIN fundamentals fu ON fu.ticker = d.ticker
-                 AND fu.filed = (SELECT MAX(f2.filed) FROM fundamentals f2
-                                 WHERE f2.ticker = d.ticker
-                                   AND REPLACE(f2.filed,'-','') <= REPLACE(d.date,'-',''))
-            JOIN features fe ON fe.ticker = d.ticker AND fe.date = d.date
-            WHERE d.date BETWEEN ? AND ? AND p.close >= ?
-              AND fe.dollar_volume_20 >= ?
-              AND strftime('%w', d.date) = '3'
-              AND d.ticker IN (SELECT ticker FROM symbols
-                               WHERE security_type IN ('common_stock','adr')
-                                 AND data_quality IS NULL)
-        """
-    else:
-        q = f"""SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}
-                FROM daily_fundamentals d
-                JOIN prices p ON p.ticker=d.ticker AND p.date=d.date
-                JOIN features fe ON fe.ticker=d.ticker AND fe.date=d.date
-                WHERE d.date BETWEEN ? AND ? AND p.close >= ?
-                  AND fe.dollar_volume_20 >= ?
-                  AND strftime('%w', d.date) = '3'
-                  AND d.ticker IN (SELECT ticker FROM symbols
-                                   WHERE security_type IN ('common_stock','adr')
-                                     AND data_quality IS NULL)"""
+    join_extra = "".join(f", fu.{c}" for c in extra + ["market_cap"])
+    q = f"""
+        SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}{join_extra}
+        FROM daily_fundamentals d
+        JOIN prices p ON p.ticker = d.ticker AND p.date = d.date
+        JOIN features fe ON fe.ticker = d.ticker AND fe.date = d.date
+        LEFT JOIN fundamentals fu ON fu.ticker = d.ticker
+             AND fu.filed = (SELECT MAX(f2.filed) FROM fundamentals f2
+                             WHERE f2.ticker = d.ticker
+                               AND REPLACE(f2.filed,'-','') <= REPLACE(d.date,'-',''))
+        WHERE d.date BETWEEN ? AND ? AND p.close >= ?
+          AND fe.dollar_volume_20 >= ?
+          AND strftime('%w', d.date) = '3'
+          AND d.ticker IN (SELECT ticker FROM symbols
+                           WHERE security_type IN ('common_stock','adr')
+                             AND data_quality IS NULL)
+    """
     df = pd.read_sql_query(q, conn, params=(start, end,
                                             cfg["risk"].get("min_price") or 0,
                                             cfg["risk"].get("min_dollar_volume") or 0))
@@ -207,6 +234,48 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
         risk["date"] = pd.to_datetime(risk["date"])
         df = pd.merge_asof(df.sort_values("date"), risk.sort_values("date"),
                            on="date", by="ticker", direction="backward")
+    return add_size_buckets(df, cfg)
+
+
+def add_size_buckets(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """
+    Label each row with its size bucket, assigned within its own review date.
+
+    **Within the date, never pooled across dates.** Pooling would make the
+    buckets a calendar variable rather than a size one: the market roughly
+    quadrupled over the backtest window, so a company of unchanged real size
+    drifts from "small" to "large" without doing anything, and by the last years
+    almost every row would sit in the top bucket. Ranking inside a date compares
+    each company against the companies it was actually competing with.
+
+    Rows with no market cap get their own bucket rather than being dropped or
+    folded into the middle. A missing measurement is not an average one — the
+    same reasoning `buffett.quality_score` applies to its own components.
+    """
+    if df.empty or SIZE_COL not in df.columns:
+        return df
+    n = int((cfg.get("conviction", {}) or {}).get("size_buckets", 5))
+    cap = pd.to_numeric(df[SIZE_COL], errors="coerce")
+    cap = cap.where(cap > 0)
+
+    def label(g):
+        v = cap.loc[g.index]
+        out = pd.Series("no_cap", index=g.index, dtype="object")
+        ok = v.notna()
+        # Fewer distinct values than buckets makes qcut raise rather than
+        # degrade, and a thin early date should not take the whole run down.
+        if ok.sum() >= n * 2:
+            try:
+                out.loc[ok[ok].index] = pd.qcut(
+                    np.log(v[ok]), n,
+                    labels=[f"q{i+1}" for i in range(n)]).astype(object)
+            except ValueError:
+                out.loc[ok[ok].index] = "q1"
+        return out
+
+    df = df.copy()
+    df[SIZE_BUCKET_COL] = (df.groupby("date", group_keys=False)[[SIZE_COL]]
+                             .apply(label))
     return df
 
 

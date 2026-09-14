@@ -215,3 +215,16 @@ scoresheet:
   max_staleness_days: 5     # skip tickers whose newest bar is older than this (halted/delisted)
   output_file: "data/scoresheet.json"
   top_n: 25                # only send Claude the top N candidates, not the whole universe
+
+conviction:
+  # Fundamental screens rank each company against peers of ITS OWN SIZE rather
+  # than against the whole market. Book-to-market and EBIT/EV both carry market
+  # cap in the denominator, so a plain cross-sectional rank sorts toward small
+  # before it sorts toward cheap — measured at -0.35 Spearman against log size
+  # on our own panel. 5 buckets over ~2,300 names leaves ~470 per group, enough
+  # for a percentile to mean something.
+  size_buckets: 5
+  # Picks per screen, at most one from any single size bucket. Without the
+  # spread, neutralised ranks still allow three names from one corner of the
+  # market whenever that corner happens to hold the three highest percentiles.
+  one_pick_per_bucket: true

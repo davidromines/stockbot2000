@@ -123,6 +123,14 @@ def _conviction_picks(conn, cfg, screen: str, n: int = 3) -> list:
     except Exception:
         return []
     d = d.dropna(subset=["score"]).sort_values("score", ascending=False)
+    # At most one name per size bucket. The ranks are already neutralised, so
+    # this is not doing the neutralising — it stops the book taking three names
+    # from one corner of the market on the days that corner happens to hold the
+    # three highest percentiles, which a within-bucket rank permits and a
+    # concentrated five-position account cannot afford.
+    if (cfg.get("conviction", {}) or {}).get("one_pick_per_bucket", True) \
+            and cv.SIZE_BUCKET_COL in d.columns:
+        d = d.drop_duplicates(subset=[cv.SIZE_BUCKET_COL], keep="first")
     out = []
     for i, r in enumerate(d.head(n).itertuples(index=False), 1):
         bits = []
@@ -132,8 +140,11 @@ def _conviction_picks(conn, cfg, screen: str, n: int = 3) -> list:
             v = getattr(r, c, None)
             if v is not None and np.isfinite(v):
                 bits.append(f"{lab} {v:.2f}")
+        cap = getattr(r, cv.SIZE_COL, None)
+        if cap is not None and np.isfinite(cap) and cap > 0:
+            bits.append(f"cap ${cap / 1e9:.2f}B")
         out.append({"ticker": str(r.ticker), "price": float(r.close), "rank": i,
-                    "source": screen, "rationale": ", ".join(bits[:4])})
+                    "source": screen, "rationale": ", ".join(bits[:5])})
     return out
 
 
