@@ -1,0 +1,40 @@
+
+  STOCKBOT2000 — DAILY BOOK   prices as of 2026-09-11
+  ====================================================================================
+
+  SELL — nothing triggered today
+
+  BUY — ranked, $20.00 per position
+
+  #  ticker  source              price     stop    shares  why
+  ------------------------------------------------------------------------------------------------
+  1  MXC     deep_value          10.74     8.05    1.8622 + B/M 1.34, F-score 6.00, beta -0.62, distress
+  2  HELE    quality_value       27.32    20.49    0.7321   B/M 1.45, F-score 4.00, GP/A 0.39, beta 0.95
+  3  TNON    lab_survivor         5.93     5.22    3.3727   (pct_change(sma_200, 10) < -0.0818 or crosse
+  4  ANTX    classifier           5.41     4.76    3.6969   model score 62.0/100
+  5  VISN    deep_value           6.41     4.80    3.1226   B/M 2.82, F-score 5.00, GP/A 0.04, beta 1.55
+  6  UVV     buffett             45.40    34.05    0.4405   B/M 1.07, F-score 6.00, beta -0.26, distress
+  7  AOUT    quality_value       15.00    11.25    1.3333   B/M 1.34, F-score 5.00, GP/A 0.38, beta 1.49
+  8  FRMI    lab_survivor         5.50     4.84    3.6364   (pct_change(sma_200, 10) < -0.0818 or crosse
+  9  RGC     classifier           5.64     4.96    3.5461   model score 61.5/100
+  10 PURR    deep_value          12.03     9.02    1.6625   B/M 0.89, F-score 3.00, beta 3.27, distress 
+
+  Two systems agreed on: MXC (buffett+deep_value)
+
+  ====================================================================================
+  WHAT EACH SOURCE HAS ACTUALLY EARNED, OUT OF SAMPLE
+    deep_value      beat SPY in 6/15 windows, mean excess -1.5%
+    quality_value   beat SPY in 4/15 windows, mean excess -4.2%
+    lab_survivor    cleared validation and the survivorship gate; never forward-tested
+    classifier      AUC 0.612 out-of-sample, top-decile lift 1.54x
+    buffett         beat SPY in 6/15 windows, Sharpe 0.76 (Berkshire's own)
+
+  None of these beat the index reliably in testing. The best of them beat
+  SPY in 6 of 15 rolling two-year windows. This book exists to find out
+  forward whether any of that changes; it is not evidence that it will.
+
+  Stops are checked against a DAILY CLOSE. Dollar-based fractional orders
+  are market-only and cannot rest at the broker, so an overnight gap
+  through a stop is not protected against.
+
+  recorded 5 picks to the database

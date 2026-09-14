@@ -1,0 +1,109 @@
+=== 2026-09-14 01:57:55 : Daily capture starting
+=== 2026-09-14 01:57:55 : [1/5] Symbol directory — records listings and delistings
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-14_nasdaqlisted.txt
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-14_otherlisted.txt
+INFO:universe:Symbol directory: 5605 NASDAQ rows, 7609 other-listed rows.
+INFO:universe:Universe: 13181 listings — etf 5672, common_stock 5376, preferred 466, warrant 439, unit 372, adr 276, closed_end_fund 273, note 165, right 129, etn 13
+Recorded 13181 symbols. Active: 13181, no longer listed: 12
+=== 2026-09-14 01:57:58 : [2/5] Price top-up
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-14_nasdaqlisted.txt
+INFO:universe:Snapshot saved: data/symbol_snapshots/2026-09-14_otherlisted.txt
+INFO:universe:Symbol directory: 5605 NASDAQ rows, 7609 other-listed rows.
+INFO:universe:Universe: 13181 listings — etf 5672, common_stock 5376, preferred 466, warrant 439, unit 372, adr 276, closed_end_fund 273, note 165, right 129, etn 13
+INFO:backfill:Top-up mode: 388 tickers behind the latest bar
+INFO:backfill:Universe 13181 tickers | 12793 done | 388 outstanding | fetching 388 this run | period=3mo
+ERROR:yfinance:$UCFIW: possibly delisted; no price data found  (period=3mo)
+ERROR:yfinance:
+1 Failed download:
+ERROR:yfinance:['UCFIW']: possibly delisted; no price data found  (period=3mo)
+INFO:backfill:batch 1 | 50/388 tickers | 190 rows | 1 failed | 22.3 tickers/s | ETA 0.3 min
+INFO:backfill:batch 2 | 100/388 tickers | 270 rows | 1 failed | 19.2 tickers/s | ETA 0.3 min
+INFO:backfill:batch 3 | 150/388 tickers | 392 rows | 1 failed | 18.8 tickers/s | ETA 0.2 min
+WARNING:storage:ILLUW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:IPVVW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:KCHVR: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 4 | 200/388 tickers | 439 rows | 1 failed | 18.4 tickers/s | ETA 0.2 min
+WARNING:storage:MZYX-WT: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 5 | 250/388 tickers | 557 rows | 1 failed | 17.7 tickers/s | ETA 0.1 min
+WARNING:storage:OIMAW: rejected 1 rows with impossible prices (negative or high<low)
+WARNING:storage:PTACW: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 6 | 300/388 tickers | 680 rows | 1 failed | 17.1 tickers/s | ETA 0.1 min
+WARNING:storage:SAGU-WT: rejected 1 rows with impossible prices (negative or high<low)
+INFO:backfill:batch 7 | 350/388 tickers | 849 rows | 1 failed | 15.0 tickers/s | ETA 0.0 min
+INFO:backfill:batch 8 | 388/388 tickers | 912 rows | 1 failed | 15.1 tickers/s | ETA 0.0 min
+INFO:backfill:------------------------------------------------------------
+INFO:backfill:Fetched 387 tickers, 1 failed, 912 rows written in 0.4 min
+INFO:backfill:prices table: {'rows': 35479818, 'tickers': 13158, 'first_date': '1962-01-02', 'last_date': '2026-09-11'}
+INFO:backfill:ingest state: {'done': 13167, 'failed': 26}
+=== 2026-09-14 01:58:35 : [3/5] Features
+INFO:build_features:Feature types: common_stock, adr, etf, closed_end_fund
+INFO:build_features:0 tickers need features | computing 0 this run
+INFO:build_features:Nothing to do.
+=== 2026-09-14 02:01:04 : [4/5] Paper trading step
+INFO:paper:'baseline_forward' already stepped to 2026-09-11
+INFO:paper:'lab_8d577628' wants 20 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_8d577628' already stepped to 2026-09-11
+INFO:paper:'lab_b1168518' wants 22 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_b1168518' already stepped to 2026-09-11
+INFO:paper:'lab_d9dafbd6' wants 20 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_d9dafbd6' already stepped to 2026-09-11
+INFO:paper:'lab_deec9b34' wants 16 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_deec9b34' already stepped to 2026-09-11
+INFO:paper:'lab_b0fa7e14' already stepped to 2026-09-11
+INFO:paper:'lab_ed6e5b6f' already stepped to 2026-09-11
+INFO:paper:'lab_933f51aa' wants 9 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_933f51aa' already stepped to 2026-09-11
+INFO:paper:'lab_19d29f07' wants 16 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_19d29f07' already stepped to 2026-09-11
+INFO:paper:'lab_109c65c6' wants 10 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_109c65c6' already stepped to 2026-09-11
+INFO:paper:'lab_8bee5677' wants 26 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_8bee5677' already stepped to 2026-09-11
+INFO:paper:'lab_8f4dbe00' wants 23 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_8f4dbe00' already stepped to 2026-09-11
+INFO:paper:'lab_ef8fc97a' wants 22 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'lab_ef8fc97a' already stepped to 2026-09-11
+INFO:paper:'survivor_c5b1225d' wants 9 positions; $100 at $20 funds 5. Trading the smaller.
+INFO:paper:'survivor_c5b1225d' already stepped to 2026-09-11
+=== 2026-09-14 02:06:55 : [5/5] Daily book
+
+  STOCKBOT2000 — DAILY BOOK   prices as of 2026-09-11
+  ====================================================================================
+
+  SELL — nothing triggered today
+
+  BUY — ranked, $20.00 per position
+
+  #  ticker  source              price     stop    shares  why
+  ------------------------------------------------------------------------------------------------
+  1  MXC     deep_value          10.74     8.05    1.8622 + B/M 1.34, F-score 6.00, beta -0.62, distress
+  2  HELE    quality_value       27.32    20.49    0.7321   B/M 1.45, F-score 4.00, GP/A 0.39, beta 0.95
+  3  TNON    lab_survivor         5.93     5.22    3.3727   (pct_change(sma_200, 10) < -0.0818 or crosse
+  4  ANTX    classifier           5.41     4.76    3.6969   model score 62.0/100
+  5  VISN    deep_value           6.41     4.80    3.1226   B/M 2.82, F-score 5.00, GP/A 0.04, beta 1.55
+  6  UVV     buffett             45.40    34.05    0.4405   B/M 1.07, F-score 6.00, beta -0.26, distress
+  7  AOUT    quality_value       15.00    11.25    1.3333   B/M 1.34, F-score 5.00, GP/A 0.38, beta 1.49
+  8  FRMI    lab_survivor         5.50     4.84    3.6364   (pct_change(sma_200, 10) < -0.0818 or crosse
+  9  RGC     classifier           5.64     4.96    3.5461   model score 61.5/100
+  10 PURR    deep_value          12.03     9.02    1.6625   B/M 0.89, F-score 3.00, beta 3.27, distress 
+
+  Two systems agreed on: MXC (buffett+deep_value)
+
+  ====================================================================================
+  WHAT EACH SOURCE HAS ACTUALLY EARNED, OUT OF SAMPLE
+    deep_value      beat SPY in 6/15 windows, mean excess -1.5%
+    quality_value   beat SPY in 4/15 windows, mean excess -4.2%
+    lab_survivor    cleared validation and the survivorship gate; never forward-tested
+    classifier      AUC 0.612 out-of-sample, top-decile lift 1.54x
+    buffett         beat SPY in 6/15 windows, Sharpe 0.76 (Berkshire's own)
+
+  None of these beat the index reliably in testing. The best of them beat
+  SPY in 6 of 15 rolling two-year windows. This book exists to find out
+  forward whether any of that changes; it is not evidence that it will.
+
+  Stops are checked against a DAILY CLOSE. Dollar-based fractional orders
+  are market-only and cannot rest at the broker, so an overnight gap
+  through a stop is not protected against.
+
+  recorded 5 picks to the database
+=== 2026-09-14 02:18:43 : Daily capture complete

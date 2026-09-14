@@ -56,9 +56,15 @@ run "[4/5] Paper trading step" $PY paper_trading.py --step
 run "[5/5] Daily book" $PY daily_picks.py --report --record
 $PY daily_picks.py --report --record > data/daily_book.txt 2>/dev/null || true
 
+# 6. Tell someone. A report nobody reads is worth the same as no report, and
+#    a FAILURE nobody hears about is how this project lost eight days of price
+#    data and three hours of a stalled search without noticing.
+$PY orders.py --build > data/orders_today.txt 2>/dev/null || true
 if [ "$fail" -eq 0 ]; then
     say "Daily capture complete"
+    $PY notify.py --slate >/dev/null 2>&1 || true
 else
     say "Daily capture finished WITH FAILURES — see above"
+    $PY notify.py --alert "Daily capture FAILED. Check logs/daily.log — the symbol directory step is the one that must not be missed, because a skipped day loses that day's delistings permanently." >/dev/null 2>&1 || true
 fi
 exit $fail
