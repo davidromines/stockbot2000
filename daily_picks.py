@@ -112,6 +112,15 @@ def init(conn) -> None:
         ) STRICT
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_picks_status ON picks(status)")
+    # `pick_date` is the DATA date the book was built from, not the day money
+    # moved — on any Monday they differ by a weekend. Comparing a current bar
+    # against pick_date therefore said "fresh" for a bar that predated the fill,
+    # and the reconciler printed the gap between Friday's close and Monday's
+    # entry as if it were performance. entry_date records when the fill actually
+    # happened, which is the only date a P&L may be measured from.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(picks)")}
+    if "entry_date" not in cols:
+        conn.execute("ALTER TABLE picks ADD COLUMN entry_date TEXT")
     conn.commit()
 
 
