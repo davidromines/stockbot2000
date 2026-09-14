@@ -128,6 +128,22 @@ Sources supplied 2026-09-12. Read each, tested each, results below.
   actually disappeared within N days — and the flat 10.4-point haircut can be
   retired for anything after 2009.
 
+## Security
+
+- [ ] **Rotate the Telegram bot token.** The token for @Stockbot2999_bot was
+  pasted into a chat transcript on 2026-09-14 and must be treated as public.
+  Anyone holding it can send messages as the bot and read anything sent to it.
+  It cannot read the trading account or the database — the blast radius is
+  notifications only — but it should still be cycled.
+
+  To rotate: message @BotFather, `/revoke`, choose the bot, receive a new token,
+  then rewrite `~/.telegram` keeping the same `chat_id` line. No code changes;
+  `notify.py` reads the file each time.
+
+  The same rule applies to `~/.alphavantage_key`. Neither belongs in the repo,
+  both are 0600, and `.gitignore` does not need to cover them because they live
+  outside the working tree entirely — which is the point of putting them there.
+
 ## Near-term
 
 - [ ] **Seed the search with known strategies.** The search currently starts from
