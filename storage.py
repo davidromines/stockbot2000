@@ -664,7 +664,8 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
                        end_date: str | None = None,
                        min_price: float | None = None,
                        min_dollar_volume: float | None = None,
-                       include_liquidity: bool = False) -> pd.DataFrame:
+                       include_liquidity: bool = False,
+                       include_open: bool = False) -> pd.DataFrame:
     """
     Features joined to close price, for model training and backtesting.
 
@@ -672,6 +673,11 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     estimate spreads. Off by default so training never sees it — a classifier
     given liquidity would learn "thin names move more", which is the artifact the
     liquidity floors exist to remove.
+
+    `include_open` adds the opening price, which the simulator needs to fill
+    orders on the bar AFTER a signal. Also off by default, and for the same kind
+    of reason: a model handed the open of the bar it is predicting has been given
+    part of the answer.
 
     Two memory choices matter at this scale. Indicators come back as `float32`,
     which halves ~15M rows from 2.5 GB to 1.25 GB at no cost to a model that
@@ -684,11 +690,14 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     """
     select_cols = list(feature_cols) + (["dollar_volume_20"] if include_liquidity else [])
     cols = ", ".join(f"f.{c}" for c in select_cols)
+    # Quoted: `open` is a keyword in enough SQL dialects to be worth not finding
+    # out about on a different engine.
+    price_cols = 'p.close, p."open" AS open' if include_open else "p.close"
     where_sql, params = _feature_where(feature_cols, types, start_date, end_date,
                                        min_price, min_dollar_volume)
     where = [where_sql]
 
-    sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
+    sql = (f"SELECT f.ticker, f.date, {price_cols}, {cols} "
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
            f"WHERE {' AND '.join(where)}")
 
@@ -708,12 +717,18 @@ def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
     rate from 49.2% to 60.7%, because a company falling from $6 to $0.20 booked
     its exit near $5.50.
 
-    Deliberately returns only ticker/date/close. The full OHLCV set for an
-    unfiltered decade is several times the tradeable frame and the extra columns
-    are never read.
+    Returns ticker/date/close/open and nothing else. High and low are
+    deliberately absent: this account cannot act on an intraday level. Stops here
+    are checked against a daily close and exited by market order, so a low that
+    pierced a stop and recovered by the close is not an event this system could
+    have traded, and modelling it would invent an exit that never existed.
+
+    `open` is here because fills happen on the bar AFTER the signal. A position
+    already open has to be priced wherever the stock goes, which is why this
+    reads the unfiltered series — the same reason the closes are here.
     """
     import pandas as pd
-    q = ("SELECT ticker, date, close FROM prices "
+    q = ('SELECT ticker, date, close, "open" AS open FROM prices '
          "WHERE date BETWEEN ? AND ? AND close > 0")
     df = pd.read_sql_query(q, conn, params=(start_date, end_date))
     if tickers is not None:
@@ -788,7 +803,7 @@ def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
         where.append("f.date >= ?")
         params.append(cutoff)
 
-    sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
+    sql = (f"SELECT f.ticker, f.date, {price_cols}, {cols} "
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
            f"JOIN (SELECT ticker, MAX(date) AS d FROM features GROUP BY ticker) m "
            f"  ON f.ticker = m.ticker AND f.date = m.d "
