@@ -736,6 +736,32 @@ def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
     return df
 
 
+def reference_as_of(conn: sqlite3.Connection, reference_tickers: list[str]) -> str | None:
+    """
+    The last session the market is known to have held, from reference tickers.
+
+    SPY and friends trade every session without exception, so the newest bar
+    among them is the newest bar that *should* exist for every active listing.
+    Using them instead of `MAX(date)` breaks the circularity described in
+    `stale_tickers`: the reference advances because the market moved, not
+    because some unrelated straggler happened to be refetched.
+
+    The caller must fetch these tickers unconditionally BEFORE asking, or the
+    reference is as stale as everything else and nothing is gained.
+
+    Returns None when no reference ticker has data, so the caller can fall back
+    rather than treat a missing reference as "nothing is stale" — the failure
+    mode this whole function exists to remove.
+    """
+    if not reference_tickers:
+        return None
+    ph = ",".join("?" * len(reference_tickers))
+    row = conn.execute(
+        f"SELECT MAX(date) FROM prices WHERE ticker IN ({ph})",
+        tuple(reference_tickers)).fetchone()
+    return row[0] if row and row[0] else None
+
+
 def price_series(conn: sqlite3.Connection, tickers: list[str],
                  start_date: str, end_date: str) -> dict:
     """
@@ -969,10 +995,24 @@ def stale_tickers(conn: sqlite3.Connection, tickers: list[str],
     The README's claim that the loader was "incremental" was describing
     resumability, not top-up.
 
-    Stale means the ticker's last stored bar predates the newest bar anywhere in
-    the table. `attempts` stops a genuinely dead listing from being refetched
-    every morning forever; it is reset the moment real data arrives, so an active
-    ticker never accumulates strikes.
+    Stale means the ticker's last stored bar predates `as_of`, the last session
+    the market is known to have held. `attempts` stops a genuinely dead listing
+    from being refetched every morning forever; it is reset the moment real data
+    arrives, so an active ticker never accumulates strikes.
+
+    **Pass `as_of` from outside this table.** Defaulting it to `MAX(date)` — as
+    this did — makes the test self-referential: a ticker is stale only if it is
+    behind the newest bar in the very table the top-up is meant to advance. Once
+    every ticker is level at date D nothing is behind anything, the top-up
+    fetches nothing, and the database freezes at D permanently.
+
+    It never quite froze only because stragglers existed. A handful of tickers
+    behind D got fetched, their fetch returned bars past D, MAX(date) moved, and
+    *the next morning* everyone else finally looked stale. Measured 2026-09-15:
+    12,769 tickers at 2026-09-11 against a max of 2026-09-14, SPY and AAPL among
+    them — the whole universe a full session behind, every day, by construction.
+
+    `reference_as_of()` supplies the honest answer.
     """
     as_of = as_of or conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
     if not as_of:

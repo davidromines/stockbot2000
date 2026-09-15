@@ -133,6 +133,11 @@ survivorship:
   note: "Upper bound; also contains CRSP microcap/OTC coverage we never had."
 
 backfill:
+  # Asked directly of the data source to find the last session the market held.
+  # Staleness must NOT be measured against our own MAX(date): that is circular,
+  # and it left 12,769 tickers a full session behind every day. Liquid ETFs that
+  # trade every single session.
+  reference_tickers: ["SPY", "QQQ", "IWM"]
   # Daily top-up fetches only a recent slice. Asking for `max` on 13,000 tickers
   # every morning would re-download the whole database and get rate-limited
   # within the hour, and the upsert would discard nearly all of it.

@@ -115,6 +115,47 @@ def _handle_interrupt(signum, frame):
     log.warning("Interrupt received. Finishing current batch, then stopping cleanly...")
 
 
+def last_market_session(reference_tickers: list[str], period: str = "5d") -> str | None:
+    """
+    The newest session date, asked of the data source rather than of our table.
+
+    This is the fix for a circularity that had the whole universe running a
+    session behind every day. Staleness was measured against `MAX(date)` over
+    `prices` — the same table the top-up exists to advance — so once every ticker
+    sat at date D, nothing was behind anything and nothing was fetched. It only
+    ever moved because stragglers dragged the max forward a day late.
+
+    A tiny direct query for one liquid ETF answers "has the market closed since
+    our last bar" without consulting our own possibly-stale state. Nothing is
+    written here; the reference tickers get topped up by the normal path like
+    everything else, since they will now correctly look stale too.
+
+    **Today's bar is excluded.** Asked during market hours the source returns an
+    in-progress bar for today, and treating that as the last session would mark
+    the whole universe stale and store 13,000 partial bars as if they were
+    closes. Only completed sessions count, so the answer is conservative by one
+    session if this is ever run intraday — which is the right direction to err.
+
+    Returns None if no reference responds, so the caller can fall back loudly
+    instead of concluding that nothing needs fetching.
+    """
+    import datetime as _dt
+    import pandas as pd
+    today = _dt.datetime.now(_dt.timezone.utc).date()
+    for t in reference_tickers:
+        try:
+            df = yf.download(tickers=t, period=period, interval="1d",
+                             progress=False, auto_adjust=True, threads=False)
+            if df is not None and not df.empty:
+                dates = [pd.Timestamp(d).date() for d in df.index]
+                done = [d for d in dates if d < today]
+                if done:
+                    return str(max(done))
+        except Exception as e:      # noqa: BLE001 — any failure just means "try the next one"
+            log.warning(f"reference {t}: {type(e).__name__}")
+    return None
+
+
 def fetch_batch(tickers: list[str], period: str, interval: str, attempts: int,
                 backoff: int, throttle: Throttle, rate_limit_pause: float,
                 max_strikes: int, threads: bool = True):
@@ -205,12 +246,31 @@ def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = Fa
     if top_up:
         # Daily mode. `pending` means "the initial load never finished this one",
         # which is empty once the historical load completes — so a daily re-run
-        # of pending-only work is a silent no-op. Stale means "behind the newest
-        # bar in the table", which is the question a top-up actually asks.
-        stale = storage.stale_tickers(conn, all_tickers, max_attempts=max_ticker_attempts)
+        # of pending-only work is a silent no-op. Stale means "behind the last
+        # session the market actually held", which is what a top-up asks.
+        #
+        # **The reference tickers are fetched first, unconditionally.** Staleness
+        # used to be measured against MAX(date) over the same table being
+        # updated, which is circular: level the universe at date D and nothing is
+        # behind anything, so nothing is fetched and the database stops at D
+        # forever. It limped along only because stragglers dragged the max
+        # forward a day late — leaving 12,769 tickers at 2026-09-11 against a max
+        # of 2026-09-14, SPY and AAPL among them.
+        refs = [t for t in (bcfg.get("reference_tickers") or []) if t]
+        as_of = last_market_session(refs)
+        if as_of:
+            log.info(f"Last confirmed market session: {as_of} (from {', '.join(refs)})")
+        if as_of is None:
+            # No reference data: fall back to the old behaviour rather than
+            # treating an unknown reference as "nothing is stale", which would
+            # silently skip the entire top-up.
+            log.warning("No reference data — falling back to MAX(date), which "
+                        "lags by a session. Check the reference tickers.")
+        stale = storage.stale_tickers(conn, all_tickers, as_of=as_of,
+                                      max_attempts=max_ticker_attempts)
         seen = set(todo)
         todo = todo + [t for t in stale if t not in seen]
-        log.info(f"Top-up mode: {len(stale):,} tickers behind the latest bar")
+        log.info(f"Top-up mode: {len(stale):,} tickers behind {as_of or 'the latest bar'}")
     # Count before --limit truncates, or the summary reports skipped tickers as
     # finished ones.
     outstanding = len(todo)
