@@ -161,7 +161,7 @@ def _store(conn, rec) -> None:
                                 "net_pct", "computed_at")))
 
 
-def _forward_unfiltered(df, full, horizon: int):
+def _forward_unfiltered(df, full, horizon: int, fill: str = "next_open"):
     """
     Forward return over `horizon` bars, priced off the **unfiltered** series.
 
@@ -185,7 +185,12 @@ def _forward_unfiltered(df, full, horizon: int):
     full = full.copy()
     full["date"] = pd.to_datetime(full["date"])
     full = full.sort_values(["ticker", "date"])
-    ocol = "open" if "open" in full.columns else "close"
+    # next_open: buy the open after the signal bar, sell the open after the
+    # holding period. close: the old convention, kept only so the difference can
+    # be measured. Asserting that a change is small is how this project has been
+    # wrong before.
+    ocol = "open" if (fill == "next_open" and "open" in full.columns) else "close"
+    step = 1 if fill == "next_open" else 0
     by = {t: (g["date"].to_numpy(dtype="datetime64[ns]"),
               g[ocol].to_numpy(dtype="float64"))
           for t, g in full.groupby("ticker", observed=True)}
@@ -208,8 +213,8 @@ def _forward_unfiltered(df, full, horizon: int):
             pos = np.clip(np.searchsorted(fd, dates[rows]), 0, len(fo) - 1)
             # Buy at the open AFTER the signal bar, sell at the open after the
             # holding period ends — the simulator's convention exactly.
-            buy_at = pos + 1
-            sell_at = pos + horizon + 1
+            buy_at = pos + step
+            sell_at = pos + horizon + step
             ok = (sell_at < len(fo)) & (buy_at < len(fo))
             vals = np.full(len(rows), np.nan)
             if ok.any():
@@ -489,16 +494,53 @@ def report(conn, cfg: dict) -> None:
     print("  beating the market-wide null can still just mean it bought cheap stocks.")
 
 
+def compare_fills(conn, cfg: dict, window: tuple[str, str],
+                  anchors: tuple[int, ...] = (5, 21, 45)) -> None:
+    """
+    The market-wide null under both fill conventions, side by side.
+
+    **Stores nothing.** Cached cells carry no record of which convention
+    produced them, so writing a comparison run into the cache would silently
+    corrupt the production surface — exactly the class of mistake this function
+    exists to guard against elsewhere.
+    """
+    df = _load(conn, cfg, window)
+    if df.empty:
+        print("  no rows in window"); return
+    df = df.sort_values(["ticker", "date"])
+    full = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
+                                    window[0], window[1])
+    mp = cfg["risk"].get("min_price")
+    mv = cfg["risk"].get("min_dollar_volume")
+    print(f"\n  NULL BY FILL CONVENTION — {window[0]} -> {window[1]}, whole market")
+    print(f"  {'hold':>6}{'close fill':>14}{'next-open':>14}{'difference':>14}")
+    print("  " + "-" * 48)
+    for h in anchors:
+        a = _cell(df, _forward_unfiltered(df, full, h, "close"),
+                  cfg, window, h, ALL_PRICES, mp, mv)["net_pct"]
+        b = _cell(df, _forward_unfiltered(df, full, h, "next_open"),
+                  cfg, window, h, ALL_PRICES, mp, mv)["net_pct"]
+        print(f"  {h:>5}d{a:>+13.3f}%{b:>+13.3f}%{b - a:>+13.3f}%")
+    print("\n  A positive difference means the old close-fill convention was")
+    print("  UNDERSTATING the null, so every strategy was being flattered.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--compare-fills", action="store_true",
+                        help="null under both fill conventions; writes nothing")
     args = parser.parse_args()
     cfg = load_config()
     runtime.be_nice()
     conn = storage.connect(cfg["database"]["market_data_path"])
     storage.init_db(conn)
     init(conn)
+    if args.compare_fills:
+        lab = cfg["lab"]
+        compare_fills(conn, cfg, (lab["search_start"], lab["search_end"]))
+        conn.close(); return
     if args.refresh:
         lab = cfg["lab"]
         for a, b in [(lab["search_start"], lab["search_end"]),
