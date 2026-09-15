@@ -12,8 +12,11 @@ the held-out date range. This script simulates ONLY from test_start onward and
 refuses to run without that file. Backtesting across the training period is what
 produced the earlier 97.9% win rate, which was leakage, not performance.
 
-Still not production-grade: no costs, no slippage, no liquidity floor. Those are
-phase 07. Results are an optimistic ceiling even when the dates are honest.
+Costs, slippage and the liquidity floor are all applied now (`costs.py`, and the
+floors inside `load_training_frame`), and fills land on the bar after the signal
+rather than at the close that produced it. What remains un-modelled is the
+survivorship hole, which no fill convention can recover: results are still an
+optimistic ceiling even when the dates and the fills are honest.
 
 Usage: python backtest.py --threshold 70
 """
@@ -109,10 +112,16 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
 
     # Exits price off the UNFILTERED table. Floors gate entries only — a position
     # already open must still be priced on days the name dips below them.
+    _tk = sorted(features["ticker"].astype(str).unique())
     price_lookup = storage.price_series(
-        conn, sorted(features["ticker"].astype(str).unique()),
-        split["test_start"], split["test_end"])
-    log.info(f"Exit price lookup: {len(price_lookup):,} unfiltered bars")
+        conn, _tk, split["test_start"], split["test_end"])
+    # Orders fill on the bar AFTER the signal. The test window is extended a
+    # month past its end so a signal on the final day still has a bar to fill
+    # on, instead of being silently dropped.
+    _fill_end = str((pd.Timestamp(split["test_end"]) + pd.Timedelta(days=31)).date())
+    next_bar = storage.next_bars(conn, _tk, split["test_start"], _fill_end)
+    log.info(f"Exit price lookup: {len(price_lookup):,} unfiltered bars; "
+             f"fill map for {len(next_bar):,} tickers")
     conn.close()
 
     model = xgb.XGBClassifier()
@@ -153,13 +162,26 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
                 exit_reason = "horizon_timeout"
 
             if exit_reason:
-                pnl_pct = (price / pos["entry_price"] - 1) * 100
+                # Triggered at this close; filled at the next open. This is where
+                # a stop stops being insurance: it cannot rest at the broker, so
+                # an overnight gap is taken in full.
+                nb = next_bar.get(str(ticker), {}).get(str(date)[:10])
+                if nb is None:
+                    continue          # no bar to sell into yet; keep holding
+                exit_date, fill = nb
+                if fill is None or fill <= 0:
+                    continue
+                pnl_pct = (fill / pos["entry_price"] - 1) * 100
                 shares = position_size / pos["entry_price"] if pos["entry_price"] else 0.0
                 gross = position_size * (pnl_pct / 100)
                 cost = cost_model.round_trip(position_size, pos["dollar_volume"], shares)
                 trades.append({
-                    "ticker": ticker, "entry_date": pos["entry_date"], "exit_date": date,
-                    "entry_price": pos["entry_price"], "exit_price": price,
+                    "ticker": ticker, "entry_date": pos["entry_date"],
+                    "exit_date": exit_date,
+                    "entry_price": pos["entry_price"], "exit_price": fill,
+                    "trigger_price": price,
+                    "gap_below_stop": (min(fill - pos["stop_price"], 0.0)
+                                       if exit_reason == "stop_loss" else 0.0),
                     "shares": shares,
                     "gross_pnl_usd": gross, "costs_usd": cost,
                     "net_pnl_usd": gross - cost,
@@ -176,9 +198,20 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
             candidates = candidates.sort_values("score", ascending=False)
             slots_open = max_positions - len(open_positions)
             for _, row in candidates.head(slots_open).iterrows():
-                stop_price = calculate_stop_loss(row["close"], row.get("atr_14"), cfg)
+                # The signal came from this bar's close, which is only knowable
+                # after the session. Fill at the next bar's open, and skip the
+                # signal entirely when there is no next bar — there was no
+                # session in which to buy it.
+                nb = next_bar.get(str(row["ticker"]), {}).get(str(date)[:10])
+                if nb is None:
+                    continue
+                fill_date, fill = nb
+                if fill is None or fill <= 0:
+                    continue
+                stop_price = calculate_stop_loss(fill, row.get("atr_14"), cfg)
                 open_positions[row["ticker"]] = {
-                    "entry_date": date, "entry_price": row["close"],
+                    "entry_date": fill_date, "entry_price": fill,
+                    "signal_price": float(row["close"]),
                     "stop_price": stop_price, "days_held": 0,
                     # Liquidity on the entry bar drives the spread estimate.
                     "dollar_volume": float(row.get("dollar_volume_20") or 0.0),

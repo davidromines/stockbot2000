@@ -764,6 +764,50 @@ def price_series(conn: sqlite3.Connection, tickers: list[str],
     return out
 
 
+def next_bars(conn: sqlite3.Connection, tickers: list[str],
+              start_date: str, end_date: str) -> dict:
+    """
+    Per ticker, the next trading bar after any given date: {ticker: {date: (next_date, next_open)}}.
+
+    Exists because orders fill on the bar AFTER the signal. A backtest that buys
+    at the close of the bar whose close produced the signal has look-ahead — the
+    close is only knowable once the session has ended — and every figure it
+    reports is inflated by however much prices drift overnight in the direction
+    the signal points.
+
+    Unfiltered, for the same reason `price_series` is: an exit has to be fillable
+    on a bar the entry filters would have excluded.
+    """
+    if not tickers:
+        return {}
+    out: dict = {}
+    CH = 900
+    for i in range(0, len(tickers), CH):
+        block = tickers[i:i + CH]
+        ph = ",".join("?" * len(block))
+        rows = conn.execute(
+            f'SELECT ticker, date, "open" FROM prices '
+            f"WHERE ticker IN ({ph}) AND date BETWEEN ? AND ? "
+            f"ORDER BY ticker, date",
+            (*block, start_date, end_date)).fetchall()
+        cur, seq = None, []
+        for r in rows:
+            if r[0] != cur:
+                _link(out, cur, seq)
+                cur, seq = r[0], []
+            seq.append((r[1], r[2]))
+        _link(out, cur, seq)
+    return out
+
+
+def _link(out: dict, ticker, seq: list) -> None:
+    """Map each bar to the one after it. The final bar maps to nothing."""
+    if not ticker or len(seq) < 2:
+        return
+    out[ticker] = {seq[i][0]: (seq[i + 1][0], seq[i + 1][1])
+                   for i in range(len(seq) - 1)}
+
+
 def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
                          types: list[str] | None = None,
                          max_staleness_days: int = 5,
