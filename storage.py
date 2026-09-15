@@ -847,7 +847,12 @@ def load_latest_features(conn: sqlite3.Connection, feature_cols: list[str],
         where.append("f.date >= ?")
         params.append(cutoff)
 
-    sql = (f"SELECT f.ticker, f.date, {price_cols}, {cols} "
+    # Deliberately close-only. Nothing fills from this function — it scores the
+    # most recent bar — so it has no include_open switch and must not reference
+    # load_training_frame's price_cols. A blanket string replace gave it that
+    # reference and broke every caller at runtime; the two functions share this
+    # SELECT line almost verbatim, so edit them one at a time.
+    sql = (f"SELECT f.ticker, f.date, p.close, {cols} "
            f"FROM features f JOIN prices p ON f.ticker = p.ticker AND f.date = p.date "
            f"JOIN (SELECT ticker, MAX(date) AS d FROM features GROUP BY ticker) m "
            f"  ON f.ticker = m.ticker AND f.date = m.d "
