@@ -172,18 +172,26 @@ def _forward_unfiltered(df, full, horizon: int):
     still enjoyed the truncation it had just lost. Measured effect of fixing the
     simulator alone: random genomes beating the null fell from 45% to 15%, which
     is the size of the distortion this removes from the other side.
+
+    **The same applies to fill timing, which is why this is open-to-open.** The
+    simulator buys at the open after the signal and sells at the open after the
+    exit triggers. A null still measured close-to-close would be a different
+    trade — one entered at a price the strategy is no longer allowed to have —
+    and the difference would land in every strategy's excess as a free gift or an
+    unearned penalty. Identical mechanics on both sides is the only way the
+    subtraction means anything.
     """
     import pandas as pd
     full = full.copy()
     full["date"] = pd.to_datetime(full["date"])
     full = full.sort_values(["ticker", "date"])
+    ocol = "open" if "open" in full.columns else "close"
     by = {t: (g["date"].to_numpy(dtype="datetime64[ns]"),
-              g["close"].to_numpy(dtype="float64"))
+              g[ocol].to_numpy(dtype="float64"))
           for t, g in full.groupby("ticker", observed=True)}
 
     tick = df["ticker"].astype(str).to_numpy()
     dates = pd.to_datetime(df["date"]).to_numpy(dtype="datetime64[ns]")
-    close = df["close"].to_numpy(dtype="float64")
     out = np.full(len(df), np.nan)
 
     order = np.argsort(tick, kind="stable")
@@ -196,12 +204,17 @@ def _forward_unfiltered(df, full, horizon: int):
         rows = order[i:j]
         ent = by.get(t)
         if ent is not None:
-            fd, fc = ent
-            pos = np.clip(np.searchsorted(fd, dates[rows]), 0, len(fc) - 1)
-            nxt = pos + horizon
-            ok = nxt < len(fc)
+            fd, fo = ent
+            pos = np.clip(np.searchsorted(fd, dates[rows]), 0, len(fo) - 1)
+            # Buy at the open AFTER the signal bar, sell at the open after the
+            # holding period ends — the simulator's convention exactly.
+            buy_at = pos + 1
+            sell_at = pos + horizon + 1
+            ok = (sell_at < len(fo)) & (buy_at < len(fo))
             vals = np.full(len(rows), np.nan)
-            vals[ok] = fc[nxt[ok]] / np.maximum(close[rows][ok], 1e-9) - 1.0
+            if ok.any():
+                buy = fo[buy_at[ok]]
+                vals[ok] = fo[sell_at[ok]] / np.maximum(buy, 1e-9) - 1.0
             out[rows] = vals
         i = j
     return pd.Series(out, index=df.index)
