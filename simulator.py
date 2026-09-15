@@ -335,7 +335,12 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
         "n_stopped": int(stopped.sum()),
         "n_gapped": int(np.sum(gap < 0)),
         "win_rate": float((net > 0).mean()),
-        "avg_hold_days": float(first.mean() + 2),
+        # Bars held = exit bar - entry bar = (first+2) - 1 = first+1. Not
+        # first+2: that is the exit bar's OFFSET from the signal, and the signal
+        # bar is not held. Overstating it by a day charges the strategy a null
+        # for a longer horizon than it ran, and the null grows with horizon — so
+        # the error silently taxed every strategy by one day of drift.
+        "avg_hold_days": float(first.mean() + 1),
         "pnl_series": net,
         "entry_rows": idx,
         "exit_reason": reason,
