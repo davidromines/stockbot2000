@@ -111,10 +111,30 @@ bias, track `source` per row so a point-in-time provider can be layered in later
 Daily symbol snapshots now record when tickers leave the listings, so the gap stops
 widening from here.
 
-### 07 · Simulator realism & backtest rigor 🔵 0%
-Costs, slippage, liquidity floors, true walk-forward splitting, long-only
-constraint. Promoted in priority — the Strategy Lab is only as trustworthy as
-the simulator it optimizes against.
+### 07 · Simulator realism & backtest rigor ✅ 100%
+Promoted in priority — the Strategy Lab is only as trustworthy as the simulator
+it optimizes against. Every item is now in code:
+
+- ✅ **Walk-forward** — 31 rolling retrains, all 31 folds above 0.5 AUC
+- ✅ **Liquidity floors** — $5 / $1M per day, and applied on the fundamental
+  path too as of 2026-09-14, where they had been missing entirely
+- ✅ **Survivorship haircut** — measured at ~10.4 points/year, and the hole
+  enumerated at 7,062 companies rather than estimated
+- ✅ **Cost + slippage** — `costs.py`, charged *inside* the simulator rather
+  than subtracted afterwards, so the search cannot discover a strategy that
+  fails to pay its own spread
+- ✅ **Next-open fills** — 2026-09-15. Signals are computed from a bar's close
+  and were filled at that same close, which is look-ahead. Entries now fill at
+  the next open, exits at the open after the trigger
+- ✅ **Gap-through-stop** — falls out of next-open fills. A stop that cannot
+  rest at the broker no longer books its exit at the price that breached it;
+  `gap_loss_usd` reports what the gap costs
+
+Long-only was never a constraint to add — nothing here can short.
+
+**What this phase does not fix.** Realistic fills make the measurement honest;
+they do not make it unbiased. The missing delisted companies are still missing,
+and no fill convention recovers them.
 
 ---
 
