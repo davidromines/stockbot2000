@@ -90,7 +90,7 @@ def apply_survivorship_haircut(trades: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return trades
 
 
-def run_backtest(threshold: float, cfg: dict) -> dict:
+def run_backtest(threshold: float, cfg: dict, fill: str = "next_open") -> dict:
     split = load_split(cfg)
 
     conn = storage.connect(cfg["database"]["market_data_path"])
@@ -142,6 +142,10 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
     log.info(f"Selection: {mode}"
              + (f", floor {min_score}" if min_score is not None else ", no score floor"))
 
+    fill_mode = fill
+    log.info(f"Fill convention: {fill_mode}"
+             + ("  (LOOK-AHEAD — signal bar's own close; for comparison only)"
+                if fill_mode == "close" else "  (bar after the signal)"))
     trades = []
     open_positions = {}  # ticker -> dict(entry_date, entry_price, stop_price, days_held)
 
@@ -165,10 +169,13 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
                 # Triggered at this close; filled at the next open. This is where
                 # a stop stops being insurance: it cannot rest at the broker, so
                 # an overnight gap is taken in full.
-                nb = next_bar.get(str(ticker), {}).get(str(date)[:10])
-                if nb is None:
-                    continue          # no bar to sell into yet; keep holding
-                exit_date, fill = nb
+                if fill_mode == "close":
+                    exit_date, fill = date, price
+                else:
+                    nb = next_bar.get(str(ticker), {}).get(str(date)[:10])
+                    if nb is None:
+                        continue      # no bar to sell into yet; keep holding
+                    exit_date, fill = nb
                 if fill is None or fill <= 0:
                     continue
                 pnl_pct = (fill / pos["entry_price"] - 1) * 100
@@ -202,10 +209,13 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
                 # after the session. Fill at the next bar's open, and skip the
                 # signal entirely when there is no next bar — there was no
                 # session in which to buy it.
-                nb = next_bar.get(str(row["ticker"]), {}).get(str(date)[:10])
-                if nb is None:
-                    continue
-                fill_date, fill = nb
+                if fill_mode == "close":
+                    fill_date, fill = date, float(row["close"])
+                else:
+                    nb = next_bar.get(str(row["ticker"]), {}).get(str(date)[:10])
+                    if nb is None:
+                        continue
+                    fill_date, fill = nb
                 if fill is None or fill <= 0:
                     continue
                 stop_price = calculate_stop_loss(fill, row.get("atr_14"), cfg)
@@ -259,6 +269,7 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
                                 - pd.to_datetime(trades_df["entry_date"])).dt.days.mean(), 1),
         "stopped_out_pct": round((trades_df["exit_reason"] == "stop_loss").mean() * 100, 1),
         "period": f"{split['test_start']} -> {split['test_end']} (out-of-sample)",
+        "fill_convention": fill_mode,
         "selection": mode if mode != "threshold" else f"threshold {threshold}",
     }
     summary["_trades"] = trades_df
@@ -269,11 +280,15 @@ def run_backtest(threshold: float, cfg: dict) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--threshold", type=float, default=70.0)
+    parser.add_argument("--fill", choices=("next_open", "close"), default="next_open",
+                        help="next_open (honest) or close (the old look-ahead "
+                             "convention, kept only so the difference can be "
+                             "measured rather than asserted)")
     parser.add_argument("--name", help="Record this run in the experiment ledger under this name.")
     args = parser.parse_args()
 
     cfg = load_config()
-    result = run_backtest(args.threshold, cfg)
+    result = run_backtest(args.threshold, cfg, fill=args.fill)
 
     trades = result.pop("_trades", None)
     capital = result.pop("_capital", None)
