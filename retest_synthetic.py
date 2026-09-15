@@ -136,10 +136,18 @@ def run(cfg, stage="validation", members=10, limit=12):
         aug = _augmented_panel(conn, cfg, window, m, real)
         if aug is None:
             continue
-        aug_exit = pd.concat([
-            exitpx,
-            aug.loc[aug["synthetic"] == 1, ["ticker", "date", "close"]]
-        ], ignore_index=True) if "synthetic" in aug else exitpx
+        # Synthetic paths are generated as a close series only. Without an
+        # `open` the concat leaves those rows NaN, every synthetic entry becomes
+        # unfillable, and the delisting patterns this whole module exists to
+        # test would be silently dropped from the panel. open := close is the
+        # honest reading: the generator models no overnight gap, so claiming one
+        # either way would be inventing data.
+        if "synthetic" in aug:
+            syn = aug.loc[aug["synthetic"] == 1, ["ticker", "date", "close"]].copy()
+            syn["open"] = syn["close"]
+            aug_exit = pd.concat([exitpx, syn], ignore_index=True)
+        else:
+            aug_exit = exitpx
         panel = simulator.Panel(aug, exit_prices=aug_exit)
         nsyn = int(aug["synthetic"].sum()) if "synthetic" in aug else 0
         log.info(f"  member {m}: panel {panel.n:,} rows ({nsyn:,} synthetic)")

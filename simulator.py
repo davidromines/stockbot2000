@@ -43,7 +43,11 @@ import runtime  # noqa: F401  — must precede numpy/pandas
 import numpy as np
 import pandas as pd
 
+import logging
+
 import genome as gn
+
+log = logging.getLogger("simulator")
 
 MAX_HOLD_CAP = 60   # matches the genome's max_hold_days ceiling
 
@@ -132,6 +136,14 @@ class Panel:
         # One flat opens array, ticker blocks laid end to end, plus each filtered
         # row's index into it. `_uend` is that row's ticker block boundary, so a
         # gather can tell "no such bar" apart from "the next ticker's bar".
+        if "open" not in full.columns:
+            # Silent fallbacks are how this project reintroduces look-ahead. A
+            # frame with no opens can only be filled at the close, which is the
+            # bias this module just removed — so it is said out loud rather than
+            # discovered later in a number nobody can explain.
+            log.warning("exit_prices has no 'open' column — fills fall back to "
+                        "CLOSE, which restores the look-ahead this simulator "
+                        "exists to avoid")
         blocks, offs, cursor = [], {}, 0
         for t, g in full.groupby("ticker", observed=True):
             o = (g["open"].to_numpy(dtype="float32") if "open" in g
@@ -175,6 +187,9 @@ class Panel:
         series; production always passes `exit_prices`, because a fill priced
         inside the tradeable frame has the truncation defect fixed above.
         """
+        if "open" not in df:
+            log.warning("panel frame has no 'open' column — fills fall back to "
+                        "CLOSE, restoring look-ahead")
         col = "open" if "open" in df else "close"
         self._uopen = df[col].to_numpy(dtype="float32")
         codes = df["ticker"].astype("category").cat.codes.to_numpy()
