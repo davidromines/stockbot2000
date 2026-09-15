@@ -80,9 +80,11 @@ Consistent with alpha decay or regime change — still positive throughout.
 
 **What this does not establish.** The measurement sits on survivorship-biased
 data, so part of the lift may be survivors recovering rather than skill. AUC 0.63
-is real but weak. And the strategy's 0.43% raw per-trade return (0.247% after the
-survivorship haircut) is still inside the unmodelled cost-and-slippage band — a
-stable signal is not the same as a profitable strategy.
+is real but weak. **The 0.43% per-trade return quoted here was an artifact of
+close fills and a 10-position config, and is superseded** — under next-bar fills
+the same model is gross NEGATIVE. See "Fills happen on the NEXT bar" below. A
+stable ranking is not the same as a profitable strategy, and this is the case
+that proves it.
 
 ### Do not trust the backtest number
 
@@ -571,6 +573,64 @@ and every paper-trading run came through intact; `strategies` lost 6.3% and
 **Design note worth keeping:** `paper_runs` stores each strategy's genome inline
 as JSON rather than referencing `strategies.id`. That denormalisation is why
 every forward test survived a corruption that cost 5,767 strategy rows. Keep it.
+
+---
+
+## Fills happen on the NEXT bar — 2026-09-15. This one answers the project's question.
+
+**Both engines bought at the close of the bar whose close produced the signal.**
+Entry rules read `sma_200`, `rsi_14`, `close`; the simulator and the backtest
+then filled at that same close, a price nobody can obtain until the session is
+over. Exits had it too, which quietly made stops perfect: a stop detected at a
+close was filled at that close, so the exit was booked at the very price that
+breached it. CLAUDE.md has said for months that overnight gaps are unprotected
+while the simulator assumed the opposite.
+
+Fixed in `simulator.py`, `benchmark.py` (the null must match, or the comparison
+is rigged — the second time that asymmetry has had to be closed) and
+`backtest.py`. Signals fill at the next open; exits trigger on a close and fill
+on the following open. `tests/test_fills.py` pins the semantics: one synthetic
+trade goes from -$11.76 to **-$51.46** once the stop is allowed to gap.
+
+### The measurement, controlled
+
+Same model, same window (2022-07-20 -> 2026-09-11), same $20 x 5 config. **Only
+the fill convention differs** — that is what `--fill close` exists for:
+
+| | close fills | next-open fills |
+|---|---:|---:|
+| trades | 1,054 | 1,053 |
+| **gross P&L** | **+$1.63** | **-$58.77** |
+| gross per trade | +0.008% | **-0.279%** |
+| trading costs | -$104.35 | -$104.29 |
+| survivorship haircut | -$38.31 | -$38.27 |
+| **net P&L** | **-$141.03** | **-$201.33** |
+| win rate | 41.4% | 40.9% |
+
+**The look-ahead was worth 0.287 points per trade.** Not the 0.7 estimated from
+the older `baseline_top10` row — that comparison was contaminated, see below.
+
+### Two findings, not one
+
+1. **The signal does not survive costs, because there is no signal to survive
+   them.** Gross is *negative* under honest fills. The strategy loses money
+   before it pays a cent of spread. The question "does the edge survive costs"
+   is answered, but not the way it was posed.
+
+2. **The 0.43%/trade figure does not reproduce at 5 positions even WITH the
+   look-ahead.** `baseline_top10` (2026-09-11) ran $10 x 10 and recorded gross
+   +$90.31 over 2,109 trades = +0.428%/trade. The same model at $20 x 5 with the
+   same close fills yields +0.008%/trade. **The top 5 names perform worse than
+   the top 10** — a model whose ranking is not monotonic at its own top decile
+   is evidence against the ranking being real, independent of fills.
+
+**AUC 0.63 is not contradicted.** The classifier does rank better than chance;
+31 of 31 walk-forward folds said so. It does not rank well enough to pay for
+acting on it. Ranking skill and tradeable edge are different quantities and this
+is the distance between them.
+
+**Do not quote a per-trade return without stating its fill convention and
+position count.** Both move it by more than the entire claimed edge.
 
 ---
 
