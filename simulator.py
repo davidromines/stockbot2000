@@ -18,6 +18,25 @@ dollars is the output that matters.
 Exit priority, in order: stop-loss, take-profit, the genome's exit rule, then the
 holding-period limit. Stops come first because a position that gapped through its
 stop did not get to wait for a nicer signal.
+
+**Orders fill on the bar AFTER the signal, at its open.** This was the largest
+remaining look-ahead in the project. Every entry condition is computed from a
+bar's own close — `sma_200`, `rsi_14`, the close itself — and the simulator then
+bought at that same close, which is a price you cannot obtain from information
+you only have once the session has ended. The same applied to exits: a stop
+detected at a close was filled at that close.
+
+So a signal at the close of bar t now fills at the open of t+1, and an exit
+triggered at the close of bar t+k fills at the open of t+k+1. That is exactly
+what this account can actually do — read the close after the bell, place a market
+order, receive the next session's opening print.
+
+**This is where gap risk finally appears.** With close-to-close fills a stop was
+a guarantee: the exit was booked at the very price that breached it. Filling at
+the next open lets the position gap straight through, which is the real
+behaviour of a stop that cannot rest at the broker — and CLAUDE.md has said for
+months that overnight gaps are unprotected while the simulator quietly assumed
+otherwise. `gap_loss_usd` reports what that costs.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 
@@ -63,14 +82,27 @@ class Panel:
         # strategy that buys falling stocks, which is most of what the search
         # finds.
         self.fwd = np.full((self.n, self.max_hold + 1), np.nan, dtype="float32")
+        # Flat unfiltered opens plus, per filtered row, that row's position in
+        # them and where its ticker's block ends. A forward OPEN is then one
+        # gather at an arbitrary k — which is all the fill logic needs, since it
+        # asks for exactly two bars per trade (entry+1 and exit+1) rather than
+        # the whole window. Materialising a second (rows x 61) matrix beside the
+        # close matrix would have cost another 2.4 GB on an 11.7 GB machine to
+        # answer two questions per row.
+        self._uopen = np.zeros(0, dtype="float32")
+        self._upos = np.full(self.n, -1, dtype="int64")
+        self._uend = np.zeros(self.n, dtype="int64")
         if exit_prices is None or exit_prices.empty:
             g = df.groupby("ticker", observed=True)["close"]
             for k in range(1, self.max_hold + 1):
                 self.fwd[:, k] = g.shift(-k).to_numpy(dtype="float32")
+            self._open_from_filtered(df)
         else:
             self._forward_from_unfiltered(df, exit_prices)
 
         self.close = df["close"].to_numpy(dtype="float32")
+        self.open = (df["open"].to_numpy(dtype="float32")
+                     if "open" in df else np.full(self.n, np.nan, dtype="float32"))
         self.atr = (df["atr_14"].to_numpy(dtype="float32")
                     if "atr_14" in df else np.full(self.n, np.nan, dtype="float32"))
         self.dv = (df["dollar_volume_20"].to_numpy(dtype="float64")
@@ -97,6 +129,19 @@ class Panel:
         by_ticker = {t: (g["date"].to_numpy(dtype="datetime64[ns]"),
                          g["close"].to_numpy(dtype="float32"))
                      for t, g in full.groupby("ticker", observed=True)}
+        # One flat opens array, ticker blocks laid end to end, plus each filtered
+        # row's index into it. `_uend` is that row's ticker block boundary, so a
+        # gather can tell "no such bar" apart from "the next ticker's bar".
+        blocks, offs, cursor = [], {}, 0
+        for t, g in full.groupby("ticker", observed=True):
+            o = (g["open"].to_numpy(dtype="float32") if "open" in g
+                 else g["close"].to_numpy(dtype="float32"))
+            blocks.append(o)
+            offs[t] = (cursor, cursor + len(o))
+            cursor += len(o)
+        self._uopen = (np.concatenate(blocks) if blocks
+                       else np.zeros(0, dtype="float32"))
+
         tick = df["ticker"].astype(str).to_numpy()
         dates = pd.to_datetime(df["date"]).to_numpy(dtype="datetime64[ns]")
         order = np.argsort(tick, kind="stable")
@@ -118,7 +163,40 @@ class Panel:
                     vals = np.full(len(rows), np.nan, dtype="float32")
                     vals[ok] = fc[nxt[ok]]
                     self.fwd[rows, k] = vals
+                lo, hi = offs.get(t, (0, 0))
+                self._upos[rows] = lo + pos
+                self._uend[rows] = hi
             start = end
+
+    def _open_from_filtered(self, df: pd.DataFrame) -> None:
+        """
+        The same index, built from the filtered frame when no unfiltered set was
+        supplied. Used by tests and by callers that genuinely have no wider
+        series; production always passes `exit_prices`, because a fill priced
+        inside the tradeable frame has the truncation defect fixed above.
+        """
+        col = "open" if "open" in df else "close"
+        self._uopen = df[col].to_numpy(dtype="float32")
+        codes = df["ticker"].astype("category").cat.codes.to_numpy()
+        self._upos = np.arange(self.n, dtype="int64")
+        # Block end = one past the last row of each ticker's contiguous run.
+        ends = np.searchsorted(codes, codes, side="right")
+        self._uend = ends.astype("int64")
+
+    def open_at(self, rows: np.ndarray, k: np.ndarray) -> np.ndarray:
+        """
+        Opening price `k` bars after each row, or NaN where that bar does not
+        exist. `k` may differ per row, which is the whole point — an exit fill
+        lands wherever that trade's exit happened to trigger.
+        """
+        if self._uopen.size == 0:
+            return np.full(len(rows), np.nan)
+        pos = self._upos[rows] + k
+        ok = (self._upos[rows] >= 0) & (pos < self._uend[rows])
+        out = np.full(len(rows), np.nan)
+        if ok.any():
+            out[ok] = self._uopen[pos[ok]]
+        return out
 
     def memory_gb(self) -> float:
         return (self.fwd.nbytes + self.close.nbytes + self.atr.nbytes) / 1e9
@@ -148,7 +226,20 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
         step = idx.size / max_entries
         idx = idx[(np.arange(max_entries) * step).astype(int)]
 
-    entry_px = panel.close[idx].astype("float64")
+    # **Entry fills at the NEXT bar's open, not the signal bar's close.** The
+    # signal is computed from the close; that price is only knowable once the
+    # session is over, so buying at it is look-ahead. Trades whose next bar does
+    # not exist — the last bar of a ticker's history, including a delisting — are
+    # dropped rather than filled at the close, because there was no session in
+    # which to buy them.
+    entry_px = panel.open_at(idx, np.ones(len(idx), dtype="int64"))
+    fillable = np.isfinite(entry_px) & (entry_px > 0)
+    if not fillable.all():
+        idx = idx[fillable]
+        entry_px = entry_px[fillable]
+        if idx.size == 0:
+            return _empty_result()
+    signal_px = panel.close[idx].astype("float64")
     fwd = panel.fwd[idx, 1:max_hold + 1].astype("float64")     # (n_entries, max_hold)
 
     # --- exit conditions, evaluated across the whole holding window ---------
@@ -177,12 +268,32 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
     first = np.where(triggered.any(axis=1), triggered.argmax(axis=1), max_hold - 1)
 
     rows = np.arange(len(idx))
-    exit_px = fwd[rows, first]
-    # A position whose forward price is missing exits at the last price we have.
-    bad = ~np.isfinite(exit_px)
+    trigger_px = fwd[rows, first]
+    # **Exit fills at the open AFTER the bar that triggered it.** `first` is
+    # 0-based over bars t+1..t+max_hold, so the trigger is bar t+first+1 and the
+    # fill is t+first+2.
+    exit_px = panel.open_at(idx, first.astype("int64") + 2)
+    # No such bar — the ticker's series ends inside the holding window. Fall back
+    # to the trigger close, then to the last finite forward price. This is the
+    # delisting case and it is rare; what matters is that it does NOT fall back
+    # to the entry price, which would book a dead company as a flat trade.
+    bad = ~np.isfinite(exit_px) | (exit_px <= 0)
     if bad.any():
-        last_good = np.where(np.isfinite(fwd[bad]), fwd[bad], entry_px[bad][:, None])
-        exit_px[bad] = last_good[:, -1]
+        fallback = trigger_px[bad]
+        still_bad = ~np.isfinite(fallback)
+        if still_bad.any():
+            last_good = np.where(np.isfinite(fwd[bad]), fwd[bad],
+                                 entry_px[bad][:, None])
+            fallback = np.where(still_bad, last_good[:, -1], fallback)
+        exit_px[bad] = fallback
+
+    # Gap through the stop: the loss taken BELOW the stop level because the fill
+    # came at the next open rather than at the breaching close. Close-to-close
+    # fills made a stop a guarantee; this is what it is actually worth.
+    stopped = hit_stop[rows, first]
+    gap = np.where(stopped & np.isfinite(exit_px),
+                   np.minimum(exit_px - stop_px, 0.0), 0.0)
+    gap_loss_usd = float(np.sum(position_size_usd / entry_px * gap))
 
     reason = np.where(hit_stop[rows, first], "stop_loss",
              np.where(hit_tp[rows, first], "take_profit",
@@ -193,13 +304,23 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
     costs = cost_model.round_trip(position_size_usd, panel.dv[idx], shares)
     net = gross - costs
 
+    # What the old close-fill convention was worth, reported rather than merely
+    # removed. `entry_slip_usd` is the P&L difference between filling at the
+    # signal close and filling at the next open, summed over every trade: it is
+    # the size of the look-ahead this change deletes.
+    entry_slip_usd = float(np.sum(position_size_usd * (entry_px / signal_px - 1)))
+
     return {
         "n_trades": int(len(idx)),
         "net_pnl_usd": float(net.sum()),
         "gross_pnl_usd": float(gross.sum()),
         "costs_usd": float(np.sum(costs)),
+        "gap_loss_usd": gap_loss_usd,
+        "entry_slip_usd": entry_slip_usd,
+        "n_stopped": int(stopped.sum()),
+        "n_gapped": int(np.sum(gap < 0)),
         "win_rate": float((net > 0).mean()),
-        "avg_hold_days": float(first.mean() + 1),
+        "avg_hold_days": float(first.mean() + 2),
         "pnl_series": net,
         "entry_rows": idx,
         "exit_reason": reason,
@@ -210,6 +331,7 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
 
 def _empty_result() -> dict:
     return {"n_trades": 0, "net_pnl_usd": 0.0, "gross_pnl_usd": 0.0, "costs_usd": 0.0,
+            "gap_loss_usd": 0.0, "entry_slip_usd": 0.0, "n_stopped": 0, "n_gapped": 0,
             "win_rate": 0.0, "avg_hold_days": 0.0, "pnl_series": np.array([]),
             "entry_rows": np.array([], dtype=int), "exit_reason": np.array([]),
             "entry_price": np.array([]), "exit_price": np.array([])}
