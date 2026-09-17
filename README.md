@@ -29,15 +29,39 @@ backfill.py          → data/market_data.db                     (20yr OHLCV, re
 storage.py           → owns that database's schema and writes
 ```
 
-`run_pipeline.sh` chains data pull → features → score → LLM report → exit
-check, in that order. Intended for cron, pre-market. Training and
-backtesting are run manually/separately, not on the daily cron.
+**`daily.sh` is the real daily job** and has been on cron at 07:00 UTC on
+weekdays since 2026-09-12. Seven stages, each independently runnable and
+idempotent; a failing stage does not abort the ones after it.
+
+```
+[1/7] Symbol directory   who is listed today — a missed day loses that day's
+                         delistings PERMANENTLY, which is why it runs first
+[2/7] Price top-up       backfill.py --top-up
+[3/7] Features           the 20 indicators
+[4/7] Paper trading      advance the 16 simulated funds one day
+[5/7] Daily book         best candidate from every system + sell signals
+[6/7] Pair funds         mark the 5 bull/bear switching funds
+[7/7] Fund report        one status line per fund -> Telegram
+```
+
+On success the order slate and fund report go to Telegram; on failure an ALERT
+goes instead, naming the symbol-directory step specifically.
+
+`run_pipeline.sh` is the older single-run chain and is superseded by `daily.sh`.
+Training and backtesting are still run manually, not on cron.
 
 ## Historical data store
 
-Separate from the daily pipeline above, and the foundation the Strategy Lab will
-search over: `data/market_data.db` holds 20 years of daily bars for the full US
-common-stock universe (~6,200 tickers on NYSE / NYSE American / NASDAQ).
+`data/market_data.db` (~8.5 GB) holds **35.4M daily bars across 13,121
+instruments back to 1962**, plus 33.8M feature rows, the SEC fundamentals, the
+delisting registry, the Lab's genomes and every forward record. The daily
+pipeline reads it directly — the old Parquet path is gone.
+
+**Freshness has a trap in it.** The top-up used to ask "which tickers are behind
+`MAX(date)` in `prices`" — the same table it exists to advance — which is
+circular and left the whole universe a session behind every day while reporting
+success. It now asks the data source directly for the last *completed* session.
+See CLAUDE.md before changing anything about staleness.
 
 ```bash
 python universe.py --record          # refresh the symbol registry + snapshots
@@ -194,3 +218,25 @@ work on your local model, per the design goal.
 See `BACKLOG.md` for the full list — top of mind: no strict train/test
 time split yet (backtest isn't truly out-of-sample), no fee/slippage
 modeling in the backtest, and yfinance is unofficial/free with no SLA.
+
+## The funds
+
+`fund_report.py` rebuilds this every morning and sends it to Telegram.
+
+| | What |
+|---|---|
+| **Agentic account** | The only real money. ~$89, five positions, traded by the daily book with a human placing the orders. |
+| **16 paper funds** | Simulated, stepped daily. Named for what they trade — `MACD Pullback`, `Rising 200 · Stop 3.3`, `Crash Buyer 5d`. |
+| **5 pair funds** | Bull/bear ETF switching (S&P 1x/2x, Nasdaq, Russell, Energy), $100 each, opened 2026-09-15. |
+| **Claude Fund** | Discretionary, unfunded, paper-tracked. Currently holds nothing. |
+
+Three other Robinhood accounts are reported for completeness and are **not
+touched by this system**.
+
+**No figure here is a forecast.** The honest state of the evidence: the
+classifier is gross negative under next-open fills, ETF switching loses to
+buy-and-hold on every index pair, and every one of the five crash-buying paper
+funds is negative. The one live lead is that the same momentum rule is positive
+with tight stops and negative with wide ones, on eleven days of forward data.
+See CLAUDE.md for the full record, including six searches that produced six
+measurement artifacts.
