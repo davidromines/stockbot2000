@@ -10,6 +10,9 @@ data/orders_today.txt
 # Generated every morning by fund_report.py, same as the slate.
 data/fund_report.txt
 data/claude_fund.txt
+# Rewritten by daily.sh every morning; tracking them dirties the tree daily.
+data/daily_book.txt
+data/lab_loop_summary.log
 data/*.html
 data/*.db
 data/raw/
