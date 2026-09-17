@@ -193,6 +193,15 @@ def render(conn, live: dict | None) -> str:
         L.append(f"  STALLED — never stepped: "
                  f"{', '.join(f['name'] for f in stalled)}")
 
+    # --- bull/bear ETF switching --------------------------------------------
+    try:
+        import pair_funds as pfd
+        L.append("")
+        L.append(pfd.render(conn))
+    except Exception as e:      # noqa: BLE001 — one section must not kill the report
+        L.append("")
+        L.append(f"PAIR FUNDS  unavailable ({type(e).__name__})")
+
     # --- everything else ----------------------------------------------------
     if live and live.get("other_accounts"):
         L.append("")
@@ -205,8 +214,10 @@ def render(conn, live: dict | None) -> str:
     L.append("=" * 46)
     L.append("Agentic is the only real money. Paper funds are simulated; the")
     L.append("Claude Fund is discretionary and paper-tracked until funded.")
-    L.append("ERX/ERY is NOT here: 130 momentum variants were searched and every")
-    L.append("one lost money, the best at -2.2%/yr against a null it could not beat.")
+    L.append("Pair funds switch between a bull and bear ETF, never both. They beat")
+    L.append("random switching but LOSE to buy-and-hold on every index: S&P 1x made")
+    L.append("+6.8%/yr on 2010-19 against SPY's +13.3%, and -4.1% through the")
+    L.append("2020-22 crash against +7.7%. Opened anyway, to settle it forward.")
     return "\n".join(L)
 
 
