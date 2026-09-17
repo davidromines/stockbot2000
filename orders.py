@@ -146,6 +146,7 @@ def record_fills(conn, cfg, fills: list) -> None:
         t = f["ticker"].upper()
         seen.add(t)
         price = float(f["price"])
+        shares = float(f["shares"]) if f.get("shares") is not None else None
         # Calendar date of the fill, not the data date the book was built from.
         entry_date = f.get("date") or dt.date.today().isoformat()
         # Matches an already-open row as well as a recommended one, so a second
@@ -163,16 +164,18 @@ def record_fills(conn, cfg, fills: list) -> None:
         if row:
             conn.execute(
                 "UPDATE picks SET status='open', price=?, stop_price=?, hold_days=?, "
-                "entry_date=? WHERE ticker=? AND pick_date=? AND source=?",
-                (price, stop, hold, entry_date, t, row["pick_date"], row["source"]))
+                "entry_date=?, shares=? WHERE ticker=? AND pick_date=? AND source=?",
+                (price, stop, hold, entry_date, shares, t, row["pick_date"],
+                 row["source"]))
             log.info(f"  {t:<6} matched   {row['source']:<14} fill {price:.4f} stop {stop:.4f}")
         else:
             conn.execute(
                 "INSERT OR REPLACE INTO picks (pick_date, ticker, source, rank, price, "
-                "stop_price, hold_days, rationale, entry_date, status) "
-                "VALUES (?,?,?,?,?,?,?,?,?,'open')",
+                "stop_price, hold_days, rationale, entry_date, shares, status) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,'open')",
                 (today, t, source, f.get("rank"), price, stop, hold,
-                 f.get("rationale", "recorded from an actual fill"), entry_date))
+                 f.get("rationale", "recorded from an actual fill"), entry_date,
+                 shares))
             log.info(f"  {t:<6} unplanned {source:<14} fill {price:.4f} stop {stop:.4f}")
     stale = [r["ticker"] for r in conn.execute(
         "SELECT DISTINCT ticker FROM picks WHERE status='recommended'")

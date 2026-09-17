@@ -53,8 +53,14 @@ run "[4/5] Paper trading step" $PY paper_trading.py --step
 
 # 5. The daily book: best candidate from every system, sell signals on open
 #    picks, and both recorded so the forward record builds itself.
-run "[5/5] Daily book" $PY daily_picks.py --report --record
+run "[5/6] Daily book" $PY daily_picks.py --report --record
 $PY daily_picks.py --report --record > data/daily_book.txt 2>/dev/null || true
+
+# 6. Where every fund stands. Runs from the database, because cron holds no
+#    broker credentials — share counts come from the recorded fills, so the
+#    Claude fund's cost basis is exact rather than assumed. Pass --live with a
+#    broker snapshot to add the accounts this system does not manage.
+run "[6/6] Fund report" $PY fund_report.py --live data/live.json
 
 # 6. Tell someone. A report nobody reads is worth the same as no report, and
 #    a FAILURE nobody hears about is how this project lost eight days of price
@@ -63,6 +69,9 @@ $PY orders.py --build > data/orders_today.txt 2>/dev/null || true
 if [ "$fail" -eq 0 ]; then
     say "Daily capture complete"
     $PY notify.py --slate >/dev/null 2>&1 || true
+    # Orders first, then standings: the slate is the actionable message and
+    # should not be the second thing read on a phone.
+    $PY fund_report.py --live data/live.json --notify >/dev/null 2>&1 || true
 else
     say "Daily capture finished WITH FAILURES — see above"
     $PY notify.py --alert "Daily capture FAILED. Check logs/daily.log — the symbol directory step is the one that must not be missed, because a skipped day loses that day's delistings permanently." >/dev/null 2>&1 || true

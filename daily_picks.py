@@ -121,6 +121,12 @@ def init(conn) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(picks)")}
     if "entry_date" not in cols:
         conn.execute("ALTER TABLE picks ADD COLUMN entry_date TEXT")
+    # Actual filled quantity. Deriving it as position_size / entry_price is an
+    # assumption, and it was wrong the first time it mattered: TNON filled as 3
+    # WHOLE shares for $16.62, not $20 of fractional, so every value computed
+    # from the assumed size overstated that position by 20%.
+    if "shares" not in cols:
+        conn.execute("ALTER TABLE picks ADD COLUMN shares REAL")
     conn.commit()
 
 
