@@ -50,7 +50,7 @@ log = logging.getLogger("funds")
 def paper_funds(conn) -> list:
     """Every open paper run with its latest equity mark."""
     rows = conn.execute("""
-        SELECT p.name, p.capital_usd, p.started_on,
+        SELECT p.name, p.label, p.family, p.capital_usd, p.started_on,
                e.equity_usd, e.date, e.open_positions
         FROM paper_runs p
         LEFT JOIN paper_equity e ON e.run_id = p.run_id
@@ -65,7 +65,8 @@ def paper_funds(conn) -> list:
         # Reported as stalled rather than as a flat 0% — those are different
         # facts, and conflating them hides a broken run behind a neutral number.
         eq = float(r["equity_usd"]) if r["equity_usd"] is not None else None
-        out.append({"name": r["name"], "start": start, "equity": eq,
+        out.append({"name": r["label"] or r["name"], "raw": r["name"],
+                    "family": r["family"] or "other", "start": start, "equity": eq,
                     "as_of": r["date"], "positions": r["open_positions"],
                     "pct": ((eq / start - 1) * 100) if (eq and start) else None})
     return out
@@ -135,7 +136,7 @@ def render(conn, live: dict | None) -> str:
     cf = claude_fund(conn, live)
     L.append("")
     tag = f"  [{cf['source']}]" if cf.get("source") else ""
-    L.append(f"CLAUDE FUND  (managed by this system){tag}")
+    L.append(f"AGENTIC ACCOUNT  (Robinhood, traded by the systems){tag}")
     if cf["missing"]:
         L.append("  no broker snapshot — live figures unavailable")
         L.append(f"  {len(cf['picks'])} position(s) on record in the database")
@@ -152,6 +153,15 @@ def render(conn, live: dict | None) -> str:
             L.append(f"    {r['ticker']:<6}{r['source']:<15}"
                      f"{r['pct']:>+7.1f}%  ${r['value']:>6.2f}{flag}")
 
+    # --- the discretionary fund ---------------------------------------------
+    try:
+        import claude_fund as cfd
+        L.append("")
+        L.append(cfd.render(conn))
+    except Exception as e:      # noqa: BLE001 — a report must not die on one section
+        L.append("")
+        L.append(f"CLAUDE FUND  unavailable ({type(e).__name__})")
+
     # --- paper --------------------------------------------------------------
     pf = paper_funds(conn)
     live_runs = [f for f in pf if f["pct"] is not None]
@@ -165,15 +175,23 @@ def render(conn, live: dict | None) -> str:
                  f"({(tot_eq/tot_start-1)*100:+.2f}% aggregate)")
         wins = sum(1 for f in live_runs if f["pct"] > 0)
         L.append(f"  {wins} up, {len(live_runs)-wins} down")
-        for f in sorted(live_runs, key=lambda x: -x["pct"])[:3]:
-            L.append(f"    best   {f['name']:<20}{f['pct']:>+7.2f}%")
-        for f in sorted(live_runs, key=lambda x: x["pct"])[:3]:
-            L.append(f"    worst  {f['name']:<20}{f['pct']:>+7.2f}%")
+        # EVERY fund, grouped by family. A best-3/worst-3 summary hides the
+        # thing that actually matters here: whole families win or lose
+        # together, and you cannot see that from the extremes.
+        for fam in ("momentum", "model", "crash", "conviction", "other"):
+            group = [f for f in live_runs if f["family"] == fam]
+            if not group:
+                continue
+            avg = sum(f["pct"] for f in group) / len(group)
+            L.append(f"  {fam.upper()}  ({len(group)} funds, avg {avg:+.2f}%)")
+            for f in sorted(group, key=lambda x: -x["pct"]):
+                L.append(f"    {f['name']:<24}{f['pct']:>+7.2f}%")
         marks = {f["as_of"] for f in live_runs}
         if len(marks) > 1:
             L.append(f"  NOTE: mixed mark dates {sorted(marks)}")
     if stalled:
-        L.append(f"  {len(stalled)} never stepped: {', '.join(f['name'] for f in stalled)}")
+        L.append(f"  STALLED — never stepped: "
+                 f"{', '.join(f['name'] for f in stalled)}")
 
     # --- everything else ----------------------------------------------------
     if live and live.get("other_accounts"):
@@ -185,9 +203,10 @@ def render(conn, live: dict | None) -> str:
 
     L.append("")
     L.append("=" * 46)
-    L.append("Paper funds are simulated. The Claude fund is the only real money")
-    L.append("this system trades. ERX/ERY is not a fund — it was a pre-registered")
-    L.append("test, run once, closed FAIL, with no capital ever committed.")
+    L.append("Agentic is the only real money. Paper funds are simulated; the")
+    L.append("Claude Fund is discretionary and paper-tracked until funded.")
+    L.append("ERX/ERY is NOT here: 130 momentum variants were searched and every")
+    L.append("one lost money, the best at -2.2%/yr against a null it could not beat.")
     return "\n".join(L)
 
 
