@@ -7,6 +7,8 @@ data/*.json
 # was always ignored; the .txt was committed by accident and would otherwise
 # leave the tree dirty every single morning.
 data/orders_today.txt
+# Generated every morning by fund_report.py, same as the slate.
+data/fund_report.txt
 data/*.html
 data/*.db
 data/raw/
