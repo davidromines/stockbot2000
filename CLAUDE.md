@@ -229,66 +229,198 @@ server-side; Claude has no direct database access.
 
 ## Architecture
 
-Pipeline stages, in execution order:
+Grouped by what each module is for. Everything reads `config.yaml`; nothing
+hardcodes paths, thresholds or model parameters.
 
+### Core plumbing
 | File | Role |
 |---|---|
-| `universe.py` | Builds the ticker list (`sp500` / `all_us` / `custom`). Also owns `load_config()`, imported everywhere. |
+| `universe.py` | Ticker list (`sp500` / `all_us` / `custom`). Also owns `load_config()`, imported everywhere. |
 | `runtime.py` | CPU thread caps and nice level. **Must be imported before numpy/pandas/xgboost.** |
 | `storage.py` | Owns `market_data.db` — schema, upserts, ingest state. Only module writing SQL to it. |
-| `backfill.py` | Resumable 20-year OHLCV loader for the full universe. Adaptive Yahoo rate limiting. |
-| `build_features.py` | Computes the 20 indicators across all history into the `features` table. |
-| `reconstruct_universe.py` | Replays Internet Archive captures of the symbol directory to measure the survivorship gap. |
-| `edgar_registry.py` | Point-in-time registry of every SEC annual filer, 1993-now. The only source here reaching before 2008. |
-| `delistings.py` | The delisting registry — which companies died and when. Reads the API key from `~/.alphavantage_key`, never the repo. |
-| `stress_test.py` | Bounds how much a result depends on the missing companies. |
+| `costs.py` | Commission, spread by liquidity tier, slippage, SEC/FINRA fees. One cost model so backtest and paper agree. |
+| `notify.py` | Telegram + desktop delivery. Formats the slate for a phone; red/green emoji because Telegram has no text colour. |
+| `monitor.py` | Live process//job dashboard served on the VM. |
+
+### Data acquisition
+| File | Role |
+|---|---|
+| `backfill.py` | Resumable OHLCV loader. `--top-up` for daily use. Owns `last_market_session()`. |
+| `data_pull.py` | yfinance fetch helpers. |
+| `build_features.py` | Computes the 20 indicators across all history into `features`. |
+| `features.py` | The 20 indicators per (ticker, date). No third-party TA lib. |
+| `sec_fundamentals.py` | Pulls SEC company facts into `sec_filings` / `sec_facts`. |
+| `value_metrics.py` | Derives ~40 value/quality metrics per filing, including point-in-time `market_cap`. |
+| `fundamental_features.py` | Lags filings into `daily_fundamentals` so screens never see a filing before it existed. |
+| `edgar_registry.py` | Point-in-time registry of every SEC annual filer, 1993-now. The only source reaching before 2008. |
+| `edgar_events.py` | 8-K item codes as an event taxonomy. |
+| `delistings.py` | The delisting registry. Reads its API key from `~/.alphavantage_key`, never the repo. |
+
+### Survivorship bias
+| File | Role |
+|---|---|
+| `reconstruct_universe.py` | Replays Internet Archive captures of the symbol directory. |
+| `bias_benchmark.py` | Quantifies the bias in %/year against Ken French's CRSP-based series. |
 | `bias_exposure.py` | Scores a strategy's dependence on deeply drawn-down names; gates the sealed stage. |
-| `bias_benchmark.py` | Quantifies that bias in %/year against Ken French's CRSP-based series. |
-| `data_pull.py` | Fetches OHLCV history via yfinance. |
-| `features.py` | Computes **20** technical indicators per (ticker, date). No third-party TA lib. |
+| `synthetic_delistings.py` | Generates delisting price paths from researched patterns. |
+| `synthetic_validate.py` | Checks synthetic paths against the real delistings we do hold. |
+| `retest_synthetic.py` | Re-scores strategies against panels augmented with synthetic failures. |
+| `stress_test.py` | Bounds how much a result depends on the missing companies. |
+| `mc_1m.py` | The million-path Monte Carlo over delisting families. |
+
+### The Strategy Lab
+| File | Role |
+|---|---|
+| `genome.py` | The searchable rule representation, plus `shape()`, `value_range()`, `is_degenerate()`. |
+| `simulator.py` | Vectorised scorer. **Fills at the next open**; exits priced off the unfiltered series. |
+| `reward.py` | Fitness. Risk-adjusted, cost-net, scored against the null surface. |
+| `benchmark.py` | The null: a surface over entry price x holding period. `--compare-fills` measures fill conventions. |
+| `control.py` | Runs random genomes through the real gates. The ladder's false-positive rate. |
+| `evolve.py` | The population loop. |
+| `ledger.py` | Strategies, evaluations, promotions, lab_runs. |
+| `promote.py` | Six-stage ladder; the sealed holdout is enforced in code. |
+| `rescore.py` | Re-scores past survivors after a benchmark change. |
+| `seeds.py` | 20 published strategies as a sanity baseline. |
+| `paper_trading.py` | Advances open paper runs one day. The only unbiased measurement here. |
+
+### Fundamental and conviction screens
+| File | Role |
+|---|---|
+| `conviction.py` | The screens (Piotroski, Magic Formula, ValProf, Buffett, deep value). Ranks **within size buckets**. |
+| `conviction_walkforward.py` | 15 rolling 2-year windows against SPY. |
+| `buffett.py` | QMJ-style quality score, and the Buffett's-Alpha reproduction. |
+| `pead.py` | Post-earnings announcement drift / SUE. |
+
+### Bull/bear ETF switching
+| File | Role |
+|---|---|
+| `paired_etf.py` | The original pre-registered ERX/ERY test. Run once, **closed FAIL**. |
+| `erx_momentum.py` | Momentum method grid + `run_switch()` + the random-switch null. |
+| `pair_momentum.py` | The same across every pair and leverage level, with buy-and-hold as a second benchmark. |
+| `pair_funds.py` | The five live switching funds. Searches, opens and steps them. |
+
+### The daily loop and reporting
+| File | Role |
+|---|---|
 | `train_model.py` | Trains the XGBoost classifier. Owns `FEATURE_COLS`. |
+| `walk_forward.py` | 31 rolling retrains; the out-of-sample prediction series. |
 | `score.py` | Ranks the universe, writes the scoresheet. |
-| `stop_loss.py` | ATR-based stop levels (configurable to fixed-pct). |
-| `position_tracking.py` | SQLite trade ledger — entries, exits, exit reasons. |
-| `backtest.py` | Walk-forward simulation over the scoring strategy. |
+| `stop_loss.py` | ATR-based stop levels. |
+| `position_tracking.py` | SQLite trade ledger. |
+| `backtest.py` | Portfolio simulation over the scoring strategy. `--fill` switches convention. |
 | `check_exits.py` | Evaluates open positions against stop/exit rules. |
-| `llm_report.py` | Generates the daily narrative report via local Ollama. |
-| `run_pipeline.sh` | Orchestrates the above. |
+| `daily_picks.py` | **The daily book** — best candidate from every system, sell signals, the size floor. |
+| `orders.py` | The morning slate, `--record-fills`, and reconciliation. |
+| `claude_fund.py` | The discretionary fund: positions chosen by judgement, not by the screens. |
+| `fund_report.py` | One status line per fund across everything. |
+| `experiments.py` | The experiment ledger CLI. |
+| `llm_report.py` | Narrative report via local Ollama (absent on this VM). |
+| `daily.sh` | Orchestrates the 7 daily stages. |
+| `lab_loop.sh` | Overnight search loop. |
+| `run_pipeline.sh` | The older single-run pipeline. |
 
 Config lives in `config.yaml`. Nothing should hardcode paths, thresholds, or
 model parameters — read them from config.
 
 ### Storage model
 
-Two distinct stores, different purposes:
+Two stores, different purposes.
 
-- **Market data** — `data/market_data.db` (SQLite), **8.5 GB**.
+**Market data** — `data/market_data.db` (SQLite), ~8.5 GB. Every table below
+lives here.
 
-  `prices`: **35,425,982 rows across 13,121 instruments, 1962-01-02 to 2026-09-04.**
-  Pulled at `period: max`, so each instrument carries its full available history —
-  Alcoa reaches back to 1962, not just the 20 years the earlier pull captured.
+*Prices and indicators*
+| Table | What it holds |
+|---|---|
+| `prices` | 35.4M OHLCV bars, 13,121 instruments, 1962 to present. PK (ticker, date). |
+| `features` | 33.8M rows of the 20 indicators. 31.5M fully non-null — the trainable set. |
+| `symbols` | 13,182 listings tagged by `security_type`, with `data_quality` flags. |
+| `ingest_state` | Per-ticker backfill progress. What makes the long load resumable. |
+| `risk_metrics` | Monthly beta and idiosyncratic volatility. |
 
-  `features`: **33,789,595 rows across 9,950 tickers**, of which **31,529,867 have
-  all 20 indicators non-null** — the trainable set. Computed only for
-  `universe.feature_types` (common stock, ADRs, ETFs, closed-end funds); rolling
-  indicators on a warrant or a corporate note are arithmetic without meaning.
+*Fundamentals*
+| Table | What it holds |
+|---|---|
+| `sec_filings` / `sec_facts` | Raw SEC company facts. |
+| `fundamentals` | ~40 derived metrics per filing, including point-in-time `market_cap`. |
+| `daily_fundamentals` | Those metrics lagged to the day they became public. Screens read this, never `fundamentals`. |
+| `edgar_filers` / `edgar_companies` / `edgar_events` | Point-in-time filer registry and 8-K events. |
 
-  `symbols`: all **13,155 listings tagged by `security_type`** — etf 5,652,
-  common_stock 5,373, preferred 465, warrant 438, unit 372, adr 276,
-  closed_end_fund 273, note 165, right 128, etn 13.
+*Survivorship*
+| Table | What it holds |
+|---|---|
+| `delistings` | 9,464 delisted listings with exact dates. 7,480 common stock; we hold prices for 418. |
+| `historical_listings` / `archive_snapshots` | Internet Archive replays of the symbol directory. |
+| `synthetic_companies` | Generated delisting paths. |
 
-  Integrity verified: zero negative or inverted bars, zero duplicate keys, zero
-  orphan feature rows, zero untagged symbols, `quick_check` clean.
+*The Lab*
+| Table | What it holds |
+|---|---|
+| `strategies` / `evaluations` / `promotions` / `lab_runs` | Genomes, scores, ladder decisions, run metadata. |
+| `benchmarks` | The null surface: 360 cells over window x horizon x price band. |
+| `oos_predictions` / `oos_folds` | 7.6M walk-forward out-of-sample predictions. |
 
-  **24 instruments have no data at all** — 20 SPAC rights Yahoo does not quote,
-  plus SVA (halted) and three others. Common-stock coverage is 5,372 of 5,373.
+*Forward records — the part that matters*
+| Table | What it holds |
+|---|---|
+| `paper_runs` / `paper_equity` / `paper_positions` / `paper_trades` | The 16 simulated funds. `label` and `family` name them. |
+| `pair_funds` / `pair_fund_equity` | The 5 bull/bear ETF switching funds. |
+| `picks` | The daily book's recommendations, and the **actual fills** — `price`, `shares`, `entry_date`. |
+| `claude_fund` / `claude_fund_meta` | The discretionary fund. Every position carries a written thesis. |
+| `experiments` / `experiment_trades` | The experiment ledger. One row per test, ranked by money. |
 
-  The daily pipeline still reads Parquet. Repointing `data_pull.py` / `features.py` /
-  `train_model.py` / `score.py` at SQLite is the next piece of work and is not done.
-- **Trade ledger** — `data/positions.db` (SQLite). Stays separate. This is the
-  "what did the system actually do" record that `backtest.py` reads.
+**`paper_runs` stores each genome inline as JSON** rather than referencing
+`strategies.id`. That denormalisation is why every forward test survived a
+corruption that cost 5,767 strategy rows. Keep it.
+
+**Trade ledger** — `data/positions.db` (SQLite). Stays separate. The "what did
+the system actually do" record.
 
 ---
+
+## The funds — what actually exists, 2026-09-17
+
+Nothing here is estimated. `fund_report.py` rebuilds all of it daily.
+
+**Real money.** One account, `••••6024` ("Agentic"), ~$89. Traded by the daily
+book via a human placing the orders. The other three Robinhood accounts — Main
+~$12.3k, Roth ~$1.9k, Robinhood-Managed ~$787 — are **not touched by this
+system** and are reported only so one total exists.
+
+**Paper funds, 16 open.** Named by what they trade, because opaque ids hid two
+things worth seeing: 16 runs are about 5 distinct ideas, and whole families win
+or lose together.
+
+| Family | n | Average | Note |
+|---|---:|---:|---|
+| momentum | 8 | -2.40% | contains every winner |
+| model | 1 | -4.90% | the XGBoost classifier |
+| crash buyers | 5 | **-8.62%** | **every single one negative** |
+| conviction | 2 | — | **STALLED**, see below |
+
+**The clearest lead this project has produced**: the same entry rule
+(`pct_change(sma_200,3) > 0.02`) flips sign on stop width alone.
+
+| Stop | Result |
+|---|---:|
+| 2.5 / 2.6 / 3.3 | +0.55% / +0.34% / **+1.72%** |
+| 4.98 (x3) | -0.78% / -3.95% / **-8.30%** |
+
+Tight stops win, wide stops lose, identical entry. Best of all 16 is
+`MACD Pullback` at +2.00% — MACD in the top 30% but RSI still under 40.
+**This is 11 days of forward data.** It is a lead, not a result.
+
+**Pair funds, 5 open** (2026-09-15). Bull/bear ETF switching, $100 each.
+See "Long/inverse switching" below.
+
+**Claude Fund** — discretionary, unfunded, paper-tracked. Holds nothing. It
+exists because the daily book *cannot* hold nothing: `top_n` always returns a
+top N, so it fills five slots every morning whether or not five good ideas
+exist. A fund that can decline to trade is a different instrument.
+
+**Known broken:** `conv_deep_value` and `conv_quality_value` have been stalled
+since 2026-09-11. Their `strategy` field holds `{"conviction": "deep_value"}`
+rather than a genome, so the stepper cannot advance them. Not yet fixed.
 
 ## Conventions
 
@@ -573,6 +705,125 @@ and every paper-trading run came through intact; `strategies` lost 6.3% and
 **Design note worth keeping:** `paper_runs` stores each strategy's genome inline
 as JSON rather than referencing `strategies.id`. That denormalisation is why
 every forward test survived a corruption that cost 5,767 strategy rows. Keep it.
+
+---
+
+## Long/inverse ETF switching — 2026-09-17. The mechanism works; it still loses.
+
+**Hold whichever of a bull/bear ETF pair is rising.** The logic is sound and the
+evidence supports the first half of it: switching beats the random-switch null
+on every index pair tested.
+
+| Pair | Switching | Buy & hold | vs null |
+|---|---:|---:|---|
+| S&P 1x (SPY/SH) | **+6.82%** | +13.27% | beats |
+| S&P 2x (SSO/SDS) | **+10.63%** | +23.26% | beats |
+| S&P 3x (SPXL/SPXS) | **+12.15%** | +31.69% | beats |
+| Nasdaq 2x (QLD/QID) | **+12.50%** | +32.11% | beats |
+| Energy 2x (ERX/ERY) | +2.29% | **-8.21%** | loses |
+
+*(2010-2019, best method per pair, costs charged per switch, fills at next open.)*
+
+**Three findings, in order of importance:**
+
+1. **It loses to doing nothing.** SPY buy-and-hold made 13.27%/yr against
+   switching's 6.82%. **`benchmark.py`'s random null was never enough here** —
+   a strategy can beat coin-flipping comfortably and still be worse than sitting
+   still, and in a rising market that is the common case. `pair_momentum.py`
+   now carries buy-and-hold as a second, mandatory benchmark.
+
+2. **It loses in the crash too, which kills the "it's insurance" defence.**
+   Across 2020-2022 — COVID crash *and* the 2022 bear, precisely where going
+   inverse should pay — S&P switching returned **-4.14% against buy-and-hold's
+   +7.72%**. The mechanism is a V-shaped crash: a 120-day signal flips you into
+   the inverse leg *after* the bottom, just in time for the recovery. Switching
+   is insurance that pays out after the fire.
+
+3. **Decay scales with leverage, as predicted.** Share of buy-and-hold captured:
+   **51% at 1x, 46% at 2x, 38% at 3x.** A 2x daily-rebalanced fund loses money
+   in a choppy market even when the index ends flat, so both legs bleed and
+   every whipsaw is punished twice.
+
+**Energy is the exception and it is not trustworthy.** Switching beat holding
+ERX by 10 points in the bull window and 39 points through the crash — then
+returned **-37.39%/yr since 2023** against buy-and-hold's +22.08%. Two wins and
+a catastrophe is variance. The parameters were chosen on 2010-2019 and did not
+generalise.
+
+**Do not re-litigate ERX/ERY from scratch.** It has now been tested twice by
+unrelated methods: `paired_etf.py` ran one pre-registered rule and closed FAIL;
+`erx_momentum.py` searched 130 variants across five method families and every
+one lost money on 2008-2019, the best at -2.2%/yr.
+
+**The five funds were opened anyway**, at the user's explicit instruction and
+with the above stated. That is a defensible call rather than a concession: the
+forward record is the only measurement in this project with no survivorship bias
+and no look-ahead, and a strategy nobody runs produces no evidence at all.
+
+---
+
+## Staleness was measured against the table being updated — fixed 2026-09-15
+
+**The daily top-up asked "which tickers are behind `MAX(date)` in `prices`" —
+the same table it exists to advance.** Circular. Level the universe at date D
+and nothing is behind anything, so nothing is fetched and the database stops at
+D permanently.
+
+It never quite froze only because stragglers existed: a few tickers behind D got
+fetched, their fetch returned bars past D, the max moved, and *the next morning*
+everyone else finally looked stale. Measured on 2026-09-15: **12,769 tickers at
+2026-09-11 against a max of 2026-09-14, SPY and AAPL among them, with 81 tickers
+on the newest bar.** Features followed — 9,965 rows at 09-11 against 2 at 09-14.
+
+So the scorer, the daily book and every paper run were working **a full session
+behind, every single day, by construction** — and the pipeline reported success
+throughout.
+
+`backfill.last_market_session()` now asks the data source directly for the newest
+**completed** session from a liquid ETF, and `stale_tickers` takes that as
+`as_of`. Today's bar is excluded deliberately: asked during market hours the
+source returns an in-progress bar, and treating it as the last session would
+store 13,000 partial bars as closes.
+
+**The general lesson, which has now cost this project three separate bugs:
+never derive a freshness reference from the thing whose freshness is in
+question.**
+
+---
+
+## A size floor, because price and volume cannot see size — 2026-09-14
+
+The Lab and classifier paths bought **TNON**: a ~$3.5M company that had just
+done a 1-for-35 reverse split to regain Nasdaq bid compliance, spiked ~70% on a
+debt payoff, and cleared the $1M/day liquidity floor with **$102M/day of blowoff
+volume**. It closed -29% four sessions later and was 67% of the Agentic
+account's entire loss. A $3.5M company doing $100M/day is not liquidity.
+
+**The obvious fix does not work.** TNON has no market cap in this database at
+all, so "reject if below the floor" waves it through as *unmeasured*. An unknown
+cap is therefore rejected too — the same rule `buffett.quality_score` already
+applies to its own components: a missing measurement is not an average one.
+
+Cost: of 3,042 names clearing the existing floors, 2,224 have a known cap and
+**2,183 survive a $100M floor**. The 818 unknowns are not junk (median price
+$30.74), they are issuers whose filings are unparsed here.
+
+Scoped to the Lab and classifier paths only. The conviction screens rank within
+size buckets already and require the fundamentals this derives from.
+
+---
+
+## Two functions shared one SQL line — 2026-09-15
+
+Adding `include_open` to `load_training_frame` used a string replace on
+`sql = (f"SELECT f.ticker, f.date, p.close, {cols} "`. **That exact line appears
+in two functions.** `load_latest_features` got the `price_cols` reference too,
+has no such variable, and raised `NameError` at runtime — killing the
+paper-trading step and the classifier source in the daily book.
+
+Same family as the `_load_panel` two-branch bug, inverted: that time one of two
+was fixed, this time one of two was broken. **Edit near-identical SQL one
+function at a time, and grep for the line before replacing it.**
 
 ---
 
