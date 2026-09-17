@@ -736,6 +736,29 @@ def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
     return df
 
 
+def latest_market_caps(conn: sqlite3.Connection) -> dict:
+    """
+    Newest known market cap per ticker, from the most recent filing.
+
+    Point-in-time by construction: `value_metrics._market_cap` multiplies shares
+    taken FROM a filing by the price ON that filing's date. Stale between
+    filings, which is fine for a size floor — a company does not cross $100M and
+    back between quarters without the price moving enough to notice.
+
+    Coverage is 2,224 of the 3,042 tickers that clear the tradeability floors.
+    The 818 without a cap are not junk — median price $30.74 — they are mostly
+    issuers whose filings this database has not parsed. Callers decide what to do
+    with an unknown; see `risk.require_known_market_cap`.
+    """
+    rows = conn.execute("""
+        SELECT ticker, market_cap FROM fundamentals f
+        WHERE f.filed = (SELECT MAX(f2.filed) FROM fundamentals f2
+                         WHERE f2.ticker = f.ticker)
+          AND market_cap IS NOT NULL AND market_cap > 0
+    """).fetchall()
+    return {r["ticker"]: float(r["market_cap"]) for r in rows}
+
+
 def reference_as_of(conn: sqlite3.Connection, reference_tickers: list[str]) -> str | None:
     """
     The last session the market is known to have held, from reference tickers.

@@ -198,6 +198,19 @@ risk:
   min_price: 5.0                 # no sub-$5 names
   min_dollar_volume: 1000000.0   # >= $1M average daily turnover over 20 sessions
 
+  # Size floor. Price and turnover cannot see how big a company is, and that gap
+  # bought TNON on 2026-09-14: a ~$3.5M company that had just done a 1-for-35
+  # reverse split to regain Nasdaq bid compliance, spiked ~70% on a debt payoff,
+  # and cleared the $1M/day floor with $102M/day of blowoff volume. It closed
+  # -29% four sessions later. A $3.5M company doing $100M/day is not liquidity.
+  min_market_cap_usd: 100000000.0
+  # An UNKNOWN cap is rejected, not waved through. This is the part that matters:
+  # TNON has no market cap in our data at all, so a plain "reject if below the
+  # floor" would have let it pass as unmeasured. Consistent with the rule already
+  # applied in buffett.quality_score — a missing measurement is not a neutral one.
+  # Costs 818 of 3,042 names, leaving 2,183 candidates for a 5-position book.
+  require_known_market_cap: true
+
   selection_mode: "top_n"
   min_score: null          # optional floor under top_n; null = take the best regardless
   stop_loss_type: "atr"        # atr | fixed_pct

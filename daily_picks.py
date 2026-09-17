@@ -240,6 +240,44 @@ def _classifier_picks(conn, cfg, n: int = 3) -> list:
             for i, r in enumerate(top.itertuples(index=False), 1)]
 
 
+def _size_filter(conn, cfg, rows: list) -> list:
+    """
+    Drop candidates that are too small, or too unmeasured, to buy.
+
+    Applies to the Lab and classifier paths only. The conviction screens rank
+    within size buckets already, and their inputs require the fundamentals this
+    floor is derived from — a name with no market cap never reaches them.
+
+    **An unknown cap is rejected.** That is the whole point rather than a detail:
+    TNON, the position that lost 29%, has no market cap in this database, so a
+    plain "below the floor" test would have waved it through as unmeasured. The
+    same reasoning buffett.quality_score applies to its own components — a
+    missing measurement is not an average one.
+    """
+    floor = float(cfg["risk"].get("min_market_cap_usd") or 0)
+    require_known = bool(cfg["risk"].get("require_known_market_cap", True))
+    if not floor and not require_known:
+        return rows
+    caps = storage.latest_market_caps(conn)
+    kept, dropped = [], []
+    for r in rows:
+        cap = caps.get(r["ticker"])
+        if cap is None:
+            (dropped if require_known else kept).append((r["ticker"], "no market cap"))
+            if not require_known:
+                kept[-1] = r
+            continue
+        if cap < floor:
+            dropped.append((r["ticker"], f"${cap/1e6:.1f}M < ${floor/1e6:.0f}M"))
+            continue
+        r = dict(r)
+        r["market_cap"] = cap
+        kept.append(r)
+    for t, why in dropped:
+        log.info(f"  size floor rejected {t}: {why}")
+    return [k for k in kept if isinstance(k, dict)]
+
+
 def gather(conn, cfg) -> list:
     """Every system's candidates, deduplicated, best-ranked source winning."""
     picks = []
@@ -248,9 +286,12 @@ def gather(conn, cfg) -> list:
             picks += _conviction_picks(conn, cfg, screen)
         except Exception as e:
             log.warning(f"{screen}: {type(e).__name__}: {e}")
+    # The size floor guards these two paths and not the conviction screens: the
+    # screens already rank within size buckets and require fundamentals, so a
+    # company with no market cap cannot reach them in the first place.
     for fn, lab in ((_genome_picks, "lab_survivor"), (_classifier_picks, "classifier")):
         try:
-            picks += fn(conn, cfg)
+            picks += _size_filter(conn, cfg, fn(conn, cfg))
         except Exception as e:
             log.warning(f"{lab}: {type(e).__name__}: {e}")
 
