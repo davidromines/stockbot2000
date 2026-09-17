@@ -88,7 +88,7 @@ Two things this phase leaves behind deliberately, tracked elsewhere:
   2026-09-08.** Recoverable from the old `betbot9000` box only if that box is ever
   reachable again; not worth blocking on.
 
-### 06 · Data infrastructure scale-up 🟡 90%
+### 06 · Data infrastructure scale-up ✅ 100%
 **The market database is built.** `data/market_data.db` holds 35,425,982 price
 bars across 13,121 instruments spanning 1962-01-02 to 2026-09-04, plus 33,789,595
 feature rows — 31.5M of them with all 20 indicators present. 8.5 GB.
@@ -104,7 +104,7 @@ feature rows — 31.5M of them with all 20 indicators present. 8.5 GB.
   genuine no-data
 - ⚠️ 24 instruments unavailable (20 SPAC rights Yahoo does not quote, SVA halted,
   3 others). Common-stock coverage is 5,372 of 5,373
-- ⏳ Daily pipeline still reads Parquet — repointing it is the next step
+- ✅ Daily pipeline reads `market_data.db` throughout; Parquet is gone
 
 **No longer blocked.** The survivorship decision was made: collect now, accept the
 bias, track `source` per row so a point-in-time provider can be layered in later.
@@ -142,9 +142,15 @@ and no fill convention recovers them.
 
 Full specification in `STRATEGY_LAB.md`.
 
-### 08 · Genome, simulator & reward engine 🔵 0%
-`genome.py`, `simulator.py`, `reward.py`. The searchable strategy definition and
-the vectorized engine that scores one against history.
+### 08 · Genome, simulator & reward engine ✅ 100%
+`genome.py`, `simulator.py`, `reward.py` all built and repeatedly corrected.
+The simulator now fills at the next open, prices exits off the unfiltered
+series, and reports gap-through-stop losses. Fitness scores against a
+price x horizon null surface, not against zero.
+
+Six searches produced six measurement artifacts before the engine was
+trustworthy. That history is in CLAUDE.md and is the most valuable thing
+this phase produced.
 
 ### 09 · Evolutionary search & idea ledger ✅ 100%
 `ledger.py` built 2026-09-11 — strategies, evaluations, promotions and lab_runs.
@@ -192,14 +198,33 @@ leaderboards and strategy family trees.
 
 ## Going live
 
-### 11 · Live integration & paper trading ⚪ backlog
-Brokerage connection, paper-trading harness against live forward data, then small
-real allocations for strategies that survive everything upstream.
+### 11 · Live integration & paper trading ✅ 100%
+Real money is live in one Robinhood account (~$89, five positions). The loop is
+*system generates -> human places -> system reconciles*: `orders.py` writes the
+morning slate, a person places it, `--record-fills` records the ACTUAL fills
+including share counts, and `--reconcile` reports divergence.
 
-### 12 · Notifications & polish ⚪ backlog
-Telegram daily scorecard and lab digest; LLM report refinements.
+Forward records now run in three places, which between them are the only
+unbiased measurement this project has:
 
----
+- **16 paper funds**, named by what they trade, stepped daily
+- **5 bull/bear ETF switching funds**, opened 2026-09-15
+- **the Claude Fund**, discretionary and paper-tracked, currently holding nothing
+
+`fund_report.py` reports all of it every morning. See CLAUDE.md "The funds".
+
+Known broken: two conviction paper runs have been stalled since 2026-09-11.
+
+### 12 · Notifications & polish ✅ 100%
+Telegram + desktop delivery via `notify.py`. The morning slate is formatted for a
+phone — one order per block, green for buys, red for sells, because Telegram has
+no text colour. Failures send an ALERT naming the symbol-directory step, since
+that is the one whose omission is permanent.
+
+The sell path is covered by `tests/test_sell_alert.py`, which caught that an
+unescaped `<=` in a stop reason would make Telegram reject the whole message
+with a 400 — the alert would have silently never arrived.
+
 
 ### Paper trading ✅
 `paper_trading.py` built 2026-09-11. Forward testing, day by day, with costs
@@ -269,3 +294,26 @@ in a bull market, not whether it picked well.
 
 *Nothing here is investment advice, and no backtested result is a prediction of
 future returns.*
+
+### 13 · Does anything actually make money? 🟡 in progress
+The only open question left, and the one everything above exists to answer.
+
+**What is settled, negatively:**
+- The XGBoost classifier ranks better than chance (AUC 0.63, 31/31 folds) and
+  still loses money net of honest fills — gross is NEGATIVE before costs.
+- Long/inverse ETF switching beats random switching on every index pair and
+  loses to buy-and-hold on all of them, including through a crash.
+- ERX/ERY specifically has failed twice by unrelated methods.
+- 0 of 20 published technical rules beat the null.
+- Six Lab searches produced six measurement artifacts.
+
+**What is open, and where to look:**
+- **Tight stops.** The same momentum rule is positive with stops of 2.5-3.3 ATR
+  and negative at 4.98, across six paper funds. Eleven days of data, one clean
+  pattern, and the most specific lead this project has.
+- **Momentum-plus-pullback.** `MACD Pullback` is the best of 16 at +2.00%.
+- **Forward time.** It accrues only in calendar time and cannot be rushed,
+  which is why 21 funds now run daily instead of one.
+
+**What would settle it fastest:** point-in-time delisted prices (~$270/yr).
+7,062 dead companies are missing, and no amount of search fixes that.
