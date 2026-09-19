@@ -25,6 +25,15 @@ cd "$(dirname "$0")"
 PY=./venv/bin/python
 mkdir -p logs data
 SUMMARY=data/lab_loop_summary.log
+PIDFILE=data/lab_loop.pid
+
+# A pid file, not a process-name match. `pgrep -f lab_loop` matches any command
+# line that merely MENTIONS this file — the watchdog's own invocation, an editor,
+# a grep — so a name-based check reports the loop as alive when nothing is
+# running and the watchdog never restarts it. That is the one failure a watchdog
+# may not have, and it was found by writing one.
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
 
 i=0
 while true; do
