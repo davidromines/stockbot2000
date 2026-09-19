@@ -258,24 +258,29 @@ def add_size_buckets(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     cap = pd.to_numeric(df[SIZE_COL], errors="coerce")
     cap = cap.where(cap > 0)
 
-    def label(g):
-        v = cap.loc[g.index]
-        out = pd.Series("no_cap", index=g.index, dtype="object")
+    # An explicit loop over date groups, NOT groupby().apply(). The apply form
+    # returns a Series for a many-group frame and a DataFrame for a single-group
+    # one, so assigning its result to one column worked on a 20-day panel and
+    # raised "Cannot set a DataFrame with multiple columns" the first time paper
+    # trading called it with a single review date. Shape that depends on group
+    # count is not something to rely on.
+    out = pd.Series("no_cap", index=df.index, dtype="object")
+    labels = [f"q{i + 1}" for i in range(n)]
+    for _, idx in df.groupby("date", observed=True).groups.items():
+        v = cap.loc[idx]
         ok = v.notna()
         # Fewer distinct values than buckets makes qcut raise rather than
         # degrade, and a thin early date should not take the whole run down.
-        if ok.sum() >= n * 2:
-            try:
-                out.loc[ok[ok].index] = pd.qcut(
-                    np.log(v[ok]), n,
-                    labels=[f"q{i+1}" for i in range(n)]).astype(object)
-            except ValueError:
-                out.loc[ok[ok].index] = "q1"
-        return out
+        if ok.sum() < n * 2:
+            continue
+        have = ok[ok].index
+        try:
+            out.loc[have] = pd.qcut(np.log(v[have]), n, labels=labels).astype(object)
+        except ValueError:
+            out.loc[have] = "q1"
 
     df = df.copy()
-    df[SIZE_BUCKET_COL] = (df.groupby("date", group_keys=False)[[SIZE_COL]]
-                             .apply(label))
+    df[SIZE_BUCKET_COL] = out
     return df
 
 
