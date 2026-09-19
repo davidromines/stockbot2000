@@ -90,7 +90,7 @@ lab:
   overlap_threshold: 0.7       # Jaccard overlap of entry rows above which two are one
 
   gates:
-    min_excess_pnl_usd: 900.0    # 95th pct of random-strategy excess
+    min_excess_pnl_usd: 2300.0   # 95th pct of random-strategy excess
     # Recalibrated three times, each after a benchmark bug was fixed. 12.05 was
     # set while a shadowing bug zeroed every excess figure; 3108 while the
     # benchmark was horizon-mismatched and inflated excess for long holds; 885
@@ -101,7 +101,14 @@ lab:
     # precision, and re-measure with control.py rather than adjusting by hand.
     # Scale note: excess is measured over max_entries_per_eval sampled signals at
     # position_size each — a ranking quantity, not account P&L.
-    min_sharpe: 0.353            # 95th pct of random-strategy Sharpe
+    # Recalibrated 2026-09-17 on 80 genomes, AFTER next-open fills, the rebuilt
+    # open-to-open null and the avg_hold_days off-by-one all landed. 900 was
+    # measured mid-change and was 2.5x too loose: random strategies cleared it
+    # routinely, and only min_sharpe doing the filtering hid that — which is
+    # luck, not design. Measured 95th pct of noise: excess $2,275.7,
+    # Sharpe 0.211. min_sharpe is left ABOVE its measured level deliberately;
+    # tightening a gate costs candidates, loosening one costs the whole ladder.
+    min_sharpe: 0.353            # above the measured 95th pct of 0.211
     min_trades: 20
 
 # Survivorship correction applied to every backtest figure.
