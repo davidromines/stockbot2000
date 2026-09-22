@@ -237,7 +237,14 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
     if idx.size == 0:
         return _empty_result()
 
-    if max_entries and idx.size > max_entries:
+    # Kept before the cap. `n_trades` saturates at `max_entries`, so anything
+    # reading it as a turnover measure reports the sampling cap instead of the
+    # strategy — every capped strategy looks identically busy. Found 2026-09-22
+    # when the random control's turnover distribution came back with p95, p99
+    # and max all equal to max_entries / window_years.
+    n_signals = int(idx.size)
+    capped = bool(max_entries and idx.size > max_entries)
+    if capped:
         step = idx.size / max_entries
         idx = idx[(np.arange(max_entries) * step).astype(int)]
 
@@ -327,6 +334,10 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
 
     return {
         "n_trades": int(len(idx)),
+        # Signals the rule actually produced, before uniform subsampling. Use
+        # this for turnover, never n_trades.
+        "n_signals": n_signals,
+        "entries_capped": capped,
         "net_pnl_usd": float(net.sum()),
         "gross_pnl_usd": float(gross.sum()),
         "costs_usd": float(np.sum(costs)),
@@ -350,7 +361,7 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
 
 
 def _empty_result() -> dict:
-    return {"n_trades": 0, "net_pnl_usd": 0.0, "gross_pnl_usd": 0.0, "costs_usd": 0.0,
+    return {"n_trades": 0, "n_signals": 0, "entries_capped": False, "net_pnl_usd": 0.0, "gross_pnl_usd": 0.0, "costs_usd": 0.0,
             "gap_loss_usd": 0.0, "entry_slip_usd": 0.0, "n_stopped": 0, "n_gapped": 0,
             "win_rate": 0.0, "avg_hold_days": 0.0, "pnl_series": np.array([]),
             "entry_rows": np.array([], dtype=int), "exit_reason": np.array([]),
