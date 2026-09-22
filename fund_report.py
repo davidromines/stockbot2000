@@ -202,6 +202,57 @@ def render(conn, live: dict | None) -> str:
         L.append("")
         L.append(f"PAIR FUNDS  unavailable ({type(e).__name__})")
 
+    # --- value fund ---------------------------------------------------------
+    # Long-horizon, paper-only, deliberately outside the tactical league. It is
+    # reported here so it stays visible; it is NOT ranked against the paper
+    # funds, because a five-year thesis judged on weeks of marks would read as
+    # a refutation that has not happened.
+    try:
+        import value_fund as vfd
+        st = vfd.status(conn)
+        L.append("")
+        L.append("VALUE FUND  (paper, long horizon)")
+        if not st.get("exists"):
+            L.append("  not yet opened — no value fund on record")
+        else:
+            # status() nests the database row under "fund"; the top-level keys
+            # are the derived figures. Reading started_on off the top level
+            # silently yields None and prints "?" — which is how this section
+            # first shipped broken.
+            fund = st.get("fund") or {}
+            start = fund.get("started_on") or "?"
+            weight = fund.get("weighting") or "?"
+            equity = st.get("equity")
+            capital = fund.get("capital_usd")
+            ret = st.get("return")
+            marks = st.get("marks")
+            positions = st.get("positions") or []
+            L.append(f"  opened {start}  weighting {weight}")
+            if equity is not None and capital:
+                # `return` is a fraction, not a percent — format it as one.
+                pct = f"{float(ret):+.2%}" if ret is not None else "?"
+                L.append(f"  ${float(equity):,.2f} on ${float(capital):,.2f}"
+                         f"  ({pct})")
+            elif equity is not None:
+                L.append(f"  ${float(equity):,.2f}")
+            L.append(f"  {len(positions)} open position(s), "
+                     f"{marks if marks is not None else '?'} daily mark(s)")
+            if positions:
+                for p in positions:
+                    ticker = p.get("ticker", "?")
+                    industry = p.get("industry") or "?"
+                    L.append(f"    {ticker:<6}{industry}")
+            else:
+                # An empty section with no explanation reads as a bug. The fund
+                # is new and its first review has not run; say so.
+                L.append("  no positions — fund is new, first review has not run")
+            if marks is not None and int(marks) < 60:
+                L.append(f"  {int(marks)} daily mark(s) — not yet rankable "
+                         f"(needs 60)")
+    except Exception as e:      # noqa: BLE001 — one section must not kill the report
+        L.append("")
+        L.append(f"VALUE FUND  unavailable ({type(e).__name__})")
+
     # --- everything else ----------------------------------------------------
     if live and live.get("other_accounts"):
         L.append("")
@@ -218,6 +269,8 @@ def render(conn, live: dict | None) -> str:
     L.append("random switching but LOSE to buy-and-hold on every index: S&P 1x made")
     L.append("+6.8%/yr on 2010-19 against SPY's +13.3%, and -4.1% through the")
     L.append("2020-22 crash against +7.7%. Opened anyway, to settle it forward.")
+    L.append("The Value Fund is paper-only and long-horizon; it is kept out of the")
+    L.append("tactical league, so its marks are not comparable to the paper funds.")
     return "\n".join(L)
 
 
