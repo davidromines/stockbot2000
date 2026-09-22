@@ -377,7 +377,7 @@ edit to `config.yaml`, deliberately outside this code.
 | 26 | Financial statement analysis engine | **done** — `statements.py` |
 | 27 | Valuation engine, industry-aware | **done** — `valuation.py` |
 | 28 | Intrinsic-value models | **done** — `intrinsic.py` |
-| 29 | Value score and watchlist (experiment) | not started |
+| 29 | Value score and watchlist (experiment) | **done** — `value_score.py`, registered |
 | 30 | Value Fund architecture, paper only | not started |
 
 **Statement coverage is uneven and that is a data fact, not a bug.** Measured
