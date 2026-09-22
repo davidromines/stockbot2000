@@ -65,6 +65,26 @@ TRANSITIONS = {
 }
 
 
+def _clean_path(item: str) -> str:
+    """
+    A file path from a task's "Relevant files" list, stripped of decoration.
+
+    Task authors annotate these — "`path/to/file.py`  (create)" or
+    "`file.py` (read only — do not modify)" — and that is CLEARER than a bare
+    path, not sloppier. The first version compared the raw list item against
+    what the model wrote, so TASK-003 was refused for a file it had been asked
+    to create: the allowlist saw "`tests/...py`  (create)" and the model wrote
+    "tests/...py".
+
+    A guard that rejects well-written tasks teaches people to write worse ones,
+    so the normalisation happens here rather than in every task file.
+    """
+    v = item.strip().strip("`").strip()
+    # Drop a trailing parenthetical annotation, not parentheses inside a name.
+    v = re.sub(r"\s*\([^()]*\)\s*$", "", v)
+    return v.strip().strip("`").strip()
+
+
 class TaskError(RuntimeError):
     pass
 
@@ -141,7 +161,8 @@ class Task:
             component=meta("component", "general"), priority=meta("priority", "normal"),
             state=state, branch=meta("branch"), created=meta("created"),
             dependencies=[] if deps in ("none", "") else [d.strip() for d in deps.split(",")],
-            files=section("Relevant files"), requirements=section("Requirements"),
+            files=[_clean_path(f) for f in section("Relevant files")],
+            requirements=section("Requirements"),
             constraints=section("Constraints"), acceptance=section("Acceptance criteria"),
             testing=section("Testing requirements"), deliverables=section("Deliverables"))
 
