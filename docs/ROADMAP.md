@@ -317,3 +317,24 @@ The only open question left, and the one everything above exists to answer.
 
 **What would settle it fastest:** point-in-time delisted prices (~$270/yr).
 7,062 dead companies are missing, and no amount of search fixes that.
+
+### 14 · Robinhood Agentic autonomous execution 📋 PLANNED — not started
+Full specification in `ROBINHOOD_AGENTIC.md`, added 2026-09-22 at the user's
+direction as a plan only. **No code has been written for it.**
+
+Connects the strategy engine to the Agentic account through Robinhood's official
+Trading MCP (`https://agent.robinhood.com/mcp/trading`), with a deterministic
+pipeline: signal -> risk engine -> order validation -> execution -> state
+machine -> reconciliation. The LLM is the supervisory layer, not part of the
+execution path.
+
+**Roughly half the 25 phases already exist here.** Simulation, backtesting,
+walk-forward, database, scheduling, alerting, ML and external data are built and
+running; the spec was written greenfield. The genuinely new work is phases
+5, 6, 7, 17, 20, 24 and 25 — kill switches, the execution engine, the order
+state machine, live mode, order-state recovery, and the test suite that has to
+exist before any of it runs. See the phase-by-phase audit in the spec.
+
+Five questions are open and listed at the end of that document, including
+whether to extend this project or fork a new tree, and what the system would
+trade given that nothing here has yet demonstrated an edge.

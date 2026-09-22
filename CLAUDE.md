@@ -500,6 +500,37 @@ Ollama LLM step must not run concurrently — together they exceed 12 GB.
 
 ---
 
+## Planned: Robinhood Agentic autonomous execution
+
+**Specified 2026-09-22, not implemented.** Full build specification in
+`docs/ROBINHOOD_AGENTIC.md`; roadmap phase 14.
+
+Connects the strategy engine to the Agentic account via Robinhood's official
+Trading MCP, with a deterministic execution pipeline — signal, risk engine,
+order validation, execution, order state machine, reconciliation — and the LLM
+as a supervisory layer outside that path.
+
+Three things to know before touching it:
+
+1. **Around half the 25 specified phases already exist here.** The spec is
+   written greenfield; this project is not. Building a separate
+   `robinhood_trading_system/` tree would fork the project into two half-systems
+   sharing one 8.5 GB database. The spec document carries a phase-by-phase audit
+   of what to reuse.
+2. **The new work is narrow**: kill switches, the execution engine, the order
+   state machine, live mode, order-state recovery, and a real test suite. Two
+   tests exist today, which is the honest gap.
+3. **Claude does not execute financial transactions.** Everything up to a fully
+   validated, risk-checked, idempotent order object can be built and tested;
+   placing it through the user's authorized MCP is the user's to enable and
+   operate. Recorded in the spec so phase 17 does not discover it.
+
+Five open questions are listed at the end of that document. The sharpest:
+autonomous execution of a strategy with no demonstrated edge automates the
+losses, and nothing in this project has yet demonstrated one.
+
+---
+
 ## Planned: the Strategy Lab
 
 A major scope addition, fully specced in `docs/STRATEGY_LAB.md`. Summary:
