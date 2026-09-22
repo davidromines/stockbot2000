@@ -292,3 +292,19 @@ search:
 # current, and anything older means the top-up did not work.
 freshness:
   max_lag_sessions: 1
+
+# Phase 7, the strategy league. See docs/PHASES_7_11_STRATEGY_LEAGUE.md.
+league:
+  # Equity marks a strategy needs before the scoreboard will rank it at all.
+  # 60 is roughly a quarter of trading sessions. It is not a statistical
+  # guarantee — a Sharpe from 60 observations is still a wide estimate — but
+  # below it the number is not an estimate of anything. The 21 migrated funds
+  # hold a median of 7 marks, so today NOTHING ranks, which is the honest
+  # answer rather than a configuration problem to be tuned away.
+  #
+  # Do not lower this to make the leaderboard populate.
+  min_rank_marks: 60
+
+  # Roster size for Phase 10. Recorded here so the scoreboard and the
+  # eligibility rules read one number, not two.
+  live_roster_size: 5
