@@ -39,21 +39,27 @@ say "Daily capture starting"
 
 # 1. Point-in-time universe. THE survivorship-critical step: this is what stamps
 #    a ticker inactive on the day it leaves the listing directory.
-run "[1/8] Symbol directory — records listings and delistings" $PY universe.py --record
+run "[1/9] Symbol directory — records listings and delistings" $PY universe.py --record
 
 # 2. Prices. Incremental: tops up from the last stored bar per ticker.
-run "[2/8] Price top-up" $PY backfill.py --top-up
+run "[2/9] Price top-up" $PY backfill.py --top-up
 
 # 3. Indicators for whatever bars arrived.
-run "[3/8] Features" $PY build_features.py
+run "[3/9] Features" $PY build_features.py
+
+# 4. Freshness is a gate, not a log line. The old pipeline reported SUCCESS
+#    while a full session behind because its check compared the table to
+#    itself. A stale run must fail here rather than produce scores nobody
+#    knows are stale.
+run "[4/9] Freshness gate" $PY freshness.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement
 #    in the project with no survivorship bias, and it accrues only in real time.
-run "[4/8] Paper trading step" $PY paper_trading.py --step
+run "[5/9] Paper trading step" $PY paper_trading.py --step
 
 # 5. The daily book: best candidate from every system, sell signals on open
 #    picks, and both recorded so the forward record builds itself.
-run "[5/8] Daily book" $PY daily_picks.py --report --record
+run "[6/9] Daily book" $PY daily_picks.py --report --record
 $PY daily_picks.py --report --record > data/daily_book.txt 2>/dev/null || true
 
 # 6. Where every fund stands. Runs from the database, because cron holds no
@@ -62,15 +68,15 @@ $PY daily_picks.py --report --record > data/daily_book.txt 2>/dev/null || true
 #    broker snapshot to add the accounts this system does not manage.
 # 6. Mark the bull/bear switching funds. Replays each curve from its start
 #    date, so a missed day self-heals rather than leaving a hole.
-run "[6/8] Pair funds" $PY pair_funds.py --step
+run "[7/9] Pair funds" $PY pair_funds.py --step
 
-run "[7/8] Fund report" $PY fund_report.py --live data/live.json
+run "[8/9] Fund report" $PY fund_report.py --live data/live.json
 
 # 8. Back up what cannot be regenerated. Prices and features are re-fetchable;
 #    the forward record is not — a paper fund that has run 14 days cannot be
 #    made to have run 14 days by running anything. Last, so a backup failure
 #    cannot suppress the morning slate.
-run "[8/8] Backup" $PY backup.py
+run "[9/9] Backup" $PY backup.py
 
 # 6. Tell someone. A report nobody reads is worth the same as no report, and
 #    a FAILURE nobody hears about is how this project lost eight days of price

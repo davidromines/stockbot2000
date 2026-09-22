@@ -285,3 +285,10 @@ search:
     1.03M trials have created a severe multiple-testing burden. Additional
     search on the same data currently adds less information than independent
     forward observation and data-quality improvement.
+
+# Phase 6 section 8. A run whose data is staler than this FAILS rather than
+# reporting success. One session is the correct limit for a pre-market job: it
+# runs before today's close, so holding the previous completed session is
+# current, and anything older means the top-up did not work.
+freshness:
+  max_lag_sessions: 1
