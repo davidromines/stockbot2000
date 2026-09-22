@@ -18,9 +18,22 @@ betting), which is a different system entirely.
 13,121 instruments back to 1962, plus 33.8M feature rows. Details under Storage
 model. Phases 01-05 are done; phase 06 is at 90%.
 
-**The single most important gap:** the daily pipeline still reads Parquet — 18
-tickers, 730 days. Nothing consumes the database yet. Repointing `data_pull.py` /
-`features.py` / `train_model.py` / `score.py` at SQLite is the next piece of work.
+**The Parquet migration is DONE — this section said otherwise until
+2026-09-22.** `daily.sh` runs entirely off `market_data.db`: `backfill.py
+--top-up`, `build_features.py`, `fundamental_features.py`, and every consumer
+downstream. 35,557,344 price bars across 13,214 tickers, current to 2026-09-21.
+`features.py` and `data_pull.py` still contain Parquet code but **neither is in
+the daily path**.
+
+That stale line sat at the top of this file for two weeks naming a finished job
+as the single most important gap, which is worse than saying nothing: a reader
+starting here concluded the project's stated priority was being skipped. **If
+you finish something named in this section, edit this section in the same
+commit.**
+
+**The real current gap** is that none of it has produced an edge. Phases 6-9
+built the machinery to measure honestly; every measurement so far says the same
+thing. See "The Strategy League" and "The Research Library" below.
 
 **Data freshness: `daily.sh` runs at 07:00 on weekdays via cron** (installed
 2026-09-12). It records the symbol directory, tops up prices, rebuilds features
@@ -104,16 +117,19 @@ quote this number, tune against it, or treat it as even an optimistic upper boun
 - **No exit path.** The ledger is empty, so `check_exits.py` short-circuited.
 - **No real LLM report.** Ollama is absent; reasons are generic placeholder text.
 
-Immediate next steps (as of 2026-09-11):
-1. Repoint the daily pipeline off Parquet onto `market_data.db`. The data exists
-   and is unused; this is what connects them.
-2. Fix the train/test split in `train_model.py` so `backtest.py` produces a real
-   number. Arguably ahead of (1) in value — everything downstream depends on
-   trusting the simulator, and more data cannot fix a leaking split.
-3. Top up prices — the last bar is 2026-09-04.
-4. Survivorship-bias research, starting with the free Internet Archive
-   reconstruction. See `BACKLOG.md`.
-5. Install Ollama, or decide the LLM report stays optional.
+~~Immediate next steps (as of 2026-09-11)~~ — **all but one are done; kept
+only to show what was superseded.**
+
+| was | now |
+|---|---|
+| 1. Repoint the pipeline off Parquet | **done** — `daily.sh` is all SQLite |
+| 2. Fix the leaking train/test split | **done** — `walk_forward.py`, 31 folds |
+| 3. Top up prices | **done, and automated** — cron at 07:00 weekdays |
+| 4. Survivorship-bias research | **done** — measured per date, `pit_universe.py` |
+| 5. Install Ollama | still open, still optional |
+
+The work is now tracked in `docs/ROADMAP_INTEGRATION.md`, which carries a status
+table per stage. **That file is the roadmap; this list is history.**
 
 ---
 
