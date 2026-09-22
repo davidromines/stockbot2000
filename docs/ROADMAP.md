@@ -359,3 +359,44 @@ alongside it.
 
 Its stated goal is not to find a profitable strategy. It is to make a positive
 result substantially harder to dismiss as an artifact.
+
+---
+
+## The long-term direction — Phases 6–11
+
+**Added 2026-09-22. This is the new direction of the project and a full revamp
+of its planning.** All existing systems integrate into it. Roadmap only —
+nothing implemented.
+
+The numbered phases above (01–15) record what was built. These six describe
+where it goes: Stockbot2000 becomes a continuously operating research
+laboratory, a persistent strategy league, and a promotion pipeline — rather
+than a system that searches for a good backtest.
+
+| Phase | Name | Spec |
+|---|---|---|
+| 6 | Research Integrity & Independent Validation | `PHASE6_RESEARCH_INTEGRITY.md` |
+| 7 | Continuous Strategy Laboratory & Paper Trading League | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 8 | Continuous Strategy Discovery & Real-World Strategy Library | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 9 | Fundamental Value Intelligence Engine | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 10 | Live Capital Allocation & Strategy Promotion | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 11 | Continuous Research Loop | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+
+Dependencies, module reuse, architectural gaps, schema changes, risks, minimum
+infrastructure and the proposed implementation order are in
+**`ROADMAP_INTEGRATION.md`**.
+
+The shape it is heading for:
+
+```text
+Thousands of ideas → rigorous backtesting → hundreds of paper strategies
+→ continuously ranked strategy league → risk-filtered top 5
+→ Robinhood Agentic → live results feed back into the league → repeat forever
+
+SEC filings → fundamental intelligence → intrinsic-value analysis
+→ long-term value candidates → a separate Value Fund
+```
+
+Two funds, two philosophies, one research infrastructure: a **Tactical Fund** of
+continuously selected strategies and a **Value Fund** of long-term fundamentally
+selected companies, independently measurable.

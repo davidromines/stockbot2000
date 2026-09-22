@@ -511,6 +511,55 @@ Ollama LLM step must not run concurrently — together they exceed 12 GB.
 
 ---
 
+## THE PROJECT DIRECTION — Phases 6-11, planned 2026-09-22
+
+**A full revamp of the project's planning. All existing systems integrate into
+this direction.** Roadmap only; nothing implemented.
+
+| Phase | | Spec |
+|---|---|---|
+| 6 | Research Integrity & Independent Validation | `docs/PHASE6_RESEARCH_INTEGRITY.md` |
+| 7 | Continuous Strategy Laboratory & Paper Trading League | `docs/PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 8 | Continuous Strategy Discovery & Real-World Strategy Library | same |
+| 9 | Fundamental Value Intelligence Engine | same |
+| 10 | Live Capital Allocation & Strategy Promotion | same |
+| 11 | Continuous Research Loop | same |
+
+Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
+— in `docs/ROADMAP_INTEGRATION.md`.
+
+**What changes, in one line:** Stockbot2000 stops being a system that searches
+for a good backtest and becomes a research laboratory where strategies compete
+continuously, are graded on a permanent scoreboard, and receive capital only
+through promotion — with a separate Fundamental Value Engine feeding a distinct
+long-term Value Fund.
+
+Four things that reverse current behaviour, listed so they are seen before
+anything is touched:
+
+1. **Search freezes by default** (`SEARCH_MODE=FROZEN`). The watchdog must not
+   restart a deliberately frozen search — a direct reversal of the watchdog
+   installed 2026-09-19.
+2. **Seeding becomes explicit and traceable** (`seed_mode: NONE`). No
+   hand-written rules, no descendants of seeded strategies, ancestry recorded
+   per strategy.
+3. **Compute priority inverts**: data integrity first, strategy search last.
+4. **Nothing is ever overwritten.** Strategy versions, scores, ranks and
+   retirement records are immutable; a modified strategy becomes a new version.
+
+**The central architectural rule of the new direction:** the live roster is the
+top five *eligible* strategies after risk and correlation constraints — never
+the five highest raw returns. Raw profitability alone would fill all five slots
+with copies of the same trade. Beating SPY is a reference point, not a promotion
+requirement.
+
+**Three layers that must not be collapsed:** Research Factory creates and tests
+ideas; Strategy League paper-trades and ranks them; Capital Deployment allocates
+only to strategies that pass promotion and risk. The league must not be able to
+call the broker.
+
+---
+
 ## Phase 6: Research integrity & independent validation — PLANNED 2026-09-22
 
 **The new project direction.** Specification reproduced verbatim in

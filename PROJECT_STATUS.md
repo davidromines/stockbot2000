@@ -63,7 +63,22 @@ database was the risk being avoided.
   killed mid-run; the lab loop currently holds the CPU.
 - `stop_sweep.py` is built and has never been run, for the same reason.
 
-## Next direction — Phase 6, planned 2026-09-22
+## PROJECT DIRECTION — Phases 6-11, planned 2026-09-22
+
+**A full revamp.** `docs/PHASES_7_11_STRATEGY_LEAGUE.md` (phases 7-11) and
+`docs/PHASE6_RESEARCH_INTEGRITY.md` (phase 6) are the plan.
+`docs/ROADMAP_INTEGRATION.md` carries the dependency map, schema changes, risks
+and implementation order.
+
+Stockbot2000 becomes a continuous research laboratory + strategy league +
+promotion pipeline, plus a separate Fundamental Value Engine and Value Fund.
+All existing systems integrate into this rather than continuing alongside it.
+
+Implementation has NOT started. Stage A item 1 of the proposed order is the
+regression suite, because every later stage adds surface area to a codebase with
+a documented history of silent measurement defects.
+
+## Phase 6 detail
 
 **`docs/PHASE6_RESEARCH_INTEGRITY.md` is the new plan and supersedes the "Next"
 list below as the project's direction.** It is a specification only; nothing has
