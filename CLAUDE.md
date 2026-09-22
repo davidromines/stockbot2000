@@ -407,7 +407,7 @@ or lose together.
 | momentum | 8 | -2.40% | contains every winner |
 | model | 1 | -4.90% | the XGBoost classifier |
 | crash buyers | 5 | **-8.62%** | **every single one negative** |
-| conviction | 2 | — | **STALLED**, see below |
+| conviction | 2 | -2.71% | stalled 09-11 to 09-22, now running |
 
 **The clearest lead this project has produced**: the same entry rule
 (`pct_change(sma_200,3) > 0.02`) flips sign on stop width alone.
@@ -454,6 +454,16 @@ fails too — a check that passes when its subject is absent is not a check.
 
 **The general lesson, now costing this project a fourth bug: a freshness gate
 protects only the tables it names.**
+
+Both funds stepped on 2026-09-22 and are running: 10 positions each, **-2.60%
+(quality_value)** and **-2.81% (deep_value)** since 2026-09-11.
+
+**Their equity curves have an eleven-day hole and it was left there.** The
+positions were chosen on 09-11 and the return across the gap is real, but the
+daily path between the two marks does not exist and was not manufactured. Those
+days were never stepped; writing them in afterwards would turn a gap in the
+forward record into fabricated forward record, which is the one thing this
+project's only unbiased measurement cannot survive.
 
 ## Conventions
 
