@@ -1,0 +1,22 @@
+{
+  "versions": {
+    "v1": {
+      "built_at": "2026-09-22T06:34:00+00:00",
+      "bytes": 769724416,
+      "delisted": 310,
+      "file": "truth_sets/truth_v1.db",
+      "price_rows": 11618398,
+      "securities": 5396,
+      "security_types": [
+        "common_stock"
+      ],
+      "sha256": "0311047c9652a1e02c8010813634ec3a203dcbf6d04f9042c345ed1c8f0f56f7",
+      "tickers": 4174,
+      "version": "v1",
+      "window": [
+        "2006-01-01",
+        "2023-01-01"
+      ]
+    }
+  }
+}

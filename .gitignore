@@ -42,3 +42,9 @@ data/sec_fundamentals/
 # what gets the irreplaceable forward record off this machine on every push.
 # The listings archives are 8 MB each and change rarely; copy those deliberately.
 backups/listings_*.sql.gz
+
+# Truth-set snapshots are large binary databases. The MANIFEST is tracked — it
+# carries the version, window, row counts and sha256 that results cite, and is
+# what makes a claim checkable. The .db files are rebuildable from the manifest's
+# parameters and must not bloat the repo.
+truth_sets/*.db
