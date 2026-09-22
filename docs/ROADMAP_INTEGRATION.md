@@ -368,10 +368,38 @@ cannot write config, cannot set `search.mode`, and cannot register an experiment
 to satisfy its own first gate. **Search remains FROZEN** — lifting it is a human
 edit to `config.yaml`, deliberately outside this code.
 
-**Stage D — fundamentals (Phase 9)**
-24. `sec_facts_pit` with full provenance
-25. Industry classification
-26. Financial statement analysis engine
+**Stage D — fundamentals (Phase 9)** — status as of 2026-09-22
+
+| | item | state |
+|---:|---|---|
+| 24 | `sec_facts_pit` with full provenance | **done** — `pit_backfill.py`, `pit_facts.py` |
+| 25 | Industry classification | **done** — `industry.py`, point-in-time SIC |
+| 26 | Financial statement analysis engine | **done** — `statements.py` |
+| 27 | Valuation engine, industry-aware | not started |
+| 28 | Intrinsic-value models | not started |
+| 29 | Value score and watchlist (experiment) | not started |
+| 30 | Value Fund architecture, paper only | not started |
+
+**Statement coverage is uneven and that is a data fact, not a bug.** Measured
+across 400 companies:
+
+| field | coverage |
+|---|---:|
+| assets / equity / book value | ~98% |
+| net income | 93% |
+| revenue | 75% |
+| EBITDA | 58% |
+| **debt** | **38%** |
+| debt/EBITDA | 26% |
+
+**Debt at 38% is the binding constraint on item 27.** Many filers do not tag
+`LongTermDebtNoncurrent` or `ShortTermBorrowings` in every filing, so EV-based
+multiples — EV/EBITDA, EV/EBIT, EV/Sales — are computable for a minority of the
+universe. A valuation engine that silently treats missing debt as zero would
+report every such company as having no leverage and an artificially low
+enterprise value, which is the most flattering possible error. `statements.py`
+returns `None` instead, and item 27 must carry that through rather than default
+it.
 27. Valuation engine, industry-aware
 28. Intrinsic-value models
 29. Value score and watchlist — **as an experiment, formula not fixed**

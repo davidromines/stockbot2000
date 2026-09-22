@@ -327,6 +327,11 @@ hardcodes paths, thresholds or model parameters.
 | `industry.py` | SIC -> division and major group, **point-in-time**. A peer-grouping heuristic, never a feature. |
 | `fix_ticker_map.py` | Repaired 181 issuers mapped to a preferred or warrant series. |
 
+### Financial statements (built 2026-09-22)
+| File | Role |
+|---|---|
+| `statements.py` | The three statements per filing, point-in-time. **"not reported" is never zero.** |
+
 ### The Research Library (built 2026-09-22)
 | File | Role |
 |---|---|
@@ -697,6 +702,55 @@ Both came from a check that did not replicate a step the real code performs:
 
 **A verification that skips a step the pipeline performs will invent a bug.**
 Both checks now do the snap, and say why in the code.
+
+## The statement engine, and what it cannot see — 2026-09-22
+
+`statements.py` exposes revenue, margins, balance sheet, cash flow and returns
+per filing, point-in-time via `first_tradeable`. 16 SEC tags were added and the
+70 cached quarters re-parsed: **`sec_facts` went from 19.0M to 23.5M.**
+
+**Coverage is uneven, and that is a data fact rather than a bug.** Across 400
+companies:
+
+| field | coverage |
+|---|---:|
+| assets / equity / book value | ~98% |
+| net income | 93% |
+| revenue | 75% |
+| EBITDA | 58% |
+| **debt** | **38%** |
+
+**Debt at 38% is the binding constraint on the valuation engine.** Many filers
+never tag `LongTermDebtNoncurrent` or `ShortTermBorrowings`, so every EV-based
+multiple — EV/EBITDA, EV/EBIT, EV/Sales — is computable for a minority of the
+universe. Treating missing debt as zero would report those companies as
+unlevered with an artificially low enterprise value: **the most flattering
+possible error**, applied precisely to the companies we know least about.
+
+### Two rules in this engine
+
+**Absence is never zero.** A company that did not disclose R&D is not one that
+spent nothing on it. Every figure is a number or `None`, and any ratio with a
+missing input is `None`. The one deliberate default is at `_net_debt`: absent
+short-term borrowings count as zero, safe *only* because it makes leverage look
+better, so a company failing a leverage test fails on debt we can actually see.
+**Missing cash is not defaulted**, because that would invent leverage.
+
+**Capex is subtracted.** It is reported as a positive outflow; adding it to
+operating cash flow turns the most capital-hungry companies into the database's
+best free-cash-flow generators — a ranking that looks plausible and is exactly
+inverted.
+
+### INSERT OR REPLACE wiped two repairs — fixed at source
+
+Re-parsing the zips **reverted every ticker repair and erased
+`first_tradeable`**, because `INSERT OR REPLACE` deletes the whole row and
+reinserts it. JPMorgan went back to `JPM-PM` within one reload.
+
+`sec_fundamentals.py` now UPSERTs and will not overwrite `ticker` where
+`ticker_raw` records a repair. **If you add a column to `sec_filings` that is
+owned by another module, add it to that exclusion too** — a loader that
+refreshes a row must not silently own every column in it.
 
 ## Conventions
 
