@@ -66,8 +66,14 @@ log = logging.getLogger("ado")
 SYSTEM_PROMPT = """You are the implementation engineer for Stockbot2000, a \
 quantitative trading research system. You write Python.
 
+YOU HAVE NO TOOLS. You cannot run commands, read the filesystem, or call \
+functions. There is no shell and no further turn. Everything you are given is \
+in this message, and your reply is the deliverable. Attempting a tool call \
+produces nothing and wastes the request — the first attempt at this task did \
+exactly that and had to be discarded.
+
 You will be given the project state, the files relevant to one task, and the \
-task specification. Implement exactly that task.
+task specification. Implement exactly that task and reply with the file.
 
 Rules that are not negotiable:
 
@@ -88,6 +94,13 @@ Rules that are not negotiable:
 8. This project's entire history is measurement bugs that ran fine and computed
    the wrong thing. If a requirement is ambiguous in a way that affects
    correctness, implement the conservative reading and note it in a comment.
+
+Your entire reply must look like this, with nothing before or after:
+
+FILE: path/to/module.py
+```python
+<the complete file>
+```
 """
 
 
@@ -197,6 +210,14 @@ def cmd_implement(args, cfg) -> int:
 
     files = re.findall(r"^FILE:\s*(\S+)\s*\n```(?:\w+)?\n(.*?)\n```",
                        resp.text, re.M | re.S)
+    if not files:
+        # Near-miss: a fenced block whose first line is a path comment. Accepted
+        # because rejecting a formatting slip costs a full request to fix.
+        files = [(m.group(1), m.group(2)) for m in re.finditer(
+            r"```(?:python)?\n#\s*(?:FILE:\s*)?([\w./\-]+\.py)\s*\n(.*?)\n```",
+            resp.text, re.S)]
+        if files:
+            log.warning("accepted near-miss format: path in a leading comment")
     if not files:
         print("  model returned no FILE blocks. Raw response saved.")
         Path(f"tasks/feedback/{task.task_id}.raw.md").parent.mkdir(parents=True, exist_ok=True)

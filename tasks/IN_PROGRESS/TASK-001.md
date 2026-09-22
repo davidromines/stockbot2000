@@ -2,7 +2,7 @@
 
 - component: data
 - priority: high
-- state: TODO
+- state: IN_PROGRESS
 - branch: ado/task-001
 - created: 2026-09-22
 - dependencies: none
@@ -19,7 +19,6 @@ inherits that gap, so it needs to be measurable rather than estimated.
 
 ## Relevant files
 - `data_audit.py`
-
 ## Requirements
 1. Read the database path and universe settings from `config.yaml` via `universe.load_config()`.
 2. Import `runtime` as the first import, before pandas or numpy.
@@ -43,15 +42,15 @@ inherits that gap, so it needs to be measurable rather than estimated.
 5. Comments must explain why a choice was made, not restate the code.
 
 ## Acceptance criteria
-1. `python data_audit.py` exits 0.
-2. `reports/data_completeness.json` exists and parses as JSON.
-3. `reports/data_completeness.md` exists and is non-empty.
+1. python data_audit.py` exits 0.
+2. reports/data_completeness.json` exists and parses as JSON.
+3. reports/data_completeness.md` exists and is non-empty.
 4. The JSON contains keys: `total_securities`, `securities_with_prices`, `securities_without_prices`, `delisted_total`, `delisted_with_prices`, `delisted_without_prices`.
-5. `./run_tests.sh` still passes.
+5. ./run_tests.sh` still passes.
 
 ## Testing requirements
 1. The module must run against the real database without error.
 2. Numbers reported must be internally consistent: securities_with_prices + securities_without_prices == total_securities.
 
 ## Deliverables
-1. `data_audit.py`
+1. data_audit.py
