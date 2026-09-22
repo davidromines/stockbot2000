@@ -375,7 +375,7 @@ edit to `config.yaml`, deliberately outside this code.
 | 24 | `sec_facts_pit` with full provenance | **done** — `pit_backfill.py`, `pit_facts.py` |
 | 25 | Industry classification | **done** — `industry.py`, point-in-time SIC |
 | 26 | Financial statement analysis engine | **done** — `statements.py` |
-| 27 | Valuation engine, industry-aware | not started |
+| 27 | Valuation engine, industry-aware | **done** — `valuation.py` |
 | 28 | Intrinsic-value models | not started |
 | 29 | Value score and watchlist (experiment) | not started |
 | 30 | Value Fund architecture, paper only | not started |
@@ -398,8 +398,15 @@ multiples — EV/EBITDA, EV/EBIT, EV/Sales — are computable for a minority of 
 universe. A valuation engine that silently treats missing debt as zero would
 report every such company as having no leverage and an artificially low
 enterprise value, which is the most flattering possible error. `statements.py`
-returns `None` instead, and item 27 must carry that through rather than default
+returns `None` instead, and item 27 carries that through rather than defaulting
 it.
+
+**Item 27 turned the coverage gap into a refusal.** Market-wide EV rankings are
+refused outright rather than warned about, EV multiples are excluded for
+financials where debt is inventory, and coverage is reported alongside every
+rank. The measured bias that forced this: EV/EBITDA-computable companies have a
+median market cap of **$2.20B against $0.88B** for the rest, with coverage
+running 7.5% (finance) to 53.8% (wholesale).
 27. Valuation engine, industry-aware
 28. Intrinsic-value models
 29. Value score and watchlist — **as an experiment, formula not fixed**
