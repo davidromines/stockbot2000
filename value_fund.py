@@ -169,7 +169,49 @@ def open_fund(conn, capital: float = 100.0, as_of: str | None = None,
     return {"name": FUND, "capital": capital, "started_on": as_of}
 
 
-def candidates(conn, as_of: str, weighting: str, limit: int = 600) -> list:
+def coverage(conn, as_of: str) -> dict:
+    """
+    How much of the filed universe a review could actually have bought.
+
+    Two counts, and the gap between them is the point:
+
+        universe      every ticker with a tradeable filing on or before
+                      `as_of` — the population a value screen draws from
+        common_stock  how many of those the fund is permitted to hold
+
+    Reporting only one number hides the comparison a reader needs. A review
+    that scored 5,000 names sounds thorough until you learn 1,800 of them were
+    notes, preferreds and warrants the fund may not buy; a review that scored
+    3,200 of 5,000 sounds like a sample until you learn the other 1,800 were
+    never investable. Neither figure alone distinguishes those cases.
+
+    `universe` is deliberately not the count of rows in `symbols`: a ticker
+    with no filing cannot be scored, and including it would understate
+    coverage. `first_tradeable` is the point-in-time gate — a filing that
+    became public after `as_of` did not exist yet on `as_of`, and counting it
+    would credit the review with names it could not have seen.
+
+    `common_stock` is computed by asking `is_common_stock` per ticker rather
+    than by a second SQL predicate, so the fund's eligibility rule has exactly
+    one definition. A duplicated WHERE clause here would drift from the one
+    `candidates()` applies, and the coverage line would then report a universe
+    the fund does not actually screen.
+    """
+    rows = conn.execute(
+        "SELECT DISTINCT ticker FROM sec_filings "
+        "WHERE ticker IS NOT NULL AND first_tradeable IS NOT NULL "
+        "AND first_tradeable<=?",
+        (as_of,)).fetchall()
+    tickers = [r[0] for r in rows]
+    common = sum(1 for t in tickers if is_common_stock(conn, t))
+    return {"as_of": as_of, "universe": len(tickers), "common_stock": common,
+            # Retained for callers written against the earlier shape. It is
+            # the same population as `universe`; the name was the problem, not
+            # the number.
+            "eligible": len(tickers)}
+
+
+def candidates(conn, as_of: str, weighting: str, limit: int | None = None) -> list:
     """
     Top-decile companies across every industry, best first.
 
@@ -181,6 +223,15 @@ def candidates(conn, as_of: str, weighting: str, limit: int = 600) -> list:
     Only common stock is eligible. The percentile cut is taken over the
     eligible names, so a note or a warrant cannot occupy a decile slot that a
     company should have had.
+
+    `limit` is a development convenience and a sampling bias, and it defaults
+    to None for that reason. `value_score.score_division` applies it as
+    `ORDER BY ticker LIMIT n`, so any finite value does not sample the
+    universe — it takes the first n tickers ALPHABETICALLY. At the old default
+    of 600 that was 11% of 5,290 tradeable names, spanning A to BEBE, and the
+    first review preview proposed ten companies that were all A or B tickers.
+    A review runs quarterly and can afford the full pass, so the default is to
+    score everything; pass a limit only for a deliberate, reported sample.
     """
     divs = {d for d in (industry.division_of(r[0])[0] for r in conn.execute(
         "SELECT DISTINCT sic FROM sec_filings WHERE sic IS NOT NULL"))
@@ -217,6 +268,12 @@ def review(conn, as_of: str, dry_run: bool = True) -> dict:
 
     cands = candidates(conn, as_of, f["weighting"])
     by_ticker = {c["ticker"]: c for c in cands}
+    cov = coverage(conn, as_of)
+    # `scored` is the number of names that survived into the pooled candidate
+    # list, which is the top decile of each industry rather than the whole
+    # universe. It is reported alongside the universe counts so a review that
+    # silently sampled can be told apart from one that did not.
+    cov["scored"] = len(cands)
 
     # --- sells: only on falling out of the top 40% of the industry ----------
     sells = []
@@ -255,7 +312,7 @@ def review(conn, as_of: str, dry_run: bool = True) -> dict:
 
     if dry_run:
         return {"as_of": as_of, "sells": sells, "buys": buys,
-                "held": len(held), "dry_run": True}
+                "held": len(held), "dry_run": True, "coverage": cov}
 
     cash = float(f["cash_usd"])
     for t, score_now, why in sells:
@@ -306,7 +363,7 @@ def review(conn, as_of: str, dry_run: bool = True) -> dict:
                  (cash, as_of, FUND))
     conn.commit()
     return {"as_of": as_of, "sells": sells, "buys": buys,
-            "held": len(held), "dry_run": False}
+            "held": len(held), "dry_run": False, "coverage": cov}
 
 
 def mark(conn, as_of: str) -> dict:
@@ -446,6 +503,23 @@ def main() -> int:
                   f"{c['division']}  ({c['dimensions_scored']}/9 dimensions)")
         if not r["sells"] and not r["buys"]:
             print("  no changes")
+        cov = r.get("coverage") or {}
+        if cov:
+            # Printed on every review, not only when it looks wrong: a coverage
+            # line that appears only on failure is one nobody reads until after
+            # the fund has been running on a sample for a year.
+            #
+            # Both counts are printed. The universe alone cannot distinguish a
+            # thorough review from one that scored a universe the fund may not
+            # buy, and the investable count alone cannot show how much of what
+            # filed was skipped.
+            universe = cov.get("universe", 0)
+            common = cov.get("common_stock", 0)
+            scored = cov.get("scored", 0)
+            print(f"  scored {scored:,} of {common:,} investable companies "
+                  f"({scored / max(common, 1):.1%})")
+            print(f"  universe: {universe:,} filed tickers, {common:,} common "
+                  f"stock ({common / max(universe, 1):.1%} of filings)")
         if r["dry_run"]:
             print("\n  Re-run with --apply to trade.")
         print()
