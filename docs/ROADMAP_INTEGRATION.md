@@ -277,17 +277,26 @@ Sequenced so each step is independently testable and nothing depends on
 something unbuilt. Phase numbers are the plan's; the order within them is the
 recommendation.
 
-**Stage A — integrity foundation (Phase 6)**
-1. Regression suite (§25) — first, so every later change is guarded
-2. Strategy ancestry + `seed_mode` (§2), then the seed-free control run (§3)
-3. `SEARCH_MODE=FROZEN` (§1) — frees the compute the rest needs
-4. Truth set (§4) and point-in-time universe (§5)
-5. Data completeness and fundamental availability audits (§6, §7)
-6. Freshness as a failing metric (§8)
-7. Validation firewall (§9) and sealed holdout (§10)
-8. Experiment registry and pre-registration (§11, §12)
-9. Expanded random control (§17) and multiple-testing accounting (§18)
-10. Research integrity report (§26)
+**Stage A — integrity foundation (Phase 6)** — status as of 2026-09-22
+
+| | item | state |
+|---:|---|---|
+| 1 | Regression suite (§25) | **done** — 18 files, `./run_tests.sh` is the gate |
+| 2 | Ancestry + `seed_mode` (§2) | **done** — `ancestry.py`, 1.03M classified |
+| 2b | Seed-free control run (§3) | **registered and running** — `experiments/seed_free_search/` |
+| 3 | `SEARCH_MODE=FROZEN` (§1) | **done** — frozen 2026-09-22 |
+| 4 | Truth set (§4), PIT universe (§5) | **done** — `truth_v1`, `pit_universe.py` |
+| 5 | Completeness + availability audits (§6, §7) | **done** |
+| 6 | Freshness as a failing metric (§8) | **done** |
+| 7 | Validation firewall (§9), sealed holdout (§10) | **done** — seal carved out 2026-09-22 |
+| 8 | Experiment registry (§11, §12) | **done** — `experiment_registry.py` |
+| 9 | Random control (§17), multiple testing (§18) | **done** — `random_control.py`, `multiple_testing.py` |
+| 10 | Research integrity report (§26) | **done** — regenerated daily |
+
+Stage A is complete except the seed-free comparison, which is pre-registered
+and whose two arms are running. Nothing in Stage A produced a positive
+result about any strategy, which is the expected outcome: it is scaffolding
+for honest measurement, not a source of edge.
 
 **Stage B — the league (Phase 7)**
 11. Strategy identity and immutable versioning
