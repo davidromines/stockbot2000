@@ -170,7 +170,21 @@ class SimulatedBroker(BrokerInterface):
             "ORDER BY date DESC LIMIT 1", (symbol,)).fetchone()
         if not r:
             return None
-        return {"symbol": symbol, "price": float(r["close"]), "as_of": r["date"]}
+        # Liquidity and market cap belong ON the quote, not looked up separately
+        # by the risk engine. The engine rejects an unknown rather than assuming
+        # one, so a quote missing these is a quote that blocks every order — the
+        # first live run rejected all ten picks for exactly that reason. Failing
+        # closed was right; the incomplete quote was the bug.
+        dv = self.conn.execute(
+            "SELECT dollar_volume_20 FROM features WHERE ticker=? AND "
+            "dollar_volume_20 IS NOT NULL ORDER BY date DESC LIMIT 1",
+            (symbol,)).fetchone()
+        cap = self.conn.execute(
+            """SELECT market_cap FROM fundamentals f WHERE ticker=? AND market_cap>0
+               ORDER BY filed DESC LIMIT 1""", (symbol,)).fetchone()
+        return {"symbol": symbol, "price": float(r["close"]), "as_of": r["date"],
+                "dollar_volume_20": float(dv[0]) if dv and dv[0] else None,
+                "market_cap": float(cap[0]) if cap and cap[0] else None}
 
     def place_order(self, order: Order) -> Order:
         if order.client_order_id in self.orders:
