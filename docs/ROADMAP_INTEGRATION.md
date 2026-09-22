@@ -376,7 +376,7 @@ edit to `config.yaml`, deliberately outside this code.
 | 25 | Industry classification | **done** — `industry.py`, point-in-time SIC |
 | 26 | Financial statement analysis engine | **done** — `statements.py` |
 | 27 | Valuation engine, industry-aware | **done** — `valuation.py` |
-| 28 | Intrinsic-value models | not started |
+| 28 | Intrinsic-value models | **done** — `intrinsic.py` |
 | 29 | Value score and watchlist (experiment) | not started |
 | 30 | Value Fund architecture, paper only | not started |
 
@@ -400,6 +400,15 @@ report every such company as having no leverage and an artificially low
 enterprise value, which is the most flattering possible error. `statements.py`
 returns `None` instead, and item 27 carries that through rather than defaulting
 it.
+
+**Item 28 makes a DCF announce how much of itself is assumption.** The
+terminal-value share is reported every time and flagged above 75%; sensitivity
+is returned with every valuation rather than on request; and refusal is the
+expected outcome — a DCF on sign-changing cash flow values the assumption that
+it turns around, not the business. Apple spans **$81 to $267** across plausible
+discount and terminal-growth inputs (3.3x), and its four methods span **32x**,
+which is the point: disagreement between independent methods says at least one
+set of assumptions is wrong, and no single method can tell you that.
 
 **Item 27 turned the coverage gap into a refusal.** Market-wide EV rankings are
 refused outright rather than warned about, EV multiples are excluded for
