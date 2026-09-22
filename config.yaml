@@ -253,3 +253,17 @@ conviction:
   # spread, neutralised ranks still allow three names from one corner of the
   # market whenever that corner happens to hold the three highest percentiles.
   one_pick_per_bucket: true
+
+# AI Development Orchestration. Claude architects and reviews; a cheaper model
+# implements. Rates are for METERING, not billing — they are estimates and will
+# drift, but without them "this saved money" is a belief rather than a number.
+ado:
+  provider: deepseek
+  # Pinned explicitly: "deepseek-chat" currently resolves to deepseek-flash, and
+  # a task record that does not say which model produced an implementation
+  # cannot be reviewed properly later.
+  model: deepseek-chat
+  max_tokens: 8000
+  rates:
+    input_per_mtok: 0.27
+    output_per_mtok: 1.10
