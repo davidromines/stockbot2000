@@ -873,6 +873,42 @@ where that constant came from before calling it a discovery.**
 
 ---
 
+## Survivorship bias, measured per date — 2026-09-22
+
+`pit_universe.py` answers "which securities could an investor have known about
+on this date" from the 114 Internet Archive directory snapshots, and compares
+that against what this database can actually price.
+
+| date | knowable | priced | blind | coverage |
+|---|---:|---:|---:|---:|
+| 2008-06-30 | 3,000 | 679 | 2,321 | **22.6%** |
+| 2012-06-29 | 2,487 | 831 | 1,656 | 33.4% |
+| 2016-06-30 | 2,490 | 1,035 | 1,455 | 41.6% |
+| 2020-06-30 | 2,568 | 1,436 | 1,132 | 55.9% |
+| 2024-06-28 | 2,133 | 1,786 | 347 | **83.7%** |
+
+**A backtest on 2008 data was looking at 22.6% of the real universe.** The
+monotonic climb toward the present is the signature of the bias itself:
+companies that survived keep their price history, companies that died do not.
+
+This supersedes the ~10.4 points/year figure as the primary statement of the
+problem. That number was an aggregate inferred against an external benchmark;
+this is a direct per-date count of what was there against what we can see.
+
+**`symbols.first_seen` is NOT a listing date.** It records when our own daily
+snapshots first saw a ticker and ranges 2026-09-08 to 2026-09-21. The first
+version of the point-in-time universe read it and returned zero knowable
+securities for every historical date — an empty universe rather than an error,
+which is the worst way for a data source to be wrong. The historical record
+lives in `historical_listings`.
+
+**Snapshots are sparse** — 114 over eighteen years — so a date between them uses
+the most recent prior snapshot and `snapshot_lag_days` is reported with every
+answer. A universe from a 144-day-old snapshot is a weaker claim than one from a
+6-day-old snapshot, and callers are told which they have.
+
+---
+
 ## The trial counter is append-only — 2026-09-22
 
 ```text
