@@ -70,6 +70,14 @@ lab:
   validation_start: "2020-01-01"
   validation_end: "2022-12-31"
   sealed_start: "2023-01-01"      # opened once per strategy, at the funding decision
+
+  # Phase 6 section 2 / Phase 8 item 23. NONE means no hand-written rules and no
+  # descendants of them. The seed-free comparison measured 12.8% of a seeded
+  # arm's candidates carrying a seed structure against 0.0% of the seed-free
+  # arm — structures the search never rediscovers on its own, so a seeded
+  # survivor matching one is evidence about seeds.py, not about the market.
+  # factory.py refuses to authorise generation under any other value.
+  seed_mode: NONE
   max_depth: 4                    # rule tree depth cap
   workers: 3                      # leave one core free; see compute.max_threads
   max_entries_per_eval: 20000     # signals sampled per candidate
