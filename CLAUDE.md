@@ -710,6 +710,65 @@ Three things to take from it:
 
 ---
 
+## The search converged on its own seed — 2026-09-22
+
+**A result I reported as the project's most interesting finding, and then had to
+retract within the hour.** It is the cleanest example of the standing caution
+below, and the procedure that caught it is worth keeping.
+
+After 1,022,905 cumulative trials the Lab produced **455 validation survivors
+across 435 distinct structures** — the monoculture problem was genuinely fixed.
+Reading what they *said* rather than how they were shaped:
+
+| | |
+|---|---:|
+| contain a relative-strength `rank()` | 97% |
+| contain an RSI oversold term | 81% |
+| **contain both — momentum + pullback** | **85%** |
+| **are crash buyers** | **0%** |
+
+That looked like independent convergence, and it matched the best paper fund
+(`MACD Pullback`, +2.00%) exactly. Two processes agreeing.
+
+**They were not independent.** `seeds.py` contains a hand-written strategy,
+`momentum_pullback`, whose entry is
+`rank(roc_10) > 0.7 and price_above_sma200 > 0.5 and rsi_14 < 40`. `lab_loop.sh`
+runs `evolve.py --seeds`, so that rule is injected into the population **every
+iteration**. Of 455 survivors, **231 carry the literal constant 40** — not 39.8,
+not 41.2, exactly 40. That is inheritance. And `MACD Pullback` is itself a
+mutated descendant of the same seed, so the "corroboration" shared an ancestor.
+
+The seed's own comment, written months earlier and then ignored:
+*"The most 'designed' rule here, and so the most suspect."*
+
+**What survives the retraction**, and it is much smaller:
+
+- **Zero crash buyers out of 455 is real.** It is an absence, not a selection,
+  and nothing seeds it. The exit-pricing and next-open-fill fixes killed that
+  artifact for good.
+- **~224 survivors use a LEARNED oversold threshold** (33.7, 32.9, 34.2) rather
+  than the inherited 40. Evolution re-deriving something in that region without
+  the constant handed to it is weak evidence for the shape.
+- 48% carry a relative-strength `rank()` term at a threshold no seed supplies.
+
+**What caught it**: `consensus.py` requires a term to appear in a MAJORITY of
+survivors and writes the hypothesis to disk before scoring. Only one term
+cleared the bar, and its interquartile range was `[40.0, 40.0]` — every survivor
+using an identical constant is the signature of descent, not discovery. A lower
+inclusion bar would have assembled a five-term rule and made it look like a
+finding.
+
+**The open question this leaves.** Re-run the search with seeds DISABLED and
+compare. If momentum+pullback still dominates without the seed in the
+population, it is real; if it evaporates, a week of results was our own
+handwriting read back. `evolve.py` already takes `--seeds` as a flag, so the
+work is tagging which runs were seeded and running both.
+
+**The rule that generalises: when survivors agree on an exact constant, look for
+where that constant came from before calling it a discovery.**
+
+---
+
 ## Search capacity is capped deliberately — 2026-09-12
 
 **Do not add generations, population, or nightly evaluation budget.** The
