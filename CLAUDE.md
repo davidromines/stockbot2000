@@ -846,6 +846,33 @@ where that constant came from before calling it a discovery.**
 
 ---
 
+## The trial counter is append-only — 2026-09-22
+
+```text
+The cumulative trial count is append-only and is never reset, including when
+strategies are archived or retired.
+```
+
+**Deleting records does not delete the contamination.** 1,037,005 evaluations
+have already happened. Removing the rows would not un-run the searches; it would
+destroy the denominator the deflated-Sharpe correction depends on, and the next
+survivor would appear to have cleared a bar of one trial when it actually
+cleared a bar of a million.
+
+That is the file-drawer problem. Discarding failed experiments is not a fix for
+multiple testing, it is multiple testing with the evidence removed.
+
+So: **label, never delete.** The 284 survivors scored by the buggy simulator and
+the 231 carrying the seed constant `40` are marked, not removed. Any future
+rebuild or migration must carry the cumulative count forward, and a rebuilt
+database starting from zero is a regression that a test should catch.
+
+**What does start fresh is the SEARCH, not the records** — a seed-free run,
+tagged, compared against the seeded distribution. Clean population, preserved
+accounting.
+
+---
+
 ## Search capacity is capped deliberately — 2026-09-12
 
 **Do not add generations, population, or nightly evaluation budget.** The

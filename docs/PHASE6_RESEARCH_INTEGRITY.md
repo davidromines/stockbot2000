@@ -707,6 +707,39 @@ effective_trials
 Do not allow the system to present an ordinary Sharpe threshold without
 displaying the research multiplicity context.
 
+## 18a. THE TRIAL COUNTER IS APPEND-ONLY
+
+> **AMENDMENT — added 2026-09-22 at the user's direction.** Not part of the
+> original specification text above; recorded here because it governs §18.
+
+```text
+The cumulative trial count is append-only and is never reset, including when
+strategies are archived or retired.
+```
+
+The reason is that deleting records does not delete the selection pressure that
+produced them. 1,037,005 evaluations have already happened; removing the rows
+would not un-run the searches, it would only destroy the denominator the
+deflated-Sharpe correction depends on.
+
+A counter that reset on cleanup would make the next survivor appear to have
+cleared a bar of one trial when it actually cleared a bar of a million. The
+system would look cleaner and be measurably more dangerous.
+
+This is the file-drawer problem. Discarding the failed experiments is not a fix
+for multiple testing — it is multiple testing with the evidence removed.
+
+Consequences:
+
+* Archiving, retiring or invalidating a strategy **never** decrements the count.
+* Marking a population invalid — the 284 pre-fill-fix survivors, the 231
+  seed-descended ones — is a **label**, not a deletion.
+* Any future database migration, rebuild or cleanup must carry the cumulative
+  count forward explicitly. A rebuilt database starting from zero is a
+  regression, and should be caught by a test.
+
+---
+
 ## 19. MODEL SEARCH SEPARATION
 
 The XGBoost classifier currently has:
