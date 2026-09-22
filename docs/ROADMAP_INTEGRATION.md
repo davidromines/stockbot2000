@@ -338,13 +338,35 @@ marks for a correlation to mean anything. That is the honest state of a league
 whose oldest member has three weeks of history — the machinery is in place and
 accruing, and only calendar time populates it.
 
-**Stage C — supply (Phase 8)**
-19. `strategy_library` schema
-20. Import the strategies already implemented (`conviction`, `buffett`, `pead`,
-    seeds) as library entries with full provenance
-21. Value, quality, momentum families as pre-registered hypotheses
-22. Combination families: value+momentum, value+quality
-23. Re-enable governed generation from the factory
+**Stage C — supply (Phase 8)** — status as of 2026-09-22
+
+| | item | state |
+|---:|---|---|
+| 19 | `strategy_library` schema | **done** — provenance fields required, not optional |
+| 20 | Import existing strategies | **done** — 28 entries with measured evidence |
+| 21 | Value / quality / momentum families | **done** — pre-registered as hypotheses |
+| 22 | Combination families | **done** — value+momentum, value+quality |
+| 23 | Governed generation | **built, and it refuses every run today** |
+
+35 library entries: 16 REFUTED, 5 INCONCLUSIVE, 14 HYPOTHESIS, **0 SUPPORTED**.
+Nothing here has cleared a forward test, and a citation is recorded as
+provenance rather than as evidence.
+
+**A distinction item 20 forced.** Five of the twenty published rules say
+outright that their encoding is not the rule as published — "an adaptation, not
+the strategy", "a z-score break and an N-day-high break are not the same
+event". Their encodings failed here, which says little about Jegadeesh & Titman
+or Donchian. Only faithful encodings may be marked REFUTED; the five are
+INCONCLUSIVE with the deviation named. "Jegadeesh & Titman: REFUTED" is a far
+larger claim than anything measured here, and it is the version someone would
+remember.
+
+**Item 23 built the gates, not the unfreeze.** `factory.authorize()` requires a
+registered experiment, `seed_mode: NONE`, a declared trial budget priced against
+the ledger, explicit acknowledgement of the freeze, and ancestry recording. It
+cannot write config, cannot set `search.mode`, and cannot register an experiment
+to satisfy its own first gate. **Search remains FROZEN** — lifting it is a human
+edit to `config.yaml`, deliberately outside this code.
 
 **Stage D — fundamentals (Phase 9)**
 24. `sec_facts_pit` with full provenance
