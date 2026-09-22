@@ -299,6 +299,17 @@ hardcodes paths, thresholds or model parameters.
 | `pair_momentum.py` | The same across every pair and leverage level, with buy-and-hold as a second benchmark. |
 | `pair_funds.py` | The five live switching funds. Searches, opens and steps them. |
 
+### Order execution (built 2026-09-22)
+| File | Role |
+|---|---|
+| `signals.py` | The only shape execution accepts. `signal_id` is content-addressed, which is what makes retries idempotent. |
+| `risk_engine.py` | What is ALLOWED, separate from what a strategy wants. Fails closed on any unknown. |
+| `config/risk.yaml` | Execution limits. Deliberately NOT `config.yaml`, so a strategy edit cannot widen a risk limit. |
+| `killswitch.py` | Six switches. `data/KILL_SWITCH` stops everything with no code running. |
+| `broker.py` | `BrokerInterface`, `SimulatedBroker`, `RobinhoodBroker`, and the order state machine. |
+| `execution.py` | The only path from signal to broker. Duplicate check, risk, build, submit, resolve, record. |
+| `run_execution.py` | Turns the daily book into signals and runs them. SIMULATION by default; LIVE refuses. |
+
 ### The daily loop and reporting
 | File | Role |
 |---|---|
@@ -500,10 +511,19 @@ Ollama LLM step must not run concurrently — together they exceed 12 GB.
 
 ---
 
-## Planned: Robinhood Agentic autonomous execution
+## Robinhood Agentic execution — core BUILT 2026-09-22
 
-**Specified 2026-09-22, not implemented.** Full build specification in
-`docs/ROBINHOOD_AGENTIC.md`; roadmap phase 14.
+Specification in `docs/ROBINHOOD_AGENTIC.md`; status in `PROJECT_STATUS.md`;
+roadmap phase 14. **Merged into this project, not forked into a separate tree** —
+two systems against one 8.5 GB database was the risk being avoided.
+
+Built and tested: signal schema, risk engine, six kill switches, broker
+abstraction, order state machine, execution engine, shadow mode, and the runner.
+**67 tests across 5 files, all passing.**
+
+Not built: LIVE transmit path, the scheduled reconciliation loop, order-state
+recovery on restart, the dashboard's per-position "why did it trade", and the
+automated acceptance checklist.
 
 Connects the strategy engine to the Agentic account via Robinhood's official
 Trading MCP, with a deterministic execution pipeline — signal, risk engine,
