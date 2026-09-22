@@ -319,6 +319,12 @@ hardcodes paths, thresholds or model parameters.
 | `degradation.py` | backtest -> forward, in mean per-trade terms. How predictive are our own backtests? |
 | `eligibility.py` | Correlation, and the top-five-ELIGIBLE rule. **Promotes nothing.** |
 
+### The Research Library (built 2026-09-22)
+| File | Role |
+|---|---|
+| `strategy_library.py` | Every strategy idea with provenance. `known_biases` and `limitations` are **required** fields. |
+| `factory.py` | Governed generation. Five gates before a genome is drawn. **Cannot unfreeze itself.** |
+
 ### The daily loop and reporting
 | File | Role |
 |---|---|
@@ -539,6 +545,74 @@ written above the line that walked into it.
 
 Both sides are now **mean return per trade**, the only quantity a backtest and a
 forward record both actually have.
+
+## The Research Library — built 2026-09-22, nothing in it is SUPPORTED
+
+Phase 8 Stage C. 35 entries covering every idea this project has implemented or
+intends to test.
+
+| status | n | meaning |
+|---|---:|---|
+| REFUTED | 16 | measured here, failed, and the encoding was faithful |
+| INCONCLUSIVE | 5 | **our encoding** failed; the publication was never tested |
+| HYPOTHESIS | 14 | recorded, not yet measured here |
+| **SUPPORTED** | **0** | nothing has cleared a forward test |
+
+**A citation is provenance, not a result.** Everything enters at HYPOTHESIS
+whatever its pedigree. Novy-Marx is a reason to test gross profitability on this
+data, not a reason to believe the answer first.
+
+**Evidence is computed from the database at import, never typed in.** That is
+how a retracted result outlives its retraction — this project has already had a
+finding survive an hour past its own refutation because it was written down
+somewhere else.
+
+### "0 of 20 beat the null" — the precise version
+
+The loose phrasing in this file is worth pinning down. Measured at import:
+
+| | |
+|---|---:|
+| seed evaluations showing **positive excess over the null** | **40.3%** |
+| seed evaluations **clearing the promotion gate** | **0%** |
+
+Both are true and only the second means anything. The gate sits at the 95th
+percentile of what random strategies achieve, so beating the null by a little is
+what noise does too. The library stores both so the loose statement cannot be
+mistaken for the strict one.
+
+### A refuted ENCODING is not a refuted publication
+
+Five of the twenty seeds say outright they are not the rule as published —
+*"an adaptation, not the strategy"*, *"a z-score break and an N-day-high break
+are not the same event"*, *"roc_10 is far shorter"* against Jegadeesh & Titman's
+3-12 month formation. Their encodings failed here; the publications were never
+run.
+
+`strategy_library.NOT_FAITHFUL` names those five, and **only a FAITHFUL encoding
+may be marked REFUTED**. The rest are INCONCLUSIVE with the deviation stated.
+"Jegadeesh & Titman: REFUTED" is a far larger claim than anything measured here,
+and it is the version someone would remember.
+
+### Governed generation — the gates exist, the freeze stands
+
+`factory.py` requires **all five** before a single genome is drawn:
+
+1. A **registered experiment** — what is being tested and what would count as it
+   failing, written before any result exists.
+2. **`seed_mode: NONE`** — no hand-written rules, no descendants.
+3. A **declared trial budget**, priced against the append-only ledger.
+4. The **freeze explicitly acknowledged** in the experiment spec.
+5. **Ancestry recording**, not switchable here.
+
+Blockers accumulate rather than short-circuit, so governance reads as a
+description of a legitimate run rather than a queue of obstacles to clear one at
+a time.
+
+**It cannot unfreeze itself.** `authorize()` reports whether a run *would* be
+permitted. Flipping `search.mode` to ACTIVE is a human edit to `config.yaml`,
+deliberately outside this code — a governor that can lift its own restriction is
+not a governor. **Search remains FROZEN and every run is refused today.**
 
 ## Conventions
 
