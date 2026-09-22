@@ -37,3 +37,8 @@ data/*.db-shm
 data/edgar/
 
 data/sec_fundamentals/
+
+# Backups. The small forward archive IS tracked on purpose — committing it is
+# what gets the irreplaceable forward record off this machine on every push.
+# The listings archives are 8 MB each and change rarely; copy those deliberately.
+backups/listings_*.sql.gz
