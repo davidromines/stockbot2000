@@ -511,6 +511,33 @@ Ollama LLM step must not run concurrently — together they exceed 12 GB.
 
 ---
 
+## AI Development Orchestration — BUILT 2026-09-22
+
+Claude architects, specifies and reviews; a cheaper model implements; git is the
+source of truth; `run_tests.sh` is the gate. Full documentation in `docs/ADO.md`.
+
+```bash
+python orchestrator.py next-task | implement TASK-nnn | test | review | approve | merge
+```
+
+Four rules that are load-bearing rather than stylistic:
+
+1. **Nothing auto-merges.** A passing gate means known failures did not recur.
+   Every defect in this project's history passed every test that existed when it
+   shipped.
+2. **A task without checkable acceptance criteria is refused**, because an
+   ungated task has to be reviewed line by line, which is the cost being avoided.
+3. **The model may only write files its task names.** Anything else is refused.
+4. **Context is small and deliberate** — project state, conventions, named
+   files, and the schema for database tasks. Never the repository, never the
+   conversation.
+
+First task cost **$0.0147** across three rounds. The two rejections are recorded
+in `docs/ADO.md` because both were instructive: one audited the wrong database
+entirely, and one was a context defect on my side rather than a model error.
+
+---
+
 ## THE PROJECT DIRECTION — Phases 6-11, planned 2026-09-22
 
 **A full revamp of the project's planning. All existing systems integrate into
