@@ -46,7 +46,7 @@ import logging
 import os
 import sqlite3
 import stat
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import storage
@@ -86,6 +86,11 @@ def _freeze(path: Path) -> None:
     path.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
 
 
+def _prev_day(iso: str) -> str:
+    """The calendar day before `iso`. Not a market session — an exclusive bound."""
+    return (date.fromisoformat(iso) - timedelta(days=1)).isoformat()
+
+
 def build(conn, cfg: dict, version: str, start: str, end: str,
           types: list | None = None) -> dict:
     ROOT.mkdir(parents=True, exist_ok=True)
@@ -96,12 +101,44 @@ def build(conn, cfg: dict, version: str, start: str, end: str,
             f"version rather than rebuilding one that results may already cite.")
 
     types = types or cfg["universe"]["tradeable_types"]
-    log.info(f"building truth set {version}: {start}..{end}, types={types}")
+
+    # A window may lie wholly before the seal or wholly on or after it, never
+    # across it. `BETWEEN` is inclusive at both ends, so a research window
+    # ending exactly on sealed_start would pull in the seal's first session —
+    # one day, in both files, silently. The check is on the CALLER's dates
+    # rather than on what came back, because an empty first session would hide
+    # the overlap on a holiday and expose it on a Monday.
+    seal = cfg["lab"]["sealed_start"]
+    if start < seal <= end:
+        raise SystemExit(
+            f"window {start}..{end} straddles the seal at {seal}. The research "
+            f"snapshot must end before it ({_prev_day(seal)}) and the sealed "
+            f"snapshot must start on it. A snapshot spanning both is not a "
+            f"holdout.")
+    kind = "SEALED" if start >= seal else "research"
+    log.info(f"building {kind} truth set {version}: {start}..{end}, types={types}")
 
     # A failed build must not leave a partial file behind: immutability would
     # then refuse the retry, and the obvious workaround is to chmod and delete
     # the very thing the guard exists to protect.
-    import contextlib
+    try:
+        return _build_into(conn, dst_path=out, version=version, start=start,
+                           end=end, types=types)
+    except BaseException:
+        # The comment above was a promise the code did not keep: a crash mid-build
+        # left a readable partial file, and the next attempt hit the immutability
+        # guard instead. The only way forward then is to chmod and delete the
+        # file — training exactly the habit the guard exists to prevent.
+        if out.exists():
+            out.chmod(0o600)
+            out.unlink()
+            log.warning(f"removed partial truth set {out}")
+        raise
+
+
+def _build_into(conn, dst_path, version: str, start: str, end: str,
+                types: list) -> dict:
+    out = dst_path
     dst = sqlite3.connect(out)
     dst.execute("""CREATE TABLE prices (
         ticker TEXT NOT NULL, date TEXT NOT NULL,
@@ -217,20 +254,35 @@ def main() -> int:
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--start"); ap.add_argument("--end")
+    ap.add_argument("--sealed", action="store_true",
+                    help="build the SEALED carve-out (sealed_start..today) "
+                         "instead of the research window")
     a = ap.parse_args()
     cfg = load_config(); runtime.be_nice()
 
     if a.build:
         conn = storage.connect(cfg["database"]["market_data_path"])
         lab = cfg["lab"]
-        e = build(conn, cfg, a.build,
-                  a.start or lab["search_start"], a.end or lab["sealed_start"])
+        if a.sealed:
+            # Defaults, not suggestions: the seal's bounds are a config decision
+            # made long before any particular strategy wanted to cross them.
+            start = a.start or lab["sealed_start"]
+            end = a.end or date.today().isoformat()
+        else:
+            start = a.start or lab["search_start"]
+            # Exclusive of the seal. The old default ended ON sealed_start and
+            # BETWEEN is inclusive, so the seal's first session sat in both files.
+            end = a.end or _prev_day(lab["sealed_start"])
+        e = build(conn, cfg, a.build, start, end)
         conn.close()
-        print(f"\n  TRUTH SET {a.build}")
+        print(f"\n  TRUTH SET {a.build}" + ("  [SEALED]" if a.sealed else ""))
         print(f"    file    {e['file']}  ({e['bytes']/1e6:.1f} MB, read-only)")
         print(f"    sha256  {e['sha256'][:32]}...")
         print(f"    bars    {e['price_rows']:,} across {e['tickers']:,} tickers")
         print(f"    window  {e['window'][0]} .. {e['window'][1]}")
+        if a.sealed:
+            print("\n    Read this only through evaluate_holdout.py. One")
+            print("    evaluation per strategy, ever, and no way to un-peek.")
         return 0
     if a.verify:
         probs = verify()

@@ -1,5 +1,23 @@
 {
   "versions": {
+    "sealed_v1": {
+      "built_at": "2026-09-22T06:50:05+00:00",
+      "bytes": 286273536,
+      "delisted": 310,
+      "file": "truth_sets/truth_sealed_v1.db",
+      "price_rows": 4281457,
+      "securities": 5396,
+      "security_types": [
+        "common_stock"
+      ],
+      "sha256": "b553d4918e1f4c71867f5cb158a22e138ecde69aa7e92bbe0c495772fe8439d2",
+      "tickers": 5290,
+      "version": "sealed_v1",
+      "window": [
+        "2023-01-01",
+        "2026-09-22"
+      ]
+    },
     "v1": {
       "built_at": "2026-09-22T06:34:00+00:00",
       "bytes": 769724416,
