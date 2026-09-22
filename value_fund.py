@@ -72,6 +72,14 @@ MAX_PER_INDUSTRY = 3      # a value screen concentrates; this bounds it
 # would let a strategy edit widen what the fund is allowed to hold.
 COMMON_STOCK = "common_stock"
 
+# `value_score._panel_metrics` builds its query as `ORDER BY ticker LIMIT
+# {int(limit)}`, so it cannot accept None — `int(None)` raises TypeError. The
+# fund's default is to score the whole universe, and this is the number that
+# expresses "no limit" to a callee that requires one. It is deliberately far
+# above any plausible ticker count rather than merely above today's, so the
+# substitution cannot silently become a real cap as the universe grows.
+NO_LIMIT = 100000
+
 
 def init(conn) -> None:
     conn.execute("""
@@ -233,12 +241,18 @@ def candidates(conn, as_of: str, weighting: str, limit: int | None = None) -> li
     A review runs quarterly and can afford the full pass, so the default is to
     score everything; pass a limit only for a deliberate, reported sample.
     """
+    # `_panel_metrics` interpolates the limit into `LIMIT {int(limit)}`, so it
+    # cannot take None. Resolve the substitution once here rather than at each
+    # call site: a conditional repeated per division is a conditional that can
+    # be got wrong in one of them, and the failure mode is a crash mid-review
+    # after some industries have already been scored.
+    effective_limit = NO_LIMIT if limit is None else limit
     divs = {d for d in (industry.division_of(r[0])[0] for r in conn.execute(
         "SELECT DISTINCT sic FROM sec_filings WHERE sic IS NOT NULL"))
         if d != "unknown"}
     out = []
     for d in sorted(divs):
-        rows = vs.score_division(conn, as_of, d, weighting, limit)
+        rows = vs.score_division(conn, as_of, d, weighting, effective_limit)
         scored = [r for r in rows
                   if r["composite"] is not None and not r.get("stale")]
         # One lookup per scored name, and only for names that could still make
