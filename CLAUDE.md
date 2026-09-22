@@ -310,6 +310,15 @@ hardcodes paths, thresholds or model parameters.
 | `execution.py` | The only path from signal to broker. Duplicate check, risk, build, submit, resolve, record. |
 | `run_execution.py` | Turns the daily book into signals and runs them. SIMULATION by default; LIVE refuses. |
 
+### The Strategy League (built 2026-09-22)
+| File | Role |
+|---|---|
+| `league.py` | Strategy identity, immutable versioning, the 10-state lifecycle. Append-only; contains no `UPDATE`. |
+| `migrate_league.py` | Brought the 21 forward funds in. **Moves no data** — points at the existing tables. |
+| `scoreboard.py` | The persistent leaderboard. Its main job is **refusing to rank** a sample that cannot support a rank. |
+| `degradation.py` | backtest -> forward, in mean per-trade terms. How predictive are our own backtests? |
+| `eligibility.py` | Correlation, and the top-five-ELIGIBLE rule. **Promotes nothing.** |
+
 ### The daily loop and reporting
 | File | Role |
 |---|---|
@@ -464,6 +473,72 @@ daily path between the two marks does not exist and was not manufactured. Those
 days were never stepped; writing them in afterwards would turn a gap in the
 forward record into fabricated forward record, which is the one thing this
 project's only unbiased measurement cannot survive.
+
+## The Strategy League — built 2026-09-22, and it ranks nothing
+
+Phase 7 Stage B. All 21 forward funds (16 paper + 5 pair) are registered with a
+stable identity, an immutable version history and a lifecycle state. The
+scoreboard, degradation tracker and eligibility rules run nightly from
+`daily.sh`.
+
+**Every one of them currently reports the same thing: not enough data.**
+
+| | |
+|---|---|
+| ranked by the scoreboard | **0 of 21** |
+| eligible for a live roster | **0 of 21** |
+| measurable correlation pairs | **0 of 210** |
+| degradation verdicts | **0** — 11 pairings, all provisional |
+
+That is the correct answer, not a configuration problem. The funds hold a
+**median of 7 equity marks** against a floor of 60, and a Sharpe from 7
+observations is noise with a decimal point. **Do not lower `min_rank_marks` to
+make the leaderboard populate** — a leaderboard of whoever got lucky in their
+first fortnight is precisely the decision this league exists to prevent.
+
+Four design rules that are load-bearing rather than stylistic:
+
+1. **Identity splits from version.** `strategy_key` is who a strategy is;
+   `version` is what it was. `definition_hash` covers entry, exit, sizing,
+   holding period and parameters — and deliberately excludes labels, so a
+   rename cannot fork a forward record and a rule edit cannot inherit one.
+2. **State is derived from an append-only log, never stored in a column.** A
+   column is something a person can set. For the record that would justify
+   allocating capital, that difference is the point. `league.py` contains no
+   `UPDATE` at all.
+3. **The migration moved no data.** `paper_runs`, `paper_equity`,
+   `paper_trades`, `pair_funds` and `pair_fund_equity` are never written by it;
+   the league points at them. Nothing is copied, so nothing can be copied
+   wrongly. Re-running it is a no-op.
+4. **Unknown blocks.** An unmeasurable correlation is treated as correlated,
+   not as independent — the same fail-closed rule as unknown market cap and
+   unknown liquidity. Admitting unmeasured pairs is how five copies of one bet
+   reach a roster that believes it holds five, and six of the sixteen paper
+   funds really are one entry rule at different stop widths.
+
+**The scoring formula is deliberately undecided.** Phase 7 asks for the
+architecture to *test* formulas, so they are registered in `scoreboard.FORMULAS`
+and every snapshot records which one produced it. `sharpe_only` exists as a
+control: a considered formula that cannot beat ranking on raw Sharpe is not
+adding anything.
+
+**Nothing promotes anything to live.** Item 18 is explicit, and the tests assert
+that `eligibility.py` performs no lifecycle transition and imports neither
+`execution` nor `broker`.
+
+### A units trap worth remembering — degradation, 2026-09-22
+
+The first version of `degradation.py` divided the Lab's `net_pnl_usd` by a
+fund's $100 capital. But that P&L is the sum across up to 20,000 independent
+$20 trades over fourteen years, while a forward return compounds one $100 book
+over weeks. It produced backtest figures of **3,428% to 26,065%** against
+forward figures of a few percent, with every "survived" ratio near zero — a
+table that read as a devastating finding about backtest reliability and was
+purely a unit error. The docstring warning against exactly that trap was already
+written above the line that walked into it.
+
+Both sides are now **mean return per trade**, the only quantity a backtest and a
+forward record both actually have.
 
 ## Conventions
 
