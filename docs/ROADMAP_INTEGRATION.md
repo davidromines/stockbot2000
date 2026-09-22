@@ -298,16 +298,45 @@ and whose two arms are running. Nothing in Stage A produced a positive
 result about any strategy, which is the expected outcome: it is scaffolding
 for honest measurement, not a source of edge.
 
-**Stage B — the league (Phase 7)**
-11. Strategy identity and immutable versioning
-12. Lifecycle state machine
-13. Migrate existing 16 paper funds + 5 pair funds into the arena, preserving
-    their forward record
-14. Scale the arena
-15. Degradation tracking
-16. Correlation measurement
-17. Persistent scoreboard, pluggable scoring formula
-18. Eligibility rules — **no promotion to live yet**
+**Stage B — the league (Phase 7)** — status as of 2026-09-22
+
+| | item | state |
+|---:|---|---|
+| 11 | Strategy identity, immutable versioning | **done** — `league.py` |
+| 12 | Lifecycle state machine | **done** — 10 states, whitelisted transitions |
+| 13 | Migrate 16 paper + 5 pair funds | **done** — 21 in, no data moved |
+| 14 | Scale the arena | **measured, no work needed** — see below |
+| 15 | Degradation tracking | **done** — `degradation.py`, 11 of 21 paired |
+| 16 | Correlation measurement | **done** — `eligibility.matrix()` |
+| 17 | Persistent scoreboard, pluggable formula | **done** — `scoreboard.py` |
+| 18 | Eligibility rules, no promotion to live | **done** — `eligibility.py` |
+
+**Item 14 was measured rather than built.** The spec asks for "hundreds or
+thousands of simultaneously tracked paper strategies without mixing their
+results." Measured on this VM:
+
+| | |
+|---|---:|
+| panel load, fixed and shared by every run | 13.3s |
+| marginal cost per genome strategy | 0.07s |
+| projected cost at 1,000 strategies | ~1.4 min |
+| conviction fundamental panel, cached after first call | 1.1s -> 0.2s |
+
+The expensive work is already loaded once and shared by `_recent_frame`, and
+results are scoped by `run_id` so they cannot mix. A `--step` that appeared to
+take four minutes was competing with two evolutionary search arms for three
+cores, not hitting a scaling limit. **No refactor was written, because the
+measurement said none was needed** — building an arena scaled for thousands
+before anything has earned sixty equity marks would be machinery serving a
+problem nobody has.
+
+**What Stage B does not do.** Nothing is promoted, nothing is ranked, and
+nothing is eligible. The scoreboard reports 0 of 21 rankable and eligibility
+reports 0 of 21 eligible, because every fund holds a median of 7 equity marks
+against a floor of 60 and every one of the 210 strategy pairs shares too few
+marks for a correlation to mean anything. That is the honest state of a league
+whose oldest member has three weeks of history — the machinery is in place and
+accruing, and only calendar time populates it.
 
 **Stage C — supply (Phase 8)**
 19. `strategy_library` schema

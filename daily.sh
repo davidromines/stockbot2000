@@ -90,6 +90,15 @@ run "[8/10] Fund report" $PY fund_report.py --live data/live.json
 #    harder on the project than the project would be on itself, and a report
 #    that is regenerated daily cannot quietly drift from what the system
 #    actually contains.
+# The league. Migration is idempotent and re-registers nothing, so running it
+# daily is how a newly opened fund joins without anyone remembering to add it.
+# All three are best-effort: a scoreboard that did not update tonight costs
+# nothing, and blocking the price capture over it would lose that day's
+# delistings permanently.
+$PY migrate_league.py --run >/dev/null 2>&1 || true
+$PY scoreboard.py --snapshot >/dev/null 2>&1 || true
+$PY degradation.py --record >/dev/null 2>&1 || true
+
 run "[9/10] Research integrity" $PY research_integrity.py
 $PY multiple_testing.py --snapshot --note "daily" >/dev/null 2>&1 || true
 
