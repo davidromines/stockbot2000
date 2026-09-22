@@ -41,6 +41,15 @@ while true; do
         echo "=== $(date '+%F %T') : STOP_LAB present, halting ==="
         break
     fi
+    # Phase 6 section 1. A frozen search is a deliberate research decision, not
+    # a fault, so this exits cleanly rather than looping on a sleep — and the
+    # watchdog is written to leave a cleanly-exited frozen loop alone.
+    MODE=$($PY -c "from universe import load_config; print((load_config().get('search') or {}).get('mode','ACTIVE'))" 2>/dev/null || echo ACTIVE)
+    if [ "$MODE" = "FROZEN" ]; then
+        echo "=== $(date '+%F %T') : search.mode=FROZEN, not starting a new search ==="
+        echo "    Set search.mode: ACTIVE in config.yaml to resume."
+        break
+    fi
     i=$((i+1))
     SEED=$(( (RANDOM << 15 | RANDOM) % 900000 + 1000 ))
     STAMP=$(date '+%F %T')

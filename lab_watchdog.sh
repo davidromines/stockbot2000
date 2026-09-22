@@ -26,6 +26,15 @@ if [ -f data/STOP_LAB ]; then
     exit 0
 fi
 
+# Phase 6 section 1: the watchdog keeps monitoring but must NOT restart a
+# deliberately frozen search. A watchdog that fights an operator's decision is
+# not resilience, it is a bug that is hard to notice — the loop would appear to
+# die repeatedly while something kept reviving it.
+MODE=$(./venv/bin/python -c "from universe import load_config; print((load_config().get('search') or {}).get('mode','ACTIVE'))" 2>/dev/null || echo ACTIVE)
+if [ "$MODE" = "FROZEN" ]; then
+    exit 0
+fi
+
 # Liveness by PID FILE, never by process name. `pgrep -f lab_loop` matches any
 # command line that mentions this file — including this watchdog's own — so a
 # name check reports the loop alive when nothing runs, and it is never

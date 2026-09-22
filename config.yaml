@@ -267,3 +267,21 @@ ado:
   rates:
     input_per_mtok: 0.27
     output_per_mtok: 1.10
+
+# Phase 6 section 1. FROZEN stops continuous evolutionary discovery by default.
+#
+# The reason is NOT a belief that momentum works or that the search is useless.
+# It is that 1.03M trials have created a severe multiple-testing burden:
+# additional search on the same data currently adds less information than
+# independent forward observation and data-quality improvement.
+#
+# The laboratory remains available for controlled, pre-registered experiments.
+# The watchdog keeps monitoring but must NOT restart a deliberately frozen
+# search — a watchdog that fights an operator's decision is a bug.
+search:
+  mode: FROZEN          # FROZEN | ACTIVE
+  frozen_on: "2026-09-22"
+  frozen_reason: >-
+    1.03M trials have created a severe multiple-testing burden. Additional
+    search on the same data currently adds less information than independent
+    forward observation and data-quality improvement.
