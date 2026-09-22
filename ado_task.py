@@ -41,6 +41,20 @@ log = logging.getLogger("task")
 TASKS = Path("tasks")
 STATES = ("TODO", "IN_PROGRESS", "REVIEW", "COMPLETE")
 
+
+def ensure_dirs() -> None:
+    """
+    Create the state directories if absent.
+
+    Git does not track empty directories, so `tasks/TODO/` vanished on a branch
+    checkout and the orchestrator then could not create a task for a state that
+    appeared not to exist. .gitkeep files fix it in the repository; this fixes
+    it for a fresh clone or a directory someone tidied away.
+    """
+    for st in STATES:
+        (TASKS / st).mkdir(parents=True, exist_ok=True)
+    (TASKS / "feedback").mkdir(parents=True, exist_ok=True)
+
 # Lifecycle from the ADO specification. A failed test returns to IN_PROGRESS;
 # a rejected review does the same. Nothing skips REVIEW.
 TRANSITIONS = {

@@ -1,0 +1,3 @@
+Git does not track empty directories. Without this file the state directory
+disappears on checkout, and the orchestrator then fails to create or find tasks
+for a state that looks like it does not exist.

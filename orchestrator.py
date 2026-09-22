@@ -363,6 +363,7 @@ def main() -> int:
         s = sub.add_parser(name); s.add_argument("task_id")
     r = sub.add_parser("reject"); r.add_argument("task_id"); r.add_argument("--feedback")
     a = ap.parse_args()
+    T.ensure_dirs()
     cfg = load_config()
     fn = {"status": cmd_status, "new": cmd_new, "next-task": cmd_next,
           "implement": cmd_implement, "test": cmd_test, "review": cmd_review,
