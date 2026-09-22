@@ -319,6 +319,14 @@ hardcodes paths, thresholds or model parameters.
 | `degradation.py` | backtest -> forward, in mean per-trade terms. How predictive are our own backtests? |
 | `eligibility.py` | Correlation, and the top-five-ELIGIBLE rule. **Promotes nothing.** |
 
+### Point-in-time fundamentals (built 2026-09-22)
+| File | Role |
+|---|---|
+| `pit_backfill.py` | Recovered `accepted` / `prevrpt` / `detail` for all 400,700 filings from the cached zips. |
+| `pit_facts.py` | "What was knowable as of this exact date?" Resolves the first tradeable session per filing. |
+| `industry.py` | SIC -> division and major group, **point-in-time**. A peer-grouping heuristic, never a feature. |
+| `fix_ticker_map.py` | Repaired 181 issuers mapped to a preferred or warrant series. |
+
 ### The Research Library (built 2026-09-22)
 | File | Role |
 |---|---|
@@ -613,6 +621,82 @@ a time.
 permitted. Flipping `search.mode` to ACTIVE is a human edit to `config.yaml`,
 deliberately outside this code — a governor that can lift its own restriction is
 not a governor. **Search remains FROZEN and every run is refused today.**
+
+## 212 large caps were invisible to the fundamental screens — fixed 2026-09-22
+
+**`sec_filings.ticker` pointed at a preferred or warrant series for 212
+issuers.** The list is a who's-who: J P Morgan as `JPM-PM`, Wells Fargo as
+`WFC-PZ`, AT&T as `T-PC`, Ford as `F-PD`, MetLife as `MET-PF`, Goldman as
+`GS-PD`, Simon Property as `SPG-PJ`.
+
+The consequence was not cosmetic. The conviction screens need price **and**
+fundamentals under one ticker:
+
+| | JPM | JPM-PM |
+|---|---:|---:|
+| price bars | 11,723 | 1,295 |
+| fundamental rows | **0** | 69 |
+
+So the screens were not ranking JPMorgan poorly. **They could not see it.**
+
+**This is a second, independent cause of "the daily book never recommends an
+S&P 500 name."** The 2026-09-14 investigation found value ranks were size ranks
+in disguise and fixed that. This sat underneath it the whole time, and mostly
+hit financials — the division with 1,374 tickers and the market's largest
+issuers.
+
+Repaired by `fix_ticker_map.py`, deliberately narrowly: a remap happens only
+when the base ticker exists in `symbols` as common stock **and** the dashed one
+does not. 260 of 305 qualify; **45 are left alone**, because `BRK-A` and `BRK-B`
+are both real common stock and mapping either to `BRK` would invent a security
+that does not trade. A wrong mapping attaches one company's financials to
+another company's prices and nothing downstream would ever notice. Originals are
+kept in `ticker_raw`.
+
+After rebuilding `value_metrics` and `fundamental_features`: `daily_fundamentals`
+grew by 456,638 rows, and **111 of the repaired issuers now appear in the
+conviction panel with a median market cap of $8.0B against the panel median of
+$3.2B.**
+
+## A filed DATE is not an acceptance TIME — 2026-09-22
+
+The SEC stamps `filed` using a **17:30 cutoff, not the 16:00 close**:
+
+| accepted in hour | filings | share carrying the SAME filed date |
+|---:|---:|---:|
+| 16:00-16:59 | 139,593 | **100%** |
+| 17:00-17:59 | 61,067 | 88.4% |
+| 18:00+ | ~27,000 | ~1% |
+
+So roughly **193,600 filings — 48% of the corpus — carry a date on which they
+were not tradeable.** All 400,700 now store `accepted` to the minute, plus
+`prevrpt` (superseded by a later amendment; the form string cannot tell you
+this, since an amended 10-K is still form "10-K").
+
+**The existing two-day lag turned out to be conservative, not leaky.** Measured
+against the session the pipeline effectively uses, 2 of 20,000 filings are
+optimistic and both are SEC data defects — an acceptance stamp a month and a
+year after its own filed date. **Nothing was rewired to the tighter rule**: a
+conservative error costs signal, an optimistic one costs the truth of every
+number downstream.
+
+`sec_fundamentals.py` now stores all of this at load time, so a future fetch
+cannot reintroduce the gap.
+
+### Two false alarms in one session, from the same mistake
+
+Both came from a check that did not replicate a step the real code performs:
+
+1. Comparing which value a daily row was *closest* to, to detect amendment
+   look-ahead — but a 10-Q filed between a 10-K and its 10-K/A supplies a
+   different number entirely. Reported 23% look-ahead; the truth, tested against
+   the mechanism, was **429 of 429 correct**.
+2. Comparing `first_tradeable` against raw `filed + LAG_DAYS` — but
+   `merge_asof` snaps to the next **session**. Reported 3,996 of 20,000 as
+   look-ahead; the true figure was **2**.
+
+**A verification that skips a step the pipeline performs will invent a bug.**
+Both checks now do the snap, and say why in the code.
 
 ## Conventions
 

@@ -102,7 +102,20 @@ def init(conn) -> None:
             period   TEXT,
             fy       TEXT, fp TEXT,
             filed    TEXT NOT NULL,
-            ticker   TEXT
+            ticker   TEXT,
+            -- Provenance required by Phase 9 section 24. `accepted` is the
+            -- acceptance timestamp to the minute; `filed` alone cannot say
+            -- whether a filing was tradeable on its own date, because the SEC
+            -- stamps that date on a 17:30 cutoff rather than the 16:00 close.
+            accepted TEXT,
+            prevrpt  INTEGER,   -- 1 when later superseded by an amendment
+            detail   INTEGER,
+            -- The issuer ticker before repair, when the CIK map had selected a
+            -- preferred or warrant series. See fix_ticker_map.py.
+            ticker_raw TEXT,
+            -- First session this filing could be acted on. Resolved against the
+            -- real market calendar by pit_facts.annotate().
+            first_tradeable TEXT
         ) STRICT
     """)
     conn.execute("""
@@ -223,16 +236,30 @@ def load(conn, limit: int | None = None) -> None:
                         if row.get("form") not in FORMS:
                             continue
                         cik = int(row["cik"]) if row.get("cik", "").isdigit() else None
+                        # `accepted` and `prevrpt` are stored at load time
+                        # rather than backfilled later. The first version kept
+                        # only `filed`, and a filed DATE cannot distinguish a
+                        # filing accepted at 09:00 (tradeable that session) from
+                        # one accepted at 16:30 (not tradeable until the next) —
+                        # the SEC stamps both with the same date, because its
+                        # cutoff is 17:30 rather than the market close.
+                        # `prevrpt` is the amendment status: a 10-K later amended
+                        # is still form "10-K", so the form string cannot tell
+                        # you a filing was superseded.
                         subs[row["adsh"]] = (
                             row["adsh"], cik, row.get("name"), row.get("sic"),
                             row.get("form"), row.get("period"), row.get("fy"),
                             row.get("fp"), row.get("filed"),
-                            tmap.get(cik) if cik else None)
+                            tmap.get(cik) if cik else None,
+                            row.get("accepted") or None,
+                            int(row["prevrpt"]) if row.get("prevrpt", "").isdigit() else None,
+                            int(row["detail"]) if row.get("detail", "").isdigit() else None)
                 if subs:
                     conn.executemany(
                         "INSERT OR REPLACE INTO sec_filings "
-                        "(adsh,cik,name,sic,form,period,fy,fp,filed,ticker) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?)", list(subs.values()))
+                        "(adsh,cik,name,sic,form,period,fy,fp,filed,ticker,"
+                        "accepted,prevrpt,detail) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", list(subs.values()))
 
                 with z.open("num.txt") as f:
                     for row in csv.DictReader(io.TextIOWrapper(f, "latin-1"), delimiter="\t"):
