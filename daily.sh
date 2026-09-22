@@ -51,6 +51,16 @@ run "[3/10] Features" $PY build_features.py
 #    while a full session behind because its check compared the table to
 #    itself. A stale run must fail here rather than produce scores nobody
 #    knows are stale.
+# Fundamentals are derived from filings, not from bars, so they were never
+# part of the price top-up — and nothing else rebuilt them. They stopped on
+# 2026-09-11 and sat eleven days stale while the pipeline reported success
+# every morning, stalling both conviction paper funds and feeding every
+# conviction screen in the daily book stale data. A 90-day window is enough
+# to pick up newly filed reports and to repair a gap of a week or two;
+# INSERT OR REPLACE makes re-running it a no-op on days with nothing new.
+run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
+    --start "$(date -u -d '90 days ago' +%F)"
+
 run "[4/10] Freshness gate" $PY freshness.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement

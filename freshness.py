@@ -29,6 +29,21 @@ WHAT IS MEASURED
 
 Sessions rather than days because a Monday run against Friday's data has a lag
 of three calendar days and zero sessions, and only one of those is a problem.
+
+DERIVED TABLES NEED THEIR OWN CHECK
+------------------------------------
+Checking `prices` alone is not enough, and on 2026-09-22 that gap cost eleven
+days: `daily_fundamentals` stopped being rebuilt on 2026-09-11 and nothing
+noticed. Prices advanced every morning, the gate passed every morning, and both
+conviction paper funds sat frozen while every conviction screen in the daily
+book read eleven-day-old fundamentals. The pipeline reported success throughout
+— the exact failure this module was written to end, in a table it did not watch.
+
+The reference for a DERIVED table is the table it derives from, not the market.
+`features` and `daily_fundamentals` are both built from `prices`, so each is
+measured against `prices` in sessions. That keeps the rule from the staleness
+bug intact: never derive a freshness reference from the thing whose freshness is
+in question. `prices` is still measured against the market, never itself.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
@@ -115,6 +130,54 @@ def sessions_between(conn, a: str, b: str, reference: str = "SPY") -> tuple:
     return weekdays, "estimated from weekdays (our data does not span the gap)"
 
 
+# Each derived table, the table it is built from, and how many sessions it may
+# lag before that counts as broken. Fundamentals get more room than features:
+# a filing-derived table legitimately has quiet days, while features are
+# recomputed from every bar.
+DERIVED = (
+    ("features", "prices", 2),
+    ("daily_fundamentals", "prices", 5),
+)
+
+
+def check_derived(conn, cfg: dict) -> list:
+    """
+    Is every table built from prices keeping up with prices?
+
+    Returns one dict per table. A missing table is reported, not skipped — a
+    check that silently passes when its subject is absent is not a check.
+    """
+    out = []
+    for table, source, limit in DERIVED:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table,)).fetchone()
+        if not exists:
+            out.append({"table": table, "ok": False, "actual": None,
+                        "source_latest": None, "lag_sessions": None,
+                        "reason": f"{table} does not exist"})
+            continue
+        src = conn.execute(f"SELECT MAX(date) FROM {source}").fetchone()[0]
+        act = conn.execute(f"SELECT MAX(date) FROM {table}").fetchone()[0]
+        if not act or not src:
+            out.append({"table": table, "ok": False, "actual": act,
+                        "source_latest": src, "lag_sessions": None,
+                        "reason": f"{table} is empty" if not act
+                                  else f"{source} is empty"})
+            continue
+        lag, method = sessions_between(conn, act, src)
+        ok = lag is not None and lag <= limit
+        out.append({
+            "table": table, "source": source, "actual": act,
+            "source_latest": src, "lag_sessions": lag, "limit": limit,
+            "method": method, "ok": ok,
+            "reason": (f"current: {act}, {lag} session(s) behind {source}"
+                       if ok else
+                       f"{lag} sessions behind {source} (limit {limit}): "
+                       f"holds {act}, {source} holds {src}")})
+    return out
+
+
 def check(conn, cfg: dict, expected: str | None = None) -> Freshness:
     """
     Compare what we hold against the last session the market actually held.
@@ -190,8 +253,9 @@ def main() -> int:
     cfg = load_config(); runtime.be_nice()
     conn = storage.connect(cfg["database"]["market_data_path"])
     f = check(conn, cfg, expected=a.expected)
+    derived = check_derived(conn, cfg)
     if a.json:
-        print(json.dumps(asdict(f), indent=2))
+        print(json.dumps({"prices": asdict(f), "derived": derived}, indent=2))
     else:
         print(f"\n  DATA FRESHNESS  {'OK' if f.ok else 'STALE'}")
         print("  " + "-" * 58)
@@ -203,10 +267,25 @@ def main() -> int:
         if f.missing_symbols:
             print(f"  missing          {', '.join(f.missing_symbols)}")
         print(f"  {f.reason}")
+
+        print(f"\n  DERIVED TABLES (measured against the table they are built")
+        print(f"  from, never against themselves)")
+        print("  " + "-" * 58)
+        for d in derived:
+            mark = "OK   " if d["ok"] else "STALE"
+            lag = "?" if d["lag_sessions"] is None else d["lag_sessions"]
+            print(f"  {mark} {d['table']:<22}{str(d['actual'] or '-'):>12}"
+                  f"   {lag} session(s) behind")
+            if not d["ok"]:
+                print(f"        {d['reason']}")
     conn.close()
     # Non-zero on stale so a pipeline stage FAILS rather than logging and
     # continuing. This is the behaviour the whole module exists for.
-    return 0 if f.ok else 1
+    #
+    # Derived tables count toward that exit code. They did not until
+    # 2026-09-22, and daily_fundamentals sat eleven days stale behind a gate
+    # that passed every morning.
+    return 0 if (f.ok and all(d["ok"] for d in derived)) else 1
 
 
 if __name__ == "__main__":

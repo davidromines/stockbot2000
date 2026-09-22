@@ -1,0 +1,32 @@
+{
+  "A_seeded": {
+    "best_excess": 2874.8017258172413,
+    "best_fitness": 0.1235693726415536,
+    "best_pnl": 7510.600256290808,
+    "best_sharpe": 0.8812133851042209,
+    "mean_fitness": 0.02007756571781471,
+    "median_fitness": 0.006040917829461939,
+    "n": 720,
+    "run_id": "3416b9154f84",
+    "seed_shaped": 92,
+    "seed_shaped_share": 0.12777777777777777,
+    "structural_diversity": 0.5222222222222223,
+    "unique_structures": 376
+  },
+  "B_seed_free": {
+    "best_excess": 2267.8814821726464,
+    "best_fitness": 0.09102575492404383,
+    "best_pnl": 7014.6198861417015,
+    "best_sharpe": 3.739325043270431,
+    "mean_fitness": 0.013662634836053957,
+    "median_fitness": 0.0022209059591264827,
+    "n": 720,
+    "run_id": "61f7f7218daf",
+    "seed_shaped": 0,
+    "seed_shaped_share": 0.0,
+    "structural_diversity": 0.5180555555555556,
+    "unique_structures": 373
+  },
+  "compared_at": "2026-09-22T07:15:51+00:00",
+  "conclusion_caveat": "n=1 per arm; fitness differences are not separable from run-to-run variance"
+}

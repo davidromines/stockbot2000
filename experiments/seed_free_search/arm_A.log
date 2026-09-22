@@ -1,0 +1,27 @@
+
+INFO:evolve:Loading panel 2006-01-01 -> 2019-12-31
+INFO:evolve:Panel: 5,188,590 rows, 1.31 GB
+INFO:evolve:Null surface for this window (11 price bands x 10 holding periods):
+INFO:evolve:  $     5-$     6  +0.289% at 5d, +3.828% at 45d
+INFO:evolve:  $     6-$     7  +0.113% at 5d, +3.380% at 45d
+INFO:evolve:  $     7-$     8  +0.084% at 5d, +2.913% at 45d
+INFO:evolve:  $     8-$    10  +0.025% at 5d, +2.489% at 45d
+INFO:evolve:  $    10-$    12  -0.015% at 5d, +2.156% at 45d
+INFO:evolve:  $    12-$    15  -0.015% at 5d, +1.977% at 45d
+INFO:evolve:  $    15-$    20  -0.081% at 5d, +1.663% at 45d
+INFO:evolve:  $    20-$    30  -0.098% at 5d, +1.312% at 45d
+INFO:evolve:  $    30-$    50  -0.053% at 5d, +1.143% at 45d
+INFO:evolve:  $    50-$   100  -0.053% at 5d, +1.112% at 45d
+INFO:evolve:  $   100-$99,999  -0.229% at 5d, -0.450% at 45d
+INFO:evolve:  each strategy is charged the null of the stocks it actually bought, at its own holding period
+INFO:evolve:Run 3416b9154f84: 6 generations x 120 candidates
+INFO:evolve:Evaluating across 3 workers
+INFO:evolve:Seeded generation 0 with 20 published strategies; 100 random
+INFO:evolve:gen 1/6  best fitness 0.062  best excess $+2,265  beating the null 27/120  120 distinct ideas  2.7 evals/s
+INFO:evolve:gen 2/6  best fitness 0.062  best excess $+2,265  beating the null 54/120  103 distinct ideas  2.9 evals/s
+INFO:evolve:gen 3/6  best fitness 0.106  best excess $+2,862  beating the null 85/120  86 distinct ideas  2.9 evals/s
+INFO:evolve:gen 4/6  best fitness 0.106  best excess $+2,875  beating the null 108/120  82 distinct ideas  2.8 evals/s
+INFO:evolve:gen 5/6  best fitness 0.124  best excess $+2,862  beating the null 116/120  79 distinct ideas  2.6 evals/s
+INFO:evolve:gen 6/6  best fitness 0.124  best excess $+2,862  beating the null 113/120  79 distinct ideas  2.5 evals/s
+INFO:evolve:------------------------------------------------------------
+INFO:evolve:Run 3416b9154f84: 720 evaluated, 545 profitable, best net P&L $+7,510.60

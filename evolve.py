@@ -142,7 +142,8 @@ def share_fitness(pop, strength: float):
 
 
 def run(config: dict, generations: int, population: int, window: tuple[str, str],
-        seed: int | None = None, use_seeds: bool = False) -> str:
+        seed: int | None = None, use_seeds: bool = False,
+        run_id: str | None = None) -> str:
     lab = config.get("lab", {})
     max_entries = lab.get("max_entries_per_eval", 20000)
     elite_frac = lab.get("elite_fraction", 0.15)
@@ -186,7 +187,8 @@ def run(config: dict, generations: int, population: int, window: tuple[str, str]
              "at its own holding period")
 
     run_id = ledger.new_run(conn, window, generations, population,
-                            {"lab": lab, "risk": config["risk"], "costs": config["costs"]})
+                            {"lab": lab, "risk": config["risk"], "costs": config["costs"]},
+                            run_id=run_id)
     log.info(f"Run {run_id}: {generations} generations x {population} candidates")
 
     workers = int(lab.get("workers", max(1, (os.cpu_count() or 2) - 1)))
@@ -350,7 +352,11 @@ def main():
               args.end or lab.get("search_end", "2019-12-31"))
     signal.signal(signal.SIGINT, _handle_interrupt)
     signal.signal(signal.SIGTERM, _handle_interrupt)
-    run(config, args.generations, args.population, window, args.seed, args.use_seeds)
+    # args.run_id was accepted but only ever reached --report: a search told to
+    # use a given id silently got a generated one instead, so anything trying to
+    # find its own run afterwards found nothing.
+    run(config, args.generations, args.population, window, args.seed,
+        args.use_seeds, run_id=args.run_id)
 
 
 if __name__ == "__main__":

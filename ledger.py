@@ -101,8 +101,12 @@ def init(conn) -> None:
 
 
 def new_run(conn, window: tuple[str, str], generations: int, population: int,
-            config: dict | None = None, notes: str = "") -> str:
-    run_id = uuid.uuid4().hex[:12]
+            config: dict | None = None, notes: str = "",
+            run_id: str | None = None) -> str:
+    # A caller may name the run — an experiment needs to find its own arms
+    # afterwards, and searching by timestamp is guesswork the moment two runs
+    # overlap. Generated when not supplied, which is the common case.
+    run_id = run_id or uuid.uuid4().hex[:12]
     conn.execute("""
         INSERT INTO lab_runs (run_id, started_at, generations, population,
                               window_start, window_end, config, notes)

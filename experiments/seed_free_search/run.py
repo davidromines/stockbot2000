@@ -147,6 +147,50 @@ def _run_arm(arm: str, use_seeds: bool, cfg: dict) -> str:
     return run_id
 
 
+ARMS_FILE = HERE / "arms.json"
+
+
+def arms() -> dict:
+    """Which lab run is which arm. Written once, read thereafter."""
+    if ARMS_FILE.exists():
+        return json.loads(ARMS_FILE.read_text())
+    return {"A": f"{EXPERIMENT_ID}_A", "B": f"{EXPERIMENT_ID}_B"}
+
+
+def verify_arm(conn, run_id: str, expect_seeds: bool) -> None:
+    """
+    Confirm a run is the arm it is claimed to be, from its own contents.
+
+    An arm is identified by whether generation 0 contained seed-origin
+    strategies, not by its name. Names are assigned by whoever is labelling;
+    origins are recorded by the search itself, and mislabelling the arms would
+    invert the entire result while leaving every number intact.
+    """
+    origins = {r[0]: r[1] for r in conn.execute(
+        "SELECT origin, COUNT(*) FROM strategies WHERE run_id=? GROUP BY origin",
+        (run_id,))}
+    if not origins:
+        raise SystemExit(f"{run_id} has no strategies — not an arm")
+    n_seed = origins.get("seed", 0)
+    if expect_seeds and not n_seed:
+        raise SystemExit(f"{run_id} was claimed as the SEEDED arm but contains "
+                         f"no seed-origin strategies: {origins}")
+    if not expect_seeds and n_seed:
+        raise SystemExit(f"{run_id} was claimed as the SEED-FREE arm but "
+                         f"contains {n_seed} seed-origin strategies: {origins}")
+
+
+def adopt(conn, a_id: str, b_id: str) -> dict:
+    """Claim two already-completed runs as the arms, after verifying both."""
+    verify_arm(conn, a_id, expect_seeds=True)
+    verify_arm(conn, b_id, expect_seeds=False)
+    m = {"A": a_id, "B": b_id,
+         "adopted_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    ARMS_FILE.write_text(json.dumps(m, indent=2, sort_keys=True))
+    log.info(f"adopted A={a_id} (seeded), B={b_id} (seed-free)")
+    return m
+
+
 def measure(conn, run_id: str) -> dict:
     """
     The seven measures, from the ledger. Identical query for both arms — a
@@ -197,8 +241,9 @@ def measure(conn, run_id: str) -> dict:
 
 
 def compare(conn) -> dict:
-    a = measure(conn, f"{EXPERIMENT_ID}_A")
-    b = measure(conn, f"{EXPERIMENT_ID}_B")
+    m = arms()
+    a = measure(conn, m["A"])
+    b = measure(conn, m["B"])
     return {"A_seeded": a, "B_seed_free": b,
             "compared_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
@@ -236,11 +281,20 @@ def main() -> int:
     ap.add_argument("--register", action="store_true")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--compare", action="store_true")
+    ap.add_argument("--adopt", nargs=2, metavar=("A_RUN_ID", "B_RUN_ID"),
+                    help="claim two completed lab runs as arms A and B")
     ap.add_argument("--yes", action="store_true",
                     help="proceed past the trial-cost notice")
     a = ap.parse_args()
     cfg = load_config(); runtime.be_nice()
     conn = storage.connect(cfg["database"]["market_data_path"])
+
+    if a.adopt:
+        m = adopt(conn, a.adopt[0], a.adopt[1])
+        print(f"\n  arm A (seeded)    = {m['A']}")
+        print(f"  arm B (seed-free) = {m['B']}")
+        print(render(compare(conn)))
+        conn.close(); return 0
 
     if a.register:
         e = register(conn)
@@ -272,6 +326,15 @@ def main() -> int:
         c = compare(conn)
         print(render(c))
         (HERE / "results.json").write_text(json.dumps(c, indent=2, sort_keys=True))
+        # An experiment with an empty arm has not produced a result, and
+        # recording one as COMPLETE burns the registry entry: COMPLETE is
+        # terminal, so the real numbers then need a superseding version. That
+        # happened on the first run, when evolve.py silently ignored --run-id
+        # and both arms measured zero candidates.
+        if not c["A_seeded"].get("n") or not c["B_seed_free"].get("n"):
+            log.error("one or both arms measured ZERO candidates — refusing to "
+                      "record this as a completed experiment")
+            conn.close(); return 1
         try:
             reg.complete(conn, EXPERIMENT_ID, c,
                          "Both arms reported; see results.json.")

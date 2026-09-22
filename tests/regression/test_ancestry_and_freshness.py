@@ -107,7 +107,51 @@ check("an UNKNOWN market session is treated as STALE, not as fine", not f.ok,
       f.reason)
 
 check("freshness.main returns non-zero on stale so a stage FAILS",
-      "return 0 if f.ok else 1" in open("freshness.py").read())
+      "return 0 if (f.ok and all(d[\"ok\"] for d in derived)) else 1"
+      in open("freshness.py").read(),
+      "the exit code must cover derived tables too")
+
+# --- derived tables are checked against their SOURCE, never themselves -------
+# daily_fundamentals sat eleven days stale behind a gate that passed every
+# morning, because the gate only ever looked at `prices`.
+c3 = sqlite3.connect(":memory:")
+c3.row_factory = sqlite3.Row
+c3.execute("CREATE TABLE prices (ticker TEXT, date TEXT)")
+c3.execute("CREATE TABLE features (ticker TEXT, date TEXT)")
+c3.execute("CREATE TABLE daily_fundamentals (ticker TEXT, date TEXT)")
+sessions = ["2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11",
+            "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17",
+            "2026-09-18", "2026-09-21"]
+for d in sessions:
+    c3.execute("INSERT INTO prices VALUES ('SPY', ?)", (d,))
+# features keeps up; fundamentals stopped on the 11th, as they really had
+for d in sessions[:-1]:
+    c3.execute("INSERT INTO features VALUES ('SPY', ?)", (d,))
+for d in sessions[:4]:
+    c3.execute("INSERT INTO daily_fundamentals VALUES ('SPY', ?)", (d,))
+c3.commit()
+
+res = {d["table"]: d for d in freshness.check_derived(c3, cfg)}
+check("a derived table that keeps up passes", res["features"]["ok"],
+      res["features"]["reason"])
+check("a derived table eleven days behind FAILS",
+      not res["daily_fundamentals"]["ok"], res["daily_fundamentals"]["reason"])
+check("the stale table is measured against prices, not itself",
+      res["daily_fundamentals"]["source_latest"] == "2026-09-21",
+      "the reference must be the table it is built from")
+check("the failure names both dates so it can be acted on",
+      "2026-09-11" in res["daily_fundamentals"]["reason"]
+      and "2026-09-21" in res["daily_fundamentals"]["reason"])
+
+c4 = sqlite3.connect(":memory:")
+c4.row_factory = sqlite3.Row
+c4.execute("CREATE TABLE prices (ticker TEXT, date TEXT)")
+c4.execute("INSERT INTO prices VALUES ('SPY','2026-09-21')")
+c4.commit()
+missing = {d["table"]: d for d in freshness.check_derived(c4, cfg)}
+check("a MISSING derived table fails rather than being skipped",
+      not missing["features"]["ok"] and not missing["daily_fundamentals"]["ok"],
+      "a check that passes when its subject is absent is not a check")
 
 print()
 print(f"  RESULT: {'PASS' if not fails else 'FAIL — ' + ', '.join(fails)}")
