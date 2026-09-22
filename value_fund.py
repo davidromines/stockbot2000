@@ -67,6 +67,11 @@ SELL_PERCENTILE = 40.0    # hysteresis: sell only on falling out of the top 40%
 MAX_POSITIONS = 10
 MAX_PER_INDUSTRY = 3      # a value screen concentrates; this bounds it
 
+# The literal used by `symbols.security_type` for an ordinary share. Not a
+# config option: this is a fact about the data, not a tunable, and a knob here
+# would let a strategy edit widen what the fund is allowed to hold.
+COMMON_STOCK = "common_stock"
+
 
 def init(conn) -> None:
     conn.execute("""
@@ -131,6 +136,23 @@ def _price(conn, ticker: str, as_of: str):
     return float(r[0]) if r else None
 
 
+def is_common_stock(conn, ticker: str) -> bool:
+    """
+    True only when `symbols` says this ticker is an ordinary share.
+
+    An unknown security type is excluded, not assumed. A ticker absent from
+    `symbols`, or present with a NULL `security_type`, returns False: the fund
+    would otherwise be free to buy a note, a preferred or a warrant on the
+    strength of a fundamentals row that belongs to the issuer rather than to
+    the instrument. The rest of the project already fails closed this way.
+    """
+    r = conn.execute("SELECT security_type FROM symbols WHERE ticker=?",
+                     (ticker,)).fetchone()
+    if not r or r[0] is None:
+        return False
+    return str(r[0]).strip().lower() == COMMON_STOCK
+
+
 def open_fund(conn, capital: float = 100.0, as_of: str | None = None,
               weighting: str = vs.DEFAULT_WEIGHTING) -> dict:
     init(conn)
@@ -155,6 +177,10 @@ def candidates(conn, as_of: str, weighting: str, limit: int = 600) -> list:
     P/B of 0.9 is unremarkable for a lender and extraordinary for a software
     company, and pooling the raw multiples would simply discover which
     industries are structurally cheap.
+
+    Only common stock is eligible. The percentile cut is taken over the
+    eligible names, so a note or a warrant cannot occupy a decile slot that a
+    company should have had.
     """
     divs = {d for d in (industry.division_of(r[0])[0] for r in conn.execute(
         "SELECT DISTINCT sic FROM sec_filings WHERE sic IS NOT NULL"))
@@ -164,6 +190,10 @@ def candidates(conn, as_of: str, weighting: str, limit: int = 600) -> list:
         rows = vs.score_division(conn, as_of, d, weighting, limit)
         scored = [r for r in rows
                   if r["composite"] is not None and not r.get("stale")]
+        # One lookup per scored name, and only for names that could still make
+        # the cut — the type filter runs before the decile is computed so the
+        # ranking is over companies rather than over instruments.
+        scored = [r for r in scored if is_common_stock(conn, r["ticker"])]
         if len(scored) < 10:
             # A "top decile" of eight companies is the top one. Industries this
             # thin are skipped rather than allowed to contribute a winner by
