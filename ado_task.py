@@ -182,6 +182,43 @@ def next_id() -> str:
     return f"TASK-{n + 1:03d}"
 
 
+def _schema_context(limit_tables: int = 40) -> str:
+    """
+    The database schema, for any task that touches it.
+
+    Added after the first delegated task wrote `p.symbol` against a table whose
+    column is `ticker`. The model had no way to know: it was sent the project
+    state and a file that did not yet exist, and nothing that described the
+    schema. That was a defect in the context, not in the implementation — a
+    model cannot infer a column name it has never seen, and guessing is the
+    correct behaviour when guessing is all that is available.
+    """
+    try:
+        import storage
+        from universe import load_config
+        cfg = load_config()
+        conn = storage.connect(cfg["database"]["market_data_path"])
+        rows = conn.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='table' "
+            "AND sql IS NOT NULL ORDER BY name").fetchall()
+        conn.close()
+    except Exception as e:      # noqa: BLE001 — a missing database must not block a task
+        return f"# DATABASE SCHEMA unavailable ({type(e).__name__})"
+    out = ["# DATABASE SCHEMA — the authoritative column names", "```sql"]
+    for r in rows[:limit_tables]:
+        out.append((r["sql"] or "").strip() + ";")
+    out.append("```")
+    return "\n".join(out)
+
+
+def needs_schema(task: Task) -> bool:
+    """Whether this task is likely to write SQL. Cheap and deliberately broad."""
+    blob = " ".join([task.objective, task.background,
+                     *task.requirements, *task.constraints]).lower()
+    return any(k in blob for k in ("database", "sql", "table", "query", "storage",
+                                   "prices", "symbols", "schema", "conn"))
+
+
 def build_context(task: Task, max_file_bytes: int = 60_000) -> str:
     """
     The smallest useful context: project state, named files, the task.
@@ -214,6 +251,9 @@ def build_context(task: Task, max_file_bytes: int = 60_000) -> str:
         parts.append(f"# FILE: {f}"
                      + (f"  [truncated to {max_file_bytes} bytes]" if truncated else "")
                      + "\n```python\n" + body[:max_file_bytes] + "\n```")
+
+    if needs_schema(task):
+        parts.append(_schema_context())
 
     parts.append("# TASK\n\n" + task.to_markdown())
     return "\n\n---\n\n".join(parts)

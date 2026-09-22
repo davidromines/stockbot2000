@@ -1,0 +1,23 @@
+{
+  "delisted_total": 9464,
+  "delisted_with_prices": 555,
+  "delisted_without_prices": 8909,
+  "fundamental_tickers": 4317,
+  "securities_by_type": {
+    "adr": 276,
+    "closed_end_fund": 273,
+    "common_stock": 5396,
+    "etf": 5705,
+    "etn": 13,
+    "note": 165,
+    "preferred": 467,
+    "right": 132,
+    "unit": 374,
+    "warrant": 446
+  },
+  "securities_with_first_seen": 13247,
+  "securities_with_prices": 13211,
+  "securities_without_first_seen": 0,
+  "securities_without_prices": 36,
+  "total_securities": 13247
+}
