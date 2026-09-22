@@ -88,6 +88,32 @@ WANTED = {
     "CommonStockSharesOutstanding", "CommonStockSharesIssued",
     "WeightedAverageNumberOfSharesOutstandingBasic",
     "WeightedAverageNumberOfDilutedSharesOutstanding",
+    # --- added 2026-09-22 for the statement engine (Phase 9 section 26) ---
+    # Capex, to compute free cash flow honestly. Without it FCF has to be
+    # approximated by operating cash flow, which overstates it for every
+    # capital-intensive business — exactly the ones where it matters.
+    "PaymentsToAcquirePropertyPlantAndEquipment",
+    "PaymentsToAcquireProductiveAssets",
+    # Tangible book value: book value is misleading for acquisitive companies
+    # whose equity is mostly purchase-price goodwill.
+    "Goodwill", "IntangibleAssetsNetExcludingGoodwill",
+    "FiniteLivedIntangibleAssetsNet",
+    # Operating leverage and the R&D/SG&A split. A software company and a
+    # manufacturer with identical operating margins are different businesses,
+    # and this is where the difference shows.
+    "ResearchAndDevelopmentExpense",
+    "SellingGeneralAndAdministrativeExpense",
+    "GeneralAndAdministrativeExpense", "SellingAndMarketingExpense",
+    # Short-term borrowings, so net debt is not understated by the portion of
+    # debt that is actually due first.
+    "ShortTermBorrowings", "LongTermDebtCurrent",
+    "DebtCurrent", "OtherShortTermBorrowings",
+    # Diluted EPS. Basic EPS flatters any company that has issued options.
+    "EarningsPerShareDiluted",
+    # Shareholder yield needs both legs; buybacks without dividends is half
+    # the picture and vice versa.
+    "PaymentsOfDividendsCommonStock", "PaymentsOfDividends",
+    "PaymentsForRepurchaseOfCommonStock",
 }
 
 
@@ -255,11 +281,30 @@ def load(conn, limit: int | None = None) -> None:
                             int(row["prevrpt"]) if row.get("prevrpt", "").isdigit() else None,
                             int(row["detail"]) if row.get("detail", "").isdigit() else None)
                 if subs:
+                    # UPSERT, not INSERT OR REPLACE. REPLACE deletes the whole
+                    # row and reinserts it, which silently wiped `ticker_raw`
+                    # and `first_tradeable` and reverted every repaired issuer
+                    # ticker the moment the zips were re-parsed on 2026-09-22 —
+                    # JPMorgan went straight back to JPM-PM.
+                    #
+                    # `ticker` is only overwritten when no repair is recorded,
+                    # so a corrected mapping survives a reload. The two derived
+                    # columns are never touched here: they are owned by
+                    # fix_ticker_map.py and pit_facts.py respectively.
                     conn.executemany(
-                        "INSERT OR REPLACE INTO sec_filings "
+                        "INSERT INTO sec_filings "
                         "(adsh,cik,name,sic,form,period,fy,fp,filed,ticker,"
                         "accepted,prevrpt,detail) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", list(subs.values()))
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                        "ON CONFLICT(adsh) DO UPDATE SET "
+                        "cik=excluded.cik, name=excluded.name, sic=excluded.sic, "
+                        "form=excluded.form, period=excluded.period, "
+                        "fy=excluded.fy, fp=excluded.fp, filed=excluded.filed, "
+                        "accepted=excluded.accepted, prevrpt=excluded.prevrpt, "
+                        "detail=excluded.detail, "
+                        "ticker=CASE WHEN sec_filings.ticker_raw IS NULL "
+                        "            THEN excluded.ticker ELSE sec_filings.ticker END",
+                        list(subs.values()))
 
                 with z.open("num.txt") as f:
                     for row in csv.DictReader(io.TextIOWrapper(f, "latin-1"), delimiter="\t"):
