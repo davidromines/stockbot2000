@@ -308,3 +308,18 @@ league:
   # Roster size for Phase 10. Recorded here so the scoreboard and the
   # eligibility rules read one number, not two.
   live_roster_size: 5
+
+  # Eligibility. A strategy must clear ALL of these before it can appear on a
+  # proposed roster, and clearing them still promotes nothing — Phase 7 item 18
+  # is explicit that there is no promotion to live yet.
+  min_forward_trades: 20      # a forward record of five trades is an anecdote
+  max_drawdown: 0.25          # forward drawdown above this disqualifies
+
+  # Correlation. Six of the sixteen paper funds are one entry rule at different
+  # stop widths, so an uncapped roster would hold six copies of one bet sized as
+  # though it were six.
+  max_correlation: 0.7
+  # Shared equity marks a PAIR needs before its correlation is believed. Below
+  # this the pair is UNKNOWN, and unknown BLOCKS — a missing measurement is not
+  # an average one, the same rule applied to unknown market cap and liquidity.
+  min_corr_overlap: 30
