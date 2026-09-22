@@ -1,6 +1,6 @@
 # Research integrity report
 
-Generated 2026-09-22T06:47:40+00:00 from the live database. Every figure is
+Generated 2026-09-22T06:57:59+00:00 from the live database. Every figure is
 queried, not remembered.
 
 ---
@@ -63,6 +63,23 @@ independent discoveries.
 
 **The best of pure noise at this count scores about 5.27 standard errors.** A survivor must clear that, not
 merely be positive. No survivor currently does.
+
+### What random strategies actually look like here
+
+That bar is theoretical — it assumes the trial statistics are standard normal, which Sharpes computed off a few hundred trades
+are not. So the same question is also asked empirically, by running never-evolved random genomes through the identical panel, cost
+model, null surface and gate a real candidate faces.
+
+| | |
+|---|---:|
+| random genomes measured | 300 |
+| passed the validation gate | 0 (0.0%) |
+| best Sharpe achieved by noise | **1.14** |
+| best P&L achieved by noise | **$10,980** |
+| 95th percentile Sharpe | 0.21 |
+
+The best of 300 strategies known to be worthless made $10,980 in this simulator. That figure is the reason
+no backtest number in this document should be read as a finding on its own.
 
 Search mode is **FROZEN**.
 

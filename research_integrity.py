@@ -18,7 +18,10 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
 import multiple_testing as mt
+import random_control as rc
 import storage
 from universe import load_config
 
@@ -67,7 +70,36 @@ def gather(conn, cfg: dict) -> dict:
         "paper_trades": q("SELECT COUNT(*) FROM paper_trades"),
         "search_mode": (cfg.get("search") or {}).get("mode", "ACTIVE"),
         "registered_experiments": q("SELECT COUNT(*) FROM experiment_registry"),
+        "control": _control(conn, cfg),
     }
+
+
+def _control(conn, cfg: dict) -> dict:
+    """
+    The measured noise distribution for the CURRENT pipeline.
+
+    Reported next to the theoretical sqrt(2 ln N) bar rather than instead of it.
+    The two answer different questions: the formula assumes the trial statistics
+    are standard normal, which Sharpes computed off a few hundred trades are
+    not, while the empirical distribution assumes nothing but is limited to the
+    number of draws actually taken. Where they disagree, the disagreement is the
+    information.
+    """
+    try:
+        fp = rc.fingerprint(cfg)
+        d = rc.load(conn, fp)
+        n = int(d["sharpe"].size)
+        if not n:
+            return {"n": 0}
+        return {"n": n, "fingerprint": fp,
+                "max_sharpe": float(d["sharpe"].max()),
+                "max_pnl": float(d["net_pnl_usd"].max()),
+                "p95_sharpe": float(np.percentile(d["sharpe"], 95)),
+                "passed": int(conn.execute(
+                    "SELECT COALESCE(SUM(passed_gate),0) FROM random_control "
+                    "WHERE fingerprint=?", (fp,)).fetchone()[0])}
+    except Exception:
+        return {"n": 0}
 
 
 def render(d: dict) -> str:
@@ -162,6 +194,39 @@ def render(d: dict) -> str:
         f"{d['noise_bar']:.2f} standard errors.** A survivor must clear that, not",
         "merely be positive. No survivor currently does.",
         "",
+    ]
+    c = d.get("control") or {}
+    if c.get("n"):
+        L += [
+            "### What random strategies actually look like here",
+            "",
+            f"That bar is theoretical — it assumes the trial statistics are "
+            f"standard normal, which Sharpes computed off a few hundred trades",
+            "are not. So the same question is also asked empirically, by running "
+            "never-evolved random genomes through the identical panel, cost",
+            "model, null surface and gate a real candidate faces.",
+            "",
+            f"| | |",
+            f"|---|---:|",
+            f"| random genomes measured | {c['n']:,} |",
+            f"| passed the validation gate | {c['passed']} ({c['passed']/c['n']:.1%}) |",
+            f"| best Sharpe achieved by noise | **{c['max_sharpe']:.2f}** |",
+            f"| best P&L achieved by noise | **${c['max_pnl']:,.0f}** |",
+            f"| 95th percentile Sharpe | {c['p95_sharpe']:.2f} |",
+            "",
+            f"The best of {c['n']:,} strategies known to be worthless made "
+            f"${c['max_pnl']:,.0f} in this simulator. That figure is the reason",
+            "no backtest number in this document should be read as a finding on "
+            "its own.",
+            "",
+        ]
+    else:
+        L += [
+            "_No random-control samples recorded yet for the current pipeline "
+            "fingerprint._",
+            "",
+        ]
+    L += [
         f"Search mode is **{d['search_mode']}**.",
         "",
         "## What is in forward testing, and for how long",
