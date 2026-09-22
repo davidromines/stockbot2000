@@ -1,0 +1,53 @@
+# Execution risk limits. Phase 4.
+#
+# Separate from config.yaml deliberately. That file holds STRATEGY parameters —
+# what to look for. This one holds EXECUTION limits — what may actually be sent
+# to a broker no matter what a strategy concluded. Keeping them apart means a
+# strategy change can never quietly widen a risk limit, which is the failure
+# mode that matters once real money is connected.
+#
+# Every number here is enforced by risk_engine.validate(). Nothing bypasses it.
+
+# --- position sizing -------------------------------------------------------
+# Anchored to the $100 account mandate in CLAUDE.md. That mandate is the reason
+# these are small, not an arbitrary default: it is the entire downside.
+max_trade_dollars: 25.0          # one order
+max_position_dollars: 25.0       # one symbol, total
+max_position_percent: 30.0       # one symbol as % of portfolio
+max_portfolio_exposure: 100.0    # % of equity that may be deployed
+max_open_positions: 5
+
+# --- loss limits -----------------------------------------------------------
+# Breaching either trips a kill switch; see killswitch.py. They are checked
+# against realised account state, never against the system's own expectations,
+# because the whole point is to catch the case where those two disagree.
+max_daily_loss_dollars: 15.0
+max_daily_loss_percent: 15.0
+max_drawdown_percent: 35.0
+
+# --- throttles -------------------------------------------------------------
+# A runaway loop is far more likely than a runaway strategy. These bound the
+# damage a bug can do in one session.
+max_orders_per_day: 10
+max_orders_per_symbol_per_day: 2
+
+# --- signal quality --------------------------------------------------------
+min_signal_confidence: 0.0       # 0 disables; raise once confidence is calibrated
+max_slippage_percent: 1.0
+
+# --- instrument permissions ------------------------------------------------
+# Options and crypto are OFF because this project has no strategy, no backtest
+# and no data for either. Turning one on without those is not a config change,
+# it is a new project.
+allow_fractional_shares: true
+allow_options: false
+allow_crypto: false
+allow_shorting: false            # cash account; also nothing here can short
+
+# --- tradeability floors ---------------------------------------------------
+# Mirror the scanner's floors so an order cannot reach a broker for a name the
+# screens would have refused to surface. The size floor exists because price and
+# volume cannot see how big a company is — see the TNON result in CLAUDE.md.
+min_price: 5.0
+min_dollar_volume: 1000000.0
+min_market_cap_usd: 100000000.0
