@@ -227,9 +227,15 @@ def place(conn, fp: str, metric: str, value: float) -> dict:
                          f"too few to place a result against. Run --run first.")
     # Drawdown is the one metric where smaller is better.
     better = (arr <= value) if metric == "max_drawdown" else (arr >= value)
-    share = float(better.mean())
+    n_better = int(better.sum())
+    share = n_better / arr.size
     return {"metric": metric, "value": value, "n": int(arr.size),
+            "n_better": n_better,
             "beaten_by_noise": share, "percentile": float((1 - share) * 100),
+            # The finest share this many samples can distinguish from zero.
+            # Reporting "0.0%" off 300 draws claims a precision the sample does
+            # not have, and it is the number a reader would most like to believe.
+            "resolution": 1.0 / arr.size,
             "noise_max": float(arr.max()), "noise_min": float(arr.min()),
             "noise_median": float(np.median(arr))}
 
@@ -253,15 +259,19 @@ def report(conn) -> None:
                           "WHERE fingerprint=?", (fp,)).fetchone()[0] or 0
         print(f"  fingerprint {fp}   {n:,} random genomes   "
               f"{row['f'][:10]}..{row['l'][:10]}")
-        print(f"  {'metric':<16}{'min':>10}{'p50':>10}{'p95':>10}{'p99':>10}{'MAX':>12}")
-        print("  " + "-" * 68)
+        print(f"  {'metric':<16}{'min':>13}{'p50':>13}{'p95':>13}{'p99':>13}{'MAX':>14}")
+        print("  " + "-" * 82)
         for m in METRICS:
             a = d[m]
             if not a.size:
                 continue
-            print(f"  {m:<16}{a.min():>10.3f}{np.percentile(a,50):>10.3f}"
-                  f"{np.percentile(a,95):>10.3f}{np.percentile(a,99):>10.3f}"
-                  f"{a.max():>12.3f}")
+            # Ratios need decimals; dollars and signal counts run to six figures
+            # and ran into each other at three. Width per metric, not one format
+            # for all — the first report printed "84751.500603362.517" as a cell.
+            f = ".3f" if m in ("sharpe", "max_drawdown", "win_rate") else ",.0f"
+            print(f"  {m:<16}{a.min():>13{f}}{np.percentile(a,50):>13{f}}"
+                  f"{np.percentile(a,95):>13{f}}{np.percentile(a,99):>13{f}}"
+                  f"{a.max():>14{f}}")
         cap = conn.execute("SELECT SUM(entries_capped) FROM random_control "
                            "WHERE fingerprint=?", (fp,)).fetchone()[0] or 0
         if cap:
@@ -305,15 +315,27 @@ def main() -> int:
         print("  " + "-" * 62)
         print(f"  noise min / median / max : {res['noise_min']:.3f} / "
               f"{res['noise_median']:.3f} / {res['noise_max']:.3f}")
-        print(f"  beaten or matched by     : {res['beaten_by_noise']:.1%} of noise")
-        print(f"  percentile               : {res['percentile']:.1f}")
+        if res["n_better"]:
+            print(f"  beaten or matched by     : {res['n_better']}/{res['n']} "
+                  f"= {res['beaten_by_noise']:.1%} of noise")
+        else:
+            # Never "0.0%". The sample cannot see below one in n.
+            print(f"  beaten or matched by     : 0 of {res['n']} "
+                  f"— below this sample's resolution of {res['resolution']:.2%}")
+        print(f"  percentile               : {res['percentile']:.1f}"
+              f"  (+/- {res['resolution']:.1%})")
         print()
         if res["beaten_by_noise"] > 0.05:
             print("  NOT A FINDING. More than 5% of strategies known to be")
             print("  worthless did at least this well.")
         else:
-            print("  Clears the noise distribution. That is necessary, not")
-            print("  sufficient — it says nothing about the future.")
+            print("  Clears the noise distribution of THIS many random draws.")
+            print("  That is necessary and a long way from sufficient. The")
+            print("  search evaluated far more candidates than this control")
+            print("  contains, and the best of a million draws beats the best")
+            print("  of a few hundred — run `multiple_testing.py --report` for")
+            print("  the bar that actually applies, and note this says nothing")
+            print("  about the future either way.")
         conn.close(); return 0
 
     report(conn)

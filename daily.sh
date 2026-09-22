@@ -83,6 +83,13 @@ run "[8/10] Fund report" $PY fund_report.py --live data/live.json
 run "[9/10] Research integrity" $PY research_integrity.py
 $PY multiple_testing.py --snapshot --note "daily" >/dev/null 2>&1 || true
 
+# A small nightly increment to the random-strategy control. Deliberately not a
+# big one-off run: the table is append-only and a distribution built from 25 a
+# night over months is a better calibration than one built from 300 once. Never
+# fatal — a calibration that failed to grow tonight costs nothing, and blocking
+# the price capture over it would cost a day of delistings permanently.
+$PY random_control.py --run 25 >/dev/null 2>&1 || true
+
 run "[10/10] Backup" $PY backup.py
 
 # 6. Tell someone. A report nobody reads is worth the same as no report, and
