@@ -429,9 +429,31 @@ exists because the daily book *cannot* hold nothing: `top_n` always returns a
 top N, so it fills five slots every morning whether or not five good ideas
 exist. A fund that can decline to trade is a different instrument.
 
-**Known broken:** `conv_deep_value` and `conv_quality_value` have been stalled
-since 2026-09-11. Their `strategy` field holds `{"conviction": "deep_value"}`
-rather than a genome, so the stepper cannot advance them. Not yet fixed.
+**The conviction funds were stalled for a reason nobody had checked — fixed
+2026-09-22.** `conv_deep_value` and `conv_quality_value` sat frozen from
+2026-09-11. The diagnosis recorded here was that their `strategy` field holds
+`{"conviction": "deep_value"}` rather than a genome, so the stepper could not
+advance them. **That was wrong.** `paper_trading._conviction_of` and
+`_conviction_step` handle that shape correctly and log the real reason: *no
+fundamental panel this week*.
+
+`daily_fundamentals` stopped on 2026-09-11 and nothing rebuilt it. It is
+derived from filings rather than bars, so the price top-up never touched it,
+and `daily.sh` had no stage that did. Prices and features advanced every
+morning; fundamentals did not, for eleven days.
+
+**The freshness gate did not catch it because it only looked at `prices`.**
+Every conviction screen in the daily book was reading eleven-day-old
+fundamentals while the pipeline reported success — the same silent-staleness
+failure as the 2026-09-15 bug, in a table the gate did not watch.
+
+Both fixed: `daily.sh` gained a `[3b/10] Fundamental projection` stage, and
+`freshness.check_derived()` now measures `features` and `daily_fundamentals`
+against `prices` and fails the run when either falls behind. A missing table
+fails too — a check that passes when its subject is absent is not a check.
+
+**The general lesson, now costing this project a fourth bug: a freshness gate
+protects only the tables it names.**
 
 ## Conventions
 
