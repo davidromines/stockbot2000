@@ -1,0 +1,138 @@
+{
+  "daily_fundamentals": {
+    "daily_fundamentals_total": 10185236,
+    "daily_max_days_since_filing": 5280,
+    "daily_min_days_since_filing": 2,
+    "daily_negative_lag": 0,
+    "daily_negative_or_null_lag": 0,
+    "daily_null_lag": 0
+  },
+  "database": "data/market_data.db",
+  "fundamentals": {
+    "fundamentals_missing_filed": 0,
+    "fundamentals_total": 212933,
+    "fundamentals_with_filed": 212933,
+    "lag_days": {
+      "max": 4018,
+      "median": 40.0,
+      "min": -237,
+      "n": 212933,
+      "unparseable_dates": 0
+    },
+    "negative_lag_count": 3,
+    "negative_lag_examples": [
+      {
+        "filed": "2014-12-01",
+        "lag_days": -30,
+        "period": "2014-12-31",
+        "ticker": "LGNZZ"
+      },
+      {
+        "filed": "2024-05-10",
+        "lag_days": -235,
+        "period": "2024-12-31",
+        "ticker": "PW-PA"
+      },
+      {
+        "filed": "2014-02-05",
+        "lag_days": -237,
+        "period": "2014-09-30",
+        "ticker": "SDCH"
+      }
+    ],
+    "per_year": [
+      {
+        "rows": 592,
+        "tickers": 304,
+        "year": "2009"
+      },
+      {
+        "rows": 2170,
+        "tickers": 800,
+        "year": "2010"
+      },
+      {
+        "rows": 6112,
+        "tickers": 2313,
+        "year": "2011"
+      },
+      {
+        "rows": 9784,
+        "tickers": 2444,
+        "year": "2012"
+      },
+      {
+        "rows": 10101,
+        "tickers": 2545,
+        "year": "2013"
+      },
+      {
+        "rows": 10666,
+        "tickers": 2684,
+        "year": "2014"
+      },
+      {
+        "rows": 11218,
+        "tickers": 2824,
+        "year": "2015"
+      },
+      {
+        "rows": 11376,
+        "tickers": 2919,
+        "year": "2016"
+      },
+      {
+        "rows": 12176,
+        "tickers": 3049,
+        "year": "2017"
+      },
+      {
+        "rows": 12746,
+        "tickers": 3205,
+        "year": "2018"
+      },
+      {
+        "rows": 13266,
+        "tickers": 3355,
+        "year": "2019"
+      },
+      {
+        "rows": 13997,
+        "tickers": 3570,
+        "year": "2020"
+      },
+      {
+        "rows": 15805,
+        "tickers": 4034,
+        "year": "2021"
+      },
+      {
+        "rows": 17074,
+        "tickers": 4278,
+        "year": "2022"
+      },
+      {
+        "rows": 17815,
+        "tickers": 4431,
+        "year": "2023"
+      },
+      {
+        "rows": 18452,
+        "tickers": 4618,
+        "year": "2024"
+      },
+      {
+        "rows": 19406,
+        "tickers": 4892,
+        "year": "2025"
+      },
+      {
+        "rows": 10177,
+        "tickers": 5062,
+        "year": "2026"
+      }
+    ]
+  },
+  "generated_at": "2026-09-22T06:43:50Z",
+  "ok": false
+}
