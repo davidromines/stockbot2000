@@ -12,6 +12,9 @@ data/fund_report.txt
 data/claude_fund.txt
 # Rewritten by daily.sh every morning; tracking them dirties the tree daily.
 data/daily_book.txt
+# Written by lab_loop.sh; the watchdog reads it for liveness.
+data/lab_loop.pid
+data/stop_sweep.json
 data/lab_loop_summary.log
 data/*.html
 data/*.db
