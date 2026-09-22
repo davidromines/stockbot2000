@@ -338,3 +338,24 @@ exist before any of it runs. See the phase-by-phase audit in the spec.
 Five questions are open and listed at the end of that document, including
 whether to extend this project or fork a new tree, and what the system would
 trade given that nothing here has yet demonstrated an edge.
+
+### 15 · Research integrity & independent validation 📋 PLANNED — not started
+**This is the new project direction.** Full specification, reproduced verbatim,
+in `PHASE6_RESEARCH_INTEGRITY.md`. Added 2026-09-22 at the user's direction as a
+plan only; no code has been written for it.
+
+31 sections covering: freezing open-ended search, removing seed contamination and
+tracking strategy ancestry, an immutable versioned truth set, a point-in-time
+universe, data-completeness and fundamental-availability audits, freshness as a
+first-class failing metric, a documented validation firewall, a genuinely sealed
+holdout, an experiment registry with pre-registration, a forward scoreboard with
+time-in-test made prominent, matched-universe nulls, expanded random controls,
+multiple-testing accounting, model calibration separated from trading
+performance, signal-decay and regime analysis, explicit promotion rules, a TNON
+case study, and a regression suite covering every historical measurement bug.
+
+All existing systems integrate into this direction rather than continuing
+alongside it.
+
+Its stated goal is not to find a profitable strategy. It is to make a positive
+result substantially harder to dismiss as an artifact.

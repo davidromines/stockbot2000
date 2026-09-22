@@ -63,7 +63,17 @@ database was the risk being avoided.
   killed mid-run; the lab loop currently holds the CPU.
 - `stop_sweep.py` is built and has never been run, for the same reason.
 
-## Next
+## Next direction — Phase 6, planned 2026-09-22
+
+**`docs/PHASE6_RESEARCH_INTEGRITY.md` is the new plan and supersedes the "Next"
+list below as the project's direction.** It is a specification only; nothing has
+been actioned. All existing systems integrate into it.
+
+It reverses several current behaviours — continuous search becomes frozen by
+default, seeding becomes opt-in with full ancestry tracking, and compute
+priority puts strategy search last. Read it before resuming any work.
+
+## Previously identified next steps (superseded as direction, still accurate as facts)
 
 1. Run the re-score and the stop sweep when the CPU frees up.
 2. Continue the search for a profitable strategy — the standing goal. Nothing

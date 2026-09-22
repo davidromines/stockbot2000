@@ -511,6 +511,34 @@ Ollama LLM step must not run concurrently — together they exceed 12 GB.
 
 ---
 
+## Phase 6: Research integrity & independent validation — PLANNED 2026-09-22
+
+**The new project direction.** Specification reproduced verbatim in
+`docs/PHASE6_RESEARCH_INTEGRITY.md`; roadmap phase 15. **Nothing implemented.**
+
+All existing systems integrate into this direction. Its premise is the project's
+own record: the system has repeatedly produced apparent edges that were later
+proven to be measurement artifacts, so the phase is about making it harder for
+Stockbot2000 to fool itself rather than about finding another strategy.
+
+Default assumption it imposes: **NO EDGE UNTIL PROVEN OTHERWISE.**
+
+Items that reverse current behaviour, and so matter before touching anything:
+
+- **`SEARCH_MODE=FROZEN`.** Continuous evolutionary search stops by default. The
+  watchdog keeps monitoring but must NOT restart a deliberately frozen search.
+  The stated reason is the multiple-testing burden of 1.03M trials, not a belief
+  about momentum.
+- **`seed_mode: NONE`** means no human-provided strategies, no hand-written
+  rules, and no descendants of seeded strategies. Every strategy carries an
+  ancestry record and a seed-derived strategy is never classed as an independent
+  discovery.
+- **Compute priority is inverted**: data integrity, forward testing, regression
+  tests, independent validation, backtesting, and strategy search LAST.
+- **Forward strategies are frozen on entry** and never modified retrospectively.
+
+---
+
 ## Robinhood Agentic execution — core BUILT 2026-09-22
 
 Specification in `docs/ROBINHOOD_AGENTIC.md`; status in `PROJECT_STATUS.md`;
