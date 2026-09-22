@@ -43,6 +43,7 @@ Usage:
     python orchestrator.py test
     python orchestrator.py review TASK-001
     python orchestrator.py approve TASK-001
+    python orchestrator.py merge TASK-001
     python orchestrator.py reject TASK-001 --feedback "..."
     python orchestrator.py usage
 """
@@ -276,6 +277,30 @@ def cmd_review(args, cfg) -> int:
     return 0
 
 
+def cmd_merge(args, cfg) -> int:
+    """
+    Merge an approved task. Refuses anything not COMPLETE.
+
+    Added because the first real run merged a branch while its task was still
+    IN_PROGRESS — the process was followed by hand, and by hand it was skipped.
+    A step that depends on remembering is not a step.
+    """
+    task = T.load(args.task_id)
+    if task.state != "COMPLETE":
+        print(f"  {task.task_id} is {task.state}, not COMPLETE. Refusing to merge.")
+        print("  run: review then approve")
+        return 1
+    if cmd_test(args, cfg) != 0:
+        print("  gate FAILED — refusing to merge")
+        return 1
+    branch = _branch(task)
+    sh(["git", "checkout", "main"], check=True)
+    rc, out, err = sh(["git", "merge", "--no-ff", branch,
+                       "-m", f"Merge ADO {task.task_id}: {task.objective[:60]}"])
+    print(out or err)
+    return rc
+
+
 def cmd_approve(args, cfg) -> int:
     task = T.load(args.task_id)
     if task.state != "REVIEW":
@@ -334,14 +359,15 @@ def main() -> int:
     n.add_argument("--component", default="general")
     n.add_argument("--priority", default="normal", choices=("high", "normal", "low"))
     n.add_argument("--task-id")
-    for name in ("implement", "review", "approve"):
+    for name in ("implement", "review", "approve", "merge"):
         s = sub.add_parser(name); s.add_argument("task_id")
     r = sub.add_parser("reject"); r.add_argument("task_id"); r.add_argument("--feedback")
     a = ap.parse_args()
     cfg = load_config()
     fn = {"status": cmd_status, "new": cmd_new, "next-task": cmd_next,
           "implement": cmd_implement, "test": cmd_test, "review": cmd_review,
-          "approve": cmd_approve, "reject": cmd_reject, "usage": cmd_usage}[a.cmd]
+          "approve": cmd_approve, "reject": cmd_reject, "usage": cmd_usage,
+          "merge": cmd_merge}[a.cmd]
     return fn(a, cfg)
 
 
