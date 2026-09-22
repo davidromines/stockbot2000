@@ -109,10 +109,33 @@ Uniquely, a `void` decision does NOT permit a retry at this stage — voiding a
 sealed result would make re-testing free, which is the whole thing the seal
 prevents.
 
-**Not enforced:** the sealed window is readable by any process with a database
-handle. Phase 6 §10 requires filesystem or permission enforcement, and
-`truth_set.py` provides the mechanism (read-only snapshots) but the sealed range
-is not yet carved out into its own.
+**Physical separation — done 2026-09-22.** The sealed window is now its own
+read-only file, `truth_sets/truth_sealed_v1.db`: 4,281,457 bars, 5,290 tickers,
+2023-01-03 to 2026-09-18, mode 444, sha256 in the tracked manifest and
+re-verified on every open. The research snapshot `truth_v1.db` ends 2022-12-30.
+The two are disjoint.
+
+`evaluate_holdout.py` is the only entry point that opens it. It permits one
+evaluation per strategy ever, logs refused attempts alongside permitted ones —
+a pattern of refusals on one strategy is itself evidence about how a decision
+was reached — and has no delete path, because removing a disappointing
+evaluation is the file-drawer problem applied to the one window that cannot be
+re-used. It also refuses a non-sealed snapshot outright, so the costliest
+operation in the project is not one typo away from spending a strategy's single
+look on data the search has already seen thousands of times.
+
+**Still a guard rail, not a sandbox.** A determined person can open
+`market_data.db` and query the same dates. The realistic failure is idle
+curiosity, and a guard rail stops that; genuine isolation needs a separate
+account or machine. Recorded below as defect 3.
+
+**A near-miss worth keeping.** The research snapshot's default window ended *on*
+`sealed_start` and SQL `BETWEEN` is inclusive at both ends, so the seal's first
+session belonged to both files. v1 escaped contamination only because
+2023-01-01 fell on a Sunday. Had the seal begun on a weekday, every result
+citing v1 would have been contaminated by a boundary nobody had looked at. A
+calendar coincidence is not a control — `truth_set.build()` now refuses any
+window that crosses the seal.
 
 ---
 
@@ -182,11 +205,19 @@ Stated rather than fixed, because an undocumented weakness is worse than a known
    results.** Needs the experiment registry (Phase 6 §11–12).
 2. **Gate calibration uses the validation window.** Should use a dedicated
    calibration window.
-3. **The sealed window is not physically separated.** Any process with a
-   database handle can read it. Needs Phase 6 §10.
+3. **The sealed window is separated but not isolated.** It is a read-only file
+   behind a single entry point that enforces one look per strategy (done
+   2026-09-22), but `market_data.db` still holds the same dates and a
+   determined query can reach them. Real isolation needs a separate account or
+   machine. The guard rail stops curiosity, which is the realistic failure;
+   it does not stop intent.
 4. **The trial counter is not incremented by promotion decisions**, only by
    evaluations — so continuous re-ranking is multiple testing that the
    correction currently cannot see.
-5. **Seed ancestry is classified retrospectively** for the 1.03M strategies
+5. **`truth_set.ROOT` is a relative path** (`Path("truth_sets")`), so a run
+   started from another directory would build a second, empty snapshot store
+   rather than find the existing one. Harmless today because every entry point
+   runs from the repo root; latent if that ever stops being true.
+6. **Seed ancestry is classified retrospectively** for the 1.03M strategies
    generated before `ancestry.py` existed, by literal and structural inference
    rather than recorded parentage. Imperfect, and labelled as such.
