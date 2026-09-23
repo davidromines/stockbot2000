@@ -152,6 +152,11 @@ def null_for(conn, symbol: str, interval: str, hold_bars: int):
     when neither exists — an unknown null is NOT zero. Treating it as zero
     would restore exactly the loophole this module was built to close.
     """
+    # Create the table if the null has never been computed. Without this the
+    # call RAISED on a fresh database instead of returning None, and the crypto
+    # fund's step — which runs under `|| true` in daily.sh — would have failed
+    # silently every morning, recording nothing. Found by TASK-015's test.
+    init(conn)
     r = conn.execute("""SELECT mean_pct FROM crypto_benchmarks
         WHERE symbol=? AND interval=? AND hold_bars=?""",
         (symbol, interval, hold_bars)).fetchone()

@@ -227,7 +227,19 @@ def cmd_implement(args, cfg) -> int:
         if files:
             log.warning("accepted near-miss format: path in a leading comment")
     if not files:
-        print("  model returned no FILE blocks. Raw response saved.")
+        # Distinguish a TRUNCATED response from a malformed one. A FILE header
+        # with an opening fence and no closing fence means the model ran out of
+        # output budget mid-file — TASK-015 stopped mid-line at 28.5 KB. Calling
+        # that "no FILE blocks" sent the diagnosis toward the format, when the
+        # fix is to ask for a shorter file or split the task.
+        opened = len(re.findall(r"^FILE:\s*\S+\s*\n```", resp.text, re.M))
+        fences = resp.text.count("```")
+        if opened and fences % 2 == 1:
+            print(f"  response TRUNCATED at the output limit: {len(resp.text):,} "
+                  f"chars, a file was opened and never closed. Ask for a "
+                  f"shorter file or split the task. Raw response saved.")
+        else:
+            print("  model returned no FILE blocks. Raw response saved.")
         Path(f"tasks/feedback/{task.task_id}.raw.md").parent.mkdir(parents=True, exist_ok=True)
         Path(f"tasks/feedback/{task.task_id}.raw.md").write_text(resp.text)
         return 1
