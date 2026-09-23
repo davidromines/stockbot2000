@@ -51,3 +51,16 @@ allow_shorting: false            # cash account; also nothing here can short
 min_price: 5.0
 min_dollar_volume: 1000000.0
 min_market_cap_usd: 100000000.0
+
+# Crypto (Phase 12). Applied instead of the three equity floors above when a
+# signal's asset_type is 'crypto'. min_price and min_market_cap_usd are equity
+# concepts: a $5 price floor would reject ADA and XRP for trading below a dollar,
+# which says nothing about their liquidity, and crypto pairs have no market cap
+# on record — so the "unknown cap is rejected" rule would reject every one.
+# Liquidity is the floor that carries over, measured as 20-day USD turnover.
+#
+# allow_crypto above is the operator switch that governs whether any crypto
+# signal is approved at all. It stays off until someone turns it on.
+crypto:
+  min_dollar_volume: 5000000.0   # 20-day average daily USD turnover
+

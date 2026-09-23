@@ -1,0 +1,7 @@
+CRYPTO SLATE  2026-09-23
+============================================================
+
+No orders. No open grid needs attention and no pair's latest
+closed bar met the entry rule.
+============================================================
+Place approved orders yourself; fills are reconciled on the next run.

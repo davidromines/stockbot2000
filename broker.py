@@ -306,3 +306,114 @@ class RobinhoodBroker(BrokerInterface):
 
     def get_order(self, order_id: str) -> dict | None:
         return self._call("get_order", self.account, order_id)
+
+
+# ---------------------------------------------------------------------------
+# Crypto adapters (Phase 12 item 42)
+# ---------------------------------------------------------------------------
+
+CRYPTO_TAKER_FEE = 0.006
+
+
+class CryptoSimulatedBroker(SimulatedBroker):
+    """
+    SimulatedBroker for crypto: quotes from `crypto_prices`, fees on every fill.
+
+    Two differences from the equity simulator, each of which matters:
+
+    The quote reads `crypto_prices`, never `prices`. Crypto is kept out of the
+    equity table because every consumer of that table assumes US sessions.
+
+    Every fill pays the taker fee on its own notional. The equity simulator
+    charges nothing because equity costs live in `costs.py`; for a grid the fee
+    IS the result — the backtest beat its null on 10 of 10 pairs before fees
+    and 0 of 10 after — so a crypto simulator without them would be
+    measuring a different strategy from the one that exists.
+    """
+
+    def __init__(self, conn=None, cash: float = 100.0, quotes: dict | None = None,
+                 fill_ratio: float = 1.0, interval: str = "1h",
+                 fee: float = CRYPTO_TAKER_FEE):
+        super().__init__(conn, cash, quotes, fill_ratio)
+        self.interval = interval
+        self.fee = float(fee)
+        self.fees_paid = 0.0
+
+    def get_quote(self, symbol: str) -> dict | None:
+        if symbol in self._quotes:
+            return self._quotes[symbol]
+        if self.conn is None:
+            return None
+        r = self.conn.execute(
+            "SELECT open_time, close FROM crypto_prices WHERE symbol=? AND "
+            "interval=? AND close>0 ORDER BY open_time DESC LIMIT 1",
+            (symbol, self.interval)).fetchone()
+        if not r:
+            return None
+        # 20-day USD turnover, on the quote rather than looked up by the risk
+        # engine — the equity side learned that a quote missing liquidity is a
+        # quote that blocks every order.
+        since = int(r[0]) - 20 * 86400
+        dv = self.conn.execute(
+            "SELECT SUM(volume * close) FROM crypto_prices WHERE symbol=? AND "
+            "interval=? AND open_time > ?", (symbol, self.interval, since)).fetchone()
+        return {"symbol": symbol, "price": float(r[1]), "as_of": int(r[0]),
+                "dollar_volume_20": (float(dv[0]) / 20.0) if dv and dv[0] else None,
+                "market_cap": None}
+
+    def place_order(self, order: Order) -> Order:
+        before = self.cash
+        order = super().place_order(order)
+        if order.state in (FILLED, PARTIALLY_FILLED) and order.filled_quantity:
+            fee = self.fee * order.filled_quantity * (order.avg_fill_price or 0.0)
+            self.cash -= fee
+            self.fees_paid += fee
+            order.note = (getattr(order, "note", "") or "") + f" fee ${fee:,.4f}"
+        return order
+
+
+class CoinbaseBroker(BrokerInterface):
+    """
+    Adapter for Coinbase, built to the same contract as RobinhoodBroker.
+
+    Reads are injected as callables so the transport is not imported here and the
+    whole adapter can be tested with fakes. `place_order` builds the validated
+    order specification and leaves it in UNKNOWN pending transmission, which is
+    the operator step on this project for equities and crypto alike;
+    `crypto_orders.py` then records what actually filled.
+    """
+
+    def __init__(self, read_fns: dict | None = None):
+        self.fns = read_fns or {}
+
+    def _call(self, name: str, *a, **kw):
+        fn = self.fns.get(name)
+        if fn is None:
+            raise NotImplementedError(
+                f"{name} is not wired. Provide it via read_fns — this adapter "
+                f"deliberately imports no exchange client of its own.")
+        return fn(*a, **kw)
+
+    def get_account(self) -> dict:
+        return self._call("get_account")
+
+    def get_positions(self) -> dict:
+        return self._call("get_positions")
+
+    def get_buying_power(self) -> float:
+        return float(self._call("get_buying_power"))
+
+    def get_quote(self, symbol: str) -> dict | None:
+        return self._call("get_quote", symbol)
+
+    def place_order(self, order: Order) -> Order:
+        order.to(SUBMITTING)
+        order.to(UNKNOWN, "specification built and approved; transmission is an "
+                          "operator step — see docs/PHASE12_CRYPTO_FUND.md")
+        return order
+
+    def cancel_order(self, order_id: str) -> bool:
+        return bool(self._call("cancel_order", order_id))
+
+    def get_order(self, order_id: str) -> dict | None:
+        return self._call("get_order", order_id)

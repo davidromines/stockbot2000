@@ -91,6 +91,20 @@ class RiskEngine:
         px = quote.get("price")
         if not px or px <= 0:
             return "quote has no usable price"
+        if sig.asset_type == "crypto":
+            # Crypto gets its own floors. The equity price and market-cap floors
+            # would reject most pairs for reasons that do not apply to them —
+            # see the `crypto:` block in config/risk.yaml. Liquidity carries
+            # over, and an unknown turnover is still a rejection.
+            c = self.L.get("crypto") or {}
+            mdv = float(c.get("min_dollar_volume", 0) or 0)
+            if mdv:
+                dv = quote.get("dollar_volume_20")
+                if dv is None:
+                    return "liquidity unknown — rejected rather than assumed"
+                if dv < mdv:
+                    return f"turnover ${dv:,.0f}/day below crypto floor ${mdv:,.0f}"
+            return None
         mp = float(self.L.get("min_price", 0) or 0)
         if mp and px < mp:
             return f"price ${px:.2f} below floor ${mp:.2f}"
