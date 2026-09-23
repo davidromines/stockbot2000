@@ -115,6 +115,37 @@ def _handle_interrupt(signum, frame):
     log.warning("Interrupt received. Finishing current batch, then stopping cleanly...")
 
 
+def session_today() -> str:
+    """
+    Today's date in the exchange's own timezone, as 'YYYY-MM-DD'.
+
+    Bars dated on or after this are in progress and are never stored or trusted.
+    Measured in New York time rather than UTC: between 20:00 and midnight ET the
+    UTC date has already rolled forward, which would quietly move the boundary.
+    """
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def completed_bars(df):
+    """
+    Drop any bar dated today or later (exchange time).
+
+    `last_market_session` already refused to count today's bar, but the fetch
+    itself did not: yfinance returns the in-progress session alongside the
+    history, and on 2026-09-23 an intraday top-up stored 41 partial bars as
+    closes. Worse than wrong, they were permanent — a ticker whose newest bar
+    is today never looks stale again, so the partial bar is never re-fetched.
+    Erring by one session is recoverable; storing a partial close is not.
+    """
+    import pandas as pd
+    if df is None or df.empty:
+        return df
+    d = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+    return df.loc[d < session_today()]
+
+
 def last_market_session(reference_tickers: list[str], period: str = "5d") -> str | None:
     """
     The newest session date, asked of the data source rather than of our table.
@@ -141,7 +172,7 @@ def last_market_session(reference_tickers: list[str], period: str = "5d") -> str
     """
     import datetime as _dt
     import pandas as pd
-    today = _dt.datetime.now(_dt.timezone.utc).date()
+    today = _dt.date.fromisoformat(session_today())
     for t in reference_tickers:
         try:
             df = yf.download(tickers=t, period=period, interval="1d",
@@ -333,6 +364,7 @@ def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = Fa
         else:
             long_df = long_df.dropna(subset=["close"])
             present = set(long_df["ticker"].unique())
+            long_df = completed_bars(long_df)
 
             for ticker in batch:
                 if ticker not in present:
@@ -343,6 +375,10 @@ def run_backfill(config: dict, limit: int | None = None, retry_failed: bool = Fa
                     continue
 
                 sub = long_df[long_df["ticker"] == ticker]
+                if sub.empty:
+                    # Only an in-progress bar came back — a listing too new to
+                    # have a completed session. Not a failure; nothing to store.
+                    continue
                 n = storage.upsert_prices(conn, sub)
                 storage.mark_done(conn, ticker, str(sub["date"].min())[:10],
                                   str(sub["date"].max())[:10], n)
