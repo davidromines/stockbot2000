@@ -1,0 +1,166 @@
+<title>Stockbot2000 Status</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg:#f4f5f3; --panel:#ffffff; --line:#d8dcd6; --ink:#1b211d; --dim:#63706a;
+  --accent:#0f7a5a; --warn:#9a6414; --stop:#a63428; --up:#0f7a5a; --down:#a63428;
+  --grid:#e7eae5;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#0e1311; --panel:#151b18; --line:#26302b; --ink:#d3dbd6; --dim:#7e8d86;
+    --accent:#5fd3a6; --warn:#e0b063; --stop:#e8746a; --up:#5fd3a6; --down:#e8746a;
+    --grid:#1d2622; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#0e1311; --panel:#151b18; --line:#26302b; --ink:#d3dbd6; --dim:#7e8d86;
+  --accent:#5fd3a6; --warn:#e0b063; --stop:#e8746a; --up:#5fd3a6; --down:#e8746a;
+  --grid:#1d2622; color-scheme: dark;
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif; margin:0;
+  padding-block:28px; padding-left:20px; padding-right:20px; }
+.wrap { max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:26px; }
+header { display:flex; flex-wrap:wrap; gap:10px 20px; align-items:baseline;
+  border-bottom:1px solid var(--line); padding-bottom:14px; }
+h1 { font-size:19px; font-weight:600; margin:0; letter-spacing:-.01em; }
+.stamp { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--dim);
+  margin-left:auto; }
+.verdicts { display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.v { background:var(--panel); border:1px solid var(--line); border-left-width:3px;
+  border-radius:3px; padding:14px 16px; display:flex; flex-direction:column; gap:5px; }
+.v.stop { border-left-color:var(--stop); }
+.v.warn { border-left-color:var(--warn); }
+.v .q { font-size:11px; color:var(--dim); text-transform:uppercase;
+  letter-spacing:.07em; }
+.v .a { font-family:"IBM Plex Mono",monospace; font-size:17px; font-weight:600; }
+.v.stop .a { color:var(--stop); }
+.v.warn .a { color:var(--warn); }
+.v .why { font-size:12px; color:var(--dim); line-height:1.45; }
+h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--dim); margin:0 0 10px; font-weight:600; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:3px;
+  padding:16px 18px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; font-size:10px; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--dim); font-weight:600;
+  padding:0 8px 8px 0; border-bottom:1px solid var(--line); }
+td { padding:5px 8px 5px 0; border-bottom:1px solid var(--grid); }
+tr:last-child td { border-bottom:none; }
+.nm { font-weight:500; }
+.fam { font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--dim);
+  text-transform:uppercase; letter-spacing:.05em; }
+.num { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  text-align:right; white-space:nowrap; }
+.up { color:var(--up); } .down { color:var(--down); } .flat { color:var(--dim); }
+.barcell { width:34%; }
+.bar { display:block; height:6px; border-radius:1px; }
+.bar.up { background:var(--up); } .bar.down { background:var(--down); }
+.cols { display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.kv { display:flex; justify-content:space-between; gap:12px; padding:5px 0;
+  border-bottom:1px solid var(--grid); font-size:13px; }
+.kv:last-child { border-bottom:none; }
+.kv .k { color:var(--dim); }
+.kv .val { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+.librow { display:flex; justify-content:space-between; align-items:center;
+  padding:6px 0; border-bottom:1px solid var(--grid); }
+.librow:last-child { border-bottom:none; }
+.libk { font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.06em;
+  padding:2px 7px; border-radius:2px; border:1px solid var(--line); }
+.libk.refuted { color:var(--stop); border-color:var(--stop); }
+.libk.hypothesis { color:var(--dim); }
+.libk.inconclusive { color:var(--warn); border-color:var(--warn); }
+.libk.supported { color:var(--accent); border-color:var(--accent); }
+.libv { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+.note { font-size:12px; color:var(--dim); line-height:1.55; }
+.note strong { color:var(--ink); font-weight:600; }
+footer { border-top:1px solid var(--line); padding-top:14px; font-size:11px;
+  color:var(--dim); line-height:1.6; }
+@media (max-width:520px) { .barcell { display:none; } }
+</style>
+<div class="wrap">
+<header>
+  <h1>Stockbot2000</h1>
+  <span class="stamp">2026-09-23T06:42:37+00:00 · data to 2026-09-21</span>
+</header>
+
+<section>
+  <h2>What the system says today</h2>
+  <div class="verdicts">
+    <div class="v stop"><span class="q">Should the search run?</span>
+      <span class="a">DO NOT SEARCH</span>
+      <span class="why">1,039,345 evaluations recorded. The trial
+      ledger is append-only, so the multiple-testing bar does not come down.</span></div>
+    <div class="v stop"><span class="q">Ready to promote?</span>
+      <span class="a">NOT READY</span>
+      <span class="why">4 of 15 prerequisites verified. The rest exist as code
+      that has never been exercised here.</span></div>
+    <div class="v warn"><span class="q">Strategies eligible</span>
+      <span class="a">0 of 21</span>
+      <span class="why">Every fund is short of the 60-mark floor.
+      A Sharpe from seven observations is noise with a decimal point.</span></div>
+    <div class="v stop"><span class="q">Today's live slate</span>
+      <span class="a">NO ORDERS</span>
+      <span class="why">Nothing cleared every gate, which is the system working
+      rather than failing.</span></div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Forward record · 21 funds</h2>
+  <table>
+    <thead><tr><th>Fund</th><th>Family</th><th class="num">Return</th><th></th></tr></thead>
+    <tbody><tr><td class="nm">Rising 200 · Stop 2.5</td><td><span class="fam">momentum</span></td><td class="num up">+8.91%</td><td class="barcell"><span class="bar up" style="width:72.7%"></span></td></tr><tr><td class="nm">Rising 200 · Stop 3.3</td><td><span class="fam">momentum</span></td><td class="num up">+7.25%</td><td class="barcell"><span class="bar up" style="width:59.2%"></span></td></tr><tr><td class="nm">Rising 200 · Stop 2.6</td><td><span class="fam">momentum</span></td><td class="num up">+5.07%</td><td class="barcell"><span class="bar up" style="width:41.4%"></span></td></tr><tr><td class="nm">Nasdaq Switch 1x</td><td><span class="fam">pair</span></td><td class="num up">+4.84%</td><td class="barcell"><span class="bar up" style="width:39.5%"></span></td></tr><tr><td class="nm">S&amp;P Switch 2x</td><td><span class="fam">pair</span></td><td class="num up">+4.09%</td><td class="barcell"><span class="bar up" style="width:33.4%"></span></td></tr><tr><td class="nm">Rising 200 · Stop 5.0 b</td><td><span class="fam">momentum</span></td><td class="num up">+2.83%</td><td class="barcell"><span class="bar up" style="width:23.1%"></span></td></tr><tr><td class="nm">Rising 200 · Stop 5.0 a</td><td><span class="fam">momentum</span></td><td class="num up">+2.75%</td><td class="barcell"><span class="bar up" style="width:22.5%"></span></td></tr><tr><td class="nm">S&amp;P Switch 1x</td><td><span class="fam">pair</span></td><td class="num up">+2.10%</td><td class="barcell"><span class="bar up" style="width:17.1%"></span></td></tr><tr><td class="nm">MACD Pullback</td><td><span class="fam">momentum</span></td><td class="num up">+0.94%</td><td class="barcell"><span class="bar up" style="width:7.7%"></span></td></tr><tr><td class="nm">Russell Switch 1x</td><td><span class="fam">pair</span></td><td class="num up">+0.07%</td><td class="barcell"><span class="bar up" style="width:0.6%"></span></td></tr><tr><td class="nm">Crash Buyer 20d a</td><td><span class="fam">crash</span></td><td class="num down">-1.59%</td><td class="barcell"><span class="bar down" style="width:13.0%"></span></td></tr><tr><td class="nm">Quality Value screen</td><td><span class="fam">conviction</span></td><td class="num down">-2.60%</td><td class="barcell"><span class="bar down" style="width:21.3%"></span></td></tr><tr><td class="nm">Crash Buyer 10d</td><td><span class="fam">crash</span></td><td class="num down">-2.74%</td><td class="barcell"><span class="bar down" style="width:22.4%"></span></td></tr><tr><td class="nm">Deep Value screen</td><td><span class="fam">conviction</span></td><td class="num down">-2.81%</td><td class="barcell"><span class="bar down" style="width:23.0%"></span></td></tr><tr><td class="nm">Crash Buyer 20d b</td><td><span class="fam">crash</span></td><td class="num down">-2.84%</td><td class="barcell"><span class="bar down" style="width:23.2%"></span></td></tr><tr><td class="nm">Crash Buyer 20d c</td><td><span class="fam">crash</span></td><td class="num down">-3.92%</td><td class="barcell"><span class="bar down" style="width:32.0%"></span></td></tr><tr><td class="nm">XGBoost Classifier</td><td><span class="fam">model</span></td><td class="num down">-4.90%</td><td class="barcell"><span class="bar down" style="width:40.0%"></span></td></tr><tr><td class="nm">Rising 200 · Stop 5.0 c</td><td><span class="fam">momentum</span></td><td class="num down">-5.61%</td><td class="barcell"><span class="bar down" style="width:45.8%"></span></td></tr><tr><td class="nm">Energy Switch 2x</td><td><span class="fam">pair</span></td><td class="num down">-7.36%</td><td class="barcell"><span class="bar down" style="width:60.1%"></span></td></tr><tr><td class="nm">Rising 50</td><td><span class="fam">momentum</span></td><td class="num down">-7.49%</td><td class="barcell"><span class="bar down" style="width:61.2%"></span></td></tr><tr><td class="nm">Crash Buyer 5d</td><td><span class="fam">crash</span></td><td class="num down">-12.24%</td><td class="barcell"><span class="bar down" style="width:100.0%"></span></td></tr></tbody>
+  </table>
+  <p class="note" style="margin-top:14px">The only measurement here with no
+  survivorship bias and no look-ahead — and it accrues at one day per day.
+  <strong>These are weeks old, not years.</strong> The spread between the best
+  and worst is mostly stop width on one entry rule, which is a lead rather than
+  a result.</p>
+</section>
+
+<div class="cols">
+  <section class="panel">
+    <h2>Noise control</h2>
+    <div class="kv"><span class="k">Random strategies run</span><span class="val">325</span></div>
+    <div class="kv"><span class="k">Cleared the gate</span><span class="val">0 (0.0%)</span></div>
+    <div class="kv"><span class="k">Best noise Sharpe</span><span class="val">1.14</span></div>
+    <div class="kv"><span class="k">Best noise P&amp;L</span><span class="val">$10,980</span></div>
+    <p class="note" style="margin-top:12px">The best of 325 strategies
+    <strong>known to be worthless</strong> made $10,980. Any real
+    candidate has to clear that before its number means anything.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Research library</h2>
+    <div class="librow"><span class="libk hypothesis">HYPOTHESIS</span><span class="libv">19</span></div><div class="librow"><span class="libk refuted">REFUTED</span><span class="libv">16</span></div><div class="librow"><span class="libk inconclusive">INCONCLUSIVE</span><span class="libv">5</span></div>
+    <p class="note" style="margin-top:12px">A citation is provenance, not a
+    result. Everything enters as a hypothesis whatever its pedigree —
+    <strong>nothing here is SUPPORTED.</strong></p>
+  </section>
+
+  <section class="panel">
+    <h2>Data</h2>
+    <div class="kv"><span class="k">Price bars</span><span class="val">35,557,344</span></div>
+    <div class="kv"><span class="k">Instruments</span><span class="val">13,214</span></div>
+    <div class="kv"><span class="k">Feature rows</span><span class="val">33,908,658</span></div>
+    <div class="kv"><span class="k">Daily fundamentals</span><span class="val">10,707,402</span></div>
+    <div class="kv"><span class="k">SEC facts</span><span class="val">23,487,663</span></div>
+    <div class="kv"><span class="k">Strategies generated</span><span class="val">1,051,353</span></div>
+    <p class="note" style="margin-top:12px">Survivorship: <strong>22.6%</strong> of the
+    knowable 2008 universe is priceable here, rising to 83.7% by 2024. Every
+    backtest figure inherits that.</p>
+  </section>
+</div>
+
+<footer>
+  Search mode <strong>FROZEN</strong>. Orders are
+  placed by a person; the system generates and reconciles them. Regenerated by
+  <code>daily.sh</code> from the live database — every figure on this page is
+  counted, not estimated.
+</footer>
+</div>
