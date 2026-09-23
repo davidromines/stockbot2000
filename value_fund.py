@@ -270,6 +270,28 @@ def candidates(conn, as_of: str, weighting: str, limit: int | None = None) -> li
     return out
 
 
+def review_due(conn, as_of: str) -> tuple:
+    """
+    (due, why). A review is due if none has run, or REVIEW_DAYS have passed.
+
+    REVIEW_DAYS was declared from the start and never read, so any caller that
+    ran --review daily would have rebalanced a quarterly fund every morning —
+    turning a long-horizon value book into a high-turnover one, which is the
+    one cost this fund's design exists to avoid.
+    """
+    import datetime as dt
+    r = conn.execute("SELECT last_review FROM value_fund WHERE name=?",
+                     (FUND,)).fetchone()
+    if not r:
+        return False, "no value fund"
+    if not r[0]:
+        return True, "first review — the fund has never held a position"
+    age = (dt.date.fromisoformat(as_of) - dt.date.fromisoformat(r[0])).days
+    if age >= REVIEW_DAYS:
+        return True, f"last review {age} days ago (every {REVIEW_DAYS})"
+    return False, f"last review {age} days ago; next due in {REVIEW_DAYS - age}"
+
+
 def review(conn, as_of: str, dry_run: bool = True) -> dict:
     """One quarterly review: sell what has fallen out, buy what qualifies."""
     init(conn)
@@ -476,6 +498,8 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true",
                     help="with --review, actually trade instead of previewing")
     ap.add_argument("--mark", action="store_true")
+    ap.add_argument("--if-due", action="store_true",
+                    help="with --review, run only when a quarterly review is due")
     ap.add_argument("--as-of")
     ap.add_argument("--thesis", metavar="TICKER")
     a = ap.parse_args()
@@ -504,6 +528,12 @@ def main() -> int:
             print(f"  {d:<18}{'—' if v is None else format(v, '.0f'):>8}")
         print("\n  This reasoning was frozen at entry and is never updated.\n")
         conn.close(); return 0
+
+    if a.review and a.if_due:
+        due, why = review_due(conn, as_of)
+        print(f"\n  review {'DUE' if due else 'not due'}: {why}")
+        if not due:
+            a.review = False
 
     if a.review:
         r = review(conn, as_of, dry_run=not a.apply)

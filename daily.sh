@@ -142,6 +142,11 @@ $PY stop_conditions.py > data/stop_conditions.txt 2>/dev/null || true
 $PY roster.py --plan > data/roster_plan.txt 2>/dev/null || true
 $PY live_pipeline.py --build > /dev/null 2>&1 || true
 $PY compute_priority.py > data/compute_spend.txt 2>/dev/null || true
+# The Value Fund (Phase 9 item 30). Marked every morning so its forward record
+# accrues; reviewed only when a quarterly review is due — --if-due is what
+# stops a long-horizon fund from rebalancing daily.
+$PY value_fund.py --review --if-due --apply --mark >/dev/null 2>&1 || true
+
 $PY build_dashboard.py >/dev/null 2>&1 || true
 
 run "[10/10] Backup" $PY backup.py
