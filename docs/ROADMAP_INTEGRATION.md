@@ -450,6 +450,27 @@ running 7.5% (finance) to 53.8% (wholesale).
 Every stage of the roadmap is built. None of it has produced an edge, and each
 component says so in its own output rather than leaving the reader to infer it.
 
+**Stage G — crypto (Phase 12)** — added 2026-09-23
+
+| | item | state |
+|---:|---|---|
+| 38 | Crypto market data into its own table | not started |
+| 39 | Decide the session and fill convention explicitly | not started |
+| 40 | Crypto paper fund, separate from the equity league | not started |
+| 41 | Crypto strategies via the research library | not started |
+| 42 | Crypto order slate — human places | not started |
+
+Spec in `docs/PHASE12_CRYPTO_FUND.md`. **The source article's execution layer —
+an LLM placing orders on an exchange — is explicitly out of scope**, both
+because Claude does not execute financial transactions and because this
+project's own record says autonomous execution of an unproven strategy
+automates the losses.
+
+Item 39 blocks everything after it. Crypto has no close and no next open, so
+the next-open fill convention cannot be inherited unmodified — and getting a
+fill convention wrong is the defect that cost this project its largest single
+correction.
+
 **Two ordering constraints worth stating plainly.** Stage A item 1 comes first
 because every later stage adds surface area to a codebase with a documented
 history of silent measurement defects. And Stage B item 13 comes before item 14
