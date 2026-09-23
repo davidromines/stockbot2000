@@ -102,6 +102,10 @@ check("lag_sessions is NOT zero when we are behind",
       "circularity as the original staleness bug")
 check("the counting METHOD is recorded", bool(f.lag_method), f.lag_method)
 
+f = freshness.check(c2, cfg, expected="2026-09-16")
+check("data NEWER than the last completed session is NOT fresh", not f.ok,
+      "2026-09-23: a lag of -2 days read OK while 41 partial bars sat in prices")
+
 f = freshness.check(c2, cfg, expected=None)
 check("an UNKNOWN market session is treated as STALE, not as fine", not f.ok,
       f.reason)

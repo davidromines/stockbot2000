@@ -218,7 +218,16 @@ def check(conn, cfg: dict, expected: str | None = None) -> Freshness:
     f.missing_symbols = [t for t in refs if not conn.execute(
         "SELECT 1 FROM prices WHERE ticker=? AND date=?", (t, expected)).fetchone()]
 
-    if f.lag_sessions is None:
+    if f.lag_days < 0:
+        # Newer than the market is not "extra fresh". It means a partial bar
+        # was stored as a close, or the reference itself is missing a session.
+        # On 2026-09-23 this read OK at a lag of -2 days while 41 in-progress
+        # bars sat in `prices`. Either cause makes the data untrustworthy.
+        f.ok = False
+        f.reason = (f"we hold {actual}, AFTER the last completed session "
+                    f"{expected}: a partial bar was stored, or the reference "
+                    f"is missing a session")
+    elif f.lag_sessions is None:
         f.ok = False; f.reason = "could not count sessions"
     elif f.lag_sessions > thresh:
         f.ok = False
