@@ -421,16 +421,34 @@ running 7.5% (finance) to 53.8% (wholesale).
 29. Value score and watchlist — **as an experiment, formula not fixed**
 30. Value Fund architecture, paper only
 
-**Stage E — capital (Phase 10)**
-31. Promotion policy with configurable thresholds
-32. Capital allocation engine
-33. Roster management and demotion
-34. Wire to the existing execution engine — **still not automatic**
+**Stage E — capital (Phase 10)** — done 2026-09-23
 
-**Stage F — the loop (Phase 11)**
-35. Extend `daily.sh` to the full research loop
-36. Automatic stop conditions (Phase 6 §27)
-37. Compute allocation by priority (Phase 6 §28)
+| | item | state |
+|---:|---|---|
+| 31 | Promotion policy | **done** — `promotion_policy.py`, two gates |
+| 32 | Capital allocation engine | **done** — `allocation.py`, 3 schemes |
+| 33 | Roster management and demotion | **done** — `roster.py` |
+| 34 | Wire to execution — not automatic | **done** — `live_pipeline.py` stops at order validation |
+
+**Stage F — the loop (Phase 11)** — done 2026-09-23
+
+| | item | state |
+|---:|---|---|
+| 35 | Full research loop in `daily.sh` | **done** — stop conditions, roster plan, live slate, compute report |
+| 36 | Automatic stop conditions (§27) | **done** — `stop_conditions.py` |
+| 37 | Compute allocation by priority (§28) | **done** — `compute_priority.py` |
+
+**What the system says today, having been asked properly:**
+
+| question | answer |
+|---|---|
+| Should the search run? | **DO NOT SEARCH — COLLECT MORE FORWARD DATA** |
+| Is promotion machinery ready? | **NOT READY** — 4 of 15 prerequisites verified |
+| How many strategies are eligible? | **0 of 21** |
+| What is on the live slate? | **NO ORDERS**, with three named blockers |
+
+Every stage of the roadmap is built. None of it has produced an edge, and each
+component says so in its own output rather than leaving the reader to infer it.
 
 **Two ordering constraints worth stating plainly.** Stage A item 1 comes first
 because every later stage adds surface area to a codebase with a documented
