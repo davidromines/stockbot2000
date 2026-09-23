@@ -33,22 +33,23 @@ Entry at the NEXT bar's open after the signal bar, exits likewise, matching
 `crypto_data`'s recorded convention and the null's. A grid measured on one
 convention against a null measured on another is a rigged comparison.
 
-COSTS ARE THE WHOLE STORY HERE
---------------------------------
-The first run of this module charged nothing and reported 10 of 10 symbols
-beating their null with win rates of 89-93%. That is the shape of every
-artifact this project has already caught, and the cause was immediate: a grid
-makes MULTIPLE fills per trade — one per level entered, plus the exit — and
-Coinbase's retail taker fee is 0.60% per fill.
+COSTS
+-----
+Fees are charged on each fill's OWN notional, which is how an exchange charges
+them. Total cost is therefore about 0.60% of the capital deployed on entry plus
+0.60% of the exit value — roughly 1.2% of deployed capital however many grid
+levels filled, because splitting a buy into three fills does not triple the fee.
 
-A three-level grid that fills two levels and exits pays three taker fees,
-roughly 1.8% round trip, against a take-profit of 2.0%. The strategy's entire
-gross edge is inside its own fee bill, which is the general reason grid and
-martingale systems look wonderful before costs and are unrunnable after.
+The first version of this module got that wrong in the other direction. It
+charged 0.60% x NUMBER OF FILLS against the whole position, reported fees of
+1.72-1.79% per trade, and derived a 2.6% breakeven take-profit from that. Both
+figures were overstated; the correction below re-measures them. The earlier
+version before that charged nothing at all and reported 10 of 10 symbols
+beating their null at 89-93% win rates.
 
-Fees are charged per FILL, not per trade, because that is how an exchange
-charges them and averaging them per trade would understate a deep grid by the
-number of levels it entered.
+`simulate()` is the single engine. The backtest in `run()` and the paper fund
+in `crypto_fund.py` both call it, so the forward record and the backtest cannot
+drift apart through two implementations of one strategy.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
@@ -86,77 +87,109 @@ def _bars(conn, symbol: str, interval: str):
             "n": len(rows)}
 
 
-def run(conn, symbol: str, interval: str, g: dict | None = None) -> dict:
-    """
-    One grid genome over one symbol's full history.
-
-    Sequential rather than vectorised: a grid's state — which levels have
-    filled, the running average — depends on its own history, so there is no
-    honest vectorised form. The cost is speed on a few thousand bars, which
-    does not matter for ten symbols.
-    """
-    g = {**DEFAULT, **(g or {})}
-    b = _bars(conn, symbol, interval)
-    if not b or b["n"] < g["lookback"] + g["max_hold"] + 4:
-        return {"symbol": symbol, "trades": 0,
-                "note": "not enough bars for this genome"}
-
-    o, hi, lo, c = b["open"], b["high"], b["low"], b["close"]
-    n = b["n"]
-    # Rolling reference, causal: the mean of the PRIOR `lookback` closes,
-    # never including the current bar.
+def _ref(c: np.ndarray, lookback: int) -> np.ndarray:
+    """Mean of the PRIOR `lookback` closes; never includes the current bar."""
+    n = c.size
     ref = np.full(n, np.nan)
-    if n > g["lookback"]:
+    if n > lookback:
         cs = np.cumsum(np.insert(c, 0, 0.0))
-        ref[g["lookback"]:] = (cs[g["lookback"]:-1] - cs[:-g["lookback"] - 1]) / g["lookback"]
+        ref[lookback:] = (cs[lookback:-1] - cs[:-lookback - 1]) / lookback
+    return ref
 
-    trades, i = [], g["lookback"] + 1
-    while i < n - 2:
+
+def simulate(o, hi, lo, c, g: dict, start_i: int = 0,
+             close_at_end: bool = True, fee: float = TAKER_FEE) -> dict:
+    """
+    Run one grid genome over arrays of bars. The single engine.
+
+    Level k spends `m**k` dollars of the unit (m = size_mult), so a full grid
+    deploys 1 + m + m**2 units of capital. All figures are per unit of capital
+    deployed; callers scale to dollars.
+
+    `start_i` is the first bar whose close may signal an entry. A paper fund
+    passes the index of its own start, so it only trades bars that closed after
+    it opened — a forward test, never a backtest of the past relabelled.
+
+    `close_at_end=False` returns a trade still running off the end of the data
+    as `open` rather than closing it at the last bar. The backtest closes it;
+    a live fund must not, because that would book a fill that never happened.
+    """
+    n = len(o)
+    ref = _ref(c, g["lookback"])
+    i = max(g["lookback"] + 1, int(start_i))
+    m = g["size_mult"]
+    trades, open_trade = [], None
+
+    while i < n - 1:
         if not np.isfinite(ref[i]) or c[i] > ref[i] * (1 - g["entry_drop"]):
             i += 1
             continue
-        # Signal on bar i's close -> first fill at bar i+1's open.
-        entry_i = i + 1
+        entry_i = i + 1                      # signal at close i -> fill at open i+1
         base = o[entry_i]
         if not np.isfinite(base) or base <= 0:
             i += 1
             continue
 
-        filled = [(base, 1.0)]
-        size = 1.0
-        exit_i, exit_px, reason = None, None, "hold_expiry"
+        fills = [(base, 1.0)]                 # (price, dollars)
         deepest = base * (1 - g["spacing"] * g["levels"])
+        exit_i = exit_px = None
+        reason = None
+
+        def avg_of(fs):
+            dollars = sum(d for _, d in fs)
+            qty = sum(d / p for p, d in fs)
+            return dollars / qty
 
         for j in range(entry_i + 1, min(entry_i + g["max_hold"], n)):
-            # Deeper levels fill on the way down, at the level price.
-            nxt = len(filled)
-            if nxt < g["levels"]:
-                lvl = base * (1 - g["spacing"] * nxt)
+            k = len(fills)
+            if k < g["levels"]:
+                lvl = base * (1 - g["spacing"] * k)
                 if lo[j] <= lvl:
-                    size *= g["size_mult"]
-                    filled.append((lvl, size))
-            avg = sum(p * s for p, s in filled) / sum(s for _, s in filled)
+                    fills.append((lvl, m ** k))
+            avg = avg_of(fills)
             if lo[j] <= deepest * (1 - g["stop"]):
                 exit_i, exit_px, reason = j, deepest * (1 - g["stop"]), "stop"
                 break
             if hi[j] >= avg * (1 + g["take_profit"]):
                 exit_i, exit_px, reason = j, avg * (1 + g["take_profit"]), "take_profit"
                 break
+
         if exit_i is None:
-            exit_i = min(entry_i + g["max_hold"], n - 1)
-            exit_px = o[exit_i]
-        avg = sum(p * s for p, s in filled) / sum(s for _, s in filled)
-        gross = (exit_px - avg) / avg * 100.0
-        # One fee per entry fill, plus one on the exit.
-        n_fills = len(filled) + 1
-        fee_pct = n_fills * TAKER_FEE * 100.0
-        trades.append({"entry_i": entry_i, "exit_i": exit_i,
-                       "gross_pct": gross, "fees_pct": fee_pct,
-                       "ret_pct": gross - fee_pct,
-                       "bars": exit_i - entry_i, "reason": reason,
-                       "fills": n_fills, "levels": len(filled)})
+            if entry_i + g["max_hold"] <= n - 1:
+                exit_i, exit_px, reason = (entry_i + g["max_hold"],
+                                           o[entry_i + g["max_hold"]], "hold_expiry")
+            elif close_at_end:
+                exit_i, exit_px, reason = n - 1, o[n - 1], "end_of_data"
+            else:
+                open_trade = {"entry_i": entry_i, "fills": fills,
+                              "base": base, "avg": avg_of(fills)}
+                break
+
+        deployed = sum(d for _, d in fills)
+        qty = sum(d / p for p, d in fills)
+        exit_value = qty * exit_px
+        fees = fee * deployed + fee * exit_value
+        trades.append({
+            "entry_i": entry_i, "exit_i": exit_i, "reason": reason,
+            "bars": exit_i - entry_i, "levels": len(fills), "fills": len(fills) + 1,
+            "deployed": deployed, "qty": qty, "exit_px": exit_px,
+            "gross_pct": (exit_value - deployed) / deployed * 100.0,
+            "fees_pct": fees / deployed * 100.0,
+            "ret_pct": (exit_value - deployed - fees) / deployed * 100.0})
         i = exit_i + 1
 
+    return {"trades": trades, "open": open_trade}
+
+
+def run(conn, symbol: str, interval: str, g: dict | None = None) -> dict:
+    """One grid genome over one symbol's full history, scored against its null."""
+    g = {**DEFAULT, **(g or {})}
+    b = _bars(conn, symbol, interval)
+    if not b or b["n"] < g["lookback"] + g["max_hold"] + 4:
+        return {"symbol": symbol, "trades": 0,
+                "note": "not enough bars for this genome"}
+    res = simulate(b["open"], b["high"], b["low"], b["close"], g)
+    trades = res["trades"]
     if not trades:
         return {"symbol": symbol, "trades": 0, "note": "no entries triggered"}
 
@@ -165,9 +198,7 @@ def run(conn, symbol: str, interval: str, g: dict | None = None) -> dict:
     fees = np.array([t["fees_pct"] for t in trades])
     holds = np.array([t["bars"] for t in trades])
     mean_hold = int(round(holds.mean()))
-    # Charge the null of THIS symbol at the nearest measured holding period.
-    grid_holds = sorted(cb.HOLDS)
-    nearest = min(grid_holds, key=lambda h: abs(h - mean_hold))
+    nearest = min(sorted(cb.HOLDS), key=lambda h: abs(h - mean_hold))
     null = cb.null_for(conn, symbol, interval, nearest)
     return {
         "symbol": symbol, "interval": interval, "genome": g,
@@ -180,7 +211,6 @@ def run(conn, symbol: str, interval: str, g: dict | None = None) -> dict:
         "win_rate": float((r > 0).mean()), "total_pct": float(r.sum()),
         "mean_hold_bars": mean_hold, "null_hold_bars": nearest,
         "null_pct": null,
-        # The only number that means anything.
         "excess_pct": (float(r.mean()) - null) if null is not None else None,
         "stops": sum(1 for t in trades if t["reason"] == "stop"),
         "take_profits": sum(1 for t in trades if t["reason"] == "take_profit"),
@@ -217,11 +247,10 @@ def render(rows: list) -> str:
     if ok:
         avg_fee = sum(r["mean_fees_pct"] for r in ok) / len(ok)
         avg_fills = sum(r["mean_fills"] for r in ok) / len(ok)
-        L += [f"  Fees average {avg_fee:.2f}% per trade across {avg_fills:.1f}",
-              f"  fills at {TAKER_FEE:.2%} each, against a {DEFAULT['take_profit']:.0%}",
-              "  take-profit. A grid's entire gross edge sits inside its own fee",
-              "  bill, which is why grid and martingale systems look wonderful",
-              "  before costs and are unrunnable after.", "",
+        L += [f"  Fees average {avg_fee:.2f}% of deployed capital per trade —",
+              f"  {TAKER_FEE:.2%} on entry notional plus {TAKER_FEE:.2%} on exit, however",
+              f"  many of the {avg_fills - 1:.1f} average entry levels filled —",
+              f"  against a {DEFAULT['take_profit']:.0%} take-profit.", "",
               "  Grid-DCA is also structurally long-biased: it buys dips and",
               "  sells rallies, so in a rising market it prints small wins",
               "  whether or not it has an edge.", ""]
