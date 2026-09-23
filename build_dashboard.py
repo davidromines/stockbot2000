@@ -77,6 +77,10 @@ def gather(conn, cfg: dict) -> dict:
         "control_passed": q("SELECT COALESCE(SUM(passed_gate),0) FROM random_control"),
         "control_sharpe": q("SELECT MAX(sharpe) FROM random_control", 0.0),
         "control_pnl": q("SELECT MAX(net_pnl_usd) FROM random_control", 0.0),
+        "crypto_bars": q("SELECT COUNT(*) FROM crypto_prices"),
+        "crypto_pairs": q("SELECT COUNT(DISTINCT symbol) FROM crypto_prices"),
+        "crypto_delisted": q("SELECT COUNT(*) FROM crypto_listings "
+                             "WHERE status!='online' OR trading_disabled=1"),
         "library": lib, "funds": funds,
         "search_mode": (cfg.get("search") or {}).get("mode", "ACTIVE"),
         "min_marks": (cfg.get("league") or {}).get("min_rank_marks", 60),
@@ -262,9 +266,12 @@ footer {{ border-top:1px solid var(--line); padding-top:14px; font-size:11px;
     <div class="kv"><span class="k">Daily fundamentals</span><span class="val">{n(d["fundamentals"])}</span></div>
     <div class="kv"><span class="k">SEC facts</span><span class="val">{n(d["sec_facts"])}</span></div>
     <div class="kv"><span class="k">Strategies generated</span><span class="val">{n(d["strategies"])}</span></div>
+    <div class="kv"><span class="k">Crypto bars</span><span class="val">{n(d["crypto_bars"])}</span></div>
+    <div class="kv"><span class="k">Crypto pairs</span><span class="val">{d["crypto_pairs"]} ({d["crypto_delisted"]} delisted)</span></div>
     <p class="note" style="margin-top:12px">Survivorship: <strong>22.6%</strong> of the
     knowable 2008 universe is priceable here, rising to 83.7% by 2024. Every
-    backtest figure inherits that.</p>
+    backtest figure inherits that. Crypto records delisting at load time, so it
+    starts with the listing history equities had to reconstruct.</p>
   </section>
 </div>
 

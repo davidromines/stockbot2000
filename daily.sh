@@ -80,6 +80,12 @@ run "[3/10] Features" $PY build_features.py
 run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
     --start "$(date -u -d '90 days ago' +%F)"
 
+# Crypto tops up into its own table and refreshes listing status, so a pair
+# that delists leaves a dated final observation rather than just stopping.
+# Best-effort: a crypto outage must not fail the equity capture.
+$PY crypto_data.py --load --interval 1h --max-bars 600 >/dev/null 2>&1 || true
+$PY crypto_data.py --status >/dev/null 2>&1 || true
+
 run "[4/10] Freshness gate" $PY freshness.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement
