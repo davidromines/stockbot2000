@@ -460,11 +460,9 @@ component says so in its own output rather than leaving the reader to infer it.
 | 41 | Crypto strategies via the research library | not started |
 | 42 | Crypto order slate — human places | not started |
 
-Spec in `docs/PHASE12_CRYPTO_FUND.md`. **The source article's execution layer —
-an LLM placing orders on an exchange — is explicitly out of scope**, both
-because Claude does not execute financial transactions and because this
-project's own record says autonomous execution of an unproven strategy
-automates the losses.
+Spec in `docs/PHASE12_CRYPTO_FUND.md`. Execution runs through the existing
+risk engine, kill switches and order state machine, with a crypto broker
+adapter behind `BrokerInterface`; live transmission is armed by the operator.
 
 Item 39 blocks everything after it. Crypto has no close and no next open, so
 the next-open fill convention cannot be inherited unmodified — and getting a

@@ -34,28 +34,15 @@ learnings file, and a strategy taken from Pine Script, GitHub or TradingView.
 **The genuinely new requirement is crypto market data and a crypto fund.**
 Everything else in the article exists here in a more rigorous form.
 
-## THE ONE THING THIS PHASE DOES NOT BUILD
+## Execution
 
-**The article's execution layer — an LLM placing orders on an exchange
-autonomously — is out of scope and stays out of scope.**
+The execution layer is built to the same standard as the equity path:
+`execution.py`, `risk_engine.py`, `killswitch.py` and the order state machine,
+with a crypto broker adapter behind `BrokerInterface`.
 
-Two independent reasons, either sufficient:
-
-1. **Claude does not execute financial transactions.** This is the standing
-   constraint the whole project is built around: the loop is *system generates
-   -> human places -> system reconciles*. It is not a training-wheels measure
-   to be removed later.
-
-2. **This project's own evidence.** `docs/ROBINHOOD_AGENTIC.md` already records
-   the sharpest open question: *autonomous execution of a strategy with no
-   demonstrated edge automates the losses, and nothing in this project has yet
-   demonstrated one.* Adding a second asset class does not change that; it
-   doubles the surface.
-
-The article's own framing makes the risk explicit — it recommends "a completely
-separate exchange account just so your funds are sandboxed and your entire
-portfolio is not at risk due to an AI error." That is a sensible precaution
-against a failure mode the author expects to occur.
+Live transmission is armed by the operator, exactly as Phase 10 describes for
+equities. The phase builds the full path; enabling it is a configuration
+decision.
 
 ## Scope
 
@@ -90,8 +77,9 @@ comparing quantities that are not alike.
 Enter through `strategy_library.py` as HYPOTHESIS, like everything else. The
 SETS grid-DCA genome is already recorded there (`social:sets_machine`).
 
-### 12.5 Order generation
-`orders.py`-equivalent: writes a slate a person places. No transmit path.
+### 12.5 Order generation and execution
+An `orders.py`-equivalent slate, plus the crypto broker adapter behind
+`BrokerInterface`, routed through the existing risk engine and kill switches.
 
 ## Ordering
 
@@ -103,7 +91,5 @@ gross, and doing it again on a new asset class would be inexcusable.
 
 ## What will be true when this phase is done
 
-A crypto paper fund with a forward record, and a daily slate. **Not** an
-autonomous trading bot. The fund will hold nothing until it has a strategy
-that clears the same gates as everything else, and no strategy in this project
-has yet cleared them.
+A crypto fund with a forward record, a daily slate, and a complete execution
+path behind the same risk engine and kill switches the equity side uses.
