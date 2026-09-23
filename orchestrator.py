@@ -209,8 +209,15 @@ def cmd_implement(args, cfg) -> int:
     prov.record(conn, resp, "implement", task.task_id, rates)
     conn.close()
 
-    files = re.findall(r"^FILE:\s*(\S+)\s*\n```(?:\w+)?\n(.*?)\n```",
-                       resp.text, re.M | re.S)
+    # The closing fence must be the LAST one before the next FILE: marker or
+    # the end of the response. A non-greedy match to the first closing fence
+    # silently truncates any file that CONTAINS a fenced block — which every
+    # markdown document with a code sample does. ARCHITECTURE.md was cut off at
+    # exactly the line where its pipeline diagram began, twice, and it read as
+    # the model failing to finish rather than the parser discarding the rest.
+    files = re.findall(
+        r"^FILE:\s*(\S+)\s*\n```(?:\w+)?\n(.*?)\n```[ \t]*(?=\n*(?:^FILE:|\Z))",
+        resp.text, re.M | re.S)
     if not files:
         # Near-miss: a fenced block whose first line is a path comment. Accepted
         # because rejecting a formatting slip costs a full request to fix.
