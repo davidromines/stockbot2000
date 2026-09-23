@@ -1,0 +1,15 @@
+LIVE SLATE  2026-09-21
+======================================================
+
+NO ORDERS.
+
+  - kill switch: portfolio state unavailable — cannot evaluate loss limits
+  - system not ready: degradation_rules
+  - no strategy is eligible, so nothing is funded
+
+Nothing is proposed, and that is the system working rather
+than failing. Every gate above must pass before an order exists.
+
+======================================================
+This system does not place orders. It generates them, a person
+places them, and the next run reconciles what actually filled.
