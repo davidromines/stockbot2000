@@ -70,6 +70,64 @@ INTERVAL_SECONDS = {"1h": 3600, "6h": 21600, "1d": 86400}
 MAX_CANDLES = 300      # Coinbase's hard cap per request, whatever is asked
 
 
+PRODUCTS = "https://api.exchange.coinbase.com/products"
+
+
+def record_status(conn, symbols=None) -> dict:
+    """
+    Record each pair's listing status from the exchange, at load time.
+
+    **This is the survivorship record the equity side had to reconstruct.**
+    For US equities this project replays 114 Internet Archive snapshots to
+    guess which tickers existed on a date, and still only prices 22.6% of the
+    knowable 2008 universe — because yfinance serves no delisted ticker and
+    the record had to be rebuilt backwards from whatever survived.
+
+    Coinbase answers the question directly: MATIC-USD reports
+    `status: delisted, trading_disabled: true`. Capturing that on every load
+    means the crypto side starts with a point-in-time listing record instead of
+    spending months rebuilding one, and a backtest can know a pair stopped
+    trading rather than inferring it from the data simply stopping.
+
+    `last_seen` advances on every run, so a pair that vanishes from the
+    products list leaves a dated final observation behind.
+    """
+    init(conn)
+    try:
+        req = urllib.request.Request(
+            PRODUCTS, headers={"User-Agent": "stockbot2000/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            products = {p["id"]: p for p in json.loads(r.read().decode())}
+    except Exception as e:      # noqa: BLE001
+        log.warning(f"product list unavailable: {type(e).__name__}: {e}")
+        return {"checked": 0, "delisted": 0}
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    wanted = symbols or [r[0] for r in conn.execute(
+        "SELECT DISTINCT symbol FROM crypto_prices")]
+    delisted = 0
+    for sym in wanted:
+        p = products.get(sym)
+        if p is None:
+            # Absent from the product list entirely: it is gone, and the last
+            # date we saw it is the most honest thing we can record.
+            status, disabled = "absent", 1
+        else:
+            status = p.get("status") or "unknown"
+            disabled = 1 if p.get("trading_disabled") else 0
+        delisted += 1 if (status != "online" or disabled) else 0
+        conn.execute("""INSERT INTO crypto_listings
+            (symbol, status, trading_disabled, first_seen, last_seen)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(symbol) DO UPDATE SET
+              status=excluded.status,
+              trading_disabled=excluded.trading_disabled,
+              last_seen=excluded.last_seen""",
+            (sym, status, disabled, today, today))
+    conn.commit()
+    return {"checked": len(wanted), "delisted": delisted}
+
+
 def init(conn) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS crypto_prices (
@@ -82,6 +140,15 @@ def init(conn) -> None:
             source       TEXT DEFAULT 'coinbase',
             PRIMARY KEY (symbol, interval, open_time)
         ) WITHOUT ROWID
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS crypto_listings (
+            symbol           TEXT PRIMARY KEY,
+            status           TEXT NOT NULL,
+            trading_disabled INTEGER NOT NULL,
+            first_seen       TEXT NOT NULL,
+            last_seen        TEXT NOT NULL
+        )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS ix_cp_sym "
                  "ON crypto_prices(symbol, open_time)")
@@ -206,8 +273,9 @@ def load(conn, symbols=DEFAULT_PAIRS, interval: str = "1h",
             "INSERT OR IGNORE INTO symbols (ticker, security_type) VALUES (?,?)",
             (sym, "crypto"))
     conn.commit()
+    st = record_status(conn, list(symbols))
     return {"written": written, "rejected": rejected, "symbols": len(symbols),
-            "interval": interval}
+            "interval": interval, "delisted": st["delisted"]}
 
 
 def coverage(conn, interval: str = "1h") -> list:
@@ -225,6 +293,8 @@ def main() -> int:
     ap.add_argument("--interval", default="1h")
     ap.add_argument("--max-bars", type=int, default=20000)
     ap.add_argument("--symbols", nargs="*")
+    ap.add_argument("--status", action="store_true",
+                    help="refresh listing status from the exchange")
     a = ap.parse_args()
     cfg = load_config(); runtime.be_nice()
     conn = storage.connect(cfg["database"]["market_data_path"])
@@ -236,15 +306,33 @@ def main() -> int:
               f"at {r['interval']}"
               + (f", rejected {r['rejected']} impossible bars" if r["rejected"] else ""))
 
+    if a.status:
+        st = record_status(conn)
+        print(f"\n  recorded listing status for {st['checked']} pairs "
+              f"({st['delisted']} not trading)")
+
+    listings = {r["symbol"]: r for r in conn.execute(
+        "SELECT * FROM crypto_listings")}
     rows = coverage(conn, a.interval)
     print(f"\n  CRYPTO COVERAGE — {a.interval}")
-    print("  " + "-" * 62)
+    print("  " + "-" * 70)
     for r in rows:
         f = datetime.fromtimestamp(r["first"], timezone.utc).date()
         l = datetime.fromtimestamp(r["last"], timezone.utc).date()
-        print(f"  {r['symbol']:<12}{r['bars']:>8,} bars   {f} .. {l}")
+        li = listings.get(r["symbol"])
+        flag = ""
+        if li and (li["status"] != "online" or li["trading_disabled"]):
+            flag = f"   {li['status'].upper()}"
+        print(f"  {r['symbol']:<12}{r['bars']:>8,} bars   {f} .. {l}{flag}")
     if not rows:
         print("  nothing loaded yet — run with --load")
+    gone = [s for s, li in listings.items()
+            if li["status"] != "online" or li["trading_disabled"]]
+    if gone:
+        print(f"\n  {len(gone)} pair(s) no longer trading: {', '.join(sorted(gone))}")
+        print("  Their history is kept. A backtest that silently drops them")
+        print("  measures only the pairs that survived — which is the bias the")
+        print("  equity side spends 114 Internet Archive snapshots fighting.")
     print("\n  A bar is a session: a signal from a bar's close fills at the")
     print("  NEXT bar's open. bar_seconds travels with every row, because a")
     print("  strategy backtested on 1h and run on 1d is two strategies.\n")
