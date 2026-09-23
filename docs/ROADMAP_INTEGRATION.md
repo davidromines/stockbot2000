@@ -378,7 +378,7 @@ edit to `config.yaml`, deliberately outside this code.
 | 27 | Valuation engine, industry-aware | **done** — `valuation.py` |
 | 28 | Intrinsic-value models | **done** — `intrinsic.py` |
 | 29 | Value score and watchlist (experiment) | **done** — `value_score.py`, registered |
-| 30 | Value Fund architecture, paper only | not started |
+| 30 | Value Fund architecture, paper only | **done 2026-09-23** — `value_fund.py`, quarterly review, daily mark |
 
 **Statement coverage is uneven and that is a data fact, not a bug.** Measured
 across 400 companies:
@@ -454,10 +454,10 @@ component says so in its own output rather than leaving the reader to infer it.
 
 | | item | state |
 |---:|---|---|
-| 38 | Crypto market data into its own table | not started |
-| 39 | Decide the session and fill convention explicitly | not started |
+| 38 | Crypto market data into its own table | **done** — `crypto_data.py`, 171,654 hourly bars, listing status recorded |
+| 39 | Decide the session and fill convention explicitly | **done** — a bar is a session; fill at the next bar's open |
 | 40 | Crypto paper fund, separate from the equity league | not started |
-| 41 | Crypto strategies via the research library | not started |
+| 41 | Crypto strategies via the research library | **done** — `crypto_grid.py`; grid-DCA 0 of 10 beat the null after fees |
 | 42 | Crypto order slate — human places | not started |
 
 Spec in `docs/PHASE12_CRYPTO_FUND.md`. Execution runs through the existing
