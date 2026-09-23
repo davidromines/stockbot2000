@@ -456,9 +456,9 @@ component says so in its own output rather than leaving the reader to infer it.
 |---:|---|---|
 | 38 | Crypto market data into its own table | **done** — `crypto_data.py`, 171,654 hourly bars, listing status recorded |
 | 39 | Decide the session and fill convention explicitly | **done** — a bar is a session; fill at the next bar's open |
-| 40 | Crypto paper fund, separate from the equity league | not started |
+| 40 | Crypto paper fund, separate from the equity league | **done 2026-09-23** — `crypto_fund.py`, one engine with the backtest, forward-only |
 | 41 | Crypto strategies via the research library | **done** — `crypto_grid.py`; grid-DCA 0 of 10 beat the null after fees |
-| 42 | Crypto order slate — human places | not started |
+| 42 | Crypto order slate — human places | **done 2026-09-23** — `crypto_orders.py`, crypto adapters, crypto risk floors |
 
 Spec in `docs/PHASE12_CRYPTO_FUND.md`. Execution runs through the existing
 risk engine, kill switches and order state machine, with a crypto broker
