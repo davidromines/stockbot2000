@@ -26,13 +26,32 @@ fail=0
 # A failing stage must not abort the ones after it. Losing today's delisting
 # record because Yahoo rate-limited the price pull would be the worst possible
 # trade, and these stages are independent.
+# Every stage is timed and recorded against its compute-priority tier, so the
+# question "are we spending the majority of compute on search while the data
+# problem is unresolved" has an answer rather than an opinion. Phase 6 s28.
 run() {
     local label="$1"; shift
     say "$label"
+    # Find the script being run rather than assuming its position. Taking
+    # argument 2 blindly recorded an EMPTY stage name for anything invoked as
+    # `python -c`, and a compute log full of blanks answers no question.
+    local stage="unknown"
+    local a
+    for a in "$@"; do
+        case "$a" in
+            *.py|*.sh) stage="$(basename "$a")"; break ;;
+        esac
+    done
+    local t0=$SECONDS
+    local ok=1
     if ! "$@"; then
         say "FAILED: $label (continuing — later stages are independent)"
         fail=1
+        ok=0
     fi
+    local elapsed=$(( SECONDS - t0 ))
+    # Best-effort: accounting must never be the reason a capture fails.
+    $PY compute_priority.py --record "$stage" "$elapsed" >/dev/null 2>&1 || true
 }
 
 say "Daily capture starting"
@@ -108,6 +127,15 @@ $PY multiple_testing.py --snapshot --note "daily" >/dev/null 2>&1 || true
 # fatal — a calibration that failed to grow tonight costs nothing, and blocking
 # the price capture over it would cost a day of delistings permanently.
 $PY random_control.py --run 25 >/dev/null 2>&1 || true
+
+# --- the research loop (Phase 11 item 35) -------------------------------
+# Each of these reports; none of them acts. stop_conditions can say DO NOT
+# SEARCH, which is a legitimate output and is why it runs before anything
+# that would search.
+$PY stop_conditions.py > data/stop_conditions.txt 2>/dev/null || true
+$PY roster.py --plan > data/roster_plan.txt 2>/dev/null || true
+$PY live_pipeline.py --build > /dev/null 2>&1 || true
+$PY compute_priority.py > data/compute_spend.txt 2>/dev/null || true
 
 run "[10/10] Backup" $PY backup.py
 
