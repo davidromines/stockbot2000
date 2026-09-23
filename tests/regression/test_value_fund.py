@@ -15,10 +15,17 @@ alternative produces plausible-looking output that is wrong:
     records nothing. Marking the rest would report a fund that never loses on
     the names it can no longer see.
 
+A fifth was added later: the quarterly review gate. REVIEW_DAYS was declared
+and never read, so review() ran whenever it was called; wired into a daily
+pipeline that rebalances a quarterly fund every morning. review_due() now
+gates it, and the boundary is tested at exactly REVIEW_DAYS because an
+off-by-one there is invisible until the fund has churned for a year.
+
 Run directly:  PYTHONPATH=. venv/bin/python tests/regression/test_value_fund.py
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import ast
+import datetime as dt
 import inspect
 import json
 import os
@@ -77,6 +84,17 @@ def add_position(conn, ticker, opened_on, entry_price, shares,
          thesis if thesis is not None else json.dumps({"composite": score_at_entry}),
          score_at_entry))
     conn.commit()
+
+
+def set_last_review(conn, date):
+    """Set last_review directly; review() is not exercised by these checks."""
+    conn.execute("UPDATE value_fund SET last_review=? WHERE name=?",
+                 (date, value_fund.FUND))
+    conn.commit()
+
+
+def days_before(as_of, n):
+    return (dt.date.fromisoformat(as_of) - dt.timedelta(days=n)).isoformat()
 
 
 def source_of(module):
@@ -335,6 +353,92 @@ def test_render_without_a_fund():
     conn.close()
 
 
+def test_review_due_without_a_fund():
+    conn = fresh_conn()
+    value_fund.init(conn)
+    due, why = value_fund.review_due(conn, "2026-01-02")
+    check("review_due is not due when no fund row exists", due is False,
+          f"got {due!r}")
+    check("review_due explains the missing fund", "no value fund" in why,
+          f"got {why!r}")
+    conn.close()
+
+
+def test_review_due_first_review():
+    conn = fresh_conn()
+    value_fund.open_fund(conn, capital=100.0, as_of="2026-01-02")
+    due, why = value_fund.review_due(conn, "2026-01-02")
+    check("review_due is due when last_review is NULL", due is True,
+          f"got {due!r}")
+    check("review_due calls the first review the first review",
+          "first review" in why, f"got {why!r}")
+    conn.close()
+
+
+def test_review_due_not_due_at_30_days():
+    conn = fresh_conn()
+    value_fund.open_fund(conn, capital=100.0, as_of="2026-01-02")
+    set_last_review(conn, days_before("2026-04-02", 30))
+    due, why = value_fund.review_due(conn, "2026-04-02")
+    check("review_due is not due 30 days after the last review", due is False,
+          f"got {due!r}")
+    check("review_due reports the days remaining", "next due in" in why,
+          f"got {why!r}")
+    conn.close()
+
+
+def test_review_due_boundary_at_review_days():
+    conn = fresh_conn()
+    value_fund.open_fund(conn, capital=100.0, as_of="2026-01-02")
+    as_of = "2026-04-02"
+    # Exactly REVIEW_DAYS is due: the gate is `age >= REVIEW_DAYS`, and a
+    # strict `>` would silently delay every review by a day forever.
+    set_last_review(conn, days_before(as_of, value_fund.REVIEW_DAYS))
+    due, why = value_fund.review_due(conn, as_of)
+    check("review_due is due at exactly REVIEW_DAYS", due is True,
+          f"got {due!r}")
+    check("review_due reports the age at the boundary",
+          str(value_fund.REVIEW_DAYS) in why, f"got {why!r}")
+    conn.close()
+
+
+def test_review_due_not_due_one_day_short():
+    conn = fresh_conn()
+    value_fund.open_fund(conn, capital=100.0, as_of="2026-01-02")
+    as_of = "2026-04-02"
+    set_last_review(conn, days_before(as_of, value_fund.REVIEW_DAYS - 1))
+    due, why = value_fund.review_due(conn, as_of)
+    check("review_due is not due one day short of REVIEW_DAYS", due is False,
+          f"got {due!r}")
+    check("review_due reports one day remaining",
+          "next due in 1" in why, f"got {why!r}")
+    conn.close()
+
+
+def test_review_days_is_actually_read():
+    src = source_of(value_fund)
+    tree = ast.parse(src)
+    # A constant that is declared and never read is exactly the bug this task
+    # exists to fix, so assert on the AST rather than on the source text: a
+    # mention in a docstring or a comment is not a read.
+    reads = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Name) and n.id == "REVIEW_DAYS"
+             and isinstance(n.ctx, ast.Load)]
+    check("REVIEW_DAYS is read somewhere in the module", len(reads) > 0,
+          "declared but never read")
+    check("REVIEW_DAYS is read inside review_due",
+          any(isinstance(n, ast.FunctionDef) and n.name == "review_due"
+              and any(isinstance(x, ast.Name) and x.id == "REVIEW_DAYS"
+                      and isinstance(x.ctx, ast.Load)
+                      for x in ast.walk(n))
+              for n in ast.walk(tree)),
+          "review_due does not consult REVIEW_DAYS")
+    check("REVIEW_DAYS is a positive number of days",
+          isinstance(value_fund.REVIEW_DAYS, int)
+          and value_fund.REVIEW_DAYS > 0,
+          f"got {value_fund.REVIEW_DAYS!r}")
+
+
 def main():
     print("\n  test_value_fund.py — Stockbot Value Fund regression\n")
     test_open_fund()
@@ -350,6 +454,12 @@ def main():
     test_status_with_no_positions()
     test_render_flags_unrankable()
     test_render_without_a_fund()
+    test_review_due_without_a_fund()
+    test_review_due_first_review()
+    test_review_due_not_due_at_30_days()
+    test_review_due_boundary_at_review_days()
+    test_review_due_not_due_one_day_short()
+    test_review_days_is_actually_read()
     print(f"\n  {PASSED} passed, {FAILED} failed\n")
     return 1 if FAILED else 0
 
