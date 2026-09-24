@@ -182,6 +182,10 @@ run "[9e/10] Discovery plan" $PY discovery.py --plan
 run "[9f/10] Factory pipeline" bounded $PY factory_pipeline.py --run --budget 12
 run "[9g/10] League standings" $PY leagues.py --standings --record
 run "[9h/10] Factory report" $PY factory_report.py
+# Addendum A §26 / I10: the formal five-slot reassessment, once per trading
+# day, after every strategy's evidence is updated. SIMULATION: it records
+# assignments and releases; the intraday trader (services.sh) acts on them.
+run "[9i/10] Slot reassessment" $PY slots.py --apply --mode SIMULATION --leaderboard
 
 $PY build_dashboard.py >/dev/null 2>&1 || true
 
