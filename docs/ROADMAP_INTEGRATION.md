@@ -25,9 +25,9 @@ describe what was built; these describe where it goes.
 | 11 | Continuous Research Loop | **built** — Stage F |
 | 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **built 2026-09-24 (H1-H15), in daily.sh** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
-| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24 in SIMULATION/SHADOW; LIVE arming is the user's** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
+| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24; LIVE armed by the owner 2026-09-24 15:39 UTC (real orders, Agentic account)** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
-| C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.771), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
+| C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.768; v4 written 2026-09-24, not yet scored), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
 ---
 
@@ -697,7 +697,7 @@ Benchmarks and the null are informational, never promotion gates (B20).
 
 ---
 
-**Stage J — Addendum C (revision 2): survivorship-bias-free universe reconstruction** — entered 2026-09-24, **BUILT 2026-09-24 (stages 1-5) on the recommended answer to each question below, under the user's instruction to build every roadmap item. Each answer is a config value; change it and rebuild.** Results: Layer A ~8,000 companies alive per year; 7,618 synthetic dead companies; discriminability AUC 0.771 (gate 0.60 — fails, so retest-only); 12-1 momentum 23.3% -> 19.0% -> 14.3% CAGR (our data / with synthetic / every death a total loss).
+**Stage J — Addendum C (revision 2): survivorship-bias-free universe reconstruction** — entered 2026-09-24, **BUILT 2026-09-24 (stages 1-5) on the recommended answer to each question below, under the user's instruction to build every roadmap item. Each answer is a config value; change it and rebuild.** Results: Layer A ~8,000 companies alive per year; 7,618 synthetic dead companies; discriminability AUC 0.768 (gate 0.60 — fails, so retest-only); 12-1 momentum 23.3% -> 19.0% -> 14.3% CAGR (our data / with synthetic / every death a total loss).
 
 Spec verbatim in `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`. Revision 1 narrowed
 the request to S&P 500 delisting returns; the scope is the full US equity
