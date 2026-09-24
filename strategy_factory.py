@@ -7,6 +7,15 @@ SMALL fixed parameter grid. Templates, not search — the frozen evolutionary
 search stays frozen (B16), and a grid of at most a handful of points per
 family is what keeps combinations from exploding (§4B).
 
+**The freeze boundary.** Template generation is a separate governed path, not
+an exemption from the freeze: `search.mode: FROZEN` governs evolve.py, and
+lifting it stays a human edit to config.yaml. No factory output may enter the
+evolutionary population — evolve.py, genome.py's seeding, seeds.py and
+lab_loop.sh read nothing from strategy_meta, research_queue or this module.
+If that ever changes, the freeze applies at that boundary.
+tests/regression/test_freeze_boundary.py fails the gate if any of them
+starts referencing the factory.
+
 A family whose data does not exist point-in-time here is still generated as a
 fully specified object, marked `data_available: False` with the reason. The
 pipeline records DATA_PROBLEM for it instead of dropping it, so the gap stays
