@@ -704,6 +704,48 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
     return _read_downcast(conn, sql, params, feature_cols)
 
 
+FUNDAMENTAL_PANEL_COLS = ("piotroski_f", "book_to_market", "gross_profitability",
+                          "chs_distress", "asset_growth", "accruals", "roa",
+                          "earnings_yield", "net_share_issuance", "debt_to_equity",
+                          "cash_to_assets", "altman_z")
+
+
+def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
+                        cols=FUNDAMENTAL_PANEL_COLS) -> "pd.DataFrame":
+    """
+    Join point-in-time fundamentals onto a (ticker, date) frame.
+
+    `daily_fundamentals` is already lagged to the first session each filing was
+    tradeable, so an exact (ticker, date) join is point-in-time by
+    construction. A missing row stays NaN — never zero: a company with no
+    filing is not a company with zero earnings. One loader for backtest and
+    paper trading, so a fundamental rule sees the same columns in both; a
+    genome reading a column the frame lacks evaluates to NaN and never fires,
+    which is indistinguishable from "no signal today".
+    """
+    import pandas as pd
+    if df.empty:
+        return df
+    lo, hi = str(df["date"].min())[:10], str(df["date"].max())[:10]
+    tickers = df["ticker"].astype(str).unique().tolist()
+    parts = []
+    for i in range(0, len(tickers), 900):
+        chunk = tickers[i:i + 900]
+        ph = ",".join("?" * len(chunk))
+        parts.append(pd.read_sql_query(
+            f"SELECT ticker, date, {', '.join(cols)} FROM daily_fundamentals "
+            f"WHERE date BETWEEN ? AND ? AND ticker IN ({ph})", conn, params=(lo, hi, *chunk)))
+    f = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=["ticker", "date", *cols])
+    for c in cols:
+        f[c] = pd.to_numeric(f[c], errors="coerce").astype("float32")
+    left = df.copy()
+    left["_d"] = left["date"].astype(str).str[:10]
+    left["_t"] = left["ticker"].astype(str)
+    f = f.rename(columns={"date": "_d", "ticker": "_t"})
+    out = left.merge(f, on=["_t", "_d"], how="left").drop(columns=["_t", "_d"])
+    return out
+
+
 def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
                      end_date: str) -> "pd.DataFrame":
     """

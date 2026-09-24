@@ -185,6 +185,9 @@ def _recent_frame(conn, cfg: dict):
         min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True)
     if not df.empty:
+        # Fundamental genomes (strategy factory) read daily_fundamentals
+        # columns; without them they would silently never fire.
+        df = storage.attach_fundamentals(conn, df)
         df = df.sort_values(["ticker", "date"])
     _FRAME["df"] = df
     return df
