@@ -1,0 +1,1 @@
+test_max_dd (line ~106) and any other fixture inserting into paper_runs / paper_equity fails with 'no such table: paper_runs'. Create those tables by calling paper_trading.init(conn) in the fixture (import paper_trading) instead of assuming they exist. Everything before test_max_dd passed; keep it unchanged.
