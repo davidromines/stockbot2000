@@ -81,11 +81,17 @@ is a config value under `universe_reconstruction:` — change them there).
 `universe_layer_a.py` (Layer A, 1996-2024), `universe_cohorts.py`,
 `universe_synthetic.py` (v3), `universe_loader.py` (five modes),
 `universe_validate.py`. Store: `data/universe/` only, never `prices`.
-**The generator FAILS the discriminability gate (AUC 0.771, merger-only
-0.744, vs < 0.60; v1 0.987)**, so synthetic rows are for retests and stress
+**The generator FAILS the discriminability gate (AUC 0.768, merger-only
+0.737, vs < 0.60; v1 0.987)**, so synthetic rows are for retests and stress
 bounds only. Sensitivity, 12-1 momentum 2009-2024: 23.3% CAGR on our data,
-19.0% with synthetic dead companies, 14.3% if every unpriced death was a total
-loss. Synthetic deaths
+18.9% with synthetic dead companies, 13.2% if every unpriced death was a total
+loss. Synthetic share of the priced universe peaks at 52% (2016).
+
+**Ticker reuse trap (fixed in Layer A):** matching a dead company by ticker
+attaches it to whoever holds the ticker TODAY and credits it with the
+successor's prices. 426 of 676 "real dead" companies were impostors. Any
+ticker match must agree with the company's own dates; a record owns a
+ticker's prices only if they end near its own end. Real dead sample: 158. Synthetic deaths
 concentrate after 2008 because listing evidence starts there; the 1996-2007
 hole is mostly EDGAR-only filers, excluded by default.
 
