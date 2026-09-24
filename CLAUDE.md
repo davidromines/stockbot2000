@@ -25,6 +25,126 @@ betting), which is a different system entirely.
 
 ## Current state — READ THIS FIRST
 
+### SESSION HANDOFF — 2026-09-24 (start here in a new session)
+
+**What the user wants now:** build Phase 13 (Strategy Factory, research engine)
+then Addendum A (autonomous 5-slot trading engine), as ordered by Addendum B
+(`docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md`, "BUILD NOW", don't stop to ask
+between steps). Delegate what is reasonable to DeepSeek via ADO to save Claude
+tokens. The user dislikes: deviating from the written plan's order,
+re-litigating automation caveats, stale trackers, and results reported without
+gross / costs / net side by side.
+
+**Build status — Phase 13 (Stage H in `docs/ROADMAP_INTEGRATION.md`)**
+
+| step | state | where |
+|---|---|---|
+| H1 audit | done | `docs/PHASE13_ARCHITECTURE_MAP.md` |
+| H2 accounting | done | `accounting.py` (liquidation basis, `fund_accounting` table, reconciliation); paper-engine fixes in `paper_trading.py` |
+| H3 object model + lifecycle + factory | done | §14 states added to `league.py`; `strategy_objects.py`; `strategy_factory.py` (40 families, 229 objects) |
+| H4 research library | done | `library_bridge.py`, `research_queue.py` (27 of 40 entries -> 244 linked objects) |
+| H5 fundamental factory | done | fundamental families in `strategy_factory.py`; `storage.attach_fundamentals()` |
+| H6 FINSABER / providers | done, **data not downloaded** | `data_providers.py`, `finsaber.py` — the ~253 MB download needs the user's explicit yes |
+| H7 cross-dataset validation | done | `dataset_compare.py` |
+| H8 leagues | done | `leagues.py`, `leagues:` + `league_families:` in config |
+| H9 discovery | done | `discovery.py` (priority, budgets, failure_log, recycling) |
+| H10 robustness | done | `robustness.py` |
+| H11-H13 pipeline | done | `factory_pipeline.py`; first run: 2 value+quality strategies reached PAPER, 2 momentum+volume rejected out of sample |
+| H14 report + scoreboard | **WIP on branch `ado/task-021`, not merged** | `factory_report.py` — 3 defects listed in that branch's commit message; fix, then `./ado_ship.sh TASK-021` |
+| H15 end-to-end test | not started | |
+| daily.sh wiring | **only accounting added** (`[9b/10]`) | factory stages not yet in the daily loop — see next steps |
+| unit tests for H3-H13 | **none yet** | only `tests/regression/test_accounting.py` exists |
+
+**Addendum A (Stage I, I1-I14): not started.** Order: slot model, slot
+allocation, replacement engine, P&L leaderboard, mandatory stop plans,
+intraday monitor, intraday signals, live execution/reconciliation, kill
+switches, daily reassessment, always-on services, account-rule guard,
+reporting, SIMULATION -> SHADOW -> LIVE. Real-money activation is the user's
+step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
+`execution.py`, `live_pipeline.py` — never a competing execution layer (B13).
+
+**Waiting on the user**
+
+1. Robinhood Agentic account type — cash or margin (B12; drives day-trade and
+   settled-cash rules). Build the abstraction anyway, configurable.
+2. FINSABER download go-ahead (~253 MB, huggingface finsaber-team/FINSABER-reproduce).
+3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
+   **do not build** until the user answers the 8 questions in Stage J. It is
+   full-US-universe reconstruction with tagged synthetic price paths — NOT
+   S&P 500 delisting returns (revision 1 got that wrong). Feasible free scope
+   is 1996-2024.
+
+**Next steps, in order**
+
+1. Fix the 3 TASK-021 defects on `ado/task-021`, ship it.
+2. Wire the factory into `daily.sh` after accounting: `library_bridge.py
+   --sync`, `strategy_factory.py --generate`, `discovery.py --plan`,
+   `factory_pipeline.py --run --budget 12` (through `./run_bounded.sh`),
+   `leagues.py --standings --record`, `factory_report.py`.
+3. Delegate unit tests (strategy_objects, discovery, leagues, robustness,
+   factory_pipeline) to DeepSeek; then H15 end-to-end test.
+4. Addendum A, I1 onward.
+5. Refresh the published trackers: the Build Record
+   (https://claude.ai/artifact/TWJYcQ4WCmRAQqs6SfAB2F) is stale since 09-22 —
+   the user asked for it to be updated and it never was. The Roadmap page
+   (https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo, source
+   `docs/artifacts/roadmap_page.html`) is current through Addendum C rev 2 but
+   still shows Phase 13 steps as "not started". Status dashboard:
+   https://claude.ai/artifact/JVo9dV1QbQqpGvM7JKHsbp.
+
+**Findings from this session that change numbers elsewhere**
+
+- **Restated P&L (accounting v1):** 23 simulated funds net **-$49.59** (gross
+  -$41.19, costs -$8.40), not the -$4.52 the engines' own curves implied. The
+  paper engine had marked positions with no bar at ENTRY price and, in 11
+  funds, let a repeated step overwrite held positions (cash drift). Both fixed;
+  originals kept, restatements alongside. The user-supplied figures are kept as
+  `reports/pnl_snapshot_2026-09-24_supplied.json`, marked superseded.
+- **Stop-width lead refuted** (experiment `stop_width`, COMPLETE): rising_200
+  loses net in all 30 stop x hold cells, 2006-2019; tight stops did no better.
+  Rising 200 funds are classified PROMISING / INSUFFICIENT EVIDENCE (§19).
+- **Signal decay** (`signal_decay.py`): within a date, the classifier's top
+  decile does not beat the bottom at any horizon; the pooled spread is timing
+  across dates, not stock selection.
+- **Fundamentals were on two scales**: `value_metrics.py` mixed a 10-Q's
+  quarterly flow with a 10-K's annual flow, so ROA / earnings yield jumped ~4x
+  after every 10-K. Now annualised; `fundamentals` and `daily_fundamentals`
+  rebuilt 2026-09-24. Conviction screens used the broken scale before that.
+- **Partial bars**: an intraday top-up stored 41 in-progress bars;
+  `backfill.completed_bars()` now drops anything dated today (New York time),
+  and the freshness gate fails on data newer than the market.
+- Phase 07 (costs, next-open fills, gap-through-stop) closed and re-measured:
+  classifier gross -$82.54 under next-open fills.
+
+**Gotchas that cost time this session**
+
+- **Run heavy jobs with `./run_bounded.sh`** (6 GB cap, own systemd scope).
+  An OOM inside Claude's scope killed the desktop app three times.
+- **ADO `implement` checks out the task branch in this working tree.** Commit
+  or stash before, `git checkout main` after. `./ado_ship.sh TASK-nnn` runs
+  review -> approve -> merge with the gate each time (under the memory cap).
+- **Never `git commit -a`** — it sweeps in daily-run outputs
+  (`backups/forward.sql.gz`, `reports/*`, `data/*.txt`). Add paths explicitly.
+- **DeepSeek output cap is 8,000 tokens**: ask for files under ~300 lines or
+  split the task, or the response truncates and nothing is written.
+- `league.versions()` and most league helpers need `conn.row_factory =
+  sqlite3.Row`.
+- Task specs: requirement items must be single lines (the task parser keeps
+  only the first line of a numbered item).
+
+**Commands**
+
+```bash
+./run_bounded.sh ./venv/bin/python accounting.py --report
+./run_bounded.sh ./venv/bin/python leagues.py --standings
+./run_bounded.sh ./venv/bin/python factory_pipeline.py --run --budget 4
+./venv/bin/python discovery.py --status
+./venv/bin/python strategy_factory.py --list
+./venv/bin/python orchestrator.py status
+./ado_ship.sh TASK-021
+./run_tests.sh
+```
+
 **The market database is built and complete** (2026-09-08): 35.4M price bars across
 13,121 instruments back to 1962, plus 33.8M feature rows. Details under Storage
 model. Phases 01-05 are done; phase 06 is at 90%.
@@ -387,6 +507,22 @@ hardcodes paths, thresholds or model parameters.
 |---|---|
 | `strategy_library.py` | Every strategy idea with provenance. `known_biases` and `limitations` are **required** fields. |
 | `factory.py` | Governed generation. Five gates before a genome is drawn. **Cannot unfreeze itself.** |
+
+### Phase 13 — the Strategy Factory (built 2026-09-24)
+| File | Role |
+|---|---|
+| `accounting.py` | **The authoritative P&L.** Liquidation basis for every fund; restated beside the original curves, never over them. |
+| `strategy_objects.py` | §13 metadata, metric snapshots and §37 decisions around the league identity. |
+| `strategy_factory.py` | 40 families as economic hypotheses with fixed small grids. Templates, not search. |
+| `research_queue.py` / `library_bridge.py` | The research queue; library entries -> linked strategy objects. |
+| `discovery.py` | What to test next: priority, budgets, failure records, recycling as new versions. |
+| `robustness.py` | §28 collapse tests and pre-defined SPY regimes. |
+| `factory_pipeline.py` | DISCOVERED -> ... -> PAPER -> QUALIFIED -> LIVE_CANDIDATE. Backtests admit, only forward evidence qualifies. |
+| `leagues.py` | Nine leagues, tiers per B11, evidence from accounting. |
+| `data_providers.py` / `finsaber.py` / `dataset_compare.py` | Provider interface, the FINSABER validation store, cross-dataset checks and survivorship tags. |
+| `signal_decay.py` | §20: decile spread by horizon, t-stat across dates. |
+| `data_dictionary.py` / `changelog.py` | Generate `docs/DATA_DICTIONARY.md` and `CHANGELOG.md`. |
+| `run_bounded.sh` / `ado_ship.sh` | Memory-capped job launcher; ADO review-approve-merge helper. |
 
 ### The daily loop and reporting
 | File | Role |
