@@ -218,6 +218,38 @@ def import_csv(conn: sqlite3.Connection, path: str, chunksize: int = 200_000) ->
     return stats
 
 
+# Symbols whose adjusted series jumps more than 50% in a day at least this many
+# times. FINSABER carries some symbols whose price alternates between two
+# levels day to day (CBE: $170 / $0.005, 761 times) — two securities under one
+# symbol, or a broken adjustment. Every bar is individually valid, so the
+# row-level filter above cannot see it; the pattern is only visible per series.
+# Found 2026-09-24 when a price-only momentum backtest gained 15 points a year
+# from FINSABER-only names. Flagged, never deleted: the rows stay on record.
+JUMP_PCT, MAX_JUMPS = 0.5, 3
+
+
+def flag_anomalies(conn: sqlite3.Connection) -> dict:
+    """(Re)compute finsaber_quality: one row per symbol, flagged when it has >= MAX_JUMPS big jumps."""
+    conn.execute("""CREATE TABLE IF NOT EXISTS finsaber_quality (
+        symbol TEXT PRIMARY KEY, bars INTEGER, big_jumps INTEGER, flagged INTEGER NOT NULL,
+        rule TEXT, computed_at TEXT)""")
+    d = pd.read_sql_query("SELECT symbol, adj_close FROM finsaber_prices ORDER BY symbol, date", conn)
+    d["r"] = d.groupby("symbol")["adj_close"].pct_change()
+    g = d.groupby("symbol")["r"].agg(bars="size", big=lambda s: int((s.abs() > JUMP_PCT).sum()))
+    rule = f">= {MAX_JUMPS} daily moves beyond {JUMP_PCT:.0%}"
+    rows = [(sym, int(r.bars), int(r.big), int(r.big >= MAX_JUMPS), rule, _now()) for sym, r in g.iterrows()]
+    conn.executemany("INSERT OR REPLACE INTO finsaber_quality VALUES (?,?,?,?,?,?)", rows)
+    conn.commit()
+    return {"symbols": len(rows), "flagged": sum(r[3] for r in rows), "rule": rule}
+
+
+def flagged(conn: sqlite3.Connection) -> set:
+    try:
+        return {s for (s,) in conn.execute("SELECT symbol FROM finsaber_quality WHERE flagged=1")}
+    except sqlite3.OperationalError:
+        return set()
+
+
 def _f(v):
     return None if v is None or pd.isna(v) else float(v)
 
@@ -287,10 +319,15 @@ class FinsaberProvider(dp.DataProvider):
             self.conn, params=params))
 
     def daily_bars(self, tickers: list | None, start: str, end: str) -> pd.DataFrame:
-        return self._bars(tickers, start, end, "close")
+        return self._clean(self._bars(tickers, start, end, "close"))
+
+    def _clean(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Drop symbols flagged by flag_anomalies — they are not one security's price."""
+        bad = flagged(self.conn)
+        return df[~df["ticker"].isin(bad)] if bad and len(df) else df
 
     def adjusted_bars(self, tickers: list | None, start: str, end: str) -> pd.DataFrame:
-        return self._bars(tickers, start, end, "adj_close")
+        return self._clean(self._bars(tickers, start, end, "adj_close"))
 
     def universe(self, on_date: str) -> list[str]:
         rows = self.conn.execute(
@@ -313,6 +350,7 @@ def main(argv=None) -> int:
                     help="CSV file to import")
     ap.add_argument("--db", default=DEFAULT_DB, help=f"SQLite file (default {DEFAULT_DB})")
     ap.add_argument("--status", action="store_true", help="print coverage and exit")
+    ap.add_argument("--quality", action="store_true", help="recompute the anomaly flags")
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -323,8 +361,15 @@ def main(argv=None) -> int:
             return 2
         conn = connect(args.db)
         stats = import_csv(conn, args.import_path)
+        stats["quality"] = flag_anomalies(conn)
         for k, v in stats.items():
             print(f"{k}: {v}")
+        conn.close()
+        return 0
+
+    if args.quality:
+        conn = connect(args.db)
+        print(flag_anomalies(conn))
         conn.close()
         return 0
 
