@@ -35,7 +35,7 @@ import pandas as pd
 
 import data_providers as dp
 
-SYNTH = "data/universe/synthetic_v2.parquet"
+SYNTH = "data/universe/synthetic_v3.parquet"
 MODES = ("exclude", "real_only", "as_is", "zero", "optimistic")
 COLUMNS = dp.BAR_COLUMNS + ["is_synthetic", "data_source"]
 

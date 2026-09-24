@@ -37,7 +37,7 @@ import universe_cohorts as uc
 import universe_loader as ul
 
 log = logging.getLogger("universe_validate")
-OUT = "data/universe/validation_v2.json"
+OUT = "data/universe/validation_v3.json"
 MAX_AUC = 0.60
 FEATS = ["vol", "skew", "kurt", "ac1", "ac1_abs", "max_dd", "final_60", "beta", "flat_share", "big_share"]
 

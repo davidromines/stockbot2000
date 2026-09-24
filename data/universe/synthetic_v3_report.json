@@ -1,0 +1,48 @@
+{
+ "companies": 7618,
+ "rows": 9713435,
+ "donors": 491,
+ "by_reason": {
+  "drawn:merger": 4157,
+  "drawn:performance": 3058,
+  "drawn:other": 363,
+  "merger": 19,
+  "performance": 21
+ },
+ "settings": {
+  "seed": 20260924,
+  "max_years": 10,
+  "block": 20,
+  "include_edgar_only": false,
+  "flat_share": [
+   0.0,
+   0.04
+  ],
+  "exit_prior": {
+   "performance": 0.4,
+   "merger": 0.55,
+   "other": 0.05
+  },
+  "delisting_return": {
+   "performance_nasdaq": [
+    -0.55,
+    0.15
+   ],
+   "performance_other": [
+    -0.3,
+    0.15
+   ],
+   "merger": [
+    0.01,
+    0.03
+   ],
+   "other": [
+    0.0,
+    0.0
+   ]
+  }
+ },
+ "cohort_artifact_sha256": "65253b07e3aa7e00d00fff8127234a59c992bccf38543c3934b6b76d32225f48",
+ "method": "donor_block_bootstrap_v3",
+ "sha256": "c4dea12db306495594b4d8ac600fcdc979631bd83d3c4b46e02c1698dcca0f31"
+}

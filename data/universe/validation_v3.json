@@ -1,0 +1,127 @@
+{
+ "built_at": "2026-09-24T07:52:28+00:00",
+ "discriminability": {
+  "auc": 0.771,
+  "max_auc": 0.6,
+  "passes": false,
+  "n_real": 491,
+  "n_synthetic": 1367,
+  "feature_importance": {
+   "max_dd": 0.214,
+   "beta": 0.15,
+   "vol": 0.128,
+   "skew": 0.122,
+   "final_60": 0.079,
+   "kurt": 0.075,
+   "ac1_abs": 0.073,
+   "ac1": 0.071,
+   "flat_share": 0.056,
+   "big_share": 0.032
+  },
+  "distributions": {
+   "vol": {
+    "real_median": 0.4067601031169102,
+    "synthetic_median": 0.3777069540033801,
+    "ks": 0.0777402163597275
+   },
+   "skew": {
+    "real_median": 0.4717877772062868,
+    "synthetic_median": 0.13025152188258077,
+    "ks": 0.18558783784790467
+   },
+   "kurt": {
+    "real_median": 5.613394979994117,
+    "synthetic_median": 3.7066016165844577,
+    "ks": 0.1771745106131285
+   },
+   "ac1": {
+    "real_median": -0.024989840732382567,
+    "synthetic_median": -0.028543877902015857,
+    "ks": 0.06807092403571535
+   },
+   "ac1_abs": {
+    "real_median": 0.09958865550327821,
+    "synthetic_median": 0.09430543126250776,
+    "ks": 0.0679636529960653
+   },
+   "max_dd": {
+    "real_median": -0.2950091417457512,
+    "synthetic_median": -0.4367153198693199,
+    "ks": 0.22105879495885716
+   },
+   "final_60": {
+    "real_median": 0.015080333019609649,
+    "synthetic_median": -0.03336801056399652,
+    "ks": 0.14464009821259638
+   },
+   "beta": {
+    "real_median": 0.790928069163278,
+    "synthetic_median": 0.7664288274918272,
+    "ks": 0.09116846469814388
+   },
+   "flat_share": {
+    "real_median": 0.01593625498007968,
+    "synthetic_median": 0.01593625498007968,
+    "ks": 0.058862003256867995
+   },
+   "big_share": {
+    "real_median": 0.00398406374501992,
+    "synthetic_median": 0.00398406374501992,
+    "ks": 0.1356546587663533
+   }
+  },
+  "previous_generator_auc": 0.978
+ },
+ "provenance": {
+  "every_synthetic_row_tagged": true,
+  "synthetic_rows_without_volume": true,
+  "real_rows_untouched": true,
+  "synthetic_rows": 9713435
+ },
+ "discriminability_merger_only": {
+  "auc": 0.744,
+  "passes": false,
+  "n_real": 491,
+  "n_synthetic": 1355,
+  "feature_importance": {
+   "skew": 0.182,
+   "max_dd": 0.175,
+   "beta": 0.159,
+   "vol": 0.125,
+   "final_60": 0.097,
+   "ac1_abs": 0.094,
+   "ac1": 0.056,
+   "flat_share": 0.053,
+   "kurt": 0.032,
+   "big_share": 0.027
+  }
+ },
+ "sensitivity_12_1_momentum": {
+  "exclude": {
+   "months": 191,
+   "cagr": 0.2327,
+   "mean_monthly": 0.02
+  },
+  "real_only": {
+   "months": 191,
+   "cagr": 0.2301,
+   "mean_monthly": 0.0198
+  },
+  "as_is": {
+   "months": 191,
+   "cagr": 0.1898,
+   "mean_monthly": 0.0164
+  },
+  "zero": {
+   "months": 191,
+   "cagr": 0.1427,
+   "mean_monthly": 0.0131
+  },
+  "optimistic": {
+   "months": 191,
+   "cagr": 0.1902,
+   "mean_monthly": 0.0164
+  }
+ },
+ "verdict": "synthetic rows are for retests and stress bounds ONLY (fails the discriminability gate)"
+}

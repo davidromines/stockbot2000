@@ -58,12 +58,17 @@ import pandas as pd
 import universe_cohorts as uc
 
 log = logging.getLogger("universe_synthetic")
-OUT = "data/universe/synthetic_v2.parquet"
+OUT = "data/universe/synthetic_v3.parquet"
 # v2 (2026-09-24): no-change days. Real dead companies are often illiquid —
 # 1.6% of their days close unchanged (median) — and v1 had none, which alone let
 # a classifier separate the two at AUC 0.987 (Stage 5). Each path now gets a
 # flat-day share drawn from `flat_share` and closes unchanged on those days.
-METHOD = "residual_block_bootstrap_v2"
+# v3 (2026-09-24): beta, total volatility, flat-day share and residual blocks are
+# drawn JOINTLY from one real donor company, instead of independently and
+# uniformly within the cohort's interquartile range (v2 AUC 0.903: too narrow a
+# spread, and the joint structure lost). Idiosyncratic volatility is set so the
+# TOTAL volatility matches the donor's, not added on top of the market's.
+METHOD = "donor_block_bootstrap_v3"
 DEFAULTS = {
     "seed": 20260924, "max_years": 10, "block": 20, "include_edgar_only": False,
     "flat_share": [0.0, 0.04],
@@ -92,7 +97,7 @@ def targets(layer_a: pd.DataFrame, s: dict) -> pd.DataFrame:
 
 
 def donor_residuals(conn, sample: pd.DataFrame, spy: pd.Series) -> list:
-    """Real residual series (r - beta*SPY) from real dead companies, standardised to unit daily vol."""
+    """Per real dead company: standardised residuals plus its beta, total daily vol and flat-day share."""
     fconn = sqlite3.connect("file:data/finsaber.db?mode=ro", uri=True) if os.path.exists("data/finsaber.db") else None
     out = []
     spy_r = spy.pct_change()
@@ -103,11 +108,13 @@ def donor_residuals(conn, sample: pd.DataFrame, spy: pd.Series) -> list:
         if len(j) < 120:
             continue
         b = r.beta if r.beta is not None and np.isfinite(r.beta) else 1.0
-        e = (j.iloc[:, 0] - b * j.iloc[:, 1]).to_numpy()
+        raw = j.iloc[:, 0].to_numpy()
+        e = raw - b * j.iloc[:, 1].to_numpy()
         e = e[np.isfinite(e)]
         e = np.clip(e, -0.5, 0.5)
         if e.std() > 0:
-            out.append((e - e.mean()) / e.std())
+            out.append({"e": (e - e.mean()) / e.std(), "beta": float(b),
+                        "vol": float(np.std(raw[-252:])), "flat": float((np.abs(raw[-252:]) < 1e-6).mean())})
     if fconn:
         fconn.close()
     return out
@@ -144,21 +151,24 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
         tag = f"drawn:{reason}"
     div = uc.division(company.get("sic"))
     cohort, level = uc.lookup(art, company.get("delisting_reason") or "unknown", div, "unknown")
-    beta = float(np.clip(_draw_dist(rng, cohort.get("beta"), "p25", "p75", 1.0), 0.0, 2.5))
-    vol = float(np.clip(_draw_dist(rng, cohort.get("ann_vol"), "p25", "p75", 0.4), 0.1, 2.0)) / np.sqrt(252)
+    donor = donors[rng.integers(len(donors))]
+    beta = float(np.clip(donor["beta"], -0.5, 3.0))
+    m_var = float(np.nanvar(spy.pct_change().reindex(spy.index[-2520:]).to_numpy()))
+    vol = float(np.sqrt(max(donor["vol"] ** 2 - beta ** 2 * m_var, (0.2 * donor["vol"]) ** 2)))
 
     n = len(dates)
     e = []
+    d = donor["e"]
     while len(e) < n:
-        d = donors[rng.integers(len(donors))]
         if len(d) <= s["block"]:
+            d = donors[rng.integers(len(donors))]["e"]
             continue
         i = rng.integers(len(d) - s["block"])
         e.extend(d[i:i + s["block"]])
     e = np.asarray(e[:n]) * vol
     m = spy.pct_change().reindex(dates).fillna(0.0).to_numpy()
     r = beta * m + e
-    flat = rng.random(n) < rng.uniform(*s["flat_share"])
+    flat = rng.random(n) < donor["flat"]
     r[flat] = 0.0
     e[flat] = 0.0
 
@@ -205,7 +215,7 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     else:
         dret = None
     df["is_synthetic"] = True
-    df["data_source"] = "synthetic_v2"
+    df["data_source"] = "synthetic_v3"
     df["cohort_id"] = f"{level}:{company.get('delisting_reason') or 'unknown'}|{div}"
     df["generation_method"] = METHOD
     df["synthetic_reason"] = tag
@@ -254,7 +264,7 @@ def build(conn, cfg: dict) -> dict:
     rep = {"companies": n_co, "rows": n_rows, "donors": len(donors), "by_reason": reasons,
            "settings": s, "cohort_artifact_sha256": art["sha256"], "method": METHOD,
            "sha256": hashlib.sha256(open(OUT, "rb").read()).hexdigest() if n_rows else None}
-    json.dump(rep, open("data/universe/synthetic_v2_report.json", "w"), indent=1, default=str)
+    json.dump(rep, open("data/universe/synthetic_v3_report.json", "w"), indent=1, default=str)
     return rep
 
 
