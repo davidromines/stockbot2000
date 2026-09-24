@@ -639,6 +639,7 @@ hardcodes paths, thresholds or model parameters.
 | `leagues.py` | Nine leagues, tiers per B11, evidence from accounting. |
 | `data_providers.py` / `finsaber.py` / `dataset_compare.py` | Provider interface, the FINSABER validation store, cross-dataset checks and survivorship tags. |
 | `signal_decay.py` | §20: decile spread by horizon, t-stat across dates. |
+| `phase6_report.py` | Phase 6 §31: the final report and §30 checklist, built from the database and a test run. |
 | `baselines.py` | Phase 6 §16: each forward fund vs cash, SPY, its index ETF, the matched-universe null and same-size random portfolios. |
 | `regimes.py` | Phase 6 §21: predefined regimes (SPY bull/bear, vol, crisis + 3-month T-bill high/low at a fixed 2.0%), the `rates` table, and forward P&L by regime. |
 | `model_calibration.py` | Phase 6 §19: ranking skill, calibration (Brier, log loss, ECE), economic value and net return by fixed confidence band — four questions, answered separately. |
@@ -1250,10 +1251,15 @@ call the broker.
 
 ---
 
-## Phase 6: Research integrity & independent validation — PLANNED 2026-09-22
+## Phase 6: Research integrity & independent validation — BUILT 2026-09-22/24
 
 **The new project direction.** Specification reproduced verbatim in
-`docs/PHASE6_RESEARCH_INTEGRITY.md`; roadmap phase 15. **Nothing implemented.**
+`docs/PHASE6_RESEARCH_INTEGRITY.md`; roadmap phase 15. **Built**: Stage A in
+`docs/ROADMAP_INTEGRATION.md`, finished 2026-09-24 with baselines (§16),
+calibration (§19), rate regimes (§21), `case_studies/TNON.md` (§24),
+`docs/RESEARCH_METHODOLOGY.md` + `docs/EXPERIMENT_PROTOCOL.md` (§29) and
+`phase6_report.py` (§31). **The §31 report has not been run yet** — it needs
+the VM's database: `./run_bounded.sh ./venv/bin/python phase6_report.py`.
 
 All existing systems integrate into this direction. Its premise is the project's
 own record: the system has repeatedly produced apparent edges that were later

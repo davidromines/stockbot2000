@@ -359,15 +359,16 @@ Five questions are open and listed at the end of that document, including
 whether to extend this project or fork a new tree, and what the system would
 trade given that nothing here has yet demonstrated an edge.
 
-### 15 · Research integrity & independent validation 🟡 mostly built 2026-09-22/23
+### 15 · Research integrity & independent validation ✅ built 2026-09-22/24
 **This is the new project direction.** Full specification, reproduced verbatim,
 in `PHASE6_RESEARCH_INTEGRITY.md`. Stage-by-stage status in
 `ROADMAP_INTEGRATION.md`. Built: freeze, ancestry, truth set, PIT universe, audits,
 freshness gate, sealed holdout, experiment registry, random control, multiple
-testing, integrity report, signal decay (§20). Not yet built: baseline portfolios
-(§16), calibration metrics (§19), regime analysis (§21), the TNON case study
-(§24), four of the §29 documents, and the §31 final report. The stop-width
-experiment (§13) is running.
+testing, integrity report, signal decay (§20), and on 2026-09-24 baseline
+portfolios (§16, `baselines.py`), calibration metrics (§19,
+`model_calibration.py`), regime analysis with rates (§21, `regimes.py`), the
+TNON case study (§24), the §29 documents and the §31 report generator
+(`phase6_report.py`). The stop-width experiment (§13) is COMPLETE: refuted.
 
 31 sections covering: freezing open-ended search, removing seed contamination and
 tracking strategy ancestry, an immutable versioned truth set, a point-in-time

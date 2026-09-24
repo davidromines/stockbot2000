@@ -17,7 +17,7 @@ describe what was built; these describe where it goes.
 
 | Phase | Name | Status |
 |---|---|---|
-| 6 | Research Integrity & Independent Validation | **mostly built** — Stage A done; §16, §19, §21, §24, §29 (4 docs), §31 outstanding |
+| 6 | Research Integrity & Independent Validation | **built 2026-09-24** — Stage A; §16, §19, §21, §24, §29, §31 finished 2026-09-24. `phase6_report.py` writes the §31 report and §30 checklist |
 | 7 | Continuous Strategy Laboratory & Paper Trading League | **built** — Stage B |
 | 8 | Continuous Strategy Discovery & Real-World Strategy Library | **built** — Stage C |
 | 9 | Fundamental Value Intelligence Engine | **built** — Stage D |
@@ -302,9 +302,12 @@ recommendation.
 | 10b | Model search separation (§19) | **done 2026-09-24** — `model_calibration.py`: AUC, Brier / log loss vs base rate, reliability + ECE, precision and gross/net return by fixed 10% band. Run on the VM to get the numbers |
 | 10c | Regime analysis (§21) | **done 2026-09-24** — `regimes.py`: rate regimes (FRED DGS3MO, fixed 2.0% line) added to robustness's SPY regimes; `--forward` breaks every forward fund's daily P&L down by regime. Definitions fixed in `config.yaml` `regimes:` |
 | 10d | TNON case study (§24) | **done 2026-09-24** — `case_studies/TNON.md`; `tests/regression/test_tnon.py` pins every route an equivalent name could take (no cap, sourced $3.5M cap, fallback failed or stale) and that a known $5B cap still passes |
+| 10e | Documentation (§29) | **done 2026-09-24** — `docs/RESEARCH_METHODOLOGY.md`, `docs/EXPERIMENT_PROTOCOL.md` added (`VALIDATION_FIREWALL.md`, `DATA_DICTIONARY.md` existed); README, ARCHITECTURE, PROJECT_STATUS, CHANGELOG updated |
+| 10f | Final phase report (§31) | **done 2026-09-24** — `phase6_report.py` -> `reports/phase6_report.md`, built from the database and a test run, with the §30 checklist mapped to evidence. Run it on the VM |
 
-Stage A is complete except the seed-free comparison, which is pre-registered
-and whose two arms are running. Nothing in Stage A produced a positive
+Stage A is complete (2026-09-24). The seed-free comparison ran both arms
+(2026-09-22) with n=1 per arm, so its fitness difference is not separable
+from run-to-run variance; that caveat is recorded with the result. Nothing in Stage A produced a positive
 result about any strategy, which is the expected outcome: it is scaffolding
 for honest measurement, not a source of edge.
 
@@ -532,8 +535,8 @@ components. Build order is the spec's §39, unchanged.
 | H15 | End-to-end test on a few representative strategies | §39.15, §40 | **done** 2026-09-24 `tests/e2e/e2e_factory.py` |
 
 *Phase 6 items this absorbs.* Phase 6 §16 (baseline portfolios) is covered by
-§30 here; §19 (XGBoost calibration) by §20; §21 (regime analysis) by H10. Phase
-6 §24 (TNON case study), §29 (docs) and §31 (final report) remain Phase 6 work.
+§30 here; §19 (XGBoost calibration) by §20; §21 (regime analysis) by H10. The
+Phase 6 remainder was finished on 2026-09-24 as items 10a-10f of Stage A.
 
 *Decisions to confirm before building* — each has a default the build will
 follow if nothing else is said:
