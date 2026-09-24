@@ -169,6 +169,7 @@ def _exit(conn, engine, mode, slot, pos, reason, reconciled, results):
 
 def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -> list:
     """Stops only (I6). Risk exits outrank any strategy HOLD (§17)."""
+    init(conn)
     results = [] if results is None else results
     import killswitch as ks
     why = ks.global_engaged()
@@ -250,6 +251,7 @@ def emergency(conn, cfg, mode: str, provider, why: str) -> list:
 
 def trade(conn, cfg, mode: str, provider) -> list:
     """At the open: exits, then entries (I8)."""
+    init(conn)
     import paper_trading as pt
     held = slots.current(conn, cfg)
     exits_by_slot, cands_by_slot = {}, {}
