@@ -153,8 +153,8 @@ $PY random_control.py --run 25 >/dev/null 2>&1 || true
 # SEARCH, which is a legitimate output and is why it runs before anything
 # that would search.
 $PY stop_conditions.py > data/stop_conditions.txt 2>/dev/null || true
-$PY roster.py --plan > data/roster_plan.txt 2>/dev/null || true
-$PY live_pipeline.py --build > /dev/null 2>&1 || true
+# roster.py / live_pipeline.py (the Phase 10 promotion path) were retired
+# 2026-09-24 by the owner: ranking.py + slots.py are the one promotion system.
 $PY compute_priority.py > data/compute_spend.txt 2>/dev/null || true
 # The Value Fund (Phase 9 item 30). Marked every morning so its forward record
 # accrues; reviewed only when a quarterly review is due — --if-due is what

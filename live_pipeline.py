@@ -1,4 +1,10 @@
 """
+RETIRED 2026-09-24 (owner's decision). The Phase 10 promotion path —
+promotion_policy.py, roster.py, allocation.py, live_pipeline.py — is replaced
+by ONE system: ranking.py scores every strategy and slots.py fills the five
+slots from it. Kept, with its tests, as the record of what applied before;
+daily.sh no longer runs it, and nothing trades from it.
+
 Roster to validated orders. Phase 10, item 34 — and it stops before the broker.
 
 The chain the spec draws is:

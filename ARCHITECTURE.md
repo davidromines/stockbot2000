@@ -54,10 +54,11 @@ Reads the forward record. Never writes to it.
 | `scoreboard.py` | Ranks strategies — and refuses to, below 60 equity marks |
 | `degradation.py` | Backtest vs forward return, per trade |
 | `eligibility.py` | Correlation, and the top-five-eligible rule |
-| `promotion_policy.py` | Readiness AND eligibility; both required |
-| `allocation.py` | Dollars per roster slot |
-| `roster.py` | Who joins, who leaves |
-| `live_pipeline.py` | Stops at order validation; never transmits |
+| `promotion_policy.py` | RETIRED 2026-09-24 — replaced by `ranking.py` + `slots.py` |
+| `allocation.py` | RETIRED 2026-09-24 |
+| `roster.py` | RETIRED 2026-09-24 |
+| `live_pipeline.py` | RETIRED 2026-09-24 |
+| `ranking.py` | The one ranking: backtest first, paper evidence takes over |
 | `slots.py` | Which strategies hold the five slots. Places no order |
 
 ## Execution layer (Addendum A)
