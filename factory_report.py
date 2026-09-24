@@ -13,6 +13,9 @@ from datetime import datetime, timedelta, timezone
 
 DASH = "\u2014"
 FORWARD_STATES = ("PAPER", "QUALIFIED", "LIVE_CANDIDATE", "LIVE", "DEMOTED")
+# strategy_metrics phases that measure a forward record. Backtest phases never fill a
+# forward row: a forward scoreboard showing backtest profit is the defect this guards.
+FORWARD_PHASES = ("paper", "forward", "live")
 BACKTESTED_OR_LATER = ("BACKTESTED", "VALIDATED", "PROMISING", "PAPER", "QUALIFIED",
                        "LIVE_CANDIDATE", "LIVE", "DEMOTED")
 
@@ -143,9 +146,11 @@ def scoreboard(conn):
     for (key, version), base in rows.items():
         meta = conn.execute("SELECT * FROM strategy_meta WHERE strategy_key=? AND version=?",
                             (key, version)).fetchone()
-        metrics = _latest_metrics(conn, key, version)
-        if base.get("evidence") == "backtest":
-            metrics = _latest_metrics(conn, key, version, ("validation",)) or metrics
+        if base.get("evidence") == "forward":
+            metrics = _latest_metrics(conn, key, version, FORWARD_PHASES)
+        else:
+            metrics = (_latest_metrics(conn, key, version, ("validation",))
+                       or _latest_metrics(conn, key, version))
         capital = capitals.get(str(key))
         net = base.get("net_usd")
         if net is None and metrics is not None:
@@ -182,7 +187,9 @@ def scoreboard(conn):
             "correlation": _num(metrics["correlation"]) if metrics else None,
             "data_quality": (metrics["data_quality_status"] if metrics and metrics["data_quality_status"]
                              else DASH),
-            "survivorship": (metrics["survivorship_status"] if metrics and metrics["survivorship_status"]
+            # A forward record is traded point-in-time, so it carries no survivorship bias.
+            "survivorship": ("forward" if base.get("evidence") == "forward"
+                             else metrics["survivorship_status"] if metrics and metrics["survivorship_status"]
                              else "UNKNOWN"),
             "confidence": _confidence(base.get("tier")),
             "evidence": base.get("evidence", "backtest"),
@@ -237,7 +244,11 @@ def daily_report(conn, days=1):
             failed.append({"strategy": row["strategy_key"], "version": row["version"],
                            "stage": row["stage"], "reason": row["reason"]})
 
-    new_enrolments = [k for k, s in states.items() if s == "PAPER"]
+    new_enrolments = []
+    if _table_exists(conn, "league_state"):
+        new_enrolments = [(r["strategy_key"], r["version"]) for r in conn.execute(
+            "SELECT DISTINCT strategy_key, version FROM league_state WHERE to_state='PAPER' AND at >= ?",
+            (start,))]
     leagues = {}
     for st in _latest_standings(conn):
         name = _unquote(st["league"]) or DASH
@@ -272,7 +283,7 @@ def daily_report(conn, days=1):
                    {"summary": "FINSABER comparison: not run yet"}
     else:
         finsaber = {"summary": "FINSABER comparison: not run yet"}
-    data_problems = _count(conn, "SELECT COUNT(*) FROM strategy_decisions WHERE decision='data_problem' "
+    data_problems = _count(conn, "SELECT COUNT(*) FROM strategy_decisions WHERE decision='DATA_PROBLEM' "
                                  "AND at >= ?", (start,)) if _table_exists(conn, "strategy_decisions") else 0
 
     explored = set()
@@ -330,6 +341,11 @@ def _money(value):
     return f"{value:+,.2f}"
 
 
+def _pct(value):
+    """Percentage to two decimals, or an em dash when the figure is missing."""
+    return DASH if value is None else f"{value:.2f}"
+
+
 def _cell(value, width):
     text = DASH if value is None else str(value)
     return text[:width].ljust(width)
@@ -351,7 +367,7 @@ def render(scoreboard_rows, report):
             f"{_cell(row['strategy'], 28)} {_cell(row['league'], 10)} {_cell(row['status'], 14)} "
             f"{_cell(row['tier'], 20)} {_money(row['gross_usd']):>12} {_money(row['costs_usd']):>10} "
             f"{_money(row['net_usd']):>12} {_cell(row['trades'], 7)} {_cell(row['paper_days'], 6)} "
-            f"{_cell(row['max_drawdown_pct'], 8)} {_cell(row['survivorship'], 12)}")
+            f"{_pct(row['max_drawdown_pct']):>8} {_cell(row['survivorship'], 12)}")
     lines.append("")
 
     disc = report["discovery"]
