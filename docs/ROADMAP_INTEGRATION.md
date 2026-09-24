@@ -679,7 +679,7 @@ Build authorized; order is H1-H15 then I1-I14 (B23), integrating as it goes.
 | H5 FINSABER download | still an explicit go-ahead before the ~253 MB download; everything else in H6-H7 is built first |
 | H6 live step | resolved by B13/B14: connect into the existing execution/risk layer; real-money activation is a user authorization event |
 | I1 gross vs net | resolved by B5: rank on net (measured costs, else modeled); gross/costs/net always shown |
-| I2 account type | resolved by B12: build the cash/margin abstraction now, configurable; the value is the one input still needed |
+| I2 account type | **CASH** (user, 2026-09-24): no PDT limit; trade settled funds only (T+1); `config/risk.yaml` `account_type` |
 | I3 slot evidence | resolved by B11: 20 forward sessions, 10 closed trades, positive net, drawdown under limit; 60 sessions = established tier |
 | I4 backtest role | resolved by B3: backtest admits to paper; only forward evidence wins a slot |
 | I5 intraday data | resolved by B8: live polling for monitoring; intraday strategies stay paper/shadow until a historical intraday provider exists; interface built now |

@@ -50,7 +50,7 @@ gross / costs / net side by side.
 | H9 discovery | done | `discovery.py` (priority, budgets, failure_log, recycling) |
 | H10 robustness | done | `robustness.py` |
 | H11-H13 pipeline | done | `factory_pipeline.py`; first run: 2 value+quality strategies reached PAPER, 2 momentum+volume rejected out of sample |
-| H14 report + scoreboard | **WIP on branch `ado/task-021`, not merged** | `factory_report.py` — 3 defects listed in that branch's commit message; fix, then `./ado_ship.sh TASK-021` |
+| H14 report + scoreboard | done (TASK-021 merged 2026-09-24) | `factory_report.py` — forward rows never fall back to backtest metrics |
 | H15 end-to-end test | not started | |
 | daily.sh wiring | **only accounting added** (`[9b/10]`) | factory stages not yet in the daily loop — see next steps |
 | unit tests for H3-H13 | **none yet** | only `tests/regression/test_accounting.py` exists |
@@ -65,8 +65,9 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 
 **Waiting on the user**
 
-1. Robinhood Agentic account type — cash or margin (B12; drives day-trade and
-   settled-cash rules). Build the abstraction anyway, configurable.
+1. ~~Account type~~ — **answered 2026-09-24: CASH.** `config/risk.yaml`
+   `account_type: cash`, T+1. No PDT limit; settled-funds / good-faith rule
+   applies (I12).
 2. FINSABER download go-ahead (~253 MB, huggingface finsaber-team/FINSABER-reproduce).
 3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
    **do not build** until the user answers the 8 questions in Stage J. It is
@@ -76,7 +77,7 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 
 **Next steps, in order**
 
-1. Fix the 3 TASK-021 defects on `ado/task-021`, ship it.
+1. ~~Ship TASK-021~~ — done.
 2. Wire the factory into `daily.sh` after accounting: `library_bridge.py
    --sync`, `strategy_factory.py --generate`, `discovery.py --plan`,
    `factory_pipeline.py --run --budget 12` (through `./run_bounded.sh`),
