@@ -1,13 +1,13 @@
 # Stockbot2000 — Roadmap
 
 Last updated: 2026-09-24. Phases 01–12 and 6–12 built; Phase 13 and Addendum A
-planned, awaiting review.
+**building** under Addendum B (`ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md`).
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
 
 ---
 
-## Product definition — Addendum A (planned, pending review)
+## Product definition — Addendum A (approved by Addendum B, building)
 
 **Stockbot2000 is an autonomous algorithmic trading system** that continuously
 discovers, tests, ranks and paper-trades strategies, automatically selects the
@@ -22,7 +22,7 @@ reported, not required. Spec: `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`; integration:
 
 ## Operating mandate
 
-| constraint | in force today | under Addendum A (on approval) |
+| constraint | in force until the new engine ships | under Addendum A |
 |---|---|---|
 | Capital | $100 cap, $20 x 5 (`config.yaml`, since 2026-09-14) | unchanged; slot count and size configurable |
 | Order placement | system generates the slate, a person places it | automatic, through the central risk and execution layer |
@@ -428,7 +428,7 @@ Two funds, two philosophies, one research infrastructure: a **Tactical Fund** of
 continuously selected strategies and a **Value Fund** of long-term fundamentally
 selected companies, independently measurable.
 
-### Phase 13 · Strategy Factory 2.0 📋 PLANNED 2026-09-24 — awaiting review
+### Phase 13 · Strategy Factory 2.0 🟡 BUILDING from 2026-09-24
 Full specification, verbatim, in `PHASE13_STRATEGY_FACTORY.md`; integration,
 reuse map and the 15-step status table in `ROADMAP_INTEGRATION.md` (Stage H).
 
@@ -463,7 +463,7 @@ What it adds, over the existing system rather than replacing it:
 Six decisions are listed in `ROADMAP_INTEGRATION.md` Stage H, each with the
 default the build follows unless changed.
 
-### Addendum A · Autonomous 5-slot trading system 📋 PLANNED 2026-09-24 — awaiting review
+### Addendum A · Autonomous 5-slot trading system 🟡 BUILDING from 2026-09-24
 The product definition above, as a build: a **trading engine** fed by the
 Phase 13 research engine. Spec verbatim in `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`;
 reuse map, the 14 steps (I1–I14), sequencing with Phase 13 and seven decisions
@@ -483,3 +483,9 @@ in `ROADMAP_INTEGRATION.md`, Stage I.
   exit, freeze promotions, alert
 - **Daily five-slot reassessment** plus separate always-on services for
   trading, backtesting, paper, ingestion, ranking and discovery
+
+### Addendum B · Final build directive ✅ in force 2026-09-24
+Authorizes construction of Phase 13 then Addendum A in roadmap order,
+resolves their open decisions (table at the end of `ROADMAP_INTEGRATION.md`),
+and fixes the definition of done: the full discover → trade → replace loop
+running autonomously, with real-money activation the user's step.

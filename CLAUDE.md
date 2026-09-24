@@ -4,16 +4,16 @@ Automated swing-trading system: scores US equities on technical indicators, size
 stops positions by ATR, and evolves its own trading strategies against 20 years of
 market history before any real capital is committed.
 
-> **Product definition — Addendum A, entered 2026-09-24, PLANNED, pending the
-> user's review** (`docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md`). Stockbot2000 is an
+> **Product definition — Addendum A, 2026-09-24** (`docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md`). Stockbot2000 is an
 > autonomous trading system that continuously discovers, tests, ranks and
 > paper-trades strategies, automatically selects the five best currently
 > eligible ones, allocates ~$20 to each of five slots, and executes and manages
 > their trades through Robinhood — replacing weaker strategies with stronger
 > ones automatically. The objective is positive trading P&L, not beating SPY.
-> Where anything below conflicts with this, the addendum wins once approved;
-> the affected rules are flagged in "Trading mandate" and integrated in
-> `docs/ROADMAP_INTEGRATION.md`, Stage I. **Do not build it before review.**
+> Where anything below conflicts with this, the addendum wins. **Approved and
+> authorized for construction by Addendum B, 2026-09-24**
+> (`docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md`). The affected rules are flagged
+> in "Trading mandate"; real-money activation remains the user's step (B14).
 
 Renamed several times: `betbot9000` -> `trend-scanner` -> `stockpicker2000` ->
 **`stockbot2000`** (current, as of 2026-09-08). Older commits, the VM hostname
@@ -200,8 +200,7 @@ table per stage. **That file is the roadmap; this list is history.**
 These came out of the original design conversation and are **not** derivable from
 the code. They bound everything else.
 
-> **Addendum A (2026-09-24) revises four of these once the user approves the
-> roadmap.** Kept below unedited as the record of what applied until then.
+> **Addendum A (2026-09-24, approved by Addendum B) revises four of these.** Kept below unedited as the record of what applied until then.
 >
 > | rule below | under Addendum A |
 > |---|---|
@@ -266,7 +265,7 @@ assume a broker-side stop exists.
 
 ### Claude's role in the daily loop
 
-> Superseded by Addendum A on approval: routine selection and ordering become
+> Superseded by Addendum A (approved by Addendum B): routine selection and ordering become
 > automatic, with no per-trade approval step (§2, §24).
 
 Claude reads exactly two files — `data/scoresheet.json` and `data/exits_needed.json`
@@ -918,8 +917,10 @@ entirely, and one was a context defect on my side rather than a model error.
 
 **A full revamp of the project's planning. All existing systems integrate into
 this direction.** Phases 6-12 are built (stage tables in
-`docs/ROADMAP_INTEGRATION.md`). **Phase 13 was entered 2026-09-24 and is
-PLANNED — do not start building it until the user has reviewed the roadmap.**
+`docs/ROADMAP_INTEGRATION.md`). **Phase 13 and Addendum A are BUILDING from
+2026-09-24 under Addendum B** (`docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md`),
+which resolves their open decisions — see the table at the end of
+`ROADMAP_INTEGRATION.md`.
 
 | Phase | | Spec |
 |---|---|---|
@@ -931,6 +932,8 @@ PLANNED — do not start building it until the user has reviewed the roadmap.**
 | 11 | Continuous Research Loop | same |
 | 12 | Crypto Fund | `docs/PHASE12_CRYPTO_FUND.md` |
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `docs/PHASE13_STRATEGY_FACTORY.md` |
+| A | Autonomous 5-slot trading system | `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
+| B | Final build directive | `docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.

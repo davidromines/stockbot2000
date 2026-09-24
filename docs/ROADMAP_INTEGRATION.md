@@ -24,8 +24,9 @@ describe what was built; these describe where it goes.
 | 10 | Live Capital Allocation & Strategy Promotion | **built** — Stage E |
 | 11 | Continuous Research Loop | **built** — Stage F |
 | 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
-| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **PLANNED 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md`; awaiting review |
-| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **PLANNED 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`; awaiting review |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **BUILDING from 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
+| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **BUILDING from 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
+| B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 
 ---
 
@@ -481,7 +482,7 @@ data in the project — migrate it before changing the thing that writes it.
 
 ---
 
-**Stage H — Strategy Factory 2.0 (Phase 13)** — entered 2026-09-24, **not started**
+**Stage H — Strategy Factory 2.0 (Phase 13)** — entered 2026-09-24, **building** (Addendum B)
 
 Spec in `docs/PHASE13_STRATEGY_FACTORY.md`, verbatim. An orchestration and
 expansion layer over what exists; §3 of the spec forbids rewriting working
@@ -563,7 +564,7 @@ follow if nothing else is said:
 
 ---
 
-**Stage I — Addendum A: the autonomous 5-slot trading system** — entered 2026-09-24, **not started**
+**Stage I — Addendum A: the autonomous 5-slot trading system** — entered 2026-09-24, **building** (Addendum B)
 
 Spec in `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md`, verbatim. It defines the end
 product: research feeds a trading engine that runs five ~$20 slots, each
@@ -661,3 +662,27 @@ follow if nothing else is said:
    SIMULATION and SHADOW; switching the account to LIVE uses the operator
    authorization §24 reserves for a human. *Default:* I14 ends with LIVE ready
    to arm, and arming is your step.
+
+---
+
+**Addendum B — how it resolves the Stage H and Stage I decisions** (2026-09-24)
+
+Build authorized; order is H1-H15 then I1-I14 (B23), integrating as it goes.
+
+| decision | resolution |
+|---|---|
+| H1 lifecycle names | default stands: §14 names, legacy log mapped not rewritten |
+| H2 Rising 200 | default stands: PROMISING / INSUFFICIENT EVIDENCE with the sweep attached |
+| H3 template generation vs freeze | resolved by B16: factory templates are the discovery path; `evolve.py` stays frozen |
+| H4 restating history | resolved by B18: preserve, mark original, restate alongside, never overwrite |
+| H5 FINSABER download | still an explicit go-ahead before the ~253 MB download; everything else in H6-H7 is built first |
+| H6 live step | resolved by B13/B14: connect into the existing execution/risk layer; real-money activation is a user authorization event |
+| I1 gross vs net | resolved by B5: rank on net (measured costs, else modeled); gross/costs/net always shown |
+| I2 account type | resolved by B12: build the cash/margin abstraction now, configurable; the value is the one input still needed |
+| I3 slot evidence | resolved by B11: 20 forward sessions, 10 closed trades, positive net, drawdown under limit; 60 sessions = established tier |
+| I4 backtest role | resolved by B3: backtest admits to paper; only forward evidence wins a slot |
+| I5 intraday data | resolved by B8: live polling for monitoring; intraday strategies stay paper/shadow until a historical intraday provider exists; interface built now |
+| I6 legacy positions | default stands |
+| I7 arming live | resolved by B14: SIMULATION -> SHADOW -> LIVE; activation is the user's |
+
+Benchmarks and the null are informational, never promotion gates (B20).
