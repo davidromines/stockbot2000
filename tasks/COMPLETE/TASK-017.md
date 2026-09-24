@@ -2,7 +2,7 @@
 
 - component: docs
 - priority: high
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-017
 - created: 2026-09-23T17:31:00+00:00
 - dependencies: none
