@@ -44,15 +44,15 @@ gross / costs / net side by side.
 | H3 object model + lifecycle + factory | done | §14 states added to `league.py`; `strategy_objects.py`; `strategy_factory.py` (40 families, 229 objects) |
 | H4 research library | done | `library_bridge.py`, `research_queue.py` (27 of 40 entries -> 244 linked objects) |
 | H5 fundamental factory | done | fundamental families in `strategy_factory.py`; `storage.attach_fundamentals()` |
-| H6 FINSABER / providers | done, **data not downloaded** | `data_providers.py`, `finsaber.py` — the ~253 MB download needs the user's explicit yes |
-| H7 cross-dataset validation | done | `dataset_compare.py` |
+| H6 FINSABER / providers | done; **all three files downloaded 2026-09-24** (user yes) | CSV -> `data/finsaber.db` `finsaber_prices` (4.74M bars, 1,017 symbols); pickles via `finsaber_pkl.py` (streaming, restricted) -> `finsaber_pkl_prices` / `finsaber_news` / `finsaber_filings`. The S&P pickle is **27.3 GB**, not the README's 11 GB |
+| H7 cross-dataset validation | done, run 2000-2024 | `dataset_compare.py` — compares **daily returns** (99.5-99.8% agree within 0.5pp per year; 2000 is 98.0%). Price LEVELS differ by a per-ticker adjustment anchor and are not a data error |
 | H8 leagues | done | `leagues.py`, `leagues:` + `league_families:` in config |
 | H9 discovery | done | `discovery.py` (priority, budgets, failure_log, recycling) |
 | H10 robustness | done | `robustness.py` |
 | H11-H13 pipeline | done | `factory_pipeline.py`; first run: 2 value+quality strategies reached PAPER, 2 momentum+volume rejected out of sample |
 | H14 report + scoreboard | done (TASK-021 merged 2026-09-24) | `factory_report.py` — forward rows never fall back to backtest metrics |
 | H15 end-to-end test | not started | |
-| daily.sh wiring | **only accounting added** (`[9b/10]`) | factory stages not yet in the daily loop — see next steps |
+| daily.sh wiring | done (`[9c]-[9h]`) | pipeline budget 12: ~20 min, 4.3 GB peak |
 | unit tests for H3-H13 | **none yet** | only `tests/regression/test_accounting.py` exists |
 
 **Addendum A (Stage I, I1-I14): not started.** Order: slot model, slot
@@ -68,7 +68,9 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 1. ~~Account type~~ — **answered 2026-09-24: CASH.** `config/risk.yaml`
    `account_type: cash`, T+1. No PDT limit; settled-funds / good-faith rule
    applies (I12).
-2. FINSABER download go-ahead (~253 MB, huggingface finsaber-team/FINSABER-reproduce).
+2. ~~FINSABER go-ahead~~ — **answered: yes, all files.** News and filing
+   dates in the pickles are NOT verified point-in-time; nothing may use them
+   as a signal until measured.
 3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
    **do not build** until the user answers the 8 questions in Stage J. It is
    full-US-universe reconstruction with tagged synthetic price paths — NOT
@@ -78,10 +80,7 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 **Next steps, in order**
 
 1. ~~Ship TASK-021~~ — done.
-2. Wire the factory into `daily.sh` after accounting: `library_bridge.py
-   --sync`, `strategy_factory.py --generate`, `discovery.py --plan`,
-   `factory_pipeline.py --run --budget 12` (through `./run_bounded.sh`),
-   `leagues.py --standings --record`, `factory_report.py`.
+2. ~~Wire the factory into `daily.sh`~~ — done.
 3. Delegate unit tests (strategy_objects, discovery, leagues, robustness,
    factory_pipeline) to DeepSeek; then H15 end-to-end test.
 4. Addendum A, I1 onward.
@@ -117,7 +116,21 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 - Phase 07 (costs, next-open fills, gap-through-stop) closed and re-measured:
   classifier gross -$82.54 under next-open fills.
 
+**Governance rulings from the user (2026-09-24)** — all six Phase 13 defaults
+confirmed. Load-bearing: counter-evidence is attached as a first-class
+artifact (hash + timestamp + path), never a footnote — the stop_width sweep is
+attached that way to the six rising_200 decisions; restatements live beside
+originals with `accounting_version`, never over them; templates are a
+separate governed path and `tests/regression/test_freeze_boundary.py` fails
+if factory output can reach evolve.py; H13 connects to the execution layer,
+never extends it.
+
 **Gotchas that cost time this session**
+
+- **`run_bounded.sh` fails under cron** — `systemd-run --user` needs a user
+  bus and Linger=no. `daily.sh` has a `bounded` helper that falls back to a
+  plain run there. **Do not edit `daily.sh` near 07:00 UTC**: bash reads the
+  script as it runs.
 
 - **Run heavy jobs with `./run_bounded.sh`** (6 GB cap, own systemd scope).
   An OOM inside Claude's scope killed the desktop app three times.
