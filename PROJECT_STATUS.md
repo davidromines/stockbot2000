@@ -1,11 +1,12 @@
 # PROJECT_STATUS
 
-Updated 2026-09-23.
+Updated 2026-09-24.
 
 Stockbot2000 is a quantitative research system: it ingests prices and
 point-in-time fundamentals, generates and evaluates trading strategies, tracks
-them through a versioned league, and produces orders that a human places by
-hand. It has never transmitted an order itself. Its defining property is that
+them through a versioned league, and since 2026-09-24 15:39 UTC trades five
+$20 slots in the Robinhood Agentic account automatically (LIVE, armed by the
+owner). Its defining property is that
 every apparent edge it has found so far turned out to be a measurement
 artifact, so this page states what the system currently reports and, at least
 as prominently, what it has NOT established.
@@ -20,6 +21,15 @@ as prominently, what it has NOT established.
 | 9 — Fundamental value | Point-in-time filing provenance, industry classification, statement engine, valuation engine, intrinsic value, value score, Value Fund |
 | 10 — Promotion | Promotion policy, capital allocation, roster management, live pipeline |
 | 11 — Operations | Stop conditions, compute priority, the daily research loop |
+| 13 — Strategy Factory | Accounting (authoritative P&L), 40 template families, research queue, discovery, robustness, leagues, factory pipeline to LIVE_CANDIDATE |
+| A — Autonomous 5 slots | Slot allocation, mandatory stop plans, slot trader (SIMULATION / SHADOW / LIVE), PDT and settled-funds rules, Robinhood MCP broker; market-cap fallback; ETF switching funds in slots |
+| C — Survivorship universe | Layer A 1996-2024, cohorts, synthetic dead companies (fails its realism gate: retest-only), five loader modes |
+
+Phase 6 is complete as of 2026-09-24: baselines per forward fund (§16), model
+calibration (§19), rate regimes (§21), the TNON case study (§24), methodology
+and protocol docs (§29) and the phase report generator (§31,
+`phase6_report.py`). The seed-free control run (§3) is registered and its arms
+are running.
 
 ## What the system says today
 
@@ -48,5 +58,10 @@ as prominently, what it has NOT established.
 
 ## Real money
 
-One account, roughly $89. It is traded by a human placing orders the system
-generates. No module transmits an order.
+One account (Agentic, `limited_margin`), about $88 when LIVE was armed on
+2026-09-24. **The slot trader places real orders in it automatically**, every
+5 minutes in market hours, through the risk engine and kill switches. First
+session: SNDK, DELL, MRNA $20 each and TWST $8.45 (the settled cash left);
+slot 5 bought nothing. No strategy trading it has demonstrated an edge: four
+of five slots are Rising 200 variants, an entry rule the 14-year sweep found
+loses net. `touch data/KILL_SWITCH` stops everything and flattens the slots.

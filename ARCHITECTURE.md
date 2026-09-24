@@ -4,8 +4,10 @@ Stockbot2000 ingests daily price bars and point-in-time fundamentals, derives
 features from both, and runs steppers that advance simulated and paper funds one
 session at a time. Those steppers write a forward record — equity curves, trades,
 marks — that a research layer reads to rank strategies, measure degradation, and
-decide promotion. The end of the chain is a morning order slate that a human
-places by hand; no module in this system transmits an order.
+decide promotion. The end of the chain is the slot trader (`slot_trader.py`),
+which since 2026-09-24 places real orders in the Robinhood Agentic account
+through the execution engine, risk engine and kill switches. The older
+morning slate for a human (`orders.py`) still exists beside it.
 
 ## Daily pipeline
 
@@ -56,6 +58,29 @@ Reads the forward record. Never writes to it.
 | `allocation.py` | Dollars per roster slot |
 | `roster.py` | Who joins, who leaves |
 | `live_pipeline.py` | Stops at order validation; never transmits |
+| `slots.py` | Which strategies hold the five slots. Places no order |
+
+## Execution layer (Addendum A)
+
+The only path from a decision to a broker. Run from cron every 5 minutes in
+market hours.
+
+```
+slots.py (who holds each slot)
+  -> slot_trader.py --auto        entry pass once per session, stop monitor after
+  -> execution.py                 duplicate check, record
+  -> killswitch.py                global + per-strategy switches
+  -> risk_engine.py               floors (price, liquidity, market cap: unknown
+                                  rejected), sizing, loss limits, PDT and
+                                  settled funds (account_rules.py)
+  -> robinhood_live.LiveBroker    review -> place -> confirm, ref_id idempotent
+  -> robinhood_mcp.py             Robinhood Trading MCP (OAuth, owner signs in)
+```
+
+Quotes come from Robinhood in LIVE (`robinhood_live.RobinhoodQuotes`), with
+liquidity from `features` and market cap from the filings, else
+`market_caps.py`. A pair-fund slot trades the ETF `pair_funds.next_leg()`
+names.
 
 ## Data layer
 
@@ -70,7 +95,9 @@ Reads the forward record. Never writes to it.
 
 ## Boundaries
 
-1. Nothing in the research layer imports `broker` or `execution`. The league
+1. Nothing in the research layer imports `broker` or `execution`. Only the
+   execution side does: `slot_trader.py`, `run_execution.py`,
+   `crypto_orders.py`, `robinhood_live.py` and `acceptance.py`. The league
    must not be able to place an order, so the import graph is the enforcement
    rather than a reviewer's attention.
 2. `storage.py` is the only module that writes SQL to `market_data.db`. One
