@@ -79,12 +79,13 @@ runs from cron every 5 min, 13:00-20:59 UTC weekdays (`./services.sh`).
 to the eight questions (the user said build every roadmap item; each answer
 is a config value under `universe_reconstruction:` — change them there).
 `universe_layer_a.py` (Layer A, 1996-2024), `universe_cohorts.py`,
-`universe_synthetic.py` (v2), `universe_loader.py` (five modes),
+`universe_synthetic.py` (v3), `universe_loader.py` (five modes),
 `universe_validate.py`. Store: `data/universe/` only, never `prices`.
-**The generator FAILS the discriminability gate (AUC 0.903 vs < 0.60)**, so
-synthetic rows are for retests and stress bounds only. Sensitivity, 12-1
-momentum 2009-2024: 23.3% CAGR on our data, 17.4% with synthetic dead
-companies, 12.1% if every unpriced death was a total loss. Synthetic deaths
+**The generator FAILS the discriminability gate (AUC 0.771, merger-only
+0.744, vs < 0.60; v1 0.987)**, so synthetic rows are for retests and stress
+bounds only. Sensitivity, 12-1 momentum 2009-2024: 23.3% CAGR on our data,
+19.0% with synthetic dead companies, 14.3% if every unpriced death was a total
+loss. Synthetic deaths
 concentrate after 2008 because listing evidence starts there; the 1996-2007
 hole is mostly EDGAR-only filers, excluded by default.
 
@@ -603,7 +604,7 @@ hardcodes paths, thresholds or model parameters.
 |---|---|
 | `universe_layer_a.py` | Which companies existed, 1996-2024, per-field provenance. |
 | `universe_cohorts.py` | Real dead-company statistics by cohort; states its own clean-exit bias. |
-| `universe_synthetic.py` | Tagged synthetic paths (v2) for 7,618 unpriced dead companies. |
+| `universe_synthetic.py` | Tagged synthetic paths (v3, joint donor draws) for 7,618 unpriced dead companies. |
 | `universe_loader.py` | `load_backtest_data(..., mode)` — exclude / real_only / as_is / zero / optimistic. |
 | `universe_validate.py` | Discriminability gate, provenance checks, five-mode sensitivity. |
 
