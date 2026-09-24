@@ -21,8 +21,9 @@ pass/fail against a stated rule, and the verdict counts failures:
 Regimes are defined in advance from SPY, never chosen after results (§21):
 bull = SPY above its 200-day average; high_vol = SPY 20-day realised
 volatility above its median over the window; crisis = SPY more than 20%
-below its 52-week high. Rate regimes need a rates series this database does
-not hold and are reported as unavailable, not guessed.
+below its 52-week high; high_rate = 3-month T-bill at or above
+regimes.high_rate_pct (regimes.py). Without a rates series the rate regimes
+are reported as unavailable, not guessed.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import copy
@@ -161,17 +162,20 @@ def analyse(conn, g: dict, panel, cm, size: float, max_entries: int, base: dict,
         check("start_date", s_trim > 0, net_usd=round(float(s_trim), 2))
         check("end_date", e_trim > 0, net_usd=round(float(e_trim), 2))
 
-        reg = regime_labels(conn, str(lo.date()), str(hi.date()))
+        import regimes
+        reg = regimes.labels(conn, str(lo.date()), str(hi.date()), cfg)
         if not reg.empty:
             lab = pd.DataFrame({"date": dates.strftime("%Y-%m-%d"), "pnl": pnl})
             lab = lab.merge(reg, on="date", how="left")
             by = {}
             for col, (yes, no) in (("bull", ("bull", "bear")), ("high_vol", ("high_vol", "low_vol")),
-                                   ("crisis", ("crisis", "normal"))):
+                                   ("crisis", ("crisis", "normal")), ("high_rate", ("rates_high", "rates_low"))):
+                if col not in lab or lab[col].isna().all():
+                    by[yes] = by[no] = {"unavailable": "no rates series in this database (regimes.py --load-rates)"}
+                    continue
                 for flag, name in ((True, yes), (False, no)):
                     sub = lab[lab[col] == flag]["pnl"]
                     by[name] = {"trades": int(len(sub)), "net_usd": round(float(sub.sum()), 2)}
-            by["rates_high"] = by["rates_low"] = {"unavailable": "no rates series in this database"}
             bad = [k for k, v in by.items() if isinstance(v, dict) and v.get("trades", 0) >= rules["regime_min_trades"]
                    and v.get("net_usd", 0) < 0]
             out["regimes"] = {"pass": True, "by_regime": by, "negative_regimes": bad}

@@ -41,6 +41,8 @@ idempotent; a failing stage does not abort the ones after it.
 [3b/10] Fundamental projection daily_fundamentals
 [3c/10] Market-cap fallback  market_caps.py --backfill: Robinhood caps for
                               liquid names the filings miss (dated, sourced)
+[3d/10] Rates series        regimes.py --load-rates: 3-month T-bill for the
+                              predefined rate regimes (Phase 6 §21)
 [4/10]  Freshness gate        fails the run if any derived table is behind
 [5/10]  Paper trading         advance the simulated funds one day
 [6/10]  Daily book            best candidate from every system + sell signals

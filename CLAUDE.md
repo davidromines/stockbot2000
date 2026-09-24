@@ -639,6 +639,7 @@ hardcodes paths, thresholds or model parameters.
 | `leagues.py` | Nine leagues, tiers per B11, evidence from accounting. |
 | `data_providers.py` / `finsaber.py` / `dataset_compare.py` | Provider interface, the FINSABER validation store, cross-dataset checks and survivorship tags. |
 | `signal_decay.py` | §20: decile spread by horizon, t-stat across dates. |
+| `regimes.py` | Phase 6 §21: predefined regimes (SPY bull/bear, vol, crisis + 3-month T-bill high/low at a fixed 2.0%), the `rates` table, and forward P&L by regime. |
 | `model_calibration.py` | Phase 6 §19: ranking skill, calibration (Brier, log loss, ECE), economic value and net return by fixed confidence band — four questions, answered separately. |
 | `data_dictionary.py` / `changelog.py` | Generate `docs/DATA_DICTIONARY.md` and `CHANGELOG.md`. |
 | `run_bounded.sh` / `ado_ship.sh` | Memory-capped job launcher; ADO review-approve-merge helper. |

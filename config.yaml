@@ -405,3 +405,13 @@ market_caps:
   max_age_days: 7
   backfill_source: robinhood
   backfill_types: ["common_stock", "etf"]
+
+# Phase 6 §21: regime definitions, fixed BEFORE any result is looked at
+# through them (regimes.py; robustness.py uses the same). SPY regimes are
+# rules, not parameters: bull = above the 200-day average, crisis = >20% below
+# the 52-week high, high_vol = 20-day vol above its window median. The rate
+# line is a fixed level, not a percentile, so "high" means the same thing in
+# every year. Do not tune these after seeing a breakdown.
+regimes:
+  rate_series: DGS3MO        # FRED 3-month Treasury; yfinance ^IRX is the fallback
+  high_rate_pct: 2.0

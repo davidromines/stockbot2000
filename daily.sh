@@ -85,6 +85,9 @@ run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
 # name still unknown after this is still rejected by the risk engine.
 run "[3c/10] Market-cap fallback" $PY market_caps.py --backfill
 
+# Rates series for the Phase 6 §21 rate regimes (FRED, ^IRX fallback).
+run "[3d/10] Rates series" $PY regimes.py --load-rates
+
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.
 # Best-effort: a crypto outage must not fail the equity capture.
