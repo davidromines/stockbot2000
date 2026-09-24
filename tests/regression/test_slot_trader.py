@@ -94,6 +94,9 @@ def main():
     b = bk.LedgerSimulatedBroker(c, 100.0, "SIMULATION", qt.FixedQuotes({}, conn=c))
     check("exit actually sold the shares (cash 80 + 0.4 x 45)", abs(b.cash - 98.0) < 1e-6 and not b.positions,
           (b.cash, b.positions))
+    p = st.pnl(c, cfg, "SIMULATION")
+    check("slot P&L: gross -2.00 on the stopped trade, costs shown beside it",
+          p["gross_usd"] == -2.0 and p["costs_usd"] > 0 and abs(p["net_usd"] - (p["gross_usd"] - p["costs_usd"])) < 0.011, p)
 
     # Reopen, then release the slot: the next pass must close the position.
     c.execute("DELETE FROM signals")   # new decisions, not duplicates of the first

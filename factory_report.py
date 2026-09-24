@@ -436,6 +436,16 @@ def main(argv=None):
         conn.close()
 
     text = render(rows, report)
+    try:
+        # Addendum A I13: the trading engine beside the research engine.
+        import slot_trader
+        c2 = sqlite3.connect(path, timeout=60)
+        c2.row_factory = sqlite3.Row
+        import universe
+        text += "\n\n" + slot_trader.report(c2, universe.load_config(), "SIMULATION")
+        c2.close()
+    except Exception as e:                                   # noqa: BLE001
+        text += f"\n\nSLOTS: report unavailable ({type(e).__name__}: {e})"
     import os
     for target in (args.out, args.json):
         directory = os.path.dirname(target)

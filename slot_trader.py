@@ -296,6 +296,65 @@ def trade(conn, cfg, mode: str, provider) -> list:
     return results
 
 
+def pnl(conn, cfg, mode: str) -> dict:
+    """
+    The slot account's gross / costs / net (I13, B5). Realised round trips at
+    their fill prices; open positions marked at the last stored close. Costs
+    are MODELED (costs.CostModel) until live fills exist to measure them, and
+    are labelled so.
+    """
+    import costs as costs_mod
+    cm = costs_mod.CostModel(cfg)
+    opens, gross, costs, trades = {}, 0.0, 0.0, 0
+    for r in conn.execute("SELECT slot_id, symbol, action, quantity, price FROM slot_trades "
+                          "WHERE mode=? ORDER BY id", (mode,)).fetchall():
+        slot, sym, action, q, px = r[0], r[1], r[2], float(r[3]), float(r[4])
+        if action == "OPEN":
+            opens[slot] = (sym, q, px)
+        elif slot in opens:
+            _, q0, p0 = opens.pop(slot)
+            gross += (px - p0) * q0
+            costs += cm.round_trip(q0 * p0, None, q0)
+            trades += 1
+    unreal = 0.0
+    for sym, q, p0 in opens.values():
+        last = conn.execute("SELECT close FROM prices WHERE ticker=? ORDER BY date DESC LIMIT 1",
+                            (sym,)).fetchone()
+        if last:
+            unreal += (float(last[0]) - p0) * q
+            costs += cm.round_trip(q * p0, None, q)
+    return {"mode": mode, "closed_trades": trades, "open_positions": len(opens),
+            "gross_usd": round(gross + unreal, 2), "costs_usd": round(costs, 2),
+            "net_usd": round(gross + unreal - costs, 2), "costs_basis": "modeled"}
+
+
+def report(conn, cfg, mode: str = "SIMULATION") -> str:
+    """Slots, today's slot trades, replacements, risk events and P&L (I13)."""
+    init(conn)
+    day = datetime.now(qt.NY).date().isoformat()
+    lines = [f"SLOTS ({mode})"]
+    for slot, h in slots.current(conn, cfg).items():
+        lines.append(f"  slot {slot}: " + (f"{h['strategy_key']} v{h['version']} ${h['capital_usd']:.0f}"
+                                           if h else "CASH"))
+    for r in conn.execute("SELECT at, slot_id, action, strategy_key, reason FROM slot_assignments "
+                          "WHERE substr(at,1,10)=? ORDER BY id", (day,)):
+        lines.append(f"  {r[2]} slot {r[1]}: {r[3]} — {r[4]}")
+    for r in conn.execute("SELECT slot_id, action, symbol, quantity, price, reason FROM slot_trades "
+                          "WHERE mode=? AND substr(at,1,10)=? ORDER BY id", (mode, day)):
+        lines.append(f"  trade slot {r[0]}: {r[1]} {r[2]} {r[3]:.4f} @ {r[4]:.2f} — {r[5]}")
+    n = conn.execute("SELECT decision, COUNT(*) FROM risk_events WHERE substr(at,1,10)=? GROUP BY 1",
+                     (day,)).fetchall() if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='risk_events'").fetchone() else []
+    lines.append("  risk events today: " + (", ".join(f"{d} {c}" for d, c in n) or "none"))
+    p = pnl(conn, cfg, mode)
+    lines.append(f"  P&L: gross {p['gross_usd']:+.2f}  costs {-p['costs_usd']:+.2f} ({p['costs_basis']})  "
+                 f"net {p['net_usd']:+.2f}  closed {p['closed_trades']}  open {p['open_positions']}")
+    import killswitch as ks
+    g = ks.global_engaged()
+    lines.append(f"  global kill switch: {'ENGAGED — ' + g if g else 'off'}")
+    return "\n".join(lines)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Trade the five slots through the execution engine.")
     ap.add_argument("--trade", action="store_true")
