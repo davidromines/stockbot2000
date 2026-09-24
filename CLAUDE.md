@@ -469,7 +469,13 @@ or lose together.
 | 2.5 / 2.6 / 3.3 | +0.55% / +0.34% / **+1.72%** |
 | 4.98 (x3) | -0.78% / -3.95% / **-8.30%** |
 
-Tight stops win, wide stops lose, identical entry. Best of all 16 is
+Tight stops win, wide stops lose, identical entry.
+
+**REFUTED by the pre-registered sweep, 2026-09-24** (`stop_sweep.py`,
+experiment `stop_width`, 2006-2019). Over fourteen years the `rising_200` entry
+loses money net and trails the null in **all 30** stop x hold cells, and tight
+stops do worse than wide ones — for all four entry rules tested. The forward
+split below is 12 sessions in a market where this rule happened to work. Best of all 16 is
 `MACD Pullback` at +2.00% — MACD in the top 30% but RSI still under 40.
 **This is 11 days of forward data.** It is a lead, not a result.
 

@@ -314,9 +314,9 @@ The only open question left, and the one everything above exists to answer.
 - Six Lab searches produced six measurement artifacts.
 
 **What is open, and where to look:**
-- **Tight stops.** The same momentum rule is positive with stops of 2.5-3.3 ATR
-  and negative at 4.98, across six paper funds. Eleven days of data, one clean
-  pattern, and the most specific lead this project has.
+- ~~**Tight stops.**~~ **Refuted 2026-09-24.** The pre-registered sweep over
+  2006-2019 found `rising_200` loses net in all 30 stop x hold cells, and tight
+  stops do worse than wide for every entry rule tested.
 - **Momentum-plus-pullback.** `MACD Pullback` is the best of 16 at +2.00%.
 - **Forward time.** It accrues only in calendar time and cannot be rushed,
   which is why 21 funds now run daily instead of one.
