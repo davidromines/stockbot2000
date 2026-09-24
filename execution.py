@@ -117,8 +117,21 @@ def _save_order(conn, o: bk.Order, session: str, mode: str) -> None:
     conn.commit()
 
 
-def already_submitted(conn, signal_id: str) -> dict | None:
-    r = conn.execute("SELECT * FROM orders WHERE client_order_id=?", (signal_id,)).fetchone()
+def client_id(signal_id: str, mode: str = "SIMULATION") -> str:
+    """
+    The order key: one decision, one order, PER MODE.
+
+    It was the bare signal id, which made the same decision in SIMULATION and
+    SHADOW collide — the second mode's run was suppressed as a duplicate of the
+    first (found by the Phase 13 end-to-end test, 2026-09-24). SIMULATION keeps
+    the bare id so rows written before the change still dedupe.
+    """
+    return signal_id if mode == "SIMULATION" else f"{mode}:{signal_id}"
+
+
+def already_submitted(conn, signal_id: str, mode: str = "SIMULATION") -> dict | None:
+    r = conn.execute("SELECT * FROM orders WHERE client_order_id=?",
+                     (client_id(signal_id, mode),)).fetchone()
     return dict(r) if r else None
 
 
@@ -160,12 +173,14 @@ class ExecutionEngine:
             return None
 
     def _counts(self, symbol: str) -> dict:
+        # Per MODE: a SIMULATION run's orders must not use up the SHADOW or
+        # LIVE throttle for the day (found by the end-to-end test, 2026-09-24).
         row = self.conn.execute(
-            "SELECT COUNT(*) AS n FROM orders WHERE session=? AND state NOT IN "
-            "('REJECTED','FAILED')", (self.session,)).fetchone()
+            "SELECT COUNT(*) AS n FROM orders WHERE session=? AND mode=? AND state NOT IN "
+            "('REJECTED','FAILED')", (self.session, self.mode)).fetchone()
         per = self.conn.execute(
-            "SELECT COUNT(*) AS n FROM orders WHERE session=? AND symbol=? AND "
-            "state NOT IN ('REJECTED','FAILED')", (self.session, symbol)).fetchone()
+            "SELECT COUNT(*) AS n FROM orders WHERE session=? AND mode=? AND symbol=? AND "
+            "state NOT IN ('REJECTED','FAILED')", (self.session, self.mode, symbol)).fetchone()
         return {"orders_today": row["n"], "orders_for_symbol": per["n"]}
 
     def _emergency_exit(self, sig, portfolio: dict, halt_reasons: list) -> dict:
@@ -181,13 +196,14 @@ class ExecutionEngine:
         if qty <= 0:
             _record_risk(self.conn, sig, "REJECTED", ["emergency exit: nothing held"])
             return {"status": "rejected", "signal_id": sig.signal_id, "reasons": ["nothing held"]}
-        prior = already_submitted(self.conn, sig.signal_id)
+        prior = already_submitted(self.conn, sig.signal_id, self.mode)
         if prior:
             return {"status": "duplicate", "signal_id": sig.signal_id, "order": prior,
                     "reasons": ["this decision already produced an order"]}
         _record_risk(self.conn, sig, "EMERGENCY_EXIT", halt_reasons)
         order = bk.Order(signal_id=sig.signal_id, symbol=sig.symbol, side="SELL",
-                         asset_type=sig.asset_type, notional=None, quantity=qty)
+                         asset_type=sig.asset_type, notional=None, quantity=qty,
+                         client_order_id=client_id(sig.signal_id, self.mode))
         order.to(bk.VALIDATING); order.to(bk.APPROVED)
         _save_order(self.conn, order, self.session, self.mode)
         if self.mode == "SHADOW":
@@ -226,7 +242,7 @@ class ExecutionEngine:
                     "reasons": verdict.reasons}
 
         # 2. duplicate check, before anything can half-execute
-        prior = already_submitted(self.conn, sig.signal_id)
+        prior = already_submitted(self.conn, sig.signal_id, self.mode)
         if prior:
             _log_json("DUPLICATE_SUPPRESSED", signal_id=sig.signal_id,
                       existing_state=prior["state"])
@@ -254,6 +270,7 @@ class ExecutionEngine:
         side = "BUY" if sig.action == "BUY" else "SELL"
         order = bk.Order(signal_id=sig.signal_id, symbol=sig.symbol, side=side,
                          asset_type=sig.asset_type,
+                         client_order_id=client_id(sig.signal_id, self.mode),
                          notional=rr.sized_notional,
                          quantity=rr.sized_quantity if side == "SELL" else None)
         order.to(bk.VALIDATING); order.to(bk.APPROVED)
