@@ -39,6 +39,17 @@ its paper record decides.
 Units are the same on both sides — net return per trade — which is the lesson
 of degradation.py: a Lab P&L summed over 20,000 trades is not comparable with a
 fund's return on $100.
+
+SURVIVORSHIP (owner, 2026-09-24: "use the synthetic data")
+----------------------------------------------------------
+Where survivorship_backtest.py has run a strategy WITH the synthetic dead
+companies in the universe, that result (`as_is`) is its backtest — for the
+score and for the gate — and the every-death-a-total-loss run (`zero`) is shown
+beside it as the worst case. The old backtest is used only for a strategy that
+has not been run that way yet, and the row says which source it used. The
+drawdown exposure check the old promotion ladder applied is part of the gate:
+a strategy taking `survivorship.max_drawdown_exposure` or more of its entries
+in names already 30% below their 200-day high is out.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
@@ -64,13 +75,31 @@ def score(backtest: float | None, forward: float | None, n: int, s: dict) -> flo
     return (k * prior + n * float(forward)) / (k + n)
 
 
-def gate(backtest: float | None) -> tuple:
-    """(passes, reason). Only a measured loss fails; an absent backtest does not."""
+def gate(backtest: float | None, share_deep: float | None = None, limit: float | None = None) -> tuple:
+    """(passes, reason). A measured loss fails, and so does concentrating entries in
+    deeply drawn-down names; an absent backtest does not."""
+    if share_deep is not None and limit is not None and share_deep >= limit:
+        return False, (f"{share_deep:.0%} of entries in names >30% below their 200-day high "
+                       f"(limit {limit:.0%}): the bias this data cannot measure")
     if backtest is None:
         return True, "no backtest: ranked on paper evidence from a neutral start"
     if backtest <= 0:
         return False, f"backtest loses money net ({backtest:+.3%} per trade)"
     return True, f"backtest {backtest:+.3%} per trade"
+
+
+def survivorship(conn, key: str, version: int) -> dict:
+    """The dead-companies-included backtest, the worst case and the exposure, where computed."""
+    try:
+        import survivorship_backtest as sb
+        s, w = sb.result(conn, key, version, sb.SCORE_MODE), sb.result(conn, key, version, sb.WORST_MODE)
+    except Exception as e:                                       # noqa: BLE001
+        log.warning(f"survivorship backtest unavailable for {key}: {type(e).__name__}: {e}")
+        return {}
+    if not s or not s.get("trades"):
+        return {}
+    return {"backtest": s["per_trade"], "worst_case": (w or {}).get("per_trade"),
+            "share_deep": s.get("share_deep"), "synthetic_trades": s.get("synthetic_trades")}
 
 
 # --- evidence ------------------------------------------------------------------
@@ -137,14 +166,19 @@ def rank(conn, cfg: dict) -> list:
             # Its positions are its capital split across its holdings, not $20.
             if ev.get("capital_usd") and ev["open_positions"]:
                 ev["position_usd"] = float(ev["capital_usd"]) / ev["open_positions"]
-        bt = backtest_per_trade(conn, cfg, key, ver)
+        sv = survivorship(conn, key, ver)
+        bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)
-        ok, why = gate(bt)
+        limit = float((cfg.get("survivorship") or {}).get("max_drawdown_exposure", 0.35))
+        ok, why = gate(bt, sv.get("share_deep"), limit)
         name = (conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?",
                              (key, ver)).fetchone() or [key])[0]
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,
                     "family": leagues.family_of(conn, key, ver), "league": leagues.league_of(conn, cfg, key, ver),
                     "backtest": bt, "forward": fw, "forward_trades": n,
+                    "backtest_source": "with dead companies" if sv else ("survivors only" if bt is not None else None),
+                    "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
+                    "synthetic_trades": sv.get("synthetic_trades"),
                     "score": score(bt, fw, n, s), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                               "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
@@ -156,11 +190,13 @@ def render(rows: list, limit: int = 40) -> str:
     def p(v):
         return "     —" if v is None else f"{v:+.2%}"
     L = ["", "  RANKING — expected net return per trade; backtest first, paper evidence takes over",
-         f"  {'#':>3} {'strategy':<30} {'score':>7} {'backtest':>9} {'paper':>7} {'trades':>6} "
+         "  backtest = with synthetic dead companies (*) where computed, else survivors only; worst = every death a total loss",
+         f"  {'#':>3} {'strategy':<30} {'score':>7} {'backtest':>10} {'worst':>7} {'paper':>7} {'trades':>6} "
          f"{'net $':>7}  gate"]
     for i, r in enumerate(rows[:limit], 1):
-        L.append(f"  {i:>3} {str(r['name'])[:30]:<30} {p(r['score']):>7} {p(r['backtest']):>9} "
-                 f"{p(r['forward']):>7} {r['forward_trades']:>6} "
+        star = "*" if r.get("backtest_source") == "with dead companies" else " "
+        L.append(f"  {i:>3} {str(r['name'])[:30]:<30} {p(r['score']):>7} {p(r['backtest']):>9}{star} "
+                 f"{p(r.get('worst_case')):>7} {p(r['forward']):>7} {r['forward_trades']:>6} "
                  f"{(r['net_usd'] if r['net_usd'] is not None else 0):>+7.2f}  "
                  f"{'ok' if r['passes_gate'] else 'OUT: ' + r['gate']}")
     return "\n".join(L)
