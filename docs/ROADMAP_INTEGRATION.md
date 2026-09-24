@@ -1,27 +1,30 @@
-# Roadmap integration — Phases 6–11
+# Roadmap integration — Phases 6–13
 
 The deliverable required by `PHASES_7_11_STRATEGY_LEAGUE.md`. Ten items, in the
 order that document asks for them.
 
-**Nothing here is implemented.** This is the architecture and ordering analysis
-that precedes implementation.
+Written 2026-09-22 as the analysis that preceded implementation. Stages A–G have
+since been built; the status tables in §10 are current. Stage H (Phase 13) is
+planned and not started.
 
 ---
 
 ## 1. The project plan, updated
 
-Six phases now define the direction. Phases 1–5 (data, pipeline, environment,
+Eight phases now define the direction. Phases 1–5 (data, pipeline, environment,
 smoke test, migration) and the numbered phases 06–15 already in `ROADMAP.md`
 describe what was built; these describe where it goes.
 
 | Phase | Name | Status |
 |---|---|---|
-| 6 | Research Integrity & Independent Validation | planned — `PHASE6_RESEARCH_INTEGRITY.md` |
-| 7 | Continuous Strategy Laboratory & Paper Trading League | planned |
-| 8 | Continuous Strategy Discovery & Real-World Strategy Library | planned |
-| 9 | Fundamental Value Intelligence Engine | planned |
-| 10 | Live Capital Allocation & Strategy Promotion | planned |
-| 11 | Continuous Research Loop | planned |
+| 6 | Research Integrity & Independent Validation | **mostly built** — Stage A done; §16, §19, §21, §24, §29 (4 docs), §31 outstanding |
+| 7 | Continuous Strategy Laboratory & Paper Trading League | **built** — Stage B |
+| 8 | Continuous Strategy Discovery & Real-World Strategy Library | **built** — Stage C |
+| 9 | Fundamental Value Intelligence Engine | **built** — Stage D |
+| 10 | Live Capital Allocation & Strategy Promotion | **built** — Stage E |
+| 11 | Continuous Research Loop | **built** — Stage F |
+| 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **PLANNED 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md`; awaiting review |
 
 ---
 
@@ -474,3 +477,85 @@ because every later stage adds surface area to a codebase with a documented
 history of silent measurement defects. And Stage B item 13 comes before item 14
 because the existing forward record is the most valuable and least replaceable
 data in the project — migrate it before changing the thing that writes it.
+
+---
+
+**Stage H — Strategy Factory 2.0 (Phase 13)** — entered 2026-09-24, **not started**
+
+Spec in `docs/PHASE13_STRATEGY_FACTORY.md`, verbatim. An orchestration and
+expansion layer over what exists; §3 of the spec forbids rewriting working
+components. Build order is the spec's §39, unchanged.
+
+*Reuse map (preview of Step 1 — the step itself re-verifies it against the code)*
+
+| spec concept | existing module(s) | Phase 13 work |
+|---|---|---|
+| Strategy object, versioning | `league.py` (identity/version split, `definition_hash`, append-only log) | extend to the §13 field list; do not fork a second identity model |
+| Lifecycle | `league.py` (10 states) | adopt §14's exact states — see decision 1 |
+| Backtest | `simulator.py`, `backtest.py`, `benchmark.py`, `costs.py` | reuse as-is; generators emit genomes the simulator already runs |
+| Validation | `promote.py`, `evaluate_holdout.py`, `random_control.py`, `multiple_testing.py` | wire into the factory pipeline |
+| Robustness | `stress_test.py`, `bias_exposure.py` (partial) | new `robustness.py` for the §28 perturbations |
+| Paper trading | `paper_trading.py`, `pair_funds.py`, `value_fund.py`, `crypto_fund.py` | auto-enrol from the factory; one accounting model (Step 2) |
+| League / ranking | `scoreboard.py`, `degradation.py`, `eligibility.py` | split into the nine §16 leagues with per-league horizons |
+| Research library | `strategy_library.py`, `factory.py` | add the §7 fields; entries generate Strategy objects |
+| Fundamentals | `pit_facts.py`, `statements.py`, `valuation.py`, `intrinsic.py`, `value_score.py`, `conviction.py` | fundamental generators (§5) on top of these |
+| Data | `storage.py`, `backfill.py`, `pit_universe.py`, `delistings.py` | provider interface (§10) + FINSABER provider |
+| Promotion / allocation | `promotion_policy.py`, `allocation.py`, `roster.py` | add the family-concentration limit (§18) |
+| Live execution | `signals.py`, `risk_engine.py`, `killswitch.py`, `broker.py`, `execution.py`, `live_pipeline.py` | connect LIVE_CANDIDATE output; orders only via the central risk layer |
+| Reporting | `fund_report.py`, `build_dashboard.py`, `notify.py` | daily factory report, global scoreboard, data-quality report |
+
+*Implementation order and status*
+
+| step | item | spec § | state |
+|---:|---|---|---|
+| H1 | Audit existing architecture, document the mapping | §39.1 | not started |
+| H2 | Authoritative gross / costs / net accounting; reconciliation; restatement | §12, §34, §35 | not started |
+| H3 | Strategy object model, lifecycle, families, generators | §4, §13–15 | not started |
+| H4 | Research library schema + automatic strategy generation | §7, §32 | not started |
+| H5 | Fundamental strategy factory (PIT) incl. Value family | §5, §6, §33 | not started |
+| H6 | FINSABER import as a validation dataset + provider interface | §8–10 | not started |
+| H7 | Cross-dataset validation + discrepancy report; survivorship tags | §11, §29 | not started |
+| H8 | Nine strategy leagues with horizon-appropriate gates | §16, §33 | not started |
+| H9 | Continuous discovery: queue, budgets, family allocation, recycling, priority | §22–25 | not started |
+| H10 | Robustness: Monte Carlo, perturbations, cost/slippage stress, regimes | §28 | not started |
+| H11 | Automatic paper-trading enrolment with the §26 record | §26, §27 | not started |
+| H12 | Promotion integration: factory → validation → paper → league → risk → candidate | §18, §37 | not started |
+| H13 | Live allocation into the existing execution/risk layer | §13 (spec step 13) | not started |
+| H14 | Daily factory report, global scoreboard, data-quality + coverage reports | §17, §36 | not started |
+| H15 | End-to-end test on a few representative strategies | §39.15, §40 | not started |
+
+*Phase 6 items this absorbs.* Phase 6 §16 (baseline portfolios) is covered by
+§30 here; §19 (XGBoost calibration) by §20; §21 (regime analysis) by H10. Phase
+6 §24 (TNON case study), §29 (docs) and §31 (final report) remain Phase 6 work.
+
+*Decisions to confirm before building* — each has a default the build will
+follow if nothing else is said:
+
+1. **Lifecycle names.** §14 prescribes an exact 9 + 3 state machine;
+   `league.py` already has 10 states with different names (BACKTESTING,
+   VALIDATING, ELIGIBLE, SUSPENDED). *Default:* adopt §14 exactly and map the
+   existing log through a versioned name mapping — the append-only log itself
+   is not rewritten.
+2. **Rising 200 classification.** §19 says PROMISING / INSUFFICIENT EVIDENCE.
+   The pre-registered stop-width sweep (completed 2026-09-24) found the
+   `rising_200` entry loses net in all 30 stop x hold cells over 2006-2019.
+   *Default:* classify as §19 says and attach the sweep result to the strategy
+   record as evidence, so both are visible.
+3. **Template generation vs. the search freeze.** `SEARCH_MODE=FROZEN` and
+   `seed_mode: NONE` were written for the evolutionary search, and
+   `factory.py` refuses every run while frozen. §4/§5 generators are
+   predefined templates, not evolution. *Default:* treat template generation
+   as a separate governed path; the freeze stays on `evolve.py`. Lifting the
+   freeze itself remains a human edit to `config.yaml`.
+4. **Restating forward records.** §35 requires restatement after the
+   accounting fix; Phase 6 §14 says forward records are never modified
+   retrospectively. *Default:* keep original curves untouched, write restated
+   curves alongside under a versioned accounting model, and preserve the §35
+   snapshot as a file.
+5. **FINSABER download.** ~253 MB CSV from
+   `huggingface.co/datasets/finsaber-team/FINSABER-reproduce`. Will ask for an
+   explicit go-ahead at H6 before downloading.
+6. **Live step (H13).** The existing execution layer produces a validated,
+   risk-checked order; the LIVE transmit path is an existing unbuilt item
+   (see CLAUDE.md, Robinhood Agentic). H13 connects qualified candidates to
+   that layer and does not change it.
