@@ -17,6 +17,14 @@
 account_type: cash               # cash | margin
 settlement_days: 1               # T+1 for US equities
 
+# --- emergency policy (Addendum A §25) --------------------------------------
+# What the global kill switch does to open slot positions. flatten: close all
+# of them (the one kind of order a halt permits). hold: stop new orders only.
+emergency_policy: flatten
+# LIVE is armed here and nowhere else (B14). Changing this line is the user's
+# step; every entry point refuses LIVE while it says SIMULATION.
+execution_mode: SIMULATION
+
 # --- position sizing -------------------------------------------------------
 # Anchored to the $100 account mandate in CLAUDE.md. That mandate is the reason
 # these are small, not an arbitrary default: it is the entire downside.

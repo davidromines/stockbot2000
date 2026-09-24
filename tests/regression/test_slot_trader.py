@@ -125,6 +125,35 @@ def main():
 
     check("LIVE refused without the operator's execution_mode", st.main(["--status", "--mode", "LIVE"]) == 2)
 
+    # --- §25 emergency: the env switch, never the real data/KILL_SWITCH file ---
+    import notify
+    alerts = []
+    notify.notify = lambda title, body, html=None: alerts.append(body) or []
+    c4 = fixture()
+    assign(c4, 1, "fx_test")
+    assign(c4, 2, "fx_other")
+    st.trade(c4, cfg, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c4))
+    check("two slot positions open before the switch", len(st.open_positions(c4, "SIMULATION")) == 2)
+    os.environ["TRADING_ENABLED"] = "false"
+    try:
+        r = st.trade(c4, cfg, "SIMULATION", qt.FixedQuotes({"AAA": 49.0, "BBB": 61.0}, conn=c4))
+        closes = [x for x in r if x["action"] == "CLOSE" and x["status"] == "filled"]
+        check("kill switch flattens every slot position", len(closes) == 2
+              and not st.open_positions(c4, "SIMULATION"), r)
+        check("no entry while the switch is on", not [x for x in r if x["action"] == "BUY"], r)
+        check("user alerted once", len(alerts) == 1, alerts)
+        st.monitor(c4, cfg, "SIMULATION", qt.FixedQuotes({}, conn=c4))
+        check("alert not repeated in the same session", len(alerts) == 1, alerts)
+        slots.assess = lambda conn, cfg: [{"strategy_key": "new", "version": 1, "net_usd": 50, "family": "z",
+                                           "eligible": True, "reasons": [], "sessions": 30}]
+        p = slots.plan(c4, cfg)
+        check("promotions frozen: no slot assigned", not p["assign"], p["assign"])
+        b = bk.LedgerSimulatedBroker(c4, 100.0, "SIMULATION", qt.FixedQuotes({}, conn=c4))
+        ok, diffs = st.reconcile(c4, b, "SIMULATION")
+        check("emergency exits reconcile with the ledger", ok and not b.positions, diffs)
+    finally:
+        os.environ.pop("TRADING_ENABLED", None)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED: {', '.join(FAILED)}")

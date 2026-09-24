@@ -170,6 +170,10 @@ def _exit(conn, engine, mode, slot, pos, reason, reconciled, results):
 def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -> list:
     """Stops only (I6). Risk exits outrank any strategy HOLD (§17)."""
     results = [] if results is None else results
+    import killswitch as ks
+    why = ks.global_engaged()
+    if why:
+        return results + emergency(conn, cfg, mode, provider, why)
     broker, engine = _build(conn, cfg, mode, provider)
     ok, diffs = reconcile(conn, broker, mode)
     if not ok:
@@ -202,6 +206,48 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     return results
 
 
+def emergency(conn, cfg, mode: str, provider, why: str) -> list:
+    """
+    The global switch is on (§25): no new orders; cancel what is still open;
+    under the flatten policy, close every slot position; alert the user once
+    per session. Promotions are frozen in slots.py and factory_pipeline.py.
+    """
+    import killswitch as ks
+    results = []
+    broker, engine = _build(conn, cfg, mode, provider)
+    for (cid, boid) in conn.execute(
+            "SELECT client_order_id, broker_order_id FROM orders WHERE mode=? AND state NOT IN "
+            "('FILLED','CANCELLED','REJECTED','FAILED')", (mode,)).fetchall():
+        try:
+            done = broker.cancel_order(boid or cid)
+        except Exception as e:                               # noqa: BLE001
+            done = False
+            log.error(f"cancel {cid} failed: {type(e).__name__}")
+        results.append({"slot": "-", "action": "CANCEL", "symbol": cid, "reason": why,
+                        "status": "cancelled" if done else "cancel_failed"})
+    if ks.emergency_policy(risk_engine.load_limits()) == "flatten":
+        for slot, pos in open_positions(conn, mode).items():
+            sig = sg.Signal(symbol=pos["symbol"], action="CLOSE", strategy=f"slot{slot}:EMERGENCY",
+                            reason=f"emergency policy: {why}", quantity=float(pos["quantity"]),
+                            session=engine.session)
+            res = engine.execute(sig, reconciled=None)
+            _record_trade(conn, mode, slot, pos, pos["symbol"], "CLOSE", res, sig.reason)
+            results.append({"slot": slot, "action": "CLOSE", "symbol": pos["symbol"],
+                            "reason": sig.reason, "status": res["status"], "why": res.get("reasons")})
+    day = _session(conn)
+    seen = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='emergency_alert' AND "
+                        "substr(at,1,10)=?", (day,)).fetchone()[0]
+    if not seen:
+        ks.record_event(conn, "emergency_alert", why, "critical")
+        try:
+            import notify
+            notify.notify("Stockbot2000 KILL SWITCH", f"Global kill switch engaged: {why}. "
+                          f"{len([r for r in results if r['action'] == 'CLOSE'])} slot position(s) closed.")
+        except Exception as e:                               # noqa: BLE001
+            log.error(f"alert failed: {type(e).__name__}: {e}")
+    return results
+
+
 def trade(conn, cfg, mode: str, provider) -> list:
     """At the open: exits, then entries (I8)."""
     import paper_trading as pt
@@ -217,6 +263,9 @@ def trade(conn, cfg, mode: str, provider) -> list:
         exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
 
     results = monitor(conn, cfg, mode, provider, strategy_exits=exits_by_slot)
+    import killswitch as ks
+    if ks.global_engaged():
+        return results                      # emergency handled in monitor(); no entries
 
     broker, engine = _build(conn, cfg, mode, provider)
     ok, diffs = reconcile(conn, broker, mode)

@@ -258,6 +258,12 @@ def plan(conn, cfg: dict) -> dict:
         taken.add((r["strategy_key"], r["version"]))
         replacements += 1
 
+    halted = killswitch.global_engaged()
+    if halted:
+        # §25: promotions freeze while the global switch is on. Releases still
+        # happen; nothing new is assigned.
+        assigns = []
+        releases = [x for x in releases if not x[2].startswith("replaced by")]
     cash = [slot for slot in held if slot not in keep and slot not in {a[0] for a in assigns}]
     return {"held": held, "keep": {k: {kk: vv for kk, vv in v.items() if kk != "row"} for k, v in keep.items()},
             "release": releases, "assign": assigns, "cash_slots": cash,

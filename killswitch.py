@@ -160,6 +160,24 @@ def check(conn, portfolio: dict | None, limits: dict,
     return v
 
 
+def global_engaged() -> str | None:
+    """Why trading is globally stopped by an operator switch, or None."""
+    if KILL_FILE.exists():
+        try:
+            return KILL_FILE.read_text().strip().splitlines()[-1]
+        except Exception:
+            return "unreadable"
+    if os.environ.get("TRADING_ENABLED", "true").strip().lower() in ("false", "0", "no"):
+        return "TRADING_ENABLED is false"
+    return None
+
+
+def emergency_policy(limits: dict) -> str:
+    """'flatten' (close every slot position) or 'hold' (stop new orders only)."""
+    p = str(limits.get("emergency_policy", "flatten")).lower()
+    return p if p in ("flatten", "hold") else "flatten"
+
+
 # --- per-strategy switches (Addendum A §25, B13) ------------------------------
 # A strategy can be stopped without stopping the account. State is an
 # append-only log, never a flag column: the latest ENGAGE/RELEASE row for a key

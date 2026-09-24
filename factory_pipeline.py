@@ -213,6 +213,8 @@ def enroll(conn, cfg, key: str, ver: int, m: dict, g: dict) -> str:
 
 def evaluate_forward(conn, cfg) -> dict:
     """H12: forward evidence moves strategies between PAPER, QUALIFIED and LIVE_CANDIDATE."""
+    import killswitch
+    frozen = killswitch.global_engaged()        # §25: promotions freeze; demotions do not
     st = leagues.standings(conn, cfg, record=True)
     moved = {"qualified": 0, "demoted": 0, "candidates": 0, "unchanged": 0}
     for rows in st.values():
@@ -220,7 +222,7 @@ def evaluate_forward(conn, cfg) -> dict:
             key, ver, cur = r["strategy_key"], r["version"], league.canonical(r["state"])
             tier = r["tier"]
             good = tier in ("ELIGIBLE", "ESTABLISHED")
-            if cur == league.PAPER and good:
+            if cur == league.PAPER and good and not frozen:
                 so.decide(conn, key, ver, "PROMOTE", f"forward evidence: {tier} in {r['league']}",
                           to_state=league.QUALIFIED, classification="QUALIFIED",
                           evidence={k: r.get(k) for k in ("net_usd", "sessions", "closed_trades",
@@ -238,6 +240,8 @@ def evaluate_forward(conn, cfg) -> dict:
 
 def promote_candidates(conn, cfg) -> list:
     """QUALIFIED -> LIVE_CANDIDATE, one per concentration family (§18, B7)."""
+    import killswitch
+    frozen = killswitch.global_engaged()
     st = leagues.standings(conn, cfg)
     pool = [r for rows in st.values() for r in rows
             if league.canonical(r["state"]) in (league.QUALIFIED, league.LIVE_CANDIDATE)
@@ -248,7 +252,7 @@ def promote_candidates(conn, cfg) -> list:
         if r["family"] in seen:
             continue
         seen.add(r["family"])
-        if league.canonical(r["state"]) == league.QUALIFIED:
+        if league.canonical(r["state"]) == league.QUALIFIED and not frozen:
             so.decide(conn, r["strategy_key"], r["version"], "PROMOTE",
                       f"best QUALIFIED strategy in family {r['family']}", to_state=league.LIVE_CANDIDATE)
         out.append(r)

@@ -122,6 +122,11 @@ def already_submitted(conn, signal_id: str) -> dict | None:
     return dict(r) if r else None
 
 
+def is_emergency_exit(sig) -> bool:
+    """An exit issued under the emergency policy (Addendum A §25)."""
+    return sig.action == "CLOSE" and str(sig.strategy).endswith(":EMERGENCY")
+
+
 class ExecutionEngine:
     def __init__(self, conn, broker: bk.BrokerInterface, risk_engine,
                  mode: str = "SIMULATION", session: str = ""):
@@ -163,6 +168,39 @@ class ExecutionEngine:
             "state NOT IN ('REJECTED','FAILED')", (self.session, symbol)).fetchone()
         return {"orders_today": row["n"], "orders_for_symbol": per["n"]}
 
+    def _emergency_exit(self, sig, portfolio: dict, halt_reasons: list) -> dict:
+        """
+        Close a position while trading is halted (§25: "exit positions according
+        to emergency policy"). The one thing a halt does not block: a switch
+        that also prevents getting OUT traps the account in the condition it
+        tripped on. Sized from what is held, never more; no entry is possible
+        on this path.
+        """
+        held = (portfolio.get("positions") or {}).get(sig.symbol)
+        qty = float((held or {}).get("quantity") or sig.quantity or 0)
+        if qty <= 0:
+            _record_risk(self.conn, sig, "REJECTED", ["emergency exit: nothing held"])
+            return {"status": "rejected", "signal_id": sig.signal_id, "reasons": ["nothing held"]}
+        prior = already_submitted(self.conn, sig.signal_id)
+        if prior:
+            return {"status": "duplicate", "signal_id": sig.signal_id, "order": prior,
+                    "reasons": ["this decision already produced an order"]}
+        _record_risk(self.conn, sig, "EMERGENCY_EXIT", halt_reasons)
+        order = bk.Order(signal_id=sig.signal_id, symbol=sig.symbol, side="SELL",
+                         asset_type=sig.asset_type, notional=None, quantity=qty)
+        order.to(bk.VALIDATING); order.to(bk.APPROVED)
+        _save_order(self.conn, order, self.session, self.mode)
+        if self.mode == "SHADOW":
+            return {"status": "shadow", "signal_id": sig.signal_id, "order": order}
+        try:
+            order = self.broker.place_order(order)
+        except Exception as e:      # noqa: BLE001
+            order.state, order.note = bk.FAILED, f"{type(e).__name__}: {e}"
+        _save_order(self.conn, order, self.session, self.mode)
+        _log_json("EMERGENCY_EXIT", signal_id=sig.signal_id, symbol=sig.symbol,
+                  state=order.state, reasons=halt_reasons)
+        return {"status": order.state.lower(), "signal_id": sig.signal_id, "order": order}
+
     # -- the one public entry point -----------------------------------------
 
     def execute(self, sig: sg.Signal, reconciled: bool | None = None) -> dict:
@@ -179,6 +217,8 @@ class ExecutionEngine:
         portfolio = self.snapshot()
         verdict = ks.check(self.conn, portfolio, self.risk.L,
                            recent_errors=self.errors, reconciled=reconciled)
+        if not verdict.trading_allowed and is_emergency_exit(sig) and portfolio is not None:
+            return self._emergency_exit(sig, portfolio, verdict.reasons)
         if not verdict.trading_allowed:
             _record_risk(self.conn, sig, "HALTED", verdict.reasons)
             _log_json("TRADING_HALTED", signal_id=sig.signal_id, reasons=verdict.reasons)
