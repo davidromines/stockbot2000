@@ -20,9 +20,12 @@ data/universe/synthetic_v1.parquet and always carry `is_synthetic = True` and
                  optimistic bound: each unpriced death exited at its last price)
 
 A strategy's result across all five is the honest statement of how much it
-depends on the companies we cannot see. Synthetic modes are for retests and
-stress bounds only — never strategy discovery or promotion gates, until a
-generator passes the discriminability test (Stage 5; Addendum C question 5).
+depends on the companies we cannot see. Synthetic modes were for retests and
+stress bounds only (Addendum C question 5, recommended answer). **Owner ruling
+2026-09-24 overrides that for the ranking:** survivorship_backtest.py runs
+every ranked strategy in exclude / as_is / zero and ranking.py scores and gates
+on as_is, although the generator still fails the discriminability test. Never
+for strategy discovery (the frozen search).
 
     from universe_loader import load_backtest_data
     df = load_backtest_data(conn, "2016-01-01", "2019-12-31", mode="zero")

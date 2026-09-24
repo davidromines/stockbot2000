@@ -188,6 +188,11 @@ run "[9c/10] Research library sync" $PY library_bridge.py --sync
 run "[9d/10] Factory templates" $PY strategy_factory.py --generate
 run "[9e/10] Discovery plan" $PY discovery.py --plan
 run "[9f/10] Factory pipeline" bounded $PY factory_pipeline.py --run --budget 12
+# Owner, 2026-09-24: backtests include the synthetic dead companies. Every
+# ranked strategy is re-run with them (as_is) and with every death a total loss
+# (zero); ranking.py scores on as_is. Resumable: only new strategies or a new
+# synthetic build are computed.
+run "[9f2/10] Survivorship backtests" bounded $PY survivorship_backtest.py --run
 run "[9g/10] League standings" $PY leagues.py --standings --record
 run "[9h/10] Factory report" $PY factory_report.py
 # Addendum A §26 / I10: the formal five-slot reassessment, once per trading
