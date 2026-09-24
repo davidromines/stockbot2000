@@ -17,7 +17,7 @@ LIMITS = load_limits()
 E = RiskEngine(LIMITS)
 
 GOOD_QUOTE = {"price": 50.0, "dollar_volume_20": 20_000_000.0, "market_cap": 5e9}
-PORTFOLIO = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "daily_pnl": 0.0,
+PORTFOLIO = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "day_trades_5d": 0, "daily_pnl": 0.0,
              "drawdown_percent": 0.0, "positions": {}}
 
 
@@ -161,6 +161,14 @@ r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 3}, GOOD_QUOTE)
 check("margin under $25k: 3 day trades stops new buys", not r.approved)
 r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 2}, GOOD_QUOTE)
 check("margin under $25k: 2 day trades still buys", r.approved)
+lim = RiskEngine({**LIMITS, "account_type": "limited_margin"})
+r = lim.validate(sig(), {**PORTFOLIO, "unsettled_proceeds": 90.0, "day_trades_5d": 0}, GOOD_QUOTE)
+check("limited_margin: settled-funds rule still applies", r.approved and r.sized_notional == 10.0)
+r = lim.validate(sig(), {**PORTFOLIO, "unsettled_proceeds": 0.0, "day_trades_5d": 3}, GOOD_QUOTE)
+check("limited_margin: PDT limit stops entries", not r.approved)
+r = lim.validate(sig(), {**{k: v for k, v in PORTFOLIO.items() if k != "unsettled_proceeds"},
+                         "day_trades_5d": 0}, GOOD_QUOTE)
+check("limited_margin: unknown settled cash refuses", not r.approved)
 from datetime import date  # noqa: E402
 check("T+1 with holiday margin: Friday sale settles Tuesday",
       account_rules.add_weekdays(date(2026, 9, 25), 2) == date(2026, 9, 29))

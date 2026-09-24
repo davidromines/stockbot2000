@@ -9,12 +9,14 @@
 # Every number here is enforced by risk_engine.validate(). Nothing bypasses it.
 
 # --- account type ----------------------------------------------------------
-# Robinhood Agentic account (••••6024). Confirmed CASH by the user 2026-09-24
-# (Addendum B §B12). Cash accounts are exempt from pattern-day-trader rules but
-# may trade only with SETTLED funds (T+1): buying with unsettled sale proceeds
-# and selling before they settle is a good-faith violation. Enforced by the
-# account-rule guard (Stage I12).
-account_type: cash               # cash | margin
+# Robinhood Agentic account (••••6024). Reported CASH by the user 2026-09-24,
+# but Robinhood's own get_accounts says type "limited_margin" (probed the same
+# day). A margin-type account under $25,000 is subject to the pattern-day-
+# trader rule, so both rules are enforced: entries stop at 3 day trades in 5
+# sessions, AND buys use settled funds only (T+1, the cash rule) — the
+# stricter reading until Robinhood's limited-margin terms say otherwise.
+# Enforced by the account-rule guard (Stage I12, account_rules.py).
+account_type: limited_margin     # cash | margin | limited_margin
 settlement_days: 1               # T+1 for US equities
 
 # --- emergency policy (Addendum A §25) --------------------------------------

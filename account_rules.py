@@ -87,7 +87,12 @@ def annotate(conn, portfolio: dict | None, limits: dict, today: str, mode: str) 
     kind = str(limits.get("account_type", "cash")).lower()
     out = dict(portfolio)
     out["account_type"] = kind
-    if kind == "cash":
+    if kind == "limited_margin":
+        # Robinhood's "limited_margin" (the Agentic account, probed 2026-09-24):
+        # a margin-type account, so the pattern-day-trader count applies, and
+        # the settled-funds rule is kept as well — both, the stricter reading.
+        out["day_trades_5d"] = day_trades(conn, today, mode)
+    if kind in ("cash", "limited_margin"):
         ledger = unsettled_proceeds(
             conn, today, mode, int(limits.get("settlement_days", 1)),
             int(limits.get("holiday_margin_days", 1)))
@@ -114,6 +119,12 @@ def check_buy(portfolio: dict, limits: dict, want: float) -> tuple:
     """
     kind = str(limits.get("account_type", "cash")).lower()
     cash = float(portfolio.get("buying_power") or 0)
+    if kind == "limited_margin":
+        # Both rules; the smaller allowance wins.
+        a, why = check_buy(portfolio, {**limits, "account_type": "margin"}, want)
+        if why:
+            return a, why
+        return check_buy(portfolio, {**limits, "account_type": "cash"}, a)
     if kind == "cash":
         if "unsettled_proceeds" not in portfolio:
             return 0.0, "settled cash unknown — cash-account buy refused rather than assumed"

@@ -44,7 +44,7 @@ import stop_plans
 OUT = "data/acceptance.json"
 MIN_SHADOW_SESSIONS = 10
 GENOME = {"entry": {"op": "gt"}, "exit": {"op": "lt"}, "risk": {"stop_atr_multiple": 2.0, "max_hold_days": 20}}
-PORT = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "daily_pnl": 0.0,
+PORT = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "day_trades_5d": 0, "daily_pnl": 0.0,
         "drawdown_percent": 0.0, "positions": {}}
 QUOTE = {"price": 50.0, "dollar_volume_20": 5e7, "market_cap": 5e9}
 
@@ -101,7 +101,7 @@ def run(with_suite: bool = True) -> list:
 
     item(1, "LIVE is disabled (execution_mode is not LIVE)",
          lambda: (str(L.get("execution_mode", "SIMULATION")).upper() != "LIVE", L.get("execution_mode")))
-    item(2, "account type configured", lambda: (L.get("account_type") in ("cash", "margin"), L.get("account_type")))
+    item(2, "account type configured", lambda: (L.get("account_type") in ("cash", "margin", "limited_margin"), L.get("account_type")))
     item(3, "risk limits present (trade, position, daily loss, drawdown)",
          lambda: (all(L.get(k) for k in ("max_trade_dollars", "max_position_dollars", "max_daily_loss_dollars",
                                          "max_drawdown_percent")), "all set"))
