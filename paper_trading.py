@@ -97,6 +97,14 @@ def init(conn) -> None:
             PRIMARY KEY (run_id, date)
         ) STRICT, WITHOUT ROWID
     """)
+    # Columns the production table gained by hand and code came to depend on:
+    # fund_report and the factory read `label` / `family`, the review cycle
+    # reads `last_review`. No code created them, so a rebuilt database broke
+    # enrolment (found by the Phase 13 end-to-end test, 2026-09-24). Idempotent.
+    have = {r[1] for r in conn.execute("PRAGMA table_info(paper_runs)")}
+    for col in ("last_review", "label", "family"):
+        if col not in have:
+            conn.execute(f"ALTER TABLE paper_runs ADD COLUMN {col} TEXT")
     conn.commit()
 
 
