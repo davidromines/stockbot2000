@@ -24,7 +24,7 @@ describe what was built; these describe where it goes.
 | 10 | Live Capital Allocation & Strategy Promotion | **built** — Stage E |
 | 11 | Continuous Research Loop | **built** — Stage F |
 | 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
-| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **BUILDING from 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **H1-H14 built 2026-09-24, in daily.sh; H15 remains** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **BUILDING from 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **PLANNED 2026-09-24; awaiting confirmation of the staged plan and answers to 8 questions** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
@@ -511,20 +511,20 @@ components. Build order is the spec's §39, unchanged.
 
 | step | item | spec § | state |
 |---:|---|---|---|
-| H1 | Audit existing architecture, document the mapping | §39.1 | not started |
-| H2 | Authoritative gross / costs / net accounting; reconciliation; restatement | §12, §34, §35 | not started |
-| H3 | Strategy object model, lifecycle, families, generators | §4, §13–15 | not started |
-| H4 | Research library schema + automatic strategy generation | §7, §32 | not started |
-| H5 | Fundamental strategy factory (PIT) incl. Value family | §5, §6, §33 | not started |
-| H6 | FINSABER import as a validation dataset + provider interface | §8–10 | not started |
-| H7 | Cross-dataset validation + discrepancy report; survivorship tags | §11, §29 | not started |
-| H8 | Nine strategy leagues with horizon-appropriate gates | §16, §33 | not started |
-| H9 | Continuous discovery: queue, budgets, family allocation, recycling, priority | §22–25 | not started |
-| H10 | Robustness: Monte Carlo, perturbations, cost/slippage stress, regimes | §28 | not started |
-| H11 | Automatic paper-trading enrolment with the §26 record | §26, §27 | not started |
-| H12 | Promotion integration: factory → validation → paper → league → risk → candidate | §18, §37 | not started |
-| H13 | Live allocation into the existing execution/risk layer | §13 (spec step 13) | not started |
-| H14 | Daily factory report, global scoreboard, data-quality + coverage reports | §17, §36 | not started |
+| H1 | Audit existing architecture, document the mapping | §39.1 | **done** 2026-09-24 |
+| H2 | Authoritative gross / costs / net accounting; reconciliation; restatement | §12, §34, §35 | **done** 2026-09-24 |
+| H3 | Strategy object model, lifecycle, families, generators | §4, §13–15 | **done** 2026-09-24 |
+| H4 | Research library schema + automatic strategy generation | §7, §32 | **done** 2026-09-24 |
+| H5 | Fundamental strategy factory (PIT) incl. Value family | §5, §6, §33 | **done** 2026-09-24 |
+| H6 | FINSABER import as a validation dataset + provider interface | §8–10 | **done** 2026-09-24 |
+| H7 | Cross-dataset validation + discrepancy report; survivorship tags | §11, §29 | **done** 2026-09-24 |
+| H8 | Nine strategy leagues with horizon-appropriate gates | §16, §33 | **done** 2026-09-24 |
+| H9 | Continuous discovery: queue, budgets, family allocation, recycling, priority | §22–25 | **done** 2026-09-24 |
+| H10 | Robustness: Monte Carlo, perturbations, cost/slippage stress, regimes | §28 | **done** 2026-09-24 |
+| H11 | Automatic paper-trading enrolment with the §26 record | §26, §27 | **done** 2026-09-24 |
+| H12 | Promotion integration: factory → validation → paper → league → risk → candidate | §18, §37 | **done** 2026-09-24 |
+| H13 | Live allocation into the existing execution/risk layer | §13 (spec step 13) | **done** 2026-09-24 |
+| H14 | Daily factory report, global scoreboard, data-quality + coverage reports | §17, §36 | **done** 2026-09-24 |
 | H15 | End-to-end test on a few representative strategies | §39.15, §40 | not started |
 
 *Phase 6 items this absorbs.* Phase 6 §16 (baseline portfolios) is covered by
@@ -676,7 +676,7 @@ Build authorized; order is H1-H15 then I1-I14 (B23), integrating as it goes.
 | H2 Rising 200 | default stands: PROMISING / INSUFFICIENT EVIDENCE with the sweep attached |
 | H3 template generation vs freeze | resolved by B16: factory templates are the discovery path; `evolve.py` stays frozen |
 | H4 restating history | resolved by B18: preserve, mark original, restate alongside, never overwrite |
-| H5 FINSABER download | still an explicit go-ahead before the ~253 MB download; everything else in H6-H7 is built first |
+| H5 FINSABER download | **answered 2026-09-24: yes, all three files.** Downloaded, schema-checked, imported to `data/finsaber.db`; returns agree 99.5-99.8%/yr with the primary DB |
 | H6 live step | resolved by B13/B14: connect into the existing execution/risk layer; real-money activation is a user authorization event |
 | I1 gross vs net | resolved by B5: rank on net (measured costs, else modeled); gross/costs/net always shown |
 | I2 account type | **CASH** (user, 2026-09-24): no PDT limit; trade settled funds only (T+1); `config/risk.yaml` `account_type` |
