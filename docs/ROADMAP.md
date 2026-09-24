@@ -489,3 +489,12 @@ Authorizes construction of Phase 13 then Addendum A in roadmap order,
 resolves their open decisions (table at the end of `ROADMAP_INTEGRATION.md`),
 and fixes the definition of done: the full discover → trade → replace loop
 running autonomously, with real-money activation the user's step.
+
+### Addendum C · Synthetic delisting returns for FINSABER 📋 PLANNED 2026-09-24 — not actioned
+Spec verbatim in `ADDENDUM_C_SYNTHETIC_DELISTING.md`. A tagged, reproducible
+synthetic delisting return for every FINSABER symbol that stops trading, so a
+strategy can be run as-is, excluding synthetic rows, at -100% and at 0%, and
+the spread shows how much of the result rests on imputed data. Builds on the
+existing `delistings` registry and 8-K events for real reasons. Six questions
+to settle before code, in `ROADMAP_INTEGRATION.md` Stage J — the first is
+whether merger delisting returns should be centred near zero rather than +20%.

@@ -934,6 +934,7 @@ which resolves their open decisions — see the table at the end of
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `docs/PHASE13_STRATEGY_FACTORY.md` |
 | A | Autonomous 5-slot trading system | `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | Final build directive | `docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
+| C | Synthetic delisting returns for FINSABER — PLANNED, not to be built until the user says so | `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.

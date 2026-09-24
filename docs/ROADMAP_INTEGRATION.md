@@ -27,6 +27,7 @@ describe what was built; these describe where it goes.
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **BUILDING from 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **BUILDING from 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
+| C | **Addendum C — Synthetic delisting returns for FINSABER** | **PLANNED 2026-09-24, not to be built until the user says so** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
 ---
 
@@ -686,3 +687,62 @@ Build authorized; order is H1-H15 then I1-I14 (B23), integrating as it goes.
 | I7 arming live | resolved by B14: SIMULATION -> SHADOW -> LIVE; activation is the user's |
 
 Benchmarks and the null are informational, never promotion gates (B20).
+
+---
+
+**Stage J — Addendum C: synthetic delisting returns for FINSABER** — entered 2026-09-24, **PLANNED; not actioned**
+
+Spec verbatim in `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`. Purpose: close the
+survivorship gap on the S&P 500 validation subset by adding a tagged,
+reproducible synthetic delisting return to every FINSABER symbol that stops
+trading, so a strategy can be run four ways (as-is, exclude, -100%, 0%) and
+the spread between them bounds how much of its result rests on imputed data.
+
+*Depends on:* the FINSABER CSV being downloaded and imported (Phase 13 H6,
+awaiting an explicit go-ahead for the ~253 MB download).
+
+*Existing work it builds on — reuse, do not duplicate*
+
+| existing | what it gives Stage J |
+|---|---|
+| `delistings.py` (`delistings` table: symbol, exchange, delisting_date) | exact delisting dates and the exchange, so NYSE/AMEX vs NASDAQ severities can be applied per symbol rather than guessed |
+| `edgar_events.py` (238,756 8-K item codes) | **real delisting reasons** for many names: item 1.03 bankruptcy, item 2.01 completion of acquisition, 3.01 delisting notice — better than price heuristics wherever an 8-K exists |
+| `synthetic_delistings.py`, `synthetic_validate.py`, `retest_synthetic.py`, `mc_1m.py` | the existing generator of synthetic delisting PRICE PATHS for the 7,062 missing companies, its discriminability test (AUC 0.978 — synthetic rows are easy to tell apart), and the retest harness |
+| `data_providers.py`, `finsaber.py` | where FINSABER lives (`data/finsaber.db`), and the provider the backtest loader would wrap |
+| SPY in `prices` | trailing 12-month market return for time variation; VIX would need a fetch (`^VIX`) |
+
+*Proposed steps* (none started)
+
+| step | item | state |
+|---:|---|---|
+| J1 | Reason classification: 8-K events first, price/volume heuristics as fallback, `reason_source` recorded per symbol | not started |
+| J2 | `generate_delisting_return` mixtures per reason, every parameter configurable with its citation | not started |
+| J3 | `apply_to_finsaber`: append-only synthetic rows with `data_source`, `is_synthetic`, `synthetic_reason`, `synthetic_seed`; real rows never modified | not started |
+| J4 | Validation script: target statistics, histogram + QQ, implausibility flags, provenance-integrity assertions | not started |
+| J5 | `load_backtest_data` with `as_is` / `exclude` / `zero` / `optimistic`, wired into the FINSABER provider | not started |
+| J6 | README section, and a synthetic-share report by symbol and by year | not started |
+
+*Questions to settle before code* (the addendum asks for these first)
+
+1. **Merger delisting returns.** The spec models mergers at about +20%. In
+   CRSP, the *delisting* return for a merger — from the last trade to the
+   cash-out — is usually small, because the price has already converged to
+   the deal price before trading stops; the takeover premium sits inside the
+   price history, before the delisting. Centring mergers at +20% would
+   likely add gains that never existed. Proposed default: centre merger
+   delisting returns near zero (configurable), and treat the +10% to +40%
+   figure as the announcement premium already in the prices. Needs your call.
+2. **Module name.** `synthetic_delisting.py` (singular) sits beside the
+   existing `synthetic_delistings.py` (plural, price paths). Proposed:
+   `finsaber_delisting.py`, or keep your name and rename nothing. Your call.
+3. **Reasons from 8-K events.** Use real 8-K reasons where they exist and
+   heuristics only as a fallback, with the source tagged? Proposed: yes.
+4. **Time variation.** Condition on SPY's trailing 12-month return (held
+   locally) now, and add VIX only if you want the extra fetch? Proposed: SPY
+   now, VIX optional.
+5. **Scope.** FINSABER's S&P 500 subset only, as specified, or also use the
+   same generator for the 7,062 delisted names in the primary database's
+   `delistings` registry? Proposed: FINSABER only first, as specified.
+6. **Exchange-specific severities.** Apply the NYSE/AMEX (-41.7%) vs NASDAQ
+   (-16.3%) performance means per symbol using `delistings.exchange`, with
+   the pooled mixture where the exchange is unknown? Proposed: yes.
