@@ -128,11 +128,23 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
         if n:
             by_name.setdefault(n, i)
 
-    def attach(ticker, name):
-        if ticker and ticker in by_ticker:
+    def consistent(i, when):
+        """A listing event on `when` belongs to CIK record i only if that company
+        was filing around then. Tickers are REUSED: without this, a delisting
+        from 2012 attaches to whichever company holds the ticker today."""
+        if not when or not isinstance(when, str):
+            return True
+        lo = rec.at[i, "first_seen"] if isinstance(rec.at[i, "first_seen"], str) else "0000"
+        hi = rec.at[i, "last_seen"] if isinstance(rec.at[i, "last_seen"], str) else "9999"
+        lo = (pd.Timestamp(lo) - pd.DateOffset(years=1)).date().isoformat() if lo != "0000" else lo
+        hi = (pd.Timestamp(hi) + pd.DateOffset(years=1)).date().isoformat() if hi != "9999" else hi
+        return lo <= when[:10] <= hi
+
+    def attach(ticker, name, when=None):
+        if ticker and ticker in by_ticker and consistent(by_ticker[ticker], when):
             return by_ticker[ticker], "ticker"
         n = norm_name(name)
-        if n and n in by_name:
+        if n and n in by_name and consistent(by_name[n], when):
             return by_name[n], "name"
         return None, None
 
@@ -142,7 +154,7 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
     av = q("SELECT symbol, name, exchange, ipo_date, delisting_date FROM delistings WHERE asset_type='Stock'")
     rec["delisted_on"], rec["delisted_on_src"], rec["match"] = None, None, None
     for r in av.itertuples(index=False):
-        i, how = attach(r.symbol, r.name)
+        i, how = attach(r.symbol, r.name, r.delisting_date)
         if i is None:
             extra.append({"company_id": f"AV:{r.symbol}:{r.ipo_date}", "name": r.name, "name_src": "alphavantage",
                           "ticker": r.symbol, "ticker_src": "alphavantage", "exchange": r.exchange,
@@ -166,7 +178,7 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
            "MAX(exchange) exchange FROM historical_listings WHERE security_type='common_stock' GROUP BY ticker")
     rec["in_ia"] = False
     for r in ia.itertuples(index=False):
-        i, how = attach(r.ticker, r.name)
+        i, how = attach(r.ticker, r.name, r.last_d)
         if i is None:
             extra.append({"company_id": f"IA:{r.ticker}", "name": r.name, "name_src": "internet_archive",
                           "ticker": r.ticker, "ticker_src": "internet_archive", "exchange": r.exchange,
@@ -186,14 +198,36 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
     df = pd.concat([rec, pd.DataFrame(extra)], ignore_index=True)
 
     # --- real prices we hold ----------------------------------------------------
-    have = set(t for (t,) in conn.execute("SELECT ticker FROM symbols WHERE security_type='common_stock'"))
-    df["has_primary_prices"] = df["ticker"].isin(have)
+    # A record "has real prices" only if the ticker's price history ENDS near the
+    # record's own end. A ticker whose prices run years past a dead company's
+    # delisting belongs to a later company — crediting the dead one with its
+    # successor's prices put 426 impostors into the real dead-company sample.
+    span = {t: (lo, hi) for t, lo, hi in conn.execute(
+        "SELECT p.ticker, MIN(p.date), MAX(p.date) FROM prices p JOIN symbols s ON s.ticker=p.ticker "
+        "WHERE s.security_type='common_stock' GROUP BY p.ticker")}
+
+    def owns(ticker, end, dead, spans):
+        if not isinstance(ticker, str) or ticker not in spans:
+            return False
+        lo, hi = spans[ticker]
+        if not dead or not isinstance(end, str):
+            return True
+        end = end[:10]
+        near = (pd.Timestamp(end) + pd.Timedelta(days=45)).date().isoformat()
+        far = (pd.Timestamp(end) - pd.Timedelta(days=365)).date().isoformat()
+        return far <= hi <= near
+    dead = df["status"].isin(["delisted", "ended"])
+    df["has_primary_prices"] = [owns(t, e, d, span) for t, e, d in zip(df["ticker"], df["last_seen"], dead)]
     fins = set()
     if os.path.exists(finsaber_db):
         f = sqlite3.connect(f"file:{finsaber_db}?mode=ro", uri=True)
-        fins = {t for (t,) in f.execute("SELECT DISTINCT symbol FROM finsaber_prices")}
+        import finsaber
+        bad = finsaber.flagged(f)          # alternating-price symbols are not one company's prices
+        fins = {t: (lo, hi) for t, lo, hi in f.execute(
+            "SELECT symbol, MIN(date), MAX(date) FROM finsaber_prices GROUP BY symbol") if t not in bad}
         f.close()
-    df["has_finsaber_prices"] = df["ticker"].isin(fins)
+    df["has_finsaber_prices"] = [owns(t, e, d, fins) if fins else False
+                                 for t, e, d in zip(df["ticker"], df["last_seen"], dead)]
 
     # --- delisting reasons, only where an 8-K says so --------------------------
     ev = q("SELECT cik, item, filed FROM edgar_events WHERE item IN ('1.03','2.01','3.01')")

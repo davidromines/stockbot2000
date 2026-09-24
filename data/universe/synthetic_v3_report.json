@@ -1,13 +1,13 @@
 {
- "companies": 7618,
- "rows": 9713435,
- "donors": 491,
+ "companies": 8210,
+ "rows": 10598618,
+ "donors": 158,
  "by_reason": {
-  "drawn:merger": 4157,
-  "drawn:performance": 3058,
-  "drawn:other": 363,
-  "merger": 19,
-  "performance": 21
+  "drawn:merger": 4454,
+  "drawn:performance": 3269,
+  "drawn:other": 403,
+  "performance": 33,
+  "merger": 51
  },
  "settings": {
   "seed": 20260924,
@@ -42,7 +42,7 @@
    ]
   }
  },
- "cohort_artifact_sha256": "65253b07e3aa7e00d00fff8127234a59c992bccf38543c3934b6b76d32225f48",
+ "cohort_artifact_sha256": "c18679fe3d163e2101236c9d911187cc8900b17cb93dc2018abcfe316ffe508e",
  "method": "donor_block_bootstrap_v3",
- "sha256": "c4dea12db306495594b4d8ac600fcdc979631bd83d3c4b46e02c1698dcca0f31"
+ "sha256": "aba01d7db748476abe4a758814a7767acb4829f83814bb557e8fc9a079039ff0"
 }

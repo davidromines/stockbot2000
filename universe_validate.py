@@ -95,8 +95,11 @@ def discriminability(conn, n_synth: int = 1500, seed: int = 7, reasons: tuple | 
     from scipy.stats import ks_2samp
     dist = {f: {"real_median": float(R[f].median()), "synthetic_median": float(S[f].median()),
                 "ks": float(ks_2samp(R[f].dropna(), S[f].dropna()).statistic)} for f in FEATS}
+    qs = [0.05, 0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85, 0.95]
+    qq = {f: {"q": qs, "real": [round(float(x), 5) for x in R[f].quantile(qs)],
+              "synthetic": [round(float(x), 5) for x in S[f].quantile(qs)]} for f in FEATS}
     return {"auc": round(auc, 3), "max_auc": MAX_AUC, "passes": auc < MAX_AUC, "n_real": len(R),
-            "n_synthetic": len(S), "feature_importance": imp, "distributions": dist,
+            "n_synthetic": len(S), "feature_importance": imp, "distributions": dist, "qq": qq,
             "previous_generator_auc": 0.978}
 
 
@@ -153,6 +156,25 @@ def momentum_by_mode(conn, start="2009-01-01", end="2024-12-31") -> dict:
     return out
 
 
+def synthetic_share(conn) -> dict:
+    """Synthetic companies against real priced common stocks, by year and by SIC division."""
+    syn = pd.read_parquet(ul.SYNTH, columns=["company_id", "date"])
+    syn["y"] = syn["date"].str[:4]
+    s_year = syn.groupby("y")["company_id"].nunique()
+    r_year = pd.read_sql_query(
+        "SELECT substr(p.date,1,4) y, COUNT(DISTINCT p.ticker) n FROM prices p JOIN symbols s ON s.ticker=p.ticker "
+        "WHERE s.security_type='common_stock' AND p.date >= '1996' AND p.date < '2025' GROUP BY 1", conn
+    ).set_index("y")["n"]
+    by_year = {y: {"real": int(r_year.get(y, 0)), "synthetic": int(s_year.get(y, 0)),
+                   "synthetic_share": round(float(s_year.get(y, 0)) / max(1, int(r_year.get(y, 0)) +
+                                                                      int(s_year.get(y, 0))), 3)}
+               for y in sorted(set(s_year.index) | set(r_year.index))}
+    la = pd.read_parquet("data/universe/layer_a.parquet", columns=["company_id", "sic"])
+    ids = set(syn["company_id"].unique())
+    div = la[la["company_id"].isin(ids)]["sic"].map(uc.division).value_counts().to_dict()
+    return {"by_year": by_year, "synthetic_companies_by_division": {str(k): int(v) for k, v in div.items()}}
+
+
 def run(conn) -> dict:
     rep = {"built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "discriminability": discriminability(conn), "provenance": provenance(conn),
@@ -161,7 +183,7 @@ def run(conn) -> dict:
            "discriminability_merger_only": {k: v for k, v in discriminability(
                conn, reasons=("merger", "drawn:merger")).items() if k in ("auc", "passes", "n_real", "n_synthetic",
                                                                           "feature_importance")},
-           "sensitivity_12_1_momentum": momentum_by_mode(conn)}
+           "sensitivity_12_1_momentum": momentum_by_mode(conn), "synthetic_share": synthetic_share(conn)}
     rep["verdict"] = ("synthetic rows MAY be used beyond retests" if rep["discriminability"]["passes"]
                       else "synthetic rows are for retests and stress bounds ONLY (fails the discriminability gate)")
     json.dump(rep, open(OUT, "w"), indent=1, default=str)
@@ -199,6 +221,10 @@ def main(argv=None) -> int:
     print("SENSITIVITY 12-1 momentum, 2009-2024")
     for m, v in rep["sensitivity_12_1_momentum"].items():
         print(f"  {m:<10} CAGR {v['cagr']}  months {v['months']}")
+    sh = rep.get("synthetic_share", {}).get("by_year", {})
+    if sh:
+        print("SYNTHETIC SHARE of priced universe:",
+              ", ".join(f"{y} {v['synthetic_share']:.0%}" for y, v in sh.items() if int(y) % 4 == 0))
     print("VERDICT:", rep["verdict"])
     return 0
 
