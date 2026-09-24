@@ -211,8 +211,9 @@ def main():
     # The conviction step rebalances whole books and keeps its own REPLACE
     # (its cash reconciles); only the genome/model step may not replace.
     remaining = src.count("INSERT OR REPLACE INTO paper_positions")
-    import inspect, paper_trading
-    conv = inspect.getsource(paper_trading._conviction_step)
+    import inspect
+    import paper_trading as _pt
+    conv = inspect.getsource(_pt._conviction_step)
     check("the genome/model step no longer replaces held positions",
           remaining == conv.count("INSERT OR REPLACE INTO paper_positions"),
           f"{remaining} occurrence(s) in the file")
