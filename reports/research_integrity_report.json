@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-22T07:23:05+00:00",
+  "generated": "2026-09-23T07:33:06+00:00",
   "trials": {
     "evaluations": 1039345,
     "promotions": 10619,
@@ -10,9 +10,9 @@
     "effective_trials": 364665
   },
   "noise_bar": 5.265789455165938,
-  "prices": 35557344,
-  "price_max": "2026-09-21",
-  "securities": 13250,
+  "prices": 35558277,
+  "price_max": "2026-09-22",
+  "securities": 13260,
   "delisted": 9464,
   "delisted_priced": 553,
   "survivors": 953,
@@ -27,24 +27,24 @@
       "family": "crash",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 97.2556875690595,
-      "date": "2026-09-21"
+      "equity_usd": 97.27134963409218,
+      "date": "2026-09-22"
     },
     {
       "label": "Crash Buyer 20d a",
       "family": "crash",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 98.40858644458257,
-      "date": "2026-09-21"
+      "equity_usd": 98.94466841810247,
+      "date": "2026-09-22"
     },
     {
       "label": "Crash Buyer 20d b",
       "family": "crash",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 97.1580091404815,
-      "date": "2026-09-21"
+      "equity_usd": 97.84868622016167,
+      "date": "2026-09-22"
     },
     {
       "label": "Crash Buyer 20d c",
@@ -52,15 +52,15 @@
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
       "equity_usd": 96.07820040869004,
-      "date": "2026-09-21"
+      "date": "2026-09-22"
     },
     {
       "label": "Crash Buyer 5d",
       "family": "crash",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 87.75741694330512,
-      "date": "2026-09-21"
+      "equity_usd": 89.64342653933204,
+      "date": "2026-09-22"
     },
     {
       "label": "Deep Value screen",
@@ -75,8 +75,8 @@
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-11",
-      "equity_usd": 100.94268395552447,
-      "date": "2026-09-21"
+      "equity_usd": 101.19679729897352,
+      "date": "2026-09-22"
     },
     {
       "label": "Quality Value screen",
@@ -91,56 +91,56 @@
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 108.90579042888837,
-      "date": "2026-09-21"
+      "equity_usd": 111.19714036981736,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 200 \u00b7 Stop 2.6",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 105.06644141844689,
-      "date": "2026-09-21"
+      "equity_usd": 106.74560642382923,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 200 \u00b7 Stop 3.3",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 107.25038679278768,
-      "date": "2026-09-21"
+      "equity_usd": 109.01613180432554,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 200 \u00b7 Stop 5.0 a",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 102.751263381737,
-      "date": "2026-09-21"
+      "equity_usd": 103.07309431273367,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 200 \u00b7 Stop 5.0 b",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 102.83100367379473,
-      "date": "2026-09-21"
+      "equity_usd": 105.37261531675941,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 200 \u00b7 Stop 5.0 c",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 94.38772646331583,
-      "date": "2026-09-21"
+      "equity_usd": 97.24445220962306,
+      "date": "2026-09-22"
     },
     {
       "label": "Rising 50",
       "family": "momentum",
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
-      "equity_usd": 92.51307801894407,
-      "date": "2026-09-21"
+      "equity_usd": 92.99392590289821,
+      "date": "2026-09-22"
     },
     {
       "label": "XGBoost Classifier",
@@ -148,7 +148,7 @@
       "capital_usd": 100.0,
       "started_on": "2026-09-04",
       "equity_usd": 95.10282022759459,
-      "date": "2026-09-21"
+      "date": "2026-09-22"
     }
   ],
   "pair": [
@@ -156,47 +156,47 @@
       "label": "S&P Switch 1x",
       "capital_usd": 100.0,
       "started_on": "2026-09-15",
-      "equity_usd": 100.53738114917661,
-      "date": "2026-09-18"
+      "equity_usd": 102.09621246127661,
+      "date": "2026-09-22"
     },
     {
       "label": "S&P Switch 2x",
       "capital_usd": 100.0,
       "started_on": "2026-09-15",
-      "equity_usd": 100.94559433529092,
-      "date": "2026-09-18"
+      "equity_usd": 104.08787500045783,
+      "date": "2026-09-22"
     },
     {
       "label": "Nasdaq Switch 1x",
       "capital_usd": 100.0,
       "started_on": "2026-09-15",
-      "equity_usd": 101.89971923828125,
-      "date": "2026-09-18"
+      "equity_usd": 104.83652706416626,
+      "date": "2026-09-22"
     },
     {
       "label": "Russell Switch 1x",
       "capital_usd": 100.0,
       "started_on": "2026-09-15",
-      "equity_usd": 100.56818127940016,
-      "date": "2026-09-18"
+      "equity_usd": 100.0710243532388,
+      "date": "2026-09-22"
     },
     {
       "label": "Energy Switch 2x",
       "capital_usd": 100.0,
       "started_on": "2026-09-15",
-      "equity_usd": 97.20859954509402,
-      "date": "2026-09-18"
+      "equity_usd": 92.64247325416478,
+      "date": "2026-09-22"
     }
   ],
-  "paper_trades": 158,
+  "paper_trades": 159,
   "search_mode": "FROZEN",
-  "registered_experiments": 2,
+  "registered_experiments": 4,
   "control": {
-    "n": 300,
+    "n": 325,
     "fingerprint": "518ed5291d93eafc",
     "max_sharpe": 1.138045608483926,
     "max_pnl": 10979.600888742707,
-    "p95_sharpe": 0.20538498444470957,
+    "p95_sharpe": 0.20415280098727148,
     "passed": 0
   }
 }

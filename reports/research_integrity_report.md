@@ -1,6 +1,6 @@
 # Research integrity report
 
-Generated 2026-09-22T07:23:05+00:00 from the live database. Every figure is
+Generated 2026-09-23T07:33:06+00:00 from the live database. Every figure is
 queried, not remembered.
 
 ---
@@ -72,41 +72,41 @@ model, null surface and gate a real candidate faces.
 
 | | |
 |---|---:|
-| random genomes measured | 300 |
+| random genomes measured | 325 |
 | passed the validation gate | 0 (0.0%) |
 | best Sharpe achieved by noise | **1.14** |
 | best P&L achieved by noise | **$10,980** |
-| 95th percentile Sharpe | 0.21 |
+| 95th percentile Sharpe | 0.20 |
 
-The best of 300 strategies known to be worthless made $10,980 in this simulator. That figure is the reason
+The best of 325 strategies known to be worthless made $10,980 in this simulator. That figure is the reason
 no backtest number in this document should be read as a finding on its own.
 
 Search mode is **FROZEN**.
 
 ## What is in forward testing, and for how long
 
-16 strategy funds and 5 pair funds, 158 closed paper trades.
+16 strategy funds and 5 pair funds, 159 closed paper trades.
 
 | fund | family | started | return |
 |---|---|---|---:|
-| Rising 200 · Stop 2.5 | momentum | 2026-09-04 | +8.91% |
-| Rising 200 · Stop 3.3 | momentum | 2026-09-04 | +7.25% |
-| Rising 200 · Stop 2.6 | momentum | 2026-09-04 | +5.07% |
-| Rising 200 · Stop 5.0 b | momentum | 2026-09-04 | +2.83% |
-| Rising 200 · Stop 5.0 a | momentum | 2026-09-04 | +2.75% |
-| MACD Pullback | momentum | 2026-09-11 | +0.94% |
-| Crash Buyer 20d a | crash | 2026-09-04 | -1.59% |
-| Quality Value screen | conviction | 2026-09-11 | -2.60% |
-| Crash Buyer 10d | crash | 2026-09-04 | -2.74% |
-| Deep Value screen | conviction | 2026-09-11 | -2.81% |
-| Crash Buyer 20d b | crash | 2026-09-04 | -2.84% |
+| Rising 200 · Stop 2.5 | momentum | 2026-09-04 | +11.20% |
+| Rising 200 · Stop 3.3 | momentum | 2026-09-04 | +9.02% |
+| Rising 200 · Stop 2.6 | momentum | 2026-09-04 | +6.75% |
+| Rising 200 · Stop 5.0 b | momentum | 2026-09-04 | +5.37% |
+| Rising 200 · Stop 5.0 a | momentum | 2026-09-04 | +3.07% |
+| MACD Pullback | momentum | 2026-09-11 | +1.20% |
+| Crash Buyer 20d a | crash | 2026-09-04 | -1.06% |
+| Crash Buyer 20d b | crash | 2026-09-04 | -2.15% |
+| Crash Buyer 10d | crash | 2026-09-04 | -2.73% |
+| Rising 200 · Stop 5.0 c | momentum | 2026-09-04 | -2.76% |
 | Crash Buyer 20d c | crash | 2026-09-04 | -3.92% |
 | XGBoost Classifier | model | 2026-09-04 | -4.90% |
-| Rising 200 · Stop 5.0 c | momentum | 2026-09-04 | -5.61% |
-| Rising 50 | momentum | 2026-09-04 | -7.49% |
-| Crash Buyer 5d | crash | 2026-09-04 | -12.24% |
+| Rising 50 | momentum | 2026-09-04 | -7.01% |
+| Crash Buyer 5d | crash | 2026-09-04 | -10.36% |
 
-6 of 16 are up. **These records are days old, not years.**
+**Stalled and excluded from the count** (last marked 2026-09-21, others 2026-09-22): Deep Value screen, Quality Value screen
+
+6 of 14 are up. **These records are days old, not years.**
 A fourteen-day return is not evidence of an edge; it is the beginning of
 the only measurement here with no survivorship bias and no look-ahead.
 
