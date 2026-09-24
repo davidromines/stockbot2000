@@ -40,6 +40,11 @@ LIVE_STATES = (league.PAPER, league.QUALIFIED, league.LIVE_CANDIDATE, league.LIV
 
 def init(conn) -> None:
     so.init(conn)
+    # Evidence reads fund_accounting. On a fresh database a strategy can reach
+    # PAPER before the accounting stage has ever run, and evidence() then
+    # failed on a missing table (found by the Phase 13 end-to-end test).
+    import accounting
+    accounting.init(conn)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS factory_paper_link (
             strategy_key TEXT NOT NULL, version INTEGER NOT NULL,
