@@ -247,11 +247,12 @@ def promote_candidates(conn, cfg) -> list:
             if league.canonical(r["state"]) in (league.QUALIFIED, league.LIVE_CANDIDATE)
             and r["tier"] in ("ELIGIBLE", "ESTABLISHED")]
     pool.sort(key=lambda r: -(r.get("net_usd") or 0))
-    seen, out = set(), []
+    cap = int((cfg.get("slots") or {}).get("max_per_family", 1))
+    seen, out = {}, []
     for r in pool:
-        if r["family"] in seen:
+        if seen.get(r["family"], 0) >= cap:
             continue
-        seen.add(r["family"])
+        seen[r["family"]] = seen.get(r["family"], 0) + 1
         if league.canonical(r["state"]) == league.QUALIFIED and not frozen:
             so.decide(conn, r["strategy_key"], r["version"], "PROMOTE",
                       f"best QUALIFIED strategy in family {r['family']}", to_state=league.LIVE_CANDIDATE)

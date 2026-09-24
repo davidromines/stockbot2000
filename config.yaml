@@ -355,16 +355,21 @@ factory:
 # limit = ELIGIBLE for a live slot; established_sessions = the higher-confidence
 # tier. The Value league is deliberately NOT held to the tactical 60-mark rule
 # (§33): it needs a quarter of forward marks and no minimum trade count.
+# 2026-09-24, user's instruction: any strategy that is profitable (positive
+# NET P&L, drawdown under the league limit, a valid stop plan, no kill switch)
+# is promoted and eligible for a slot. The evidence floors were 20 forward
+# sessions / 10 closed trades (Addendum B11); they are now 1 / 0. The
+# established tier (60+ sessions) is unchanged and still marks real evidence.
 leagues:
-  tactical:       {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
-  momentum:       {horizon_days: 20,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
-  mean_reversion: {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
-  fundamental:    {horizon_days: 60,  min_forward_sessions: 40, min_closed_trades: 5,  established_sessions: 120, max_drawdown_pct: 20}
-  value:          {horizon_days: 252, min_forward_sessions: 63, min_closed_trades: 0,  established_sessions: 252, max_drawdown_pct: 25}
-  etf_macro:      {horizon_days: 60,  min_forward_sessions: 20, min_closed_trades: 0,  established_sessions: 60,  max_drawdown_pct: 15}
-  ml:             {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
-  event:          {horizon_days: 20,  min_forward_sessions: 20, min_closed_trades: 5,  established_sessions: 60,  max_drawdown_pct: 15}
-  crypto:         {horizon_days: 14,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 20}
+  tactical:       {horizon_days: 10,  min_forward_sessions: 1, min_closed_trades: 0, established_sessions: 60,  max_drawdown_pct: 15}
+  momentum:       {horizon_days: 20,  min_forward_sessions: 1, min_closed_trades: 0, established_sessions: 60,  max_drawdown_pct: 15}
+  mean_reversion: {horizon_days: 10,  min_forward_sessions: 1, min_closed_trades: 0, established_sessions: 60,  max_drawdown_pct: 15}
+  fundamental:    {horizon_days: 60,  min_forward_sessions: 1, min_closed_trades: 0,  established_sessions: 120, max_drawdown_pct: 20}
+  value:          {horizon_days: 252, min_forward_sessions: 1, min_closed_trades: 0,  established_sessions: 252, max_drawdown_pct: 25}
+  etf_macro:      {horizon_days: 60,  min_forward_sessions: 1, min_closed_trades: 0,  established_sessions: 60,  max_drawdown_pct: 15}
+  ml:             {horizon_days: 10,  min_forward_sessions: 1, min_closed_trades: 0, established_sessions: 60,  max_drawdown_pct: 15}
+  event:          {horizon_days: 20,  min_forward_sessions: 1, min_closed_trades: 0,  established_sessions: 60,  max_drawdown_pct: 15}
+  crypto:         {horizon_days: 14,  min_forward_sessions: 1, min_closed_trades: 0, established_sessions: 60,  max_drawdown_pct: 20}
 league_families:           # legacy fund families -> league
   crash: mean_reversion
   momentum: momentum
@@ -373,3 +378,12 @@ league_families:           # legacy fund families -> league
   pair_switching: etf_macro
   value: value
   crypto: crypto
+
+# Addendum A slots. max_per_family was 1 (B7); raised to 4 on the user's
+# instruction to fill all five slots — only two strategy families currently
+# have tradeable, profitable rules, so several slots may hold variants of one
+# entry rule.
+slots:
+  count: 5
+  capital_per_slot: 20.0
+  max_per_family: 4

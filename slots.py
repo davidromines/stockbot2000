@@ -63,6 +63,7 @@ DEFAULTS = {
     "min_hold_sessions": 5,          # a holder keeps its slot at least this long unless ineligible
     "max_replacements_per_day": 1,   # churn bound (§9)
     "max_evidence_lag_sessions": 3,  # evidence older than this is stale data (B19)
+    "max_per_family": 1,             # slots one strategy family may hold (B7); configurable
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -216,7 +217,8 @@ def plan(conn, cfg: dict) -> dict:
             keep[slot] = {**h, "row": r}
 
     held_keys = {(h["strategy_key"], h["version"]) for h in keep.values()}
-    held_fams = {h["row"]["family"] for h in keep.values()}
+    from collections import Counter
+    held_fams = Counter(h["row"]["family"] for h in keep.values())
     challengers = [r for r in eligible if (r["strategy_key"], r["version"]) not in held_keys]
 
     assigns = []
@@ -225,11 +227,11 @@ def plan(conn, cfg: dict) -> dict:
     for r in challengers:
         if not free:
             break
-        if r["family"] in held_fams:
+        if held_fams[r["family"]] >= s["max_per_family"]:
             continue
         slot = free.pop(0)
         assigns.append((slot, r, "eligible and a slot is open"))
-        held_fams.add(r["family"])
+        held_fams[r["family"]] += 1
     taken = {(r["strategy_key"], r["version"]) for _, r, _ in assigns}
 
     # Controlled replacement of the weakest holder (§8-9, B10-B11).
@@ -246,7 +248,8 @@ def plan(conn, cfg: dict) -> dict:
         weakest_slot = min(keep, key=lambda k: keep[k]["row"].get("net_usd") or 0)
         w = keep[weakest_slot]
         adv = (r.get("net_usd") or 0) - (w["row"].get("net_usd") or 0)
-        family_clash = r["family"] in {h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot}
+        others = Counter(h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot)
+        family_clash = others[r["family"]] >= s["max_per_family"]
         held_for = _sessions_since(conn, w["since"])
         if adv < s["min_advantage_usd"] or family_clash or held_for < s["min_hold_sessions"]:
             continue
