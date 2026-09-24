@@ -160,6 +160,57 @@ def check(conn, portfolio: dict | None, limits: dict,
     return v
 
 
+# --- per-strategy switches (Addendum A §25, B13) ------------------------------
+# A strategy can be stopped without stopping the account. State is an
+# append-only log, never a flag column: the latest ENGAGE/RELEASE row for a key
+# decides, so who stopped a strategy, when and why is never overwritten. Like
+# the global switch, nothing here releases a strategy on its own.
+
+def _init_strategy(conn) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS strategy_kills (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            at           TEXT NOT NULL,
+            strategy_key TEXT NOT NULL,
+            action       TEXT NOT NULL CHECK (action IN ('ENGAGE','RELEASE')),
+            reason       TEXT NOT NULL,
+            actor        TEXT NOT NULL
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_skill_key ON strategy_kills(strategy_key)")
+
+
+def engage_strategy(conn, strategy_key: str, why: str, actor: str = "manual") -> None:
+    """Stop one strategy: it may hold no slot and place no new entry."""
+    if not why:
+        raise ValueError("a strategy kill needs a reason")
+    _init_strategy(conn)
+    conn.execute("INSERT INTO strategy_kills (at, strategy_key, action, reason, actor) "
+                 "VALUES (?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), strategy_key,
+                                        "ENGAGE", why, actor))
+    conn.commit()
+    record_event(conn, "strategy_kill_engaged", f"{strategy_key}: {why}", "warning")
+
+
+def release_strategy(conn, strategy_key: str, who: str = "manual") -> bool:
+    """Release a strategy switch. Never called automatically."""
+    if strategy_halted(conn, strategy_key) is None:
+        return False
+    conn.execute("INSERT INTO strategy_kills (at, strategy_key, action, reason, actor) "
+                 "VALUES (?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), strategy_key,
+                                        "RELEASE", "released", who))
+    conn.commit()
+    record_event(conn, "strategy_kill_released", f"{strategy_key} by {who}", "warning")
+    return True
+
+
+def strategy_halted(conn, strategy_key: str) -> str | None:
+    """The engage reason if this strategy is stopped, else None."""
+    _init_strategy(conn)
+    r = conn.execute("SELECT action, reason FROM strategy_kills WHERE strategy_key=? "
+                     "ORDER BY id DESC LIMIT 1", (strategy_key,)).fetchone()
+    return r[1] if r and r[0] == "ENGAGE" else None
+
+
 def status_line(v: Verdict) -> str:
     if v.trading_allowed:
         return "TRADING ENABLED — all kill switches clear"
