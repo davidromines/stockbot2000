@@ -17,7 +17,7 @@ LIMITS = load_limits()
 E = RiskEngine(LIMITS)
 
 GOOD_QUOTE = {"price": 50.0, "dollar_volume_20": 20_000_000.0, "market_cap": 5e9}
-PORTFOLIO = {"equity": 100.0, "buying_power": 100.0, "daily_pnl": 0.0,
+PORTFOLIO = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "daily_pnl": 0.0,
              "drawdown_percent": 0.0, "positions": {}}
 
 
@@ -135,6 +135,28 @@ try:
     check("missing strategy rejected", False)
 except SignalError:
     check("missing strategy rejected", True)
+
+# --- account rules (I12): cash account buys with settled funds only ---------
+import account_rules  # noqa: E402
+no_figure = {k: v for k, v in PORTFOLIO.items() if k != "unsettled_proceeds"}
+r = E.validate(sig(), no_figure, GOOD_QUOTE)
+check("cash account: unknown settled cash refuses the buy", not r.approved)
+r = E.validate(sig(notional_value=20.0), {**PORTFOLIO, "unsettled_proceeds": 90.0}, GOOD_QUOTE)
+check("cash account: buy capped to settled cash", r.approved and r.sized_notional == 10.0)
+r = E.validate(sig(), {**PORTFOLIO, "unsettled_proceeds": 99.5}, GOOD_QUOTE)
+check("cash account: under $1 settled refuses (good-faith rule)", not r.approved)
+r = E.validate(sig(action="SELL", notional_value=5.0),
+               {**PORTFOLIO, "unsettled_proceeds": 100.0,
+                "positions": {"AAPL": {"value": 20.0, "quantity": 0.4}}}, GOOD_QUOTE)
+check("cash account: a SELL is never blocked by settlement", r.approved)
+margin = RiskEngine({**LIMITS, "account_type": "margin"})
+r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 3}, GOOD_QUOTE)
+check("margin under $25k: 3 day trades stops new buys", not r.approved)
+r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 2}, GOOD_QUOTE)
+check("margin under $25k: 2 day trades still buys", r.approved)
+from datetime import date  # noqa: E402
+check("T+1 with holiday margin: Friday sale settles Tuesday",
+      account_rules.add_weekdays(date(2026, 9, 25), 2) == date(2026, 9, 29))
 
 # --- idempotency key --------------------------------------------------------
 a = sig(); b = sig()

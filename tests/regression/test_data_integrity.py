@@ -62,7 +62,7 @@ check("the market-session probe EXCLUDES today (no partial bars as closes)",
 
 # --- 2. UNKNOWN MARKET CAP MUST BE REJECTED --------------------------------
 E = RiskEngine(load_limits())
-PORT = {"equity": 100.0, "buying_power": 100.0, "daily_pnl": 0.0,
+PORT = {"equity": 100.0, "buying_power": 100.0, "unsettled_proceeds": 0.0, "daily_pnl": 0.0,
         "drawdown_percent": 0.0, "positions": {}}
 
 

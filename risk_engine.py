@@ -185,6 +185,13 @@ class RiskEngine:
             # Not an error: buy what there is room for. But a fill so small it
             # is mostly spread is worse than no trade.
             want = cash
+        if sig.action == "BUY" and self.L.get("account_type"):
+            # Account rules (I12): a cash account buys with SETTLED funds only;
+            # a margin account stops entries at the pattern-day-trader limit.
+            import account_rules
+            want, why = account_rules.check_buy(portfolio, self.L, want)
+            if why:
+                return why
         if want < 1.0:
             return f"sized down to ${want:,.2f}, below the $1 minimum worth trading"
 

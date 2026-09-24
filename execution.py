@@ -141,11 +141,15 @@ class ExecutionEngine:
         try:
             acct = self.broker.get_account()
             pos = self.broker.get_positions()
-            return {"equity": float(acct.get("equity") or 0),
+            snap = {"equity": float(acct.get("equity") or 0),
                     "buying_power": float(self.broker.get_buying_power() or 0),
                     "daily_pnl": float(acct.get("daily_pnl") or 0),
                     "drawdown_percent": float(acct.get("drawdown_percent") or 0),
                     "positions": pos}
+            # Settled cash / day-trade count for the account-rule guard (I12),
+            # from this engine's own orders in this mode.
+            import account_rules
+            return account_rules.annotate(self.conn, snap, self.risk.L, self.session[:10], self.mode)
         except Exception as e:      # noqa: BLE001 — unreadable state must halt, not raise
             log.error(f"portfolio snapshot failed: {type(e).__name__}: {e}")
             return None
