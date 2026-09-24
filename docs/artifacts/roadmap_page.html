@@ -188,8 +188,8 @@
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
       <span>UPDATED 2026-09-24</span>
-      <span>13 PHASES + ADDENDA A–C</span>
-      <span>STATUS: PHASE 13 + ADDENDA A, C BUILT · SIMULATION · LIVE ARMING IS YOURS</span>
+      <span>13 PHASES + ADDENDA A–C + STAGES K–M</span>
+      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED</span>
     </div>
   </header>
 
@@ -197,13 +197,14 @@
     <div class="stat done"><div class="n">11</div><div class="l">Phases complete</div></div>
     <div class="stat progress"><div class="n">1</div><div class="l">At 85% (smoke test: Ollama)</div></div>
     <div class="stat done"><div class="n">3</div><div class="l">Built 09-24 — Phase 13, Addenda A, C</div></div>
-    <div class="stat"><div class="n">0 / 5</div><div class="l">Slots filled — none eligible yet</div></div>
+    <div class="stat done"><div class="n">4 / 5</div><div class="l">Slots filled, live — slot 5 waits on settled cash</div></div>
+    <div class="stat planned"><div class="n">3</div><div class="l">Stages planned — crypto, published signals, dead-company realism</div></div>
     <div class="stat"><div class="n">0</div><div class="l">Strategies with a proven edge</div></div>
   </div>
 
   <div class="distribution">
     <h3>Where the project stands</h3>
-    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship stress data) were built. The trading engine runs every five minutes in market hours in SIMULATION; all five slots are in cash because no strategy has yet earned the 20 forward sessions and 10 closed trades a slot requires. Arming live trading is your step. The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
+    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship data) were built. <b>You armed LIVE at 15:39 UTC on 24 September:</b> the slot trader now places real orders in the Agentic account every five minutes in market hours. Slots are filled from one ranking (backtest first, paper evidence takes over, a losing backtest is out), and since the evening of the 24th that ranking scores backtests that include the synthetic dead companies. Three new stages are planned: crypto earning a slot (K), published academic signals as a strategy source (L), and more realistic dead companies (M). The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
     <div class="stackbar">
       <span style="width:92.3%; background:var(--done);"></span>
       <span style="width:7.7%; background:var(--progress);"></span>
@@ -515,10 +516,10 @@
     <div class="phase last">
       <div class="phase-num">A</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Addendum A — Autonomous 5-slot trading system</div><span class="pill done">Built · SIMULATION</span></div>
+        <div class="phase-head"><div class="phase-title">Addendum A — Autonomous 5-slot trading system</div><span class="pill done">Built · LIVE</span></div>
         <p class="phase-desc">The product definition as a build. Phase 13 becomes the research engine; this is the trading engine it feeds. Five ~$20 slots, each held by a distinct eligible strategy, are traded, stop-monitored and replaced automatically through the existing risk and execution layer. A slot with no qualified strategy stays in cash.</p>
         <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
-        <p class="note new"><b>Built 24 September, running in SIMULATION.</b> The slot engine ranks on net P&amp;L, takes one strategy per family and leaves a slot in cash rather than fill it with an unproven strategy — today all five are cash. Stops are checked every five minutes in market hours; the cash-account settled-funds rule is enforced in the risk engine; the kill switch flattens every slot and alerts you. LIVE is refused until <span class="mono">config/risk.yaml</span> says <span class="mono">execution_mode: LIVE</span>, and that edit is yours. Building it surfaced a real defect in the existing execution layer: approved exits carried no size, so every simulated sell filled zero shares. Fixed.</p>
+        <p class="note new"><b>Live since 24 September, 15:39 UTC.</b> First run bought SNDK, DELL, MRNA ($20 each) and TWST ($8.45, the settled cash left); slot 5 waits for the $19.26 that settles on the 25th. <b>You changed the slot rule the same day:</b> slots are filled from day one with the top five strategies in <span class="mono">ranking.py</span> (score = backtest, shifting to the paper record with every trade; a losing backtest is out; up to four per family), instead of waiting for an evidence floor. Earlier the same day it was built in SIMULATION with one strategy per family and slots left in cash. Stops are checked every five minutes in market hours; the cash-account settled-funds rule is enforced in the risk engine; the kill switch flattens every slot and alerts you. LIVE is refused until <span class="mono">config/risk.yaml</span> says <span class="mono">execution_mode: LIVE</span>, and that edit is yours. Building it surfaced a real defect in the existing execution layer: approved exits carried no size, so every simulated sell filled zero shares. Fixed.</p>
         <div class="chips"><span class="chip ok">Five slots</span><span class="chip ok">Replacement engine</span><span class="chip ok">P&amp;L-first leaderboard</span><span class="chip ok">Intraday stop monitor</span><span class="chip ok">Automatic execution (SIM)</span><span class="chip ok">Kill switches</span><span class="chip ok">Daily reassessment</span><span class="chip ok">Always-on services</span></div>
         <p class="note new"><b>Supersedes on approval:</b> human-placed orders, swing-only holding, the daily top-5 fill, once-a-day stop checks, and the null/SPY benchmark as a promotion gate. CLAUDE.md flags each rule in place and keeps the old text as the record.</p>
         <div class="scroll" style="margin-top:14px;">
@@ -551,13 +552,131 @@
     <div class="phase last">
       <div class="phase-num">C</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Addendum C (revision 2) — Survivorship-bias-free universe reconstruction</div><span class="pill done">Built · retest-only</span></div>
+        <div class="phase-head"><div class="phase-title">Addendum C (revision 2) — Survivorship-bias-free universe reconstruction</div><span class="pill done">Built · in the ranking</span></div>
         <p class="phase-desc">Rebuilds which US companies existed (Layer A) and generates tagged, cohort-conditioned synthetic price histories for the ~7,000 delisted companies with no free prices (Layer B). Real rows are never touched; every synthetic row carries its source, cohort, method, inferred reason and seed, and a loader runs any strategy five ways: as generated, excluding synthetic rows, delistings at −100%, at 0%, real rows only. Synthetic data here corrects survivorship bias; it is not a substitute for real data.</p>
         <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
         <div class="chips"><span class="chip ok">1 · Universe</span><span class="chip ok">2 · Cohort statistics</span><span class="chip ok">3 · Synthetic paths</span><span class="chip ok">4 · Provenance + loader</span><span class="chip ok">5 · Validation</span></div>
         <p class="note warn"><b>Feasibility, stated plainly.</b> Free data supports <b>1996–2024</b>: SEC electronic filing phased in 1993–96 (the 1993 Q1 index is 1 KB, 1996 Q1 is 7.8 MB), so an earlier universe would be mostly imputed. The small failing companies that matter most have the least real data to calibrate from. The existing generator is distinguishable from real data at AUC 0.978, so synthetic rows stay out of discovery and promotion until a new one passes that test. Sources verified accessible today: SEC EDGAR, FinanceDatabase (delisted flag and sector, no dates), plus the Alpha Vantage, Internet Archive and 8-K data already loaded.</p>
-        <p class="note new"><b>Built 24 September on the recommended answer to each question below</b> — you asked for every roadmap item to be built. Each answer is a setting in <span class="mono">config.yaml</span>; change any and rebuild. The synthetic data <b>fails the realism gate</b> (a classifier tells synthetic from real at AUC 0.77; the gate is 0.60), so it is used for stress tests only, never to pick or promote a strategy. What it already shows: 12-1 momentum, 2009–2024, earns 23.3% a year on our data, 19.0% with the missing dead companies filled in, and 14.3% if every one of them was a total loss.</p>
+        <p class="note new"><b>Built 24 September on the recommended answer to each question below</b> — you asked for every roadmap item to be built. Each answer is a setting in <span class="mono">config.yaml</span>; change any and rebuild. The synthetic data <b>fails the realism gate</b> (a classifier tells synthetic from real at AUC 0.77; the gate is 0.60), so it was used for stress tests only. <b>Your ruling of 24 September overrides that:</b> the ranking now scores every strategy on a backtest that includes the synthetic dead companies (see “Survivorship in the ranking” below), and Stage M makes them more realistic. What it already shows: 12-1 momentum, 2009–2024, earns 23.3% a year on our data, 19.0% with the missing dead companies filled in, and 14.3% if every one of them was a total loss.</p>
         <ol style="margin:6px 0 0 18px; padding:0; font-size:13.5px; color:var(--text-soft); line-height:1.55; max-width:74ch;"><li>Start year: 1996–2024, where free coverage is defensible, or 1990–2024 with 1990–95 carried as mostly imputed?</li><li>Use the primary database (35.5M real bars, 553 delisted names) as real data alongside FINSABER? Recommended.</li><li>Universe: common stock on NYSE, NASDAQ and AMEX only — no OTC, ADRs, funds, units or preferreds?</li><li>Dead companies with no recoverable ticker: a synthetic identifier tied to the SEC CIK, tagged imputed?</li><li>Backtest use: retests and stress bounds only, never discovery or promotion, until the generator passes the discriminability test?</li><li>Storage: a separate store under data/universe/, never the primary prices table?</li><li>Time variation: SPY trailing 12-month return (local), plus VIX via a free fetch?</li><li>Merger delisting return default near zero — e.g. +1% ± 3%, configurable?</li></ol>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="phase-list" style="margin-top:-12px;">
+    <p class="group-label">Added 24 September, after going live</p>
+
+    <div class="phase">
+      <div class="phase-num">·</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Live trading hardening</div><span class="pill done">Built</span></div>
+        <p class="phase-desc">The fixes and additions the first live day called for.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">Market-cap fallback</span><span class="chip ok">ETF switch funds in slots</span><span class="chip ok">Value Fund in slots</span><span class="chip ok">One Robinhood session per run</span><span class="chip ok">Single ranking</span><span class="chip ok">Phase 10 promotion retired</span><span class="chip ok">Phase 6 finished</span><span class="chip ok">FinanceDatabase loader</span></div>
+        <p class="note new"><b>What each does.</b> Names the filings miss (GEN, NWSA) get a dated, sourced market cap from Robinhood or yfinance instead of being refused. A bull/bear ETF fund's slot buys whatever leg the fund holds and sells when it switches; the Value Fund's slot holds its top-ranked stock and sells when the fund does — both with a 3 × ATR stop the funds themselves lack. One Robinhood session per trader run instead of one per call. The old promotion path was retired in favour of <span class="mono">ranking.py</span>.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">·</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Survivorship in the ranking</div><span class="pill progress">Built · not yet run</span></div>
+        <p class="phase-desc">You asked why the synthetic dead companies weren’t being used. They weren’t: they had no indicators, so the simulator couldn’t trade them, and the ranking that fills the live slots had no survivorship correction at all. Now every ranked strategy is backtested three ways, and the ranking scores on the version that includes the dead.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="scroll"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">S1</td><td>Indicators for the synthetic dead companies, appended to the real data</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">S2</td><td>Every ranked strategy backtested without them, with them, and with every death a total loss — same simulator, costs and fills; nightly</td><td class="st"><span class="pill progress">first run on VM</span></td></tr>
+            <tr><td class="mono">S3</td><td>Ranking scores and gates on the with-the-dead result; worst case shown beside it</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">S4</td><td>Drawdown exposure gate restored (it lived only on the retired promotion ladder)</td><td class="st"><span class="pill done">done</span></td></tr>
+          </tbody></table></div>
+        <p class="note warn">In the test, one survivor plus two dying companies turned a +$105 strategy into −$949 with the dead included and −$1,296 in the worst case. Limits: synthetic companies have no volume (treated as sitting at the liquidity floor) and no fundamentals, and the generator still fails its realism test — Stage M.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">·</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Profit exits</div><span class="pill progress">Fix live · sweep not yet run</span></div>
+        <p class="phase-desc">You asked when profits are taken. Live slots sold only on the stop, the time limit or the strategy’s own exit — nothing locked in a gain.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:60%; background:var(--progress);"></div></div><span class="bar-pct">60%</span></div>
+        <div class="scroll"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">P1</td><td>Live slots apply the strategy’s own take-profit. It was dropped by the stop-plan builder, so live traded a different strategy than the one tested</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">P2</td><td>Registered sweep: take-profit none / 5 / 10 / 20% × trailing stop none / 2 / 3 ATR, 2006–2019; adopt only if it wins the window and most two-year blocks</td><td class="st"><span class="pill progress">run on VM</span></td></tr>
+            <tr><td class="mono">P3</td><td>A winning exit becomes a new strategy version; the ranking re-scores it</td><td class="st"><span class="pill planned">waits on P2</span></td></tr>
+            <tr><td class="mono">P4</td><td>Untested slot-wide trailing stop</td><td class="st"><span class="pill">declined</span></td></tr>
+          </tbody></table></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">K</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage K — Crypto earns a slot</div><span class="pill planned">Planned</span></div>
+        <p class="phase-desc">A crypto strategy competes for a slot through the same ranking and trades through the Agentic account’s linked crypto account.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <p class="note warn"><b>The finding that sets the plan.</b> Robinhood’s crypto spread measured about <b>1.9% per round trip</b> (BTC, ETH, SOL, XRP, LINK; one after-hours snapshot) against the 1.2% the backtests assume. The only crypto strategy we have, grid-DCA, takes profit at +2%, so the spread eats nearly every win. Crypto needs strategies that trade rarely.</p>
+        <div class="scroll"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">K1</td><td>Robinhood crypto cost model: log real spreads for a week</td><td>here + VM</td></tr>
+            <tr><td class="mono">K2</td><td>Daily history back to ~2016 (through the 2018 and 2022 crashes)</td><td>VM</td></tr>
+            <tr><td class="mono">K3</td><td>Low-turnover strategies (trend, BTC-or-cash), vs random entry and buy-and-hold; an hour-of-day test only if the hour is chosen in advance and tested unchanged</td><td>here, run on VM</td></tr>
+            <tr><td class="mono">K4</td><td>Crypto backtests into the ranking (a losing one is out)</td><td>here</td></tr>
+            <tr><td class="mono">K5</td><td>Crypto orders in the slot trader, with a stop</td><td>here</td></tr>
+            <tr><td class="mono">K6</td><td>Hourly, seven-day stop checks</td><td>here + VM</td></tr>
+            <tr><td class="mono">K7</td><td><span class="mono">allow_crypto: true</span> — your step</td><td>you</td></tr>
+          </tbody></table></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">L</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage L — Published signals as a strategy source</div><span class="pill planned">Planned</span></div>
+        <p class="phase-desc">You asked for a big strategy database like trader.dev’s 797,000. That list is ranked on its own backtests — the multiple-testing trap. The academic equivalent is smaller, independently reproduced, and built on data that includes the dead companies.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">Open Source Asset Pricing — 212 signals, CRSP returns incl. dead companies</span><span class="chip">Global Factor Data — 153 factors, 93 countries</span><span class="chip">trader.dev — not used</span></div>
+        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">L1</td><td>Import both datasets into their own tables</td><td>VM</td></tr>
+            <tr><td class="mono">L2</td><td>One research-library entry per signal, judged only on its record after publication</td><td>here</td></tr>
+            <tr><td class="mono">L3</td><td>Rebuild the signals our price and SEC data can compute; backtest → rank → paper trade</td><td>here</td></tr>
+            <tr><td class="mono">L4</td><td>Whether the published return becomes a signal’s starting score — your decision</td><td>you</td></tr>
+          </tbody></table></div>
+        <p class="note">Adopt only at t &gt; 3. Published returns come from portfolios of hundreds of stocks, so they are a discounted starting point for one $20 position, never a forecast.</p>
+      </div>
+    </div>
+
+    <div class="phase last">
+      <div class="phase-num">M</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill planned">Planned</span></div>
+        <p class="phase-desc">The ranking now depends on the synthetic dead companies, so their realism moves money. The generator copies real dead companies, but almost all of the 158 we have were bought out; a bankrupt company’s price history usually disappears from free data. Real failures behave in three phases, and the generator models only one.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="scroll"><table class="dist">
+          <caption>How real failures behave, from the research literature. M4 checks synthetic failures against these.</caption>
+          <thead><tr><th>Phase</th><th>What happens</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td>Before failure</td><td>Falling price, much higher volatility and market sensitivity, low share price, small company</td><td>Campbell, Hilscher &amp; Szilagyi 2008</td></tr>
+            <tr><td>Delisting day</td><td>About −30% (NYSE/AMEX) to −55% (NASDAQ)</td><td>Beaver, McNichols &amp; Price 2007; Shumway 1997</td></tr>
+            <tr><td>After filing, over the counter</td><td>About −28% more over the next 12 months</td><td>Coelho &amp; Taffler (602 filings, 1998–2006)</td></tr>
+          </tbody></table></div>
+        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">M1</td><td>Build and score v4 (fixes the buyout shape) — how much of the gap is left</td><td>VM, ~1 h</td></tr>
+            <tr><td class="mono">M2</td><td>Real failure histories: the LoPucki bankruptcy database (1,000+ large public bankruptcies since 1979, free, with filing dates) to drive bankruptcy “Q” tickers on Yahoo (e.g. LEHKQ); the FINSABER S&amp;P pickle; our own delisted stocks labeled by their SEC 8-K filings; a Kaggle delisted archive to inspect</td><td>VM</td></tr>
+            <tr><td class="mono">M3</td><td>Generator v5: synthetic failures copy a real failure’s decline, delisting and over-the-counter slide</td><td>here, built on VM</td></tr>
+            <tr><td class="mono">M4</td><td>Realism graded separately for failures and buyouts</td><td>here</td></tr>
+            <tr><td class="mono">M5</td><td>Paid delisted prices (~$270/yr: Norgate, FirstRateData, HistoricalData.net) — your call</td><td>you</td></tr>
+          </tbody></table></div>
+        <p class="note warn">Even with the Q tickers there will be tens to a few hundred real failures against about 3,000 synthetic ones, so each real template is reused many times. The realism test measures whether that shows.</p>
       </div>
     </div>
   </section>
@@ -576,20 +695,20 @@
       <div class="q-mark resolved">2</div>
       <div>
         <div class="q-title">Is the Agentic account margin or cash?</div>
-        <div class="q-body"><b>Answered: CASH.</b> No pattern-day-trader limit applies, but the account may only trade with settled funds (T+1). Recorded in <span class="mono">config/risk.yaml</span>; the I12 guard enforces it.</div>
+        <div class="q-body"><b>Answered: limited margin</b> (Robinhood reports <span class="mono">limited_margin</span>, not cash). Both the pattern-day-trader limit and the settled-funds rule are enforced by the I12 guard.</div>
       </div>
     </div>
     <div class="q-item">
-      <div class="q-mark partial">3</div>
+      <div class="q-mark resolved">3</div>
       <div>
-        <div class="q-title">How much evidence before a strategy gets a slot?</div>
+        <div class="q-title">How much evidence before a strategy gets a slot? <span class="mono" style="color:var(--done); font-size:12px;">— answered: none; the ranking decides</span></div>
         <div class="q-body">The league's current rank threshold is 60 sessions, which would leave every slot in cash for about three months. <b>Default:</b> A separate, configurable slot threshold — proposed 20 forward sessions, 10 closed trades, positive net P&amp;L, drawdown under a set limit. The 60-session rank stays as the "established" tier.</div>
       </div>
     </div>
     <div class="q-item">
-      <div class="q-mark partial">4</div>
+      <div class="q-mark resolved">4</div>
       <div>
-        <div class="q-title">What role do backtests play?</div>
+        <div class="q-title">What role do backtests play? <span class="mono" style="color:var(--done); font-size:12px;">— answered: the starting score</span></div>
         <div class="q-body">The null and the SPY benchmark stop being promotion requirements (§5–6), and §29 says never select on backtest alone. <b>Default:</b> A positive net backtest admits a strategy to paper trading; only forward (paper or live) evidence wins a slot. Null and benchmark are reported, not gating.</div>
       </div>
     </div>
@@ -608,9 +727,9 @@
       </div>
     </div>
     <div class="q-item">
-      <div class="q-mark partial">7</div>
+      <div class="q-mark resolved">7</div>
       <div>
-        <div class="q-title">Arming live execution</div>
+        <div class="q-title">Arming live execution <span class="mono" style="color:var(--done); font-size:12px;">— armed by you, 09-24 15:39 UTC</span></div>
         <div class="q-body">§24 reserves account authorization for a human. <b>Default:</b> I14 ends with LIVE built, tested on SIMULATION and SHADOW, and ready to arm; arming it is your step.</div>
       </div>
     </div>
@@ -651,15 +770,20 @@
       <div class="q-mark partial">◑</div>
       <div>
         <div class="q-title">Survivorship bias</div>
-        <div class="q-body">Enumerated per date: 22.6% coverage in 2008. Not fixed, because that needs delisted prices, about $270/yr.</div>
+        <div class="q-body">Enumerated per date: 22.6% coverage in 2008. Now in the ranking through synthetic dead companies (built 09-24, first run pending), which Stage M makes more realistic. Fully fixed only by delisted prices, about $270/yr.</div>
       </div>
     </div>
   </div>
 
   <section class="changelog">
     <h2>Recent changes</h2>
-    <p class="section-cap">What moved since 09-11.</p>
+    <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Stages K, L and M planned (09-24).</b> Crypto earning a slot, published academic signals as a strategy source, and realistic dead companies built from real failures.</li>
+      <li><b>Survivorship in the ranking (09-24).</b> Every ranked strategy is backtested with the synthetic dead companies included, and the ranking scores on that. Built; first run on the VM.</li>
+      <li><b>Profit exits (09-24).</b> Live slots now apply the strategy’s own take-profit, which had been silently dropped; a registered exit sweep is built and waiting to run.</li>
+      <li><b>Live trading hardening (09-24).</b> Market-cap fallback, ETF switch and Value Fund slots, one Robinhood session per run, the single ranking, Phase 6 finished.</li>
+      <li><b>LIVE armed by you (09-24 15:39 UTC).</b> Real orders in the Agentic account; four of five slots filled on the first run.</li>
       <li><b>Addendum A built (09-24).</b> The five-slot trading engine, end to end in SIMULATION and SHADOW; all slots in cash until a strategy earns one.</li>
       <li><b>Addendum C built (09-24).</b> 7,618 dead companies we hold no prices for, reconstructed as tagged synthetic paths; stress-test use only.</li>
       <li><b>Phase 13 built (09-24).</b> All fifteen steps done and wired into the daily job.</li>
