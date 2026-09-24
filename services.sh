@@ -22,11 +22,16 @@ set -uo pipefail
 cd "$(dirname "$0")"
 DIR="$(pwd)"
 LINE="*/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mode SIMULATION >> $DIR/logs/slot_trader.log 2>&1"
+# SHADOW beside it: the same decisions and risk checks, nothing placed. Its
+# record is acceptance.py item 26 — LIVE should not be armed without it.
+LINE_SHADOW="2-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mode SHADOW >> $DIR/logs/slot_trader_shadow.log 2>&1"
 TAG="slot_trader.py --auto"
 case "${1:---status}" in
   --install)
-    if crontab -l 2>/dev/null | grep -qF "$TAG"; then echo "already installed"; else
-      (crontab -l 2>/dev/null; echo "$LINE") | crontab - && echo "installed: $LINE"; fi ;;
+    for L in "$LINE" "$LINE_SHADOW"; do
+      if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
+        (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
+    done ;;
   --remove)
     crontab -l 2>/dev/null | grep -vF "$TAG" | crontab - && echo "removed" ;;
   *)

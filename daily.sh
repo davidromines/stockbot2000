@@ -186,6 +186,10 @@ run "[9h/10] Factory report" $PY factory_report.py
 # day, after every strategy's evidence is updated. SIMULATION: it records
 # assignments and releases; the intraday trader (services.sh) acts on them.
 run "[9i/10] Slot reassessment" $PY slots.py --apply --mode SIMULATION --leaderboard
+# The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
+# every item passes (including a SHADOW track record), which is not a failure
+# of the capture, so it is not run through run().
+$PY acceptance.py --no-suite > data/acceptance.txt 2>&1 || true
 
 $PY build_dashboard.py >/dev/null 2>&1 || true
 
