@@ -51,3 +51,6 @@ truth_sets/*.db
 
 # FINSABER downloads (Hugging Face finsaber-team/FINSABER-reproduce). Data, not source.
 data/finsaber/
+
+# Addendum C data (regenerable from the database); the JSON reports are committed.
+data/universe/*.parquet
