@@ -407,7 +407,7 @@ than a system that searches for a good backtest.
 | 9 | Fundamental Value Intelligence Engine | `PHASES_7_11_STRATEGY_LEAGUE.md` |
 | 10 | Live Capital Allocation & Strategy Promotion | `PHASES_7_11_STRATEGY_LEAGUE.md` |
 | 11 | Continuous Research Loop | `PHASES_7_11_STRATEGY_LEAGUE.md` |
-| 12 | Crypto Fund | `PHASE12_CRYPTO_FUND.md` |
+| 12 | Crypto Fund — and Stage K, crypto earns a slot (planned) | `PHASE12_CRYPTO_FUND.md`, `ROADMAP_INTEGRATION.md` Stage K |
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `PHASE13_STRATEGY_FACTORY.md` |
 
 Dependencies, module reuse, architectural gaps, schema changes, risks, minimum

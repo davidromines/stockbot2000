@@ -93,3 +93,12 @@ gross, and doing it again on a new asset class would be inexcusable.
 
 A crypto fund with a forward record, a daily slate, and a complete execution
 path behind the same risk engine and kill switches the equity side uses.
+
+## Next: a crypto slot (Stage K, planned 2026-09-24)
+
+The fund above is paper only. Getting crypto into one of the five live slots is
+planned as Stage K in `ROADMAP_INTEGRATION.md`. The binding fact: Robinhood's
+crypto spread measured ~1.9% round trip (vs the 1.2% Coinbase fee assumed
+here), so grid-DCA's +2% take-profit cannot pay for itself; the plan moves to
+low-turnover strategies, a Robinhood cost model, crypto order execution and
+24/7 stop monitoring. Arming is the owner's `allow_crypto` edit.

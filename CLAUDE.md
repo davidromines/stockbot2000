@@ -220,6 +220,15 @@ loader. It had added 15 points a year to a momentum backtest.
    `./run_bounded.sh ./venv/bin/python universe_synthetic.py --build` then
    `universe_validate.py --run` (writes `validation_v4.json`). The loader uses
    v4 once it exists.
+6. **Crypto earns a slot — Stage K, PLANNED 2026-09-24** (`docs/ROADMAP_INTEGRATION.md`).
+   Robinhood's crypto spread measured ~1.9% round trip (BTC/ETH/SOL/XRP/LINK,
+   one after-hours snapshot) against the 1.2% the backtests assume, so
+   grid-DCA (+2% take-profit) cannot pass. Order: K1 Robinhood cost model ->
+   K2 daily history to ~2016 -> K3 low-turnover strategies (trend, BTC/cash)
+   -> K4 crypto backtest into ranking.py (a losing one is OUT; today it is
+   ranked from a neutral 0) -> K5 crypto orders in slot_trader -> K6 hourly
+   24/7 crypto cron -> K7 owner sets `allow_crypto: true`. The Agentic account
+   has a linked crypto account.
 
 **Findings from this session that change numbers elsewhere**
 

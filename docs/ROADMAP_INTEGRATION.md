@@ -6,6 +6,7 @@ order that document asks for them.
 Written 2026-09-22 as the analysis that preceded implementation. Stages A–G have
 since been built; the status tables in §10 are current. Stages H (Phase 13),
 I (Addendum A, SIMULATION/SHADOW) and J (Addendum C) were built 2026-09-24.
+Stage K (crypto earns a slot) is planned.
 
 ---
 
@@ -28,6 +29,7 @@ describe what was built; these describe where it goes.
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24; LIVE armed by the owner 2026-09-24 15:39 UTC (real orders, Agentic account)** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.768; v4 written 2026-09-24, not yet scored), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
+| K | **Crypto earns a slot** (Stage K) | **planned 2026-09-24** — Robinhood crypto spread measured at ~1.9% round trip, so grid-DCA cannot pass; low-turnover strategies, crypto execution path, 24/7 stop monitoring. Arming (`allow_crypto`) is the owner's step |
 
 ---
 
@@ -764,3 +766,56 @@ add-on, ~$270/yr).
    (held locally), and add VIX via a free fetch?
 8. **Merger delisting return default.** Near zero, e.g. centred at +1% with a
    3% spread, configurable?
+
+---
+
+**Stage K — crypto earns a slot** — entered 2026-09-24, **PLANNED** (owner: "add the plan for crypto to the roadmap")
+
+Goal: a crypto strategy competes for one of the five slots through the same
+ranking as everything else (`ranking.py`: backtest gate, then paper evidence
+takes over), and trades through the Agentic account's linked crypto account.
+
+*Where it stands, 2026-09-24*
+
+| | state |
+|---|---|
+| account | the Agentic account has a linked crypto account (Robinhood `get_accounts`: `rhc_account_number` present; onboarding reports `already_onboarded`). Not yet confirmed tradeable |
+| data | Coinbase hourly bars, 10 pairs, ~2 years (`crypto_prices`); topped up once a day |
+| strategy | grid-DCA only (`crypto_grid.py`) — 0 of 10 pairs beat their null after fees |
+| paper fund | `crypto_fund.py`, stepped daily |
+| ranking | `ranking.backtest_per_trade` returns None for `crypto:`, so the grid ranks from a neutral 0 instead of being gated on its losing backtest |
+| execution | slot_trader is equity-only; `config/risk.yaml` `allow_crypto: false`; the cron window is weekday market hours, crypto trades 24/7 |
+
+*The finding that sets the plan: Robinhood's spread*
+
+Robinhood charges no crypto commission; the cost is the spread. Measured
+read-only on the Agentic account's routing, 2026-09-24 22:10 UTC (one
+snapshot, after US hours):
+
+| | BTC | ETH | SOL | XRP | LINK |
+|---|---:|---:|---:|---:|---:|
+| round-trip spread | 1.89% | 1.88% | 1.84% | 1.91% | 1.89% |
+
+The backtests assume 1.2% (Coinbase taker 0.6% per side). **Grid-DCA takes
+profit at +2%, so the spread consumes nearly all of every win** — it cannot
+pass at Robinhood cost. Crypto needs LOW-turnover strategies, where ~1.9% per
+round trip is small beside the move being held.
+
+*Steps, in order*
+
+| | step | where | deliverable |
+|---:|---|---|---|
+| K1 | Robinhood crypto cost model | here, then VM | `crypto_spreads` table logged from `get_crypto_quotes` (bid/ask, per pair, hourly for a week); `crypto_grid` / backtests charge the measured half-spread per side instead of the Coinbase taker fee |
+| K2 | Daily history back to ~2016 | VM (network) | `crypto_data.py --interval 1d` full load, so a backtest spans the 2018 and 2022 crashes, not two years of hourly bars |
+| K3 | Low-turnover strategies | here, run on VM | registered experiment; families e.g. trend (hold BTC/ETH above an N-day average, else cash), time-series momentum, BTC/cash switch in the pair-fund style. Scored net of K1 costs against the crypto null AND buy-and-hold. Each enters the library as HYPOTHESIS |
+| K4 | Ranking wired | here | `ranking.backtest_per_trade` reads the crypto backtest; a losing crypto backtest is OUT, like any other; forward per-trade from the crypto paper fund(s) |
+| K5 | Execution path | here | slot_trader trades a `crypto:` holder through Robinhood crypto orders (`rhs_account_number`), orders ledger + idempotency as for equities, a mandatory price stop, reconciliation against crypto positions |
+| K6 | 24/7 monitoring | here, install on VM | a crypto-only cron pass (hourly, every day) so stops are watched on nights and weekends; equity slots keep their window |
+| K7 | Arm | **owner** | `config/risk.yaml` `allow_crypto: true` on the VM |
+
+*What is not claimed.* A positive crypto backtest over ~9 years of daily bars
+is a few dozen trades for a trend rule — thin evidence, and the period is
+mostly a bull market. The ranking will admit it on a positive backtest (the
+owner's rule) and the paper record then moves it; that is the design, not a
+finding of edge. The spread is one after-hours snapshot; K1 measures it
+properly and may find it narrower in US hours.
