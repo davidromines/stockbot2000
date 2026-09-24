@@ -336,3 +336,16 @@ league:
   # this the pair is UNKNOWN, and unknown BLOCKS — a missing measurement is not
   # an average one, the same rule applied to unknown market cap and liquidity.
   min_corr_overlap: 30
+
+# Phase 13 Strategy Factory (strategy_factory.py, discovery.py, factory_pipeline.py)
+factory:
+  max_variants_per_family: 8       # grid points generated per family (§24)
+  max_variants_per_hypothesis: 8   # recycled versions allowed per original idea
+  max_recycles_per_strategy: 2     # a failed strategy may be mutated at most this often (§23)
+  max_backtests_per_run: 12        # compute budget per pipeline run
+  max_repeated_tests: 1            # the same version is never re-backtested on the same window
+  family_explored_after: 8         # tested variants with no evidence before a family's priority drops
+  backtest_window: ["2016-01-01", "2019-12-31"]    # inside the search window, before validation
+  validation_window: ["2020-01-01", "2022-12-31"]  # the Lab's validation window; the seal stays sealed
+  min_backtest_trades: 30          # fewer is INSUFFICIENT_SAMPLE, not a verdict
+  max_entries_per_backtest: 5000
