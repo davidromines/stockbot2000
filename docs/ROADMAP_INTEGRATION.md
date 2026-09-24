@@ -6,7 +6,7 @@ order that document asks for them.
 Written 2026-09-22 as the analysis that preceded implementation. Stages A–G have
 since been built; the status tables in §10 are current. Stages H (Phase 13),
 I (Addendum A, SIMULATION/SHADOW) and J (Addendum C) were built 2026-09-24.
-Stage K (crypto earns a slot) is planned.
+Stages K (crypto earns a slot) and L (published signals) are planned.
 
 ---
 
@@ -30,6 +30,7 @@ describe what was built; these describe where it goes.
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.768; v4 written 2026-09-24, not yet scored), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 | K | **Crypto earns a slot** (Stage K) | **planned 2026-09-24** — Robinhood crypto spread measured at ~1.9% round trip, so grid-DCA cannot pass; low-turnover strategies, crypto execution path, 24/7 stop monitoring. Arming (`allow_crypto`) is the owner's step |
+| L | **Published signals as a strategy source** (Stage L) | **planned 2026-09-24** — Open Source Asset Pricing (212 signals, survivorship-free CRSP returns) as the strategy database, Global Factor Data (93 countries) as the cross-check; trader.dev's 797k leaderboard not used |
 
 ---
 
@@ -830,3 +831,48 @@ properly and may find it narrower in US hours.
 | P2 | Measure take-profit and trailing stops before adopting any | **built, not yet run** — `exit_sweep.py`, experiment `exit_rules`; simulator gained `trailing_atr_multiple` |
 | P3 | Adopt a winning exit as a new strategy version | waits on P2; only cells that beat the strategy as it is over 2006-2019 AND in most two-year blocks |
 | P4 | Slot-wide trailing stop, untested | **declined by the owner 2026-09-24** (steps 1 and 2 only) |
+
+---
+
+**Stage L — published signals as a strategy source** — entered 2026-09-24, **PLANNED** (owner: "the 700,000 strategies database, let's find something like that")
+
+The owner asked for a large strategy database like trader.dev's (~797k user
+strategies, ranked by their own backtests). That kind of list is a
+leaderboard of backtests: the multiple-testing trap this project has already
+fallen into. The academic equivalent is smaller, but every entry is a
+published hypothesis, independently reproduced, **on survivorship-free data**.
+
+| source | holds | survivorship | role |
+|---|---|---|---|
+| trader.dev | public user strategies, mostly crypto derivatives (Bybit, Toobit, ...) | unknown | **not used** — backtest leaderboard; needs an account and its MCP |
+| **Open Source Asset Pricing** (Chen & Zimmermann; openassetpricing.com, `openassetpricing` on PyPI) | 212 published cross-sectional predictors: signal code, firm-level signals, decile / quintile portfolio returns, before and after publication | **free of it** — built on CRSP, dead companies included | **primary** |
+| **Global Factor Data** (Jensen, Kelly & Pedersen; jkpfactors.com) | 153 factors (406 characteristics) across 93 countries | free of it (CRSP / Compustat) | **cross-check**: does the pattern hold outside the US |
+
+*Why it matters here.* This project's backtests see 22.6% of the knowable 2008
+universe. These portfolio returns include the companies that died, so they
+are the only long-history evidence available to this project with no
+survivorship bias. Decile returns give the long-only top decile, which is
+what a slot can hold. Published anomalies lose roughly half their return
+after publication, so only the **post-publication** record counts.
+
+*Steps, in order*
+
+| | step | where | deliverable |
+|---:|---|---|---|
+| L1 | Import OSAP decile portfolio returns and JKP factor returns into their own tables (`published_signals`, `published_returns`), source and release recorded | VM (network — both sites are blocked from the cloud session) | loader + tables, added to `backup.GROUPS` |
+| L2 | One research-library entry per signal, status HYPOTHESIS, citation as provenance; evidence = post-publication top-decile return net of an estimated cost, and whether JKP's non-US version agrees | here | `library_bridge.py` / `strategy_library.py` entries |
+| L3 | Rebuild the signals computable on our own data — price-based (momentum, short-term reversal, 52-week high, volatility, ...) and SEC-statement-based (gross profitability, accruals, asset growth, ...) — as `strategy_factory.py` templates, then the normal path: backtest -> rank -> paper | here | new factory families |
+| L4 | **Decision for the owner:** use a signal's survivorship-free post-publication return as its ranking prior instead of our survivorship-biased backtest | owner | `ranking.py` prior source |
+
+*Constraints stated up front*
+
+- **Multiple testing:** 212 pre-existing hypotheses is a small, honest trial
+  count, but it is still 212 — a signal is adopted only at t > 3
+  (Harvey-Liu-Zhu), and every one counts against the trial counter.
+- **Portfolio vs slot:** the published returns come from monthly-rebalanced
+  portfolios of hundreds of stocks; a slot holds one $20 position. The
+  published figure is a discounted prior, never a forecast for the slot.
+- **Identifiers:** OSAP firm-level signals are keyed by CRSP `permno`, not
+  ticker, and a ticker map needs CRSP. That is why L3 recomputes signals on
+  our data instead of copying stock lists (the ticker-reuse trap applies).
+- **Licence:** JKP data is CC BY-NC 4.0 — fine for this personal project.

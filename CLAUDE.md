@@ -241,6 +241,16 @@ loader. It had added 15 points a year to a momentum backtest.
    the window AND in most two-year blocks. On the VM:
    `./run_bounded.sh ./venv/bin/python exit_sweep.py --run`. An adoptable
    cell becomes a new strategy version; the ranking re-scores it.
+8. **Published signals — Stage L, PLANNED 2026-09-24** (`docs/ROADMAP_INTEGRATION.md`).
+   The owner asked for a big strategy database like trader.dev's 797k; that
+   is a backtest leaderboard, so not used. Instead: Open Source Asset Pricing
+   (212 published predictors, decile returns on CRSP — **dead companies
+   included**, the only survivorship-free long history available here) plus
+   Global Factor Data (93 countries) as a cross-check. L1 import (VM; both
+   sites blocked from the cloud session) -> L2 library entries, post-
+   publication evidence only -> L3 rebuild the price/SEC-computable signals
+   as factory templates -> L4 owner decides whether the published return
+   becomes the ranking prior. Adopt only at t > 3.
 
 **Findings from this session that change numbers elsewhere**
 

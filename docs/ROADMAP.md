@@ -409,6 +409,7 @@ than a system that searches for a good backtest.
 | 11 | Continuous Research Loop | `PHASES_7_11_STRATEGY_LEAGUE.md` |
 | 12 | Crypto Fund — and Stage K, crypto earns a slot (planned) | `PHASE12_CRYPTO_FUND.md`, `ROADMAP_INTEGRATION.md` Stage K |
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `PHASE13_STRATEGY_FACTORY.md` |
+| L | Published signals as a strategy source (planned) | `ROADMAP_INTEGRATION.md` Stage L |
 
 Dependencies, module reuse, architectural gaps, schema changes, risks, minimum
 infrastructure and the proposed implementation order are in
