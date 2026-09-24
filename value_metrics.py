@@ -209,6 +209,29 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
     if gp is None and rev is not None and cogs is not None:
         gp = rev - cogs
 
+    # ANNUALISED flows, for every ratio against a balance or a market value.
+    # `{1, 4}` above takes whichever period a filing reports first: a 10-Q's
+    # quarter, a 10-K's year. Divided by assets or market cap, that made every
+    # stock-based ratio jump 4x after each annual report and fall back after
+    # the next 10-Q (AAPL earnings yield 0.007 -> 0.036 -> 0.012 around each
+    # November, 2023-2025), so cross-sectional ranks mixed two scales and a
+    # company ranked higher for having just filed a 10-K. Found 2026-09-24.
+    # The reported full year where the filing has it, else the quarter x 4 —
+    # seasonal, but on one scale. Flow-to-flow ratios (margins, coverage,
+    # earnings quality) are scale-free and keep the raw values.
+    def ann(key, raw):
+        v4 = g(key, {4})
+        if v4 is not None:
+            return v4
+        v1 = g(key, {1})
+        return v1 * 4 if v1 is not None else (raw if raw is None else None)
+    rev_a, ni_a, ocf_a = ann("revenue", rev), ann("net_income", ni), ann("ocf", ocf)
+    op_a, da_a, cogs_a = ann("op_income", op_inc), ann("dep_amort", da), ann("cogs", cogs)
+    gp_a = ann("gross_profit", gp)
+    if gp_a is None and rev_a is not None and cogs_a is not None:
+        gp_a = rev_a - cogs_a
+    ebitda_a = (op_a + da_a) if (op_a is not None and da_a is not None) else None
+
     # EBITDA: never tagged, always constructed. Operating income plus D&A is the
     # standard build; without D&A it cannot be computed and is left null rather
     # than quietly approximated by operating income, which would flatter every
@@ -219,35 +242,35 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
     m["ebitda"] = ebitda
 
     # -- profitability -----------------------------------------------------
-    m["roa"] = _safe(ni, assets)
-    m["roe"] = _safe(ni, equity)
-    m["gross_profitability"] = _safe(gp, assets)          # Novy-Marx (2013)
+    m["roa"] = _safe(ni_a, assets)
+    m["roe"] = _safe(ni_a, equity)
+    m["gross_profitability"] = _safe(gp_a, assets)        # Novy-Marx (2013)
     m["gross_margin"] = _safe(gp, rev)
     m["operating_margin"] = _safe(op_inc, rev)
     m["net_margin"] = _safe(ni, rev)
-    m["cash_roa"] = _safe(ocf, assets)
+    m["cash_roa"] = _safe(ocf_a, assets)
     invested = None
     if equity is not None and lt_debt is not None:
         invested = equity + lt_debt
-    m["roic"] = _safe(op_inc, invested)                   # Greenblatt's quality half
+    m["roic"] = _safe(op_a, invested)                     # Greenblatt's quality half
 
     # -- earnings quality --------------------------------------------------
     if ni is not None and ocf is not None:
-        m["accruals"] = _safe(ni - ocf, assets)           # Sloan (1996)
+        m["accruals"] = _safe(ni_a - ocf_a, assets)       # Sloan (1996)
     m["earnings_quality"] = _safe(ocf, ni)
     if assets is not None and cash is not None and liab is not None and lt_debt is not None:
         m["net_operating_assets"] = _safe((assets - cash) - (liab - lt_debt), assets)
 
     # -- leverage, liquidity, efficiency -----------------------------------
     m["debt_to_equity"] = _safe(lt_debt, equity)
-    m["debt_to_ebitda"] = _safe(lt_debt, ebitda)
+    m["debt_to_ebitda"] = _safe(lt_debt, ebitda_a)
     m["current_ratio"] = _safe(assets_cur, liab_cur)
     if assets_cur is not None and inv is not None:
         m["quick_ratio"] = _safe(assets_cur - inv, liab_cur)
     m["interest_coverage"] = _safe(op_inc, interest)
     m["cash_to_assets"] = _safe(cash, assets)
-    m["asset_turnover"] = _safe(rev, assets)
-    m["inventory_turnover"] = _safe(cogs, inv)
+    m["asset_turnover"] = _safe(rev_a, assets)
+    m["inventory_turnover"] = _safe(cogs_a, inv)
 
     # -- growth, versus the same quarter a year earlier ---------------------
     pa, pr, pni, peq, psh = (p("assets", {0}), p("revenue", {1, 4}),
@@ -267,19 +290,19 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
     # -- valuation, which needs a market capitalisation ---------------------
     if market_cap and market_cap > 0:
         m["book_to_market"] = _safe(equity, market_cap)
-        m["earnings_yield"] = _safe(ni, market_cap)
-        m["sales_to_price"] = _safe(rev, market_cap)
-        if ocf is not None:
-            m["fcf_yield"] = _safe(ocf, market_cap)
+        m["earnings_yield"] = _safe(ni_a, market_cap)
+        m["sales_to_price"] = _safe(rev_a, market_cap)
+        if ocf_a is not None:
+            m["fcf_yield"] = _safe(ocf_a, market_cap)
         ev = market_cap + (lt_debt or 0) - (cash or 0)
-        m["ebit_to_ev"] = _safe(op_inc, ev)               # Greenblatt earnings yield
-        m["ev_to_ebitda"] = _safe(ev, ebitda)
-        m["ev_to_sales"] = _safe(ev, rev)
+        m["ebit_to_ev"] = _safe(op_a, ev)                 # Greenblatt earnings yield
+        m["ev_to_ebitda"] = _safe(ev, ebitda_a)
+        m["ev_to_sales"] = _safe(ev, rev_a)
 
     m["piotroski_f"] = _piotroski(cur, prev, m)
-    m["altman_z"] = _altman(assets, liab, liab_cur, assets_cur, retained, op_inc,
-                            rev, market_cap)
-    m["ohlson_o"] = _ohlson(assets, liab, liab_cur, assets_cur, ni, ocf)
+    m["altman_z"] = _altman(assets, liab, liab_cur, assets_cur, retained, op_a,
+                            rev_a, market_cap)
+    m["ohlson_o"] = _ohlson(assets, liab, liab_cur, assets_cur, ni_a, ocf_a)
     if mkt is not None:
         m["chs_distress"] = chs_distress(
             ni, liab, cash, equity, market_cap,
