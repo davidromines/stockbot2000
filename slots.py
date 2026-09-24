@@ -133,15 +133,16 @@ def _sessions_since(conn, iso_ts: str) -> int:
 PAIR_RISK = {"stop_atr_multiple": 3.0}
 
 
-def pair_risk(cfg: dict | None = None) -> dict:
-    """The stop a pair fund's slot carries (`slots.pair_risk`). The fund's own record has none."""
+def pair_risk(which: str = "pair_risk", cfg: dict | None = None) -> dict:
+    """The stop a pair-fund (`slots.pair_risk`) or Value Fund (`slots.value_risk`) slot carries.
+    Neither fund's own record has a stop."""
     if cfg is None:
         try:
             from universe import load_config
             cfg = load_config()
         except Exception:                                    # noqa: BLE001
             cfg = {}
-    return dict((cfg.get("slots") or {}).get("pair_risk") or PAIR_RISK)
+    return dict((cfg.get("slots") or {}).get(which) or PAIR_RISK)
 
 
 def genome_for(conn, key: str, version: int) -> dict | None:
@@ -156,6 +157,12 @@ def genome_for(conn, key: str, version: int) -> dict | None:
     g = None
     if key.startswith("pair:"):
         return {"pair": key.split(":", 1)[1], "risk": pair_risk(), "exit": "switch when the fund switches"}
+    if key.startswith("value:"):
+        # Owner's option C (2026-09-24): the slot holds the Value Fund's
+        # top-ranked current holding, with a price stop the fund itself does
+        # NOT use (a slot must have one, §15), and sells when the fund does.
+        return {"value": key.split(":", 1)[1], "risk": pair_risk("value_risk"),
+                "exit": "sell when the fund sells it"}
     if key.startswith("fx_"):
         g = so.genome(conn, key, version)
     else:

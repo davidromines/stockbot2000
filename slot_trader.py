@@ -186,6 +186,29 @@ def _pair_signals(conn, cfg, g: dict) -> tuple:
     return pd.DataFrame({"ticker": [nl["leg"]]}), {nl["bull"], nl["bear"]} - {nl["leg"]}
 
 
+class _NotHeldBy:
+    """An exit set meaning "every symbol EXCEPT these": `sym in exits` is True
+    when the fund no longer holds sym. monitor() only ever tests membership."""
+
+    def __init__(self, held):
+        self.held = set(held)
+
+    def __contains__(self, sym) -> bool:
+        return sym not in self.held
+
+
+def _value_signals(conn, g: dict) -> tuple:
+    """
+    A Value Fund slot (owner's option C): candidates are the fund's current
+    holdings, top-ranked first; the strategy exit fires when the fund no
+    longer holds the slot's stock (sold at a quarterly review).
+    """
+    import pandas as pd
+    import value_fund
+    held = value_fund.ranked_holdings(conn, g["value"])
+    return pd.DataFrame({"ticker": held}), _NotHeldBy(held)
+
+
 def _record_trade(conn, mode, slot, holder, symbol, action, res, reason, plan=None, atr=None):
     o = res.get("order")
     if res.get("status") not in ("filled", "partially_filled") or not o or not o.filled_quantity:
@@ -353,7 +376,12 @@ def trade(conn, cfg, mode: str, provider) -> list:
         g = slots.genome_for(conn, h["strategy_key"], h["version"])
         if not g:
             continue
-        cands, exits = _pair_signals(conn, cfg, g) if g.get("pair") else pt._genome_signals(conn, cfg, g)
+        if g.get("pair"):
+            cands, exits = _pair_signals(conn, cfg, g)
+        elif g.get("value"):
+            cands, exits = _value_signals(conn, g)
+        else:
+            cands, exits = pt._genome_signals(conn, cfg, g)
         exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
 
     results = monitor(conn, cfg, mode, provider, strategy_exits=exits_by_slot)

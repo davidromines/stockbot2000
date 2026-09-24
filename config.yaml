@@ -400,6 +400,11 @@ slots:
   # difference from the record: entry - 3 x ATR(14) at entry.
   pair_risk:
     stop_atr_multiple: 3.0
+  # Value Fund slot (owner's option C, 2026-09-24): holds the fund's top-ranked
+  # current stock ($20) and sells when the fund does. The fund itself uses no
+  # stop; a slot must, so this one is added: entry - 3 x ATR(14).
+  value_risk:
+    stop_atr_multiple: 3.0
 
 # Sourced market-cap fallback (market_caps.py) for names the filings miss —
 # GEN and NWSA were refused as "unknown" on the first LIVE session. The filing

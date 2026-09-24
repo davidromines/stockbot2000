@@ -161,6 +161,20 @@ def is_common_stock(conn, ticker: str) -> bool:
     return str(r[0]).strip().lower() == COMMON_STOCK
 
 
+def ranked_holdings(conn, name: str = FUND) -> list:
+    """
+    The fund's CURRENT holdings, best first: highest value score at entry, then
+    ticker. What a Value Fund slot trades (owner's option C, 2026-09-24): the
+    slot holds the top name, or the next when another slot already has it. The
+    score is the one frozen with the thesis — never re-scored between reviews.
+    """
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='value_fund_positions'").fetchone():
+        return []
+    return [t for (t,) in conn.execute(
+        "SELECT ticker FROM value_fund_positions WHERE name=? "
+        "ORDER BY score_at_entry IS NULL, score_at_entry DESC, ticker", (name,))]
+
+
 def open_fund(conn, capital: float = 100.0, as_of: str | None = None,
               weighting: str = vs.DEFAULT_WEIGHTING) -> dict:
     init(conn)

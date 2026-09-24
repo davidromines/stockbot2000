@@ -131,6 +131,12 @@ def rank(conn, cfg: dict) -> list:
         if ev.get("fund_kind") == "paper":
             r = conn.execute("SELECT COUNT(*) FROM paper_positions WHERE run_id=?", (ev["fund_id"],)).fetchone()
             ev["open_positions"] = int(r[0]) if r else 0
+        elif ev.get("fund_kind") == "value":
+            r = conn.execute("SELECT COUNT(*) FROM value_fund_positions WHERE name=?", (ev["fund_id"],)).fetchone()
+            ev["open_positions"] = int(r[0]) if r else 0
+            # Its positions are its capital split across its holdings, not $20.
+            if ev.get("capital_usd") and ev["open_positions"]:
+                ev["position_usd"] = float(ev["capital_usd"]) / ev["open_positions"]
         bt = backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)
         ok, why = gate(bt)

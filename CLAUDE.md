@@ -198,6 +198,12 @@ loader. It had added 15 points a year to a momentum backtest.
    sale to settle (limited_margin, T+1); ERY's AUM ($42.6M) is under the $100M
    floor, so Energy's bear leg is refused. Whether a pair fund takes a slot is
    the ranking's call (ranking.py), like every other strategy.
+   **Value Fund in slots (owner's option C, 2026-09-24):** a `value:` holder's
+   slot buys the fund's highest `score_at_entry` current holding
+   (`value_fund.ranked_holdings`; the next one if another slot has it), $20,
+   with a 3 x ATR stop the fund itself does not use (`slots.value_risk`), and
+   sells when the fund drops the stock at a review. Ranked on the fund's
+   paper record sized at capital / holdings.
 4. ~~Robinhood sessions~~ — **done 2026-09-24.** `robinhood_mcp.session()`
    keeps ONE MCP session open for a whole LIVE slot_trader run (background
    thread); every `rh.call`/`rh.calls` inside uses it. A session that dies or a
@@ -670,7 +676,7 @@ hardcodes paths, thresholds or model parameters.
 | File | Role |
 |---|---|
 | `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
-| `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. Five slots filled from ranking.py's top five tradeable strategies; family cap; controlled replacement on score; the leaderboard. Places no order. |
+| `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. The Value Fund (`value:`) trades its top-ranked holding with a `slots.value_risk` stop and sells when the fund sells. Five slots filled from ranking.py's top five tradeable strategies; family cap; controlled replacement on score; the leaderboard. Places no order. |
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |
