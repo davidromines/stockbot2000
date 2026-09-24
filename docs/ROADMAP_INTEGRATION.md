@@ -4,8 +4,8 @@ The deliverable required by `PHASES_7_11_STRATEGY_LEAGUE.md`. Ten items, in the
 order that document asks for them.
 
 Written 2026-09-22 as the analysis that preceded implementation. Stages A–G have
-since been built; the status tables in §10 are current. Stage H (Phase 13) is
-planned and not started.
+since been built; the status tables in §10 are current. Stages H (Phase 13),
+I (Addendum A, SIMULATION/SHADOW) and J (Addendum C) were built 2026-09-24.
 
 ---
 
@@ -27,7 +27,7 @@ describe what was built; these describe where it goes.
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **built 2026-09-24 (H1-H15), in daily.sh** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24 in SIMULATION/SHADOW; LIVE arming is the user's** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
-| C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **PLANNED 2026-09-24; awaiting confirmation of the staged plan and answers to 8 questions** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
+| C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.771), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
 ---
 
@@ -690,7 +690,7 @@ Benchmarks and the null are informational, never promotion gates (B20).
 
 ---
 
-**Stage J — Addendum C (revision 2): survivorship-bias-free universe reconstruction** — entered 2026-09-24, **PLANNED; not to be built until the user confirms this plan and answers the questions below**
+**Stage J — Addendum C (revision 2): survivorship-bias-free universe reconstruction** — entered 2026-09-24, **BUILT 2026-09-24 (stages 1-5) on the recommended answer to each question below, under the user's instruction to build every roadmap item. Each answer is a config value; change it and rebuild.** Results: Layer A ~8,000 companies alive per year; 7,618 synthetic dead companies; discriminability AUC 0.771 (gate 0.60 — fails, so retest-only); 12-1 momentum 23.3% -> 19.0% -> 14.3% CAGR (our data / with synthetic / every death a total loss).
 
 Spec verbatim in `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`. Revision 1 narrowed
 the request to S&P 500 delisting returns; the scope is the full US equity

@@ -1229,9 +1229,12 @@ Built and tested: signal schema, risk engine, six kill switches, broker
 abstraction, order state machine, execution engine, shadow mode, and the runner.
 **67 tests across 5 files, all passing.**
 
-Not built: LIVE transmit path, the scheduled reconciliation loop, order-state
-recovery on restart, the dashboard's per-position "why did it trade", and the
-automated acceptance checklist.
+Built since (Addendum A, 2026-09-24): scheduled reconciliation (every
+slot_trader run compares the slot log with the broker and halts on any
+difference), order-state recovery on restart (LedgerSimulatedBroker rebuilds
+from the orders ledger), and a per-trade reason on every slot trade. **Still
+not built: the LIVE transmit path** (RobinhoodBroker builds the spec only;
+transmission is the operator's) and the automated acceptance checklist.
 
 Connects the strategy engine to the Agentic account via Robinhood's official
 Trading MCP, with a deterministic execution pipeline — signal, risk engine,
