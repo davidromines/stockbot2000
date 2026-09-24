@@ -1,0 +1,30 @@
+{
+ "source": "Phase 13 spec \u00a735, supplied by the user 2026-09-24 \u2014 preserved as a historical snapshot",
+ "superseded_by": "reports/pnl_restated_2026-09-24.json (accounting.py v1)",
+ "why_superseded": "computed from the engines' own curves, which (a) deferred or omitted costs, (b) marked positions lacking a 2026-09-22 bar at entry price, and (c) in 11 paper funds carried cash that did not reconcile with their trade ledgers",
+ "paper_funds": {
+  "gross": 0.14,
+  "costs": -6.81,
+  "net": -6.67
+ },
+ "etf_switching": {
+  "gross": 3.73,
+  "costs": -1.02,
+  "net": 2.71
+ },
+ "value_fund": {
+  "gross": 0.0,
+  "costs": -0.56,
+  "net": -0.56
+ },
+ "crypto": "no trades",
+ "all_23_simulated": {
+  "gross": 3.87,
+  "costs": -8.39,
+  "net": -4.52
+ },
+ "real_money_agentic": {
+  "net": -7.25,
+  "as_of": "2026-09-16 snapshot"
+ }
+}
