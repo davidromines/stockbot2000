@@ -490,11 +490,23 @@ resolves their open decisions (table at the end of `ROADMAP_INTEGRATION.md`),
 and fixes the definition of done: the full discover → trade → replace loop
 running autonomously, with real-money activation the user's step.
 
-### Addendum C · Synthetic delisting returns for FINSABER 📋 PLANNED 2026-09-24 — not actioned
-Spec verbatim in `ADDENDUM_C_SYNTHETIC_DELISTING.md`. A tagged, reproducible
-synthetic delisting return for every FINSABER symbol that stops trading, so a
-strategy can be run as-is, excluding synthetic rows, at -100% and at 0%, and
-the spread shows how much of the result rests on imputed data. Builds on the
-existing `delistings` registry and 8-K events for real reasons. Six questions
-to settle before code, in `ROADMAP_INTEGRATION.md` Stage J — the first is
-whether merger delisting returns should be centred near zero rather than +20%.
+### Addendum C (revision 2) · Survivorship-bias-free universe reconstruction 📋 PLANNED 2026-09-24 — awaiting confirmation
+Spec verbatim in `ADDENDUM_C_SYNTHETIC_DELISTING.md`. Revision 1 wrongly
+narrowed it to S&P 500 delisting returns; the scope is the full US equity
+universe, including the ~7,000 delisted companies with no free prices.
+
+- **Layer A** rebuilds which companies existed, from EDGAR, Alpha Vantage,
+  Internet Archive snapshots, FinanceDatabase and FINSABER, with per-field
+  provenance.
+- **Layer B** generates cohort-conditioned synthetic price paths for the
+  missing companies, every row tagged, real rows never touched.
+
+Synthetic data is for bias correction, not a substitute for real data.
+
+**Feasibility, stated plainly:** free data supports **1996–2024**; before 1996
+EDGAR coverage is too thin and the universe would be mostly imputed. The
+cohorts that matter most, small failing companies, have the least real data to
+calibrate from. The existing generator is distinguishable from real data at
+AUC 0.978, so synthetic rows stay out of discovery and promotion until a new
+generator passes that test. Five stages and eight questions are in
+`ROADMAP_INTEGRATION.md`, Stage J.

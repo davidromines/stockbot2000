@@ -27,7 +27,7 @@ describe what was built; these describe where it goes.
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **BUILDING from 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **BUILDING from 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
-| C | **Addendum C — Synthetic delisting returns for FINSABER** | **PLANNED 2026-09-24, not to be built until the user says so** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
+| C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **PLANNED 2026-09-24; awaiting confirmation of the staged plan and answers to 8 questions** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
 ---
 
@@ -690,59 +690,70 @@ Benchmarks and the null are informational, never promotion gates (B20).
 
 ---
 
-**Stage J — Addendum C: synthetic delisting returns for FINSABER** — entered 2026-09-24, **PLANNED; not actioned**
+**Stage J — Addendum C (revision 2): survivorship-bias-free universe reconstruction** — entered 2026-09-24, **PLANNED; not to be built until the user confirms this plan and answers the questions below**
 
-Spec verbatim in `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`. Purpose: close the
-survivorship gap on the S&P 500 validation subset by adding a tagged,
-reproducible synthetic delisting return to every FINSABER symbol that stops
-trading, so a strategy can be run four ways (as-is, exclude, -100%, 0%) and
-the spread between them bounds how much of its result rests on imputed data.
+Spec verbatim in `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`. Revision 1 narrowed
+the request to S&P 500 delisting returns; the scope is the full US equity
+universe. **Synthetic data here corrects survivorship bias; it is not a
+substitute for real data, and every result resting on it carries wider error
+bars.**
 
-*Depends on:* the FINSABER CSV being downloaded and imported (Phase 13 H6,
-awaiting an explicit go-ahead for the ~253 MB download).
+*Feasibility — stated plainly*
 
-*Existing work it builds on — reuse, do not duplicate*
+| part | 1990–1995 | 1996–2024 |
+|---|---|---|
+| Layer A: which companies existed | **not feasible at quality with free data.** EDGAR electronic filing phased in 1993–1996: the 1993 Q1 full index is 1 KB, 1996 Q1 is 7.8 MB. A 1990–95 universe would be mostly imputed | **feasible.** EDGAR registry (38,876 annual filers, 31,752 that stopped filing), Alpha Vantage delistings (9,464 with exact dates, thin before 2009), Internet Archive directory snapshots (2008 on), FinanceDatabase (delisted flag, sector, industry) |
+| Layer A: ticker for a dead company | mostly unknown | often unknown — EDGAR is keyed by CIK and company name. Where no ticker is recoverable, the record gets a synthetic identifier tied to the CIK, tagged imputed |
+| Layer A: IPO date, delisting date | imputed | first/last EDGAR filing as approximations, tagged; Alpha Vantage dates are real where present |
+| Layer A: market cap at first observation | not available | real from XBRL filings after ~2009; before that mostly unavailable, so the cohort key would be "unknown" rather than guessed |
+| Layer B: calibration data | — | real paths exist for survivors and for the 553 delisted names we hold — which are biased toward clean exits (CLAUDE.md: never calibrate the failure case on that sample). **The cohorts that matter most — small, failing companies — have the least real data.** Their paths would be calibrated from pre-delisting drawdown behaviour of distressed names we do hold, plus the published delisting-return statistics |
+| Layer B: realism | — | the existing generator (`synthetic_delistings.py`) is distinguishable from real delisted names at **AUC 0.978**. A new generator must be tested the same way; until it passes, synthetic rows are for retests and stress bounds only, never for strategy discovery or promotion gates |
 
-| existing | what it gives Stage J |
-|---|---|
-| `delistings.py` (`delistings` table: symbol, exchange, delisting_date) | exact delisting dates and the exchange, so NYSE/AMEX vs NASDAQ severities can be applied per symbol rather than guessed |
-| `edgar_events.py` (238,756 8-K item codes) | **real delisting reasons** for many names: item 1.03 bankruptcy, item 2.01 completion of acquisition, 3.01 delisting notice — better than price heuristics wherever an 8-K exists |
-| `synthetic_delistings.py`, `synthetic_validate.py`, `retest_synthetic.py`, `mc_1m.py` | the existing generator of synthetic delisting PRICE PATHS for the 7,062 missing companies, its discriminability test (AUC 0.978 — synthetic rows are easy to tell apart), and the retest harness |
-| `data_providers.py`, `finsaber.py` | where FINSABER lives (`data/finsaber.db`), and the provider the backtest loader would wrap |
-| SPY in `prices` | trailing 12-month market return for time variation; VIX would need a fetch (`^VIX`) |
+**Proposed feasible scope:** the full US common-stock universe on NYSE, NASDAQ
+and AMEX from **1996 to 2024**, with 1990–1995 either dropped or carried as an
+explicitly low-confidence, mostly-imputed period. Full 1990 coverage would
+need paid data (CRSP via a university affiliation, or Norgate's delisted
+add-on, ~$270/yr).
 
-*Proposed steps* (none started)
+*Free sources — verified accessible on 2026-09-24*
 
-| step | item | state |
-|---:|---|---|
-| J1 | Reason classification: 8-K events first, price/volume heuristics as fallback, `reason_source` recorded per symbol | not started |
-| J2 | `generate_delisting_return` mixtures per reason, every parameter configurable with its citation | not started |
-| J3 | `apply_to_finsaber`: append-only synthetic rows with `data_source`, `is_synthetic`, `synthetic_reason`, `synthetic_seed`; real rows never modified | not started |
-| J4 | Validation script: target statistics, histogram + QQ, implausibility flags, provenance-integrity assertions | not started |
-| J5 | `load_backtest_data` with `as_is` / `exclude` / `zero` / `optimistic`, wired into the FINSABER provider | not started |
-| J6 | README section, and a synthetic-share report by symbol and by year | not started |
+| source | verified | gives | does not give |
+|---|---|---|---|
+| SEC EDGAR full-index | HTTP 200 with the project's User-Agent (403 without one) | every filer by CIK, name, form, date, 1993– (dense from 1996) | tickers, prices |
+| Alpha Vantage LISTING_STATUS (already loaded: `delistings`) | in use | 9,464 delisted listings, exchange, IPO and delisting dates | reasons, prices; thin before 2009 |
+| Internet Archive NASDAQ Trader directory (already loaded) | in use, 119 snapshots | which symbols were listed on each date, 2008– | anything before 2008 |
+| FinanceDatabase (JerBouma/FinanceDatabase, GitHub) | repo active (updated 2026-09-20); per-exchange CSVs under `database/equities/` | `delisted` flag, sector, industry, ISIN/CUSIP/FIGI | IPO or delisting dates, prices |
+| 8-K events (already loaded: `edgar_events`, 238,756 items) | in use | real delisting reasons where filed: 1.03 bankruptcy, 2.01 completed acquisition, 3.01 delisting notice | coverage for companies that never filed an 8-K |
+| FINSABER | repository verified earlier; not yet downloaded | real S&P 500 paths incl. delisted names, 2000–2024 | anything outside the S&P 500 |
+| Primary database | in use | 35.5M real bars, 13,200+ instruments incl. 553 delisted | the ~7,000 other delisted companies |
 
-*Questions to settle before code* (the addendum asks for these first)
+*Staged plan* (the spec requires confirmation before any code)
 
-1. **Merger delisting returns.** The spec models mergers at about +20%. In
-   CRSP, the *delisting* return for a merger — from the last trade to the
-   cash-out — is usually small, because the price has already converged to
-   the deal price before trading stops; the takeover premium sits inside the
-   price history, before the delisting. Centring mergers at +20% would
-   likely add gains that never existed. Proposed default: centre merger
-   delisting returns near zero (configurable), and treat the +10% to +40%
-   figure as the announcement premium already in the prices. Needs your call.
-2. **Module name.** `synthetic_delisting.py` (singular) sits beside the
-   existing `synthetic_delistings.py` (plural, price paths). Proposed:
-   `finsaber_delisting.py`, or keep your name and rename nothing. Your call.
-3. **Reasons from 8-K events.** Use real 8-K reasons where they exist and
-   heuristics only as a fallback, with the source tagged? Proposed: yes.
-4. **Time variation.** Condition on SPY's trailing 12-month return (held
-   locally) now, and add VIX only if you want the extra fetch? Proposed: SPY
-   now, VIX optional.
-5. **Scope.** FINSABER's S&P 500 subset only, as specified, or also use the
-   same generator for the 7,062 delisted names in the primary database's
-   `delistings` registry? Proposed: FINSABER only first, as specified.
-6. **Exchange-specific severities.** Apply the NYSE/AMEX (-41.7%) vs NASDAQ
-   (-16.3%) performance means per symbol using `delistings.exchange`, with
-   the pooled mixture where the exchange is unknown? Proposed: yes.
+| stage | what | reuses | deliverable |
+|---|---|---|---|
+| 1 | Universe reconstruction: merge EDGAR, Alpha Vantage, IA snapshots, FinanceDatabase and FINSABER into one Layer A record per company, per-field provenance (`real` / `imputed`), reasons from 8-K events where filed, null otherwise | `edgar_registry.py`, `delistings.py`, `reconstruct_universe.py`, `pit_universe.py`, `edgar_events.py` | universe table + provenance report |
+| 2 | Cohort analysis: cohorts by sector x cap bucket x exchange x IPO decade x reason class; per-cohort return, volatility, drawdown, market-beta, time-to-delisting and delisting-return distributions from real data; small cohorts pooled up a documented hierarchy; saved as a versioned, hashed artifact | `synthetic_delistings.py` calibration, `bias_exposure.py` | versioned cohort artifact |
+| 3 | Synthetic paths: for each missing company, sample a real donor path's residuals from its cohort (block bootstrap), scaled to the cohort's volatility and tied to the actual market return on each date through the cohort beta; a delisting return drawn by reason class (mergers near zero, configurable); reverse splits handled on adjusted prices; partial real histories get only their missing tail | `synthetic_delistings.py`, `mc_1m.py` | tagged synthetic OHLCV |
+| 4 | Provenance and integration: real rows pass through untouched; synthetic rows appended with `is_synthetic`, `data_source`, `cohort_id`, `generation_method`, `synthetic_reason`, `synthetic_seed`; stored outside the primary `prices` table; `load_backtest_data` with `as_is` / `exclude` / `zero` / `optimistic` / `real_only` | `data_providers.py` (a new provider) | merged store + loader |
+| 5 | Validation and sensitivity: synthetic vs real statistics per cohort, QQ plots, the discriminability test, provenance-integrity assertions, synthetic share by year / sector / symbol; a strategy re-run across all five loader modes | `synthetic_validate.py`, `retest_synthetic.py`, `dataset_compare.py` | validation report + README |
+
+*Clarifying questions — to answer before Stage 1*
+
+1. **Start year.** 1996–2024, where free coverage is defensible, or 1990–2024
+   with 1990–1995 carried as a mostly-imputed, low-confidence period?
+2. **Real data beyond FINSABER.** Use the primary database (35.5M bars, 553
+   delisted names) as `real_other` alongside FINSABER? Recommended — it is far
+   larger than FINSABER and outside the S&P 500.
+3. **Universe definition.** Common stock on NYSE, NASDAQ and AMEX only —
+   excluding OTC, ADRs, funds, units and preferreds?
+4. **Unknown tickers.** For dead companies with no recoverable ticker, use a
+   synthetic identifier tied to the SEC CIK, tagged imputed?
+5. **How backtests may use it.** Retests and stress bounds only, never
+   strategy discovery or promotion gates, until the new generator passes the
+   discriminability test? The existing generator scores AUC 0.978.
+6. **Storage.** A separate store (parquet under `data/universe/`), never the
+   primary `prices` table?
+7. **Time variation.** Condition severities on SPY's trailing 12-month return
+   (held locally), and add VIX via a free fetch?
+8. **Merger delisting return default.** Near zero, e.g. centred at +1% with a
+   3% spread, configurable?
