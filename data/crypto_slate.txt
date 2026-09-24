@@ -1,7 +1,81 @@
-CRYPTO SLATE  2026-09-23
+CRYPTO SLATE  2026-09-24
 ============================================================
 
-No orders. No open grid needs attention and no pair's latest
-closed bar met the entry rule.
+REJECTED SELL ADA-USD    45.60113633 units @ 0.2485
+         take-profit: take-profit 2% over average fill 0.2437
+         - crypto is not permitted
+
+REJECTED SELL ADA-USD    45.60113633 units @ 0.2088
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED SELL AVAX-USD    1.05419472 units @ 10.7507
+         take-profit: take-profit 2% over average fill 10.5399
+         - crypto is not permitted
+
+REJECTED SELL AVAX-USD    1.05419472 units @ 9.0301
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED BUY  BTC-USD                $3.51 @ 83,253.5298
+         grid level 2: open grid: next level at 83,253.5298
+         - crypto is not permitted
+
+REJECTED SELL BTC-USD     0.00002768 units @ 86,211.7770
+         take-profit: take-profit 2% over average fill 84,521.3500
+         - crypto is not permitted
+
+REJECTED SELL BTC-USD     0.00002768 units @ 71,031.7425
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED SELL DOT-USD     9.77842046 units @ 1.1590
+         take-profit: take-profit 2% over average fill 1.1363
+         - crypto is not permitted
+
+REJECTED SELL DOT-USD     9.77842046 units @ 0.9735
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED BUY  ETH-USD                $5.26 @ 2,595.3999
+         grid level 3: open grid: next level at 2,595.3999
+         - crypto is not permitted
+
+REJECTED SELL ETH-USD     0.00220557 units @ 2,704.4725
+         take-profit: take-profit 2% over average fill 2,651.4436
+         - crypto is not permitted
+
+REJECTED SELL ETH-USD     0.00220557 units @ 2,248.6331
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED SELL LINK-USD    0.89023281 units @ 12.7308
+         take-profit: take-profit 2% over average fill 12.4811
+         - crypto is not permitted
+
+REJECTED SELL LINK-USD    0.89023281 units @ 10.6932
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED BUY  SOL-USD                $5.26 @ 111.6664
+         grid level 3: open grid: next level at 111.6664
+         - crypto is not permitted
+
+REJECTED SELL SOL-USD     0.05126291 units @ 116.3592
+         take-profit: take-profit 2% over average fill 114.0777
+         - crypto is not permitted
+
+REJECTED SELL SOL-USD     0.05126291 units @ 96.7468
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
+REJECTED SELL XRP-USD     7.41268390 units @ 1.5289
+         take-profit: take-profit 2% over average fill 1.4989
+         - crypto is not permitted
+
+REJECTED SELL XRP-USD     7.41268390 units @ 1.2842
+         stop: stop 12% below the deepest level
+         - crypto is not permitted
+
 ============================================================
 Place approved orders yourself; fills are reconciled on the next run.
