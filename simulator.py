@@ -272,6 +272,19 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
                        entry_px * 0.92)                        # fallback: 8% stop
     hit_stop = fwd <= stop_px[:, None]
 
+    # Optional trailing stop (`trailing_atr_multiple`): the highest close since
+    # entry minus k x ATR at entry — what stop_plans' trailing_atr does live,
+    # measured on closes (live also sees intraday highs, so it trails a little
+    # tighter). Absent, nothing below changes. Added 2026-09-24 for the
+    # exit_rules sweep (exit_sweep.py).
+    trail_mult = risk.get("trailing_atr_multiple")
+    if trail_mult:
+        peak = np.fmax.accumulate(np.fmax(fwd, entry_px[:, None]), axis=1)
+        trail_px = peak - float(trail_mult) * np.where(np.isfinite(atr) & (atr > 0), atr, np.nan)[:, None]
+        hit_trail = fwd <= trail_px
+    else:
+        hit_trail = np.zeros_like(hit_stop)
+
     tp = risk.get("take_profit_pct")
     hit_tp = (fwd >= (entry_px * (1 + float(tp) / 100))[:, None]) if tp else np.zeros_like(hit_stop)
 
@@ -285,7 +298,7 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
         same[-k:] = False
         exit_fwd[:, k - 1] = shifted[idx] & same[idx]
 
-    triggered = hit_stop | hit_tp | exit_fwd | ~np.isfinite(fwd)
+    triggered = hit_stop | hit_trail | hit_tp | exit_fwd | ~np.isfinite(fwd)
     # argmax finds the first True; where nothing fires we hold to the limit.
     first = np.where(triggered.any(axis=1), triggered.argmax(axis=1), max_hold - 1)
 
@@ -318,8 +331,9 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
     gap_loss_usd = float(np.sum(position_size_usd / entry_px * gap))
 
     reason = np.where(hit_stop[rows, first], "stop_loss",
+             np.where(hit_trail[rows, first], "trailing_stop",
              np.where(hit_tp[rows, first], "take_profit",
-             np.where(exit_fwd[rows, first], "exit_rule", "max_hold")))
+             np.where(exit_fwd[rows, first], "exit_rule", "max_hold"))))
 
     shares = position_size_usd / entry_px
     gross = position_size_usd * (exit_px / entry_px - 1)
@@ -344,6 +358,8 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
         "gap_loss_usd": gap_loss_usd,
         "entry_slip_usd": entry_slip_usd,
         "n_stopped": int(stopped.sum()),
+        "n_trailed": int((hit_trail[rows, first] & ~stopped).sum()),
+        "n_take_profit": int((reason == "take_profit").sum()),
         "n_gapped": int(np.sum(gap < 0)),
         "win_rate": float((net > 0).mean()),
         # Bars held = exit bar - entry bar = (first+2) - 1 = first+1. Not
@@ -362,7 +378,8 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
 
 def _empty_result() -> dict:
     return {"n_trades": 0, "n_signals": 0, "entries_capped": False, "net_pnl_usd": 0.0, "gross_pnl_usd": 0.0, "costs_usd": 0.0,
-            "gap_loss_usd": 0.0, "entry_slip_usd": 0.0, "n_stopped": 0, "n_gapped": 0,
+            "gap_loss_usd": 0.0, "entry_slip_usd": 0.0, "n_stopped": 0, "n_trailed": 0,
+            "n_take_profit": 0, "n_gapped": 0,
             "win_rate": 0.0, "avg_hold_days": 0.0, "pnl_series": np.array([]),
             "entry_rows": np.array([], dtype=int), "exit_reason": np.array([]),
             "entry_price": np.array([]), "exit_price": np.array([])}
