@@ -5,6 +5,11 @@ compute:
   # OpenBLAS, OpenMP and XGBoost each take every core unless told otherwise.
   max_threads: 3     # leave one core for the desktop, SSH and interactive work
   nice_level: 10     # batch jobs yield to anything interactive
+  # Ceiling for any batch job started through run_bounded.sh. The VM has 11.7 GB;
+  # the desktop, browser and Claude need ~3 GB. A job past this is killed
+  # inside its OWN systemd scope — without the scope it shared Claude's, and
+  # systemd stopped the whole scope, desktop included, on every OOM (3x 09-23).
+  max_memory_gb: 6
 
 universe:
   source: "sp500"          # sp500 | all_us | custom
