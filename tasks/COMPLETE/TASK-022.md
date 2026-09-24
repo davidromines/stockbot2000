@@ -2,7 +2,7 @@
 
 - component: tests
 - priority: high
-- state: TODO
+- state: COMPLETE
 - branch: ado/task-022
 - created: 2026-09-24T06:59:36+00:00
 - dependencies: none
