@@ -915,6 +915,28 @@ the buyout shape only; failures still end on literature numbers (Shumway:
 | M4 | **Realism test split by exit type**: failures graded separately (AUC per reason), so a buyout pass cannot hide an unrealistic failure | here | `universe_validate.py` per-reason gate |
 | M5 | **Permanent fix (paid, owner's call)**: Norgate or FirstRateData delisted prices (~$270/yr) replace most synthetic companies with real ones | owner | — |
 
+*Real-world sources found 2026-09-24 (web search; none reachable from the
+cloud session, all to be tried on the VM)*
+
+| source | what it gives | use |
+|---|---|---|
+| **Florida-UCLA-LoPucki Bankruptcy Research Database** (lopucki.law.ufl.edu) — Cases table, free download | ~1,000+ large public-company bankruptcies since 1979, ~200 fields per case incl. filing date; frozen at the Dec 2022 update | **M2d**: the failure list with exact filing dates, beyond our 8-Ks (which thin out before 2009) — drives the Q-ticker fetch and aligns each real path to its filing day |
+| **Yahoo Q tickers** — e.g. LEHKQ (a Lehman trust security) has a Yahoo history page | OTC Pink continuation after a Chapter 11 filing | **M2a** confirmed plausible; coverage unknown until the VM tries |
+| Kaggle "Arandkei: Historical Delisted Assets Archive" (updated 2026-03) | daily OHLCV for delisted stocks; contents and licence unverified | **M2e**: inspect on the VM; use only with provenance and the ticker-reuse check |
+| HistoricalData.net (23,259 delisted tickers), EODHD, FirstRateData (7,000+ delisted from 2000), Norgate | full delisted histories, paid | **M5** candidates |
+
+*Calibration targets from the literature — M4 checks the synthetic failures against these*
+
+| fact | figure | source |
+|---|---|---|
+| performance-delisting return, missing in CRSP | -30% (NYSE/AMEX), -55% (NASDAQ) | Beaver, McNichols & Price 2007; Shumway 1997, Shumway & Warther 1999 |
+| drift AFTER a Chapter 11 filing, on Pink Sheets | about -28% over the following 12 months (602 filings, 1998-2006) | Coelho & Taffler, "Gambling on the market" / "Bankruptcy sells stocks" |
+| BEFORE failure | lower past returns, much higher volatility and beta, lower share prices, small caps | Campbell, Hilscher & Szilagyi 2008, "In Search of Distress Risk" |
+
+So a realistic synthetic failure has three phases, not one delisting-day
+drop: a volatile decline into the filing, the delisting return, then a
+negative OTC drift afterwards. v4 models only the second.
+
 *Limit stated up front:* even with Q tickers there will be tens to a few
 hundred real failure paths against ~3,000 synthetic failures, so each real
 template is reused many times; the realism test measures whether that reuse
