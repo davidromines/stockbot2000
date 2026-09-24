@@ -298,6 +298,7 @@ recommendation.
 | 8 | Experiment registry (§11, §12) | **done** — `experiment_registry.py` |
 | 9 | Random control (§17), multiple testing (§18) | **done** — `random_control.py`, `multiple_testing.py` |
 | 10 | Research integrity report (§26) | **done** — regenerated daily |
+| 11 | Model search separation (§19) | **done 2026-09-24** — `model_calibration.py`: AUC, Brier / log loss vs base rate, reliability + ECE, precision and gross/net return by fixed 10% band. Run on the VM to get the numbers |
 
 Stage A is complete except the seed-free comparison, which is pre-registered
 and whose two arms are running. Nothing in Stage A produced a positive

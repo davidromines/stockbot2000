@@ -639,6 +639,7 @@ hardcodes paths, thresholds or model parameters.
 | `leagues.py` | Nine leagues, tiers per B11, evidence from accounting. |
 | `data_providers.py` / `finsaber.py` / `dataset_compare.py` | Provider interface, the FINSABER validation store, cross-dataset checks and survivorship tags. |
 | `signal_decay.py` | §20: decile spread by horizon, t-stat across dates. |
+| `model_calibration.py` | Phase 6 §19: ranking skill, calibration (Brier, log loss, ECE), economic value and net return by fixed confidence band — four questions, answered separately. |
 | `data_dictionary.py` / `changelog.py` | Generate `docs/DATA_DICTIONARY.md` and `CHANGELOG.md`. |
 | `run_bounded.sh` / `ado_ship.sh` | Memory-capped job launcher; ADO review-approve-merge helper. |
 | `finsaber_pkl.py` | Streams FINSABER's pickles (27.3 GB) without loading them; a restricted pickle VM — only `datetime.date` may be built. |
