@@ -30,6 +30,7 @@ import json
 import logging
 import sqlite3
 
+import benchmark as bench
 import costs as costs_mod
 import discovery
 import genome as gn
@@ -37,6 +38,7 @@ import league
 import leagues
 import paper_trading
 import research_queue as rq
+import reward
 import robustness
 import simulator
 import storage
@@ -84,6 +86,22 @@ def _metrics(r: dict) -> dict:
             "win_rate": float(r.get("win_rate") or 0)}
 
 
+def _null_excess(conn, cfg, window, r: dict, g: dict, size: float):
+    """
+    Excess over random entry at the same prices and holds. INFORMATIONAL (B20):
+    reported beside every backtest so a bull market's drift is visible next to
+    the strategy's P&L, never used as a gate.
+    """
+    try:
+        surface = bench.null_surface(conn, cfg, tuple(window))
+        f = reward.fitness(r, complexity=gn.complexity(g), position_size_usd=size,
+                           benchmark_surface=surface, cfg=reward.params_from_config(cfg))
+        return float(f.get("excess_pnl_usd")) if f.get("excess_pnl_usd") is not None else None
+    except Exception as e:                                        # noqa: BLE001
+        log.warning(f"null excess unavailable for {window}: {type(e).__name__}")
+        return None
+
+
 def _reject(conn, key, ver, stage, reason, window=None, regimes=None, evidence=None,
             decision="REJECT"):
     so.decide(conn, key, ver, decision, reason, to_state=league.REJECTED,
@@ -127,8 +145,14 @@ def process(conn, cfg, key: str, ver: int) -> str:
         _reject(conn, key, ver, "spec", f"genome failed to evaluate: {type(e).__name__}: {e}")
         return league.REJECTED
     bt = _metrics(r)
+    # Survivorship: the primary database lacks ~7,000 delisted companies, so a
+    # backtest here is SURVIVORSHIP_LIMITED until dataset_compare cross-validates
+    # it on a delisted-inclusive dataset (§11).
     so.record_metrics(conn, key, ver, "backtest", window=json.dumps(bw), **bt,
-                      detail={"n_signals": r.get("n_signals"), "gap_loss_usd": r.get("gap_loss_usd")})
+                      excess_vs_null_usd=_null_excess(conn, cfg, bw, r, g, size),
+                      survivorship_status="SURVIVORSHIP_LIMITED",
+                      detail={"n_signals": r.get("n_signals"), "gap_loss_usd": r.get("gap_loss_usd"),
+                              "entries_capped": r.get("entries_capped")})
     if bt["trades"] < int(fcfg.get("min_backtest_trades", 30)):
         _reject(conn, key, ver, "sample", f"{bt['trades']} trades on {bw} (< min)", window=bw,
                 decision="INSUFFICIENT_SAMPLE")
@@ -148,7 +172,9 @@ def process(conn, cfg, key: str, ver: int) -> str:
     pv = panel(conn, cfg, vw, need)
     rv = simulator.simulate(g, pv, cm, size, max_entries=cap) if pv is not None else {}
     va = _metrics(rv)
-    so.record_metrics(conn, key, ver, "validation", window=json.dumps(vw), **va)
+    so.record_metrics(conn, key, ver, "validation", window=json.dumps(vw), **va,
+                      excess_vs_null_usd=_null_excess(conn, cfg, vw, rv, g, size) if rv else None,
+                      survivorship_status="SURVIVORSHIP_LIMITED")
     if va["net_usd"] <= 0 or va["trades"] == 0:
         _reject(conn, key, ver, "validation", f"validation net ${va['net_usd']:+.2f} over {va['trades']} trades",
                 window=vw, regimes=rob["tests"].get("regimes"), evidence={"backtest": bt, "validation": va})
