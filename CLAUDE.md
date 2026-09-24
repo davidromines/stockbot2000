@@ -25,6 +25,46 @@ betting), which is a different system entirely.
 
 ## Current state — READ THIS FIRST
 
+### LIVE TRADING IS ON — since 2026-09-24 15:39 UTC (read this first)
+
+The owner armed LIVE (`config/risk.yaml` `execution_mode: LIVE`). The slot
+trader places REAL orders in the Robinhood Agentic account **403446024**
+(type `limited_margin`) every 5 minutes, 13:00-20:59 UTC weekdays, via cron
+(`slot_trader.py --auto --mode LIVE`, log `logs/slot_trader_live.log`).
+
+First live run (15:39-15:40 UTC): BUY SNDK $20 (0.011318 @ 1767.07), DELL $20
+(0.03759 @ 532.05), MRNA $20 (0.107927 @ 185.31), TWST $8.45 (0.048951 @
+172.62 — the settled cash left). Slot 5 (MACD Pullback) refused every pick:
+GEN and NWSA unknown market cap, then no settled cash ($19.26 of the owner's
+manual ACT sale settles 2026-09-25). Account before: $87.71.
+
+How it is wired, in one breath: slots.py picks (criteria loosened by the
+owner: any positive-net strategy, 1 session / 0 trades, up to 4 slots per
+family) -> slot_trader.py -> ExecutionEngine -> kill switches -> RiskEngine
+(account rules: PDT limit AND settled funds for limited_margin) ->
+robinhood_live.LiveBroker (review -> place -> confirm, ref_id idempotency)
+-> robinhood_mcp.py (MCP 2.x client, agent.robinhood.com/mcp/trading, OAuth
+token at ~/.config/stockbot2000/robinhood_oauth.json, mode 600).
+
+**Controls the owner has:**
+- Stop everything and flatten slot positions: `touch data/KILL_SWITCH`
+  (delete it to resume). Stop new trades but keep positions:
+  `execution_mode: SIMULATION`.
+- Sign-in expired -> trading halts and alerts; fix: `./venv/bin/python
+  robinhood_mcp.py --login` (owner, desktop browser + Robinhood app).
+- Every live fill and every halt sends a Telegram/desktop alert.
+
+**What is NOT true, so no one overclaims:** no strategy has demonstrated an
+edge. Four of five slots are Rising 200 stop variants — one entry rule, which
+the 14-year sweep found loses net — on 9 sessions of forward evidence. The
+acceptance checklist (`acceptance.py`) was 25/26 at arming: the SHADOW record
+had 1 of 10 sessions. The owner armed anyway; that is their call and is
+recorded here, not relitigated.
+
+**Permission mode:** LIVE wiring was blocked under Claude Code auto mode; the
+owner switched the session to manual approval to finish it. Expect the same
+in a new session for anything touching orders.
+
 ### SESSION HANDOFF — 2026-09-24 (start here in a new session)
 
 **What the user wants now:** build Phase 13 (Strategy Factory, research engine)
@@ -101,22 +141,14 @@ loader. It had added 15 points a year to a momentum backtest.
 
 **Waiting on the user**
 
-1. ~~Account type~~ — **answered 2026-09-24: CASH.** `config/risk.yaml`
-   `account_type: cash`, T+1. No PDT limit; settled-funds / good-faith rule
-   applies (I12).
-2. ~~FINSABER go-ahead~~ — **answered: yes, all files; all imported**
-   (4.74M pickle bars, 5.41M headlines, 166,771 filings; the 27.3 GB file in
-   ~25 min at ~3.3 GB). **Filing dates are NOT point-in-time**: FINSABER dates
-   a filing on its SEC filed day, so 89.7% fall before the first tradeable
-   session (`finsaber_pkl.py --pit-check`). Use `sec_filings.first_tradeable`,
-   never FINSABER's date. Headlines have no reference timestamp: UNVERIFIED,
-   not a signal. The S&P pickle's bars have NO adjusted close (README says
-   otherwise); its raw closes equal the CSV's — use the CSV for prices.
-3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
-   **do not build** until the user answers the 8 questions in Stage J. It is
-   full-US-universe reconstruction with tagged synthetic price paths — NOT
-   S&P 500 delisting returns (revision 1 got that wrong). Feasible free scope
-   is 1996-2024.
+1. ~~Account type~~ — Robinhood reports **limited_margin** (not cash); both the
+   PDT limit and the settled-funds rule are enforced.
+2. ~~FINSABER~~ — all imported; filings are NOT point-in-time (use
+   sec_filings.first_tradeable); headlines unverified.
+3. ~~Addendum C answers~~ — built on the recommended answers; change any in
+   `config.yaml` `universe_reconstruction:` and rebuild.
+4. **FinanceDatabase** (small GitHub CSV, the one Addendum C source not
+   fetched) — needs the owner's yes.
 
 **Also done 2026-09-24 (late session)**
 
@@ -137,20 +169,23 @@ loader. It had added 15 points a year to a momentum backtest.
   job finishes** — `./run_bounded.sh ./venv/bin/python finsaber_pkl.py
   --import data/finsaber/stock_data_sp500_2000_2024_v2.pkl`. Resumable.
 
-**Next steps, in order**
+**Next steps, in order (next session)**
 
-1. ~~Ship TASK-021~~ — done.
-2. ~~Wire the factory into `daily.sh`~~ — done.
-3. ~~Unit tests TASK-022..026~~ — shipped. ADO checks out branches in this
-   working tree: run it only when `daily.sh` is NOT running.
-4. ~~H15~~, ~~Addendum A~~, ~~Addendum C stages 1-5~~ — done (see above).
-5. Trackers: Build Record republished 09-24 (source
-   `docs/artifacts/build_record.html`); Roadmap page source
-   `docs/artifacts/roadmap_page.html`; status dashboard
-   https://claude.ai/artifact/JVo9dV1QbQqpGvM7JKHsbp.
-6. Open research items: tighten paper admission (8 of 12 and 4 of 4 admitted);
-   a discriminability-passing generator v3; news/filing point-in-time check
-   before any use of the FINSABER text.
+1. **Watch the live account first.** `tail -50 logs/slot_trader_live.log`;
+   `./venv/bin/python slot_trader.py --status --mode LIVE`; check the alerts.
+   Verify slot 5 fills on 2026-09-25 once the $19.26 settles, and that stop
+   exits SELL only the slot's shares.
+2. **Market-cap gaps block real picks** (GEN, NWSA rejected as unknown). Either
+   backfill market cap for liquid names or give the risk engine a sourced
+   fallback — never assume a cap (TNON rule).
+3. **Diversity:** the ETF switch funds (Nasdaq 1x, S&P 1x/2x, Russell 1x) are
+   profitable but cannot hold a slot — they need a stop plan and a slot-trader
+   path (hold the ETF the pair fund holds). That is the fastest route to five
+   distinct bets instead of four copies of Rising 200.
+4. Robinhood sessions: every call opens a fresh MCP session; batch reads per
+   run (`robinhood_mcp.calls`) to cut latency.
+5. Addendum C: generator v3 fails the realism gate (AUC 0.768); skew and
+   drawdown are the remaining gaps.
 
 **Findings from this session that change numbers elsewhere**
 
