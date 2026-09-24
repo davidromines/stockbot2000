@@ -53,7 +53,7 @@ gross / costs / net side by side.
 | H14 report + scoreboard | done (TASK-021 merged 2026-09-24) | `factory_report.py` — forward rows never fall back to backtest metrics |
 | H15 end-to-end test | done | `tests/e2e/e2e_factory.py` — real data in a temp DB, never production; run under `run_bounded.sh`. Found 5 defects, all fixed |
 | daily.sh wiring | done (`[9c]-[9h]`) | pipeline budget 12: ~20 min, 4.3 GB peak |
-| unit tests for H3-H13 | **none yet** | only `tests/regression/test_accounting.py` exists |
+| unit tests for H3-H13 | done (TASK-022..026, DeepSeek) | strategy_objects, discovery, leagues, robustness, factory_pipeline; gate is 50 files, all passing |
 
 **Addendum A (Stage I): I1-I14 BUILT 2026-09-24 in SIMULATION and SHADOW.**
 All five slots are CASH today: 0 of 33 forward strategies are eligible (every
@@ -130,8 +130,8 @@ loader. It had added 15 points a year to a momentum backtest.
 
 1. ~~Ship TASK-021~~ — done.
 2. ~~Wire the factory into `daily.sh`~~ — done.
-3. Unit tests TASK-022..026 are specced in `tasks/TODO` for DeepSeek — run
-   them only when `daily.sh` is NOT running (ADO checks out branches here).
+3. ~~Unit tests TASK-022..026~~ — shipped. ADO checks out branches in this
+   working tree: run it only when `daily.sh` is NOT running.
 4. ~~H15~~, ~~Addendum A~~, ~~Addendum C stages 1-5~~ — done (see above).
 5. Trackers: Build Record republished 09-24 (source
    `docs/artifacts/build_record.html`); Roadmap page source
