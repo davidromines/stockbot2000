@@ -298,6 +298,7 @@ recommendation.
 | 8 | Experiment registry (§11, §12) | **done** — `experiment_registry.py` |
 | 9 | Random control (§17), multiple testing (§18) | **done** — `random_control.py`, `multiple_testing.py` |
 | 10 | Research integrity report (§26) | **done** — regenerated daily |
+| 10a | Baseline portfolios (§16) | **done 2026-09-24** — `baselines.py`: every forward fund beside cash, SPY, its index ETF (fixed rule), the matched-universe null and 1,000 same-size random portfolios (pair funds: random switching at their own count), on its own window and capital |
 | 10b | Model search separation (§19) | **done 2026-09-24** — `model_calibration.py`: AUC, Brier / log loss vs base rate, reliability + ECE, precision and gross/net return by fixed 10% band. Run on the VM to get the numbers |
 | 10c | Regime analysis (§21) | **done 2026-09-24** — `regimes.py`: rate regimes (FRED DGS3MO, fixed 2.0% line) added to robustness's SPY regimes; `--forward` breaks every forward fund's daily P&L down by regime. Definitions fixed in `config.yaml` `regimes:` |
 

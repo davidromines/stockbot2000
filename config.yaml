@@ -415,3 +415,12 @@ market_caps:
 regimes:
   rate_series: DGS3MO        # FRED 3-month Treasury; yfinance ^IRX is the fallback
   high_rate_pct: 2.0
+
+# Phase 6 §16: baselines per forward fund (baselines.py). The index-ETF rule
+# is fixed here, before any result: a stock fund is compared with IWM when the
+# median market cap of the names it traded is under large_cap_usd, else SPY.
+baselines:
+  small_cap_etf: IWM
+  large_cap_etf: SPY
+  large_cap_usd: 10000000000
+  random_trials: 1000
