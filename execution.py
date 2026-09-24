@@ -194,7 +194,9 @@ class ExecutionEngine:
         on this path.
         """
         held = (portfolio.get("positions") or {}).get(sig.symbol)
-        qty = float((held or {}).get("quantity") or sig.quantity or 0)
+        hq = float((held or {}).get("quantity") or 0)
+        # The slot's own shares when the signal says how many; never more than held.
+        qty = min(float(sig.quantity), hq) if sig.quantity and hq else (hq or float(sig.quantity or 0))
         if qty <= 0:
             _record_risk(self.conn, sig, "REJECTED", ["emergency exit: nothing held"])
             return {"status": "rejected", "signal_id": sig.signal_id, "reasons": ["nothing held"]}

@@ -82,4 +82,5 @@ min_market_cap_usd: 100000000.0
 # signal is approved at all. It stays off until someone turns it on.
 crypto:
   min_dollar_volume: 5000000.0   # 20-day average daily USD turnover
-
+robinhood:
+  account_number: "403446024"

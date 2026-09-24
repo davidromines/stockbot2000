@@ -99,8 +99,16 @@ def run(with_suite: bool = True) -> list:
         except Exception as e:                               # noqa: BLE001 — a crash is a FAIL, stated
             items.append({"n": n, "item": name, "result": "FAIL", "detail": f"{type(e).__name__}: {e}"})
 
-    item(1, "LIVE is disabled (execution_mode is not LIVE)",
-         lambda: (str(L.get("execution_mode", "SIMULATION")).upper() != "LIVE", L.get("execution_mode")))
+    def live_state():
+        mode = str(L.get("execution_mode", "SIMULATION")).upper()
+        if mode != "LIVE":
+            return (True, f"{mode} (not armed)")
+        import robinhood_mcp
+        acct = (L.get("robinhood") or {}).get("account_number")
+        signed_in = robinhood_mcp.TOKEN_FILE.exists()
+        return (bool(acct) and signed_in, f"LIVE armed: account {'set' if acct else 'MISSING'}, "
+                                          f"sign-in {'stored' if signed_in else 'MISSING'}")
+    item(1, "LIVE is either off, or armed with an account and a stored sign-in", live_state)
     item(2, "account type configured", lambda: (L.get("account_type") in ("cash", "margin", "limited_margin"), L.get("account_type")))
     item(3, "risk limits present (trade, position, daily loss, drawdown)",
          lambda: (all(L.get(k) for k in ("max_trade_dollars", "max_position_dollars", "max_daily_loss_dollars",

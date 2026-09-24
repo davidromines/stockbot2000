@@ -35,6 +35,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 log = logging.getLogger("robinhood_mcp")
+# The HTTP and MCP client libraries log every request at INFO, which buried the
+# trader's own lines in the cron log. Their warnings and errors still show.
+for _noisy in ("httpx2", "httpx", "mcp.client.streamable_http"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 DEFAULT_URL = "https://agent.robinhood.com/mcp/trading"
 TOKEN_FILE = Path(os.path.expanduser("~/.config/stockbot2000/robinhood_oauth.json"))

@@ -116,6 +116,13 @@ def reconcile(conn, broker, mode: str) -> tuple:
     for p in open_positions(conn, mode).values():
         want[p["symbol"]] = want.get(p["symbol"], 0.0) + float(p["quantity"])
     have = {s: float(p["quantity"]) for s, p in broker.get_positions().items()}
+    if mode == "LIVE":
+        # The real account may hold shares this system did not buy (placed by
+        # hand). They are not slot positions and are never sold by it. What
+        # must hold: the account has AT LEAST what the slot log says it bought.
+        diffs = [f"{s}: slots hold {q:.6f} but the account has {have.get(s, 0):.6f}"
+                 for s, q in want.items() if have.get(s, 0) + 1e-6 < q]
+        return (not diffs), diffs
     diffs = [f"{s}: log {want.get(s, 0):.6f} vs broker {have.get(s, 0):.6f}"
              for s in set(want) | set(have) if abs(want.get(s, 0) - have.get(s, 0)) > 1e-6]
     return (not diffs), diffs
@@ -141,15 +148,21 @@ class LiveNotWired(RuntimeError):
 
 
 def _build(conn, cfg, mode: str, provider):
-    if mode == "LIVE":
-        # The simulated ledger broker must never stand in for the account: a
-        # LIVE run against it would record simulated fills as live trades.
-        # Real orders go through RobinhoodBroker over the owner's authorised
-        # MCP connection, which a cron process does not have.
-        raise LiveNotWired("LIVE needs a real broker connection; none is wired for the slot trader. "
-                           "See docs/ROBINHOOD_AGENTIC.md — transmission is the account owner's step.")
     s = slots.settings(cfg)
     limits = risk_engine.load_limits()
+    if mode == "LIVE":
+        # The simulated ledger broker must never stand in for the account: a
+        # LIVE run against it would record simulated fills as live trades. LIVE
+        # needs the owner's arming (execution_mode) AND a configured account.
+        account = (limits.get("robinhood") or {}).get("account_number")
+        if str(limits.get("execution_mode", "SIMULATION")).upper() != "LIVE" or not account:
+            raise LiveNotWired("LIVE needs execution_mode: LIVE and robinhood.account_number in "
+                               "config/risk.yaml")
+        import robinhood_live
+        broker = robinhood_live.LiveBroker(conn, account, provider=provider)
+        engine = ex.ExecutionEngine(conn, broker, risk_engine.RiskEngine(limits), mode=mode,
+                                    session=_session(conn))
+        return broker, engine
     broker = bk.LedgerSimulatedBroker(conn, capital=s["count"] * s["capital_per_slot"],
                                       mode=mode, quote_provider=provider)
     engine = ex.ExecutionEngine(conn, broker, risk_engine.RiskEngine(limits), mode=mode,
@@ -167,11 +180,60 @@ def _record_trade(conn, mode, slot, holder, symbol, action, res, reason, plan=No
                   float(o.filled_quantity), float(o.avg_fill_price), atr,
                   json.dumps(plan) if plan is not None else None, reason, res["signal_id"]))
     conn.commit()
+    if mode == "LIVE":
+        try:
+            import notify
+            notify.notify("Stockbot2000 LIVE fill", f"slot {slot} {action} {symbol}: "
+                          f"{float(o.filled_quantity):.6f} @ ${float(o.avg_fill_price):.2f} — {reason}")
+        except Exception as e:                               # noqa: BLE001
+            log.warning(f"fill alert failed: {type(e).__name__}")
     return True
 
 
+def resolve_pending(conn, cfg, broker, mode: str) -> list:
+    """
+    Orders from an earlier run that were not final (SUBMITTED / PARTIALLY_FILLED /
+    UNKNOWN): ask the broker what happened — never resubmit — and record a fill
+    in the slot log. Restart recovery for a real account.
+    """
+    done = []
+    rows = conn.execute(
+        "SELECT o.client_order_id, o.broker_order_id, o.side, o.symbol, o.state, s.strategy "
+        "FROM orders o JOIN signals s ON s.signal_id = o.signal_id WHERE o.mode=? "
+        "AND o.state IN ('SUBMITTED','PARTIALLY_FILLED','UNKNOWN') AND s.strategy LIKE 'slot%'",
+        (mode,)).fetchall()
+    for cid, boid, side, symbol, state, strategy in rows:
+        if not boid:
+            continue
+        try:
+            rec = broker.get_order(boid)
+        except Exception as e:                               # noqa: BLE001
+            log.warning(f"pending {cid}: {type(e).__name__}: {e}")
+            continue
+        if not rec or not rec.get("state") or rec["state"] == state:
+            continue
+        conn.execute("UPDATE orders SET state=?, filled_quantity=?, avg_fill_price=? WHERE client_order_id=?",
+                     (rec["state"], rec.get("filled_quantity") or 0, rec.get("avg_fill_price"), cid))
+        conn.commit()
+        if rec["state"] == bk.FILLED and rec.get("filled_quantity") and rec.get("avg_fill_price"):
+            slot_s, key = strategy.split(":", 1)
+            slot = int(slot_s.replace("slot", ""))
+            ver = (conn.execute("SELECT version FROM slot_assignments WHERE strategy_key=? ORDER BY id DESC "
+                                "LIMIT 1", (key,)).fetchone() or [1])[0]
+            o = bk.Order(signal_id=cid, symbol=symbol, side=side)
+            o.filled_quantity, o.avg_fill_price = rec["filled_quantity"], rec["avg_fill_price"]
+            plan = stop_plans.from_genome(slots.genome_for(conn, key, ver)) if side == "BUY" else None
+            _record_trade(conn, mode, slot, {"strategy_key": key, "version": ver}, symbol,
+                          "OPEN" if side == "BUY" else "CLOSE", {"status": "filled", "order": o, "signal_id": cid},
+                          "resolved after submission", plan=plan, atr=_atr(conn, symbol) if side == "BUY" else None)
+            done.append((cid, symbol, side))
+    return done
+
+
 def _exit(conn, engine, mode, slot, pos, reason, reconciled, results):
-    sig = sg.Signal(symbol=pos["symbol"], action="CLOSE", strategy=f"slot{slot}:{pos['strategy_key']}",
+    # SELL the slot's shares, not CLOSE: a CLOSE sells everything held in the
+    # symbol, which in a real account can include shares this system never bought.
+    sig = sg.Signal(symbol=pos["symbol"], action="SELL", strategy=f"slot{slot}:{pos['strategy_key']}",
                     reason=reason, quantity=float(pos["quantity"]), session=engine.session)
     res = engine.execute(sig, reconciled=reconciled)
     _record_trade(conn, mode, slot, pos, pos["symbol"], "CLOSE", res, reason)
@@ -188,6 +250,8 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     if why:
         return results + emergency(conn, cfg, mode, provider, why)
     broker, engine = _build(conn, cfg, mode, provider)
+    if mode == "LIVE":
+        resolve_pending(conn, cfg, broker, mode)
     ok, diffs = reconcile(conn, broker, mode)
     if not ok:
         log.error(f"reconciliation failed, trading halts: {diffs}")
@@ -391,16 +455,19 @@ def main(argv=None) -> int:
     if args.mode == "LIVE" and str(limits.get("execution_mode", "SIMULATION")).upper() != "LIVE":
         print("LIVE refused: config/risk.yaml execution_mode is not LIVE (arming is the user's step, B14)")
         return 2
-    if args.mode == "LIVE":
-        print("LIVE refused: no real broker connection is wired for the slot trader — it would "
-              "otherwise trade the simulated ledger under a LIVE label")
+    if args.mode == "LIVE" and not (limits.get("robinhood") or {}).get("account_number"):
+        print("LIVE refused: robinhood.account_number is not set in config/risk.yaml")
         return 2
     from universe import load_config
     cfg = load_config()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=60)
     conn.row_factory = sqlite3.Row
     init(conn)
-    provider = qt.LiveQuotes(conn)
+    if args.mode == "LIVE":
+        import robinhood_live
+        provider = robinhood_live.RobinhoodQuotes(conn)
+    else:
+        provider = qt.LiveQuotes(conn)
     if (args.trade or args.monitor) and not qt.market_open():
         print("market closed — nothing trades outside the regular session (no stale fills)")
         return 0
@@ -429,18 +496,38 @@ def main(argv=None) -> int:
             intraday.scan(conn)
         except Exception as e:                               # noqa: BLE001
             log.warning(f"intraday scan failed: {type(e).__name__}: {e}")
-    if args.trade:
-        out = trade(conn, cfg, args.mode, provider)
-    elif args.monitor:
-        out = monitor(conn, cfg, args.mode, provider)
+    try:
+        if args.trade:
+            out = trade(conn, cfg, args.mode, provider)
+        elif args.monitor:
+            out = monitor(conn, cfg, args.mode, provider)
+    except Exception as e:                                   # noqa: BLE001
+        if args.mode != "LIVE":
+            raise
+        # Fail closed, loudly: no trading, and the owner is told once a day
+        # (an expired Robinhood sign-in, an unreadable account, a transport error).
+        import killswitch as ks
+        day = _session(conn)
+        seen = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='live_halt' AND "
+                            "substr(at,1,10)=?", (day,)).fetchone()[0]
+        ks.record_event(conn, "live_halt", f"{type(e).__name__}: {e}", "critical")
+        if not seen:
+            try:
+                import notify
+                notify.notify("Stockbot2000 LIVE halted", f"{type(e).__name__}: {e}")
+            except Exception:                                # noqa: BLE001
+                pass
+        print(f"LIVE halted: {type(e).__name__}: {e}")
+        return 3
     for r in out:
         print(f"  slot {r['slot']}: {r['action']:<5} {r.get('symbol', ''):<7} {r['status']:<14} "
               f"{r['reason']}" + (f"  [{'; '.join(r['why'])}]" if r.get("why") else ""))
     if args.status or not out:
         pos = open_positions(conn, args.mode)
-        broker, _ = _build(conn, cfg, args.mode, qt.DatabaseQuotes(conn))
+        broker, _ = _build(conn, cfg, args.mode, provider if args.mode == "LIVE" else qt.DatabaseQuotes(conn))
         ok, diffs = reconcile(conn, broker, args.mode)
-        print(f"  {args.mode}: {len(pos)} open slot position(s), cash ${broker.cash:,.2f}, "
+        cash = broker.get_buying_power() if args.mode == "LIVE" else broker.cash
+        print(f"  {args.mode}: {len(pos)} open slot position(s), cash ${cash:,.2f}, "
               f"reconciled {'OK' if ok else 'FAILED: ' + '; '.join(diffs)}")
         for slot, p in sorted(pos.items()):
             print(f"    slot {slot}: {p['symbol']} {p['quantity']:.6f} @ {p['price']:.2f} "

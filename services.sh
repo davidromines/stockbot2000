@@ -25,10 +25,14 @@ LINE="*/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mod
 # SHADOW beside it: the same decisions and risk checks, nothing placed. Its
 # record is acceptance.py item 26 — LIVE should not be armed without it.
 LINE_SHADOW="2-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mode SHADOW >> $DIR/logs/slot_trader_shadow.log 2>&1"
+# LIVE: the real Robinhood Agentic account. Harmless until armed — it refuses
+# unless config/risk.yaml says execution_mode: LIVE and names the account, and
+# it halts (and alerts) if the Robinhood sign-in has expired.
+LINE_LIVE="4-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mode LIVE >> $DIR/logs/slot_trader_live.log 2>&1"
 TAG="slot_trader.py --auto"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;

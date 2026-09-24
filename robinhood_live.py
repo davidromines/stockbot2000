@@ -245,7 +245,10 @@ class LiveBroker(bk.BrokerInterface):
             except bk.TransitionError:
                 log.warning(f"{order.client_order_id}: ignoring {order.state} -> {st}")
         order.filled_quantity = num(find(rec, "cumulative_quantity", "filled_quantity")) or order.filled_quantity
-        order.avg_fill_price = num(find(rec, "average_price", "average_fill_price")) or order.avg_fill_price
+        # Raw Robinhood records say average_price; get_order()'s normalised
+        # record says avg_fill_price — both must be read, or a fill has no price.
+        order.avg_fill_price = num(find(rec, "average_price", "average_fill_price", "avg_fill_price")) \
+            or order.avg_fill_price
 
     def place_order(self, order: bk.Order) -> bk.Order:
         args = self._args(order)
