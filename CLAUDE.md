@@ -197,8 +197,16 @@ loader. It had added 15 points a year to a momentum backtest.
    call stuck > 120 s falls back to per-call sessions for the rest of the run;
    errors reach callers unchanged (an order failing in transport is still
    UNKNOWN). The log line `robinhood: N call(s) in one session` shows it working.
-5. Addendum C: generator v3 fails the realism gate (AUC 0.768); skew and
-   drawdown are the remaining gaps.
+5. Addendum C: **generator v4 written 2026-09-24, NOT YET BUILT OR SCORED.**
+   v3 failed the gate (AUC 0.768) on final-year shape: real skew 1.17 vs 0.20,
+   kurtosis 16.5 vs 4.2, drawdown -22% vs -34%, last-60 +2.5% vs -2.6% — the
+   acquisition shape (jump, then quiet). v4 gives clean exits a real donor's
+   whole final year on their own market dates; failures keep v3 (no real
+   failing year exists to copy, so the gate cannot judge them — expect the
+   all-reasons AUC to stay above the merger-only one). On the VM:
+   `./run_bounded.sh ./venv/bin/python universe_synthetic.py --build` then
+   `universe_validate.py --run` (writes `validation_v4.json`). The loader uses
+   v4 once it exists.
 
 **Findings from this session that change numbers elsewhere**
 

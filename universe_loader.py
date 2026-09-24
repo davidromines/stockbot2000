@@ -35,7 +35,11 @@ import pandas as pd
 
 import data_providers as dp
 
-SYNTH = "data/universe/synthetic_v3.parquet"
+# The newest BUILT generator. v4 replaces v3 once `universe_synthetic.py
+# --build` has written it; until then v3 stays in use. Which one a result used
+# is on every row (`data_source`, `generation_method`).
+SYNTH = next((p for p in ("data/universe/synthetic_v4.parquet", "data/universe/synthetic_v3.parquet")
+              if os.path.exists(p)), "data/universe/synthetic_v4.parquet")
 MODES = ("exclude", "real_only", "as_is", "zero", "optimistic")
 COLUMNS = dp.BAR_COLUMNS + ["is_synthetic", "data_source"]
 

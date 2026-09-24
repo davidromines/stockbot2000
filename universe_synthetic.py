@@ -14,7 +14,7 @@ Archive, or a ticker). EDGAR-only filers with no listing evidence are excluded
 by default (`include_edgar_only: false`): generating prices for companies that
 may never have traded would inflate the universe with fiction.
 
-HOW A PATH IS MADE (generation_method = residual_block_bootstrap_v1)
+HOW A PATH IS MADE (generation_method = donor_final_year_v4; see METHOD's history)
 -------------------------------------------------------------------
   span      from max(first_seen, scope start, last_seen - max_years) to last_seen
   returns   r_t = beta * SPY_t + e_t. beta and annual idiosyncratic volatility
@@ -58,7 +58,7 @@ import pandas as pd
 import universe_cohorts as uc
 
 log = logging.getLogger("universe_synthetic")
-OUT = "data/universe/synthetic_v3.parquet"
+OUT = "data/universe/synthetic_v4.parquet"
 # v2 (2026-09-24): no-change days. Real dead companies are often illiquid —
 # 1.6% of their days close unchanged (median) — and v1 had none, which alone let
 # a classifier separate the two at AUC 0.987 (Stage 5). Each path now gets a
@@ -68,7 +68,18 @@ OUT = "data/universe/synthetic_v3.parquet"
 # uniformly within the cohort's interquartile range (v2 AUC 0.903: too narrow a
 # spread, and the joint structure lost). Idiosyncratic volatility is set so the
 # TOTAL volatility matches the donor's, not added on top of the market's.
-METHOD = "donor_block_bootstrap_v3"
+# v4 (2026-09-24): a clean exit's FINAL YEAR is one real donor's final-year
+# residual path, whole, on the synthetic company's own market dates — not
+# 20-day blocks from anywhere in the donor's history. v3 failed the gate on
+# exactly the features a final year carries (AUC 0.768; merger-only 0.737):
+# real final years are right-skewed (median skew 1.17 vs 0.20), fat-tailed
+# (kurtosis 16.5 vs 4.2), shallower in drawdown (-22% vs -34%) and end up
+# (+2.5% over the last 60 sessions vs -2.6%). That is the acquisition shape: an
+# announcement jump, then a quiet drift to the deal price. Short blocks drawn
+# from the whole history cannot contain it. Performance deaths keep the v3
+# method: the real sample holds almost no failures (Stage 2 caveat), so there
+# is no real failing year to copy, and the gate cannot judge them either.
+METHOD = "donor_final_year_v4"
 DEFAULTS = {
     "seed": 20260924, "max_years": 10, "block": 20, "include_edgar_only": False,
     "flat_share": [0.0, 0.04],
@@ -113,8 +124,12 @@ def donor_residuals(conn, sample: pd.DataFrame, spy: pd.Series) -> list:
         e = e[np.isfinite(e)]
         e = np.clip(e, -0.5, 0.5)
         if e.std() > 0:
+            # e_final: the donor's own last year of residuals, in return units
+            # and unstandardised — the jump and the quiet after it are the point.
             out.append({"e": (e - e.mean()) / e.std(), "beta": float(b),
-                        "vol": float(np.std(raw[-252:])), "flat": float((np.abs(raw[-252:]) < 1e-6).mean())})
+                        "vol": float(np.std(raw[-252:])), "flat": float((np.abs(raw[-252:]) < 1e-6).mean()),
+                        "e_final": e[-252:] if len(e) >= 252 else None,
+                        "flat_final": (np.abs(raw[-252:]) < 1e-6) if len(raw) >= 252 else None})
     if fconn:
         fconn.close()
     return out
@@ -172,6 +187,25 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     r[flat] = 0.0
     e[flat] = 0.0
 
+    k = min(252, n)
+    # v4: a clean exit (merger / other) ends with a real donor's final year.
+    # The donor is drawn among those with a full final year; its market
+    # component is replaced by this path's own dates (beta x SPY here).
+    template = None
+    if died_in_scope and reason in ("merger", "other"):
+        full = [x for x in donors if x.get("e_final") is not None]
+        if full:
+            dn = full[rng.integers(len(full))]
+            template = np.asarray(dn["e_final"][-k:], dtype=float)
+            tb = float(np.clip(dn["beta"], -0.5, 3.0))
+            r[-k:] = tb * m[-k:] + template
+            e[-k:] = template
+            # The donor's own no-change days stay no-change days on these dates.
+            ff = dn.get("flat_final")
+            flat[-k:] = np.asarray(ff[-k:], dtype=bool) if ff is not None else False
+            r[-k:][flat[-k:]] = 0.0
+            e[-k:][flat[-k:]] = 0.0
+
     fy = cohort.get("final_year_return") or art["cohorts"]["all"]["final_year_return"]
     if not died_in_scope:
         target = None
@@ -185,12 +219,13 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     else:
         target = rng.uniform(fy["p5"], fy["p95"])
         mu, sd = s["delisting_return"]["other"]
-    k = min(252, n)
     # Shape the final year on TRADED days only: a drift added to a no-change day
     # would un-flatten it, exactly in the window the Stage 5 test measures.
+    # A v4 template is not reshaped: the donor's real final year IS the evidence,
+    # and bending it to a cohort percentile would undo what it was copied for.
     live = ~flat[-k:]
     tail = np.prod(1 + r[-k:][live])
-    if target is not None and tail > 0 and live.any():
+    if template is None and target is not None and tail > 0 and live.any():
         d = ((1 + target) / tail) ** (1 / live.sum()) - 1
         seg = r[-k:]
         seg[live] = (1 + seg[live]) * (1 + d) - 1
@@ -215,10 +250,11 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     else:
         dret = None
     df["is_synthetic"] = True
-    df["data_source"] = "synthetic_v3"
+    df["data_source"] = "synthetic_v4"
     df["cohort_id"] = f"{level}:{company.get('delisting_reason') or 'unknown'}|{div}"
     df["generation_method"] = METHOD
     df["synthetic_reason"] = tag
+    df["final_year"] = "donor_template" if template is not None else "blocks"
     df["delisting_return"] = dret
     df["synthetic_seed"] = seed
     return df
@@ -264,7 +300,8 @@ def build(conn, cfg: dict) -> dict:
     rep = {"companies": n_co, "rows": n_rows, "donors": len(donors), "by_reason": reasons,
            "settings": s, "cohort_artifact_sha256": art["sha256"], "method": METHOD,
            "sha256": hashlib.sha256(open(OUT, "rb").read()).hexdigest() if n_rows else None}
-    json.dump(rep, open("data/universe/synthetic_v3_report.json", "w"), indent=1, default=str)
+    rep["final_year_templates"] = sum(1 for d in donors if d.get("e_final") is not None)
+    json.dump(rep, open("data/universe/synthetic_v4_report.json", "w"), indent=1, default=str)
     return rep
 
 
