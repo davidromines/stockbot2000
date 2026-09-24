@@ -362,6 +362,8 @@ def main(argv=None) -> int:
     ap.add_argument("--trade", action="store_true")
     ap.add_argument("--monitor", action="store_true")
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--auto", action="store_true",
+                    help="cron entry point: the entry pass once per session, the stop monitor after")
     ap.add_argument("--mode", default="SIMULATION", choices=slots.MODES)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -379,6 +381,26 @@ def main(argv=None) -> int:
         print("market closed — nothing trades outside the regular session (no stale fills)")
         return 0
     out = []
+    if args.auto and not qt.market_open():
+        print("market closed — nothing trades outside the regular session")
+        return 0
+    if args.auto:
+        # The entry pass loads a year of the universe to evaluate rules, so it
+        # runs once per session; every later poll is the cheap stop monitor.
+        import killswitch as ks
+        day = _session(conn)
+        done = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='slot_entry_pass' AND "
+                            "detail=?", (f"{args.mode}:{day}",)).fetchone()[0]
+        if done:
+            args.monitor = True
+        else:
+            args.trade = True
+            ks.record_event(conn, "slot_entry_pass", f"{args.mode}:{day}")
+        try:
+            import intraday
+            intraday.scan(conn)
+        except Exception as e:                               # noqa: BLE001
+            log.warning(f"intraday scan failed: {type(e).__name__}: {e}")
     if args.trade:
         out = trade(conn, cfg, args.mode, provider)
     elif args.monitor:
