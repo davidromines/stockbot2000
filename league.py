@@ -66,8 +66,26 @@ DEMOTED = "DEMOTED"
 SUSPENDED = "SUSPENDED"
 RETIRED = "RETIRED"
 
+# Phase 13 §14 lifecycle, added 2026-09-24. The spec prescribes these names
+# exactly; the Phase 7 names above stay valid so the append-only log keeps
+# meaning what it said. LEGACY_MAP reads an old state in the new vocabulary
+# without rewriting a single log row.
+SPECIFIED = "SPECIFIED"
+BACKTESTED = "BACKTESTED"
+VALIDATED = "VALIDATED"
+PROMISING = "PROMISING"
+QUALIFIED = "QUALIFIED"
+REJECTED = "REJECTED"
+
+PHASE13_CHAIN = (DISCOVERED, SPECIFIED, BACKTESTED, VALIDATED, PROMISING,
+                 PAPER, QUALIFIED, LIVE_CANDIDATE, LIVE)
+FAILURE_STATES = (REJECTED, DEMOTED, RETIRED)
+LEGACY_MAP = {BACKTESTING: SPECIFIED, VALIDATING: BACKTESTED,
+              ELIGIBLE: QUALIFIED, SUSPENDED: DEMOTED}
+
 STATES = (DISCOVERED, BACKTESTING, VALIDATING, PAPER, ELIGIBLE,
-          LIVE_CANDIDATE, LIVE, DEMOTED, SUSPENDED, RETIRED)
+          LIVE_CANDIDATE, LIVE, DEMOTED, SUSPENDED, RETIRED,
+          SPECIFIED, BACKTESTED, VALIDATED, PROMISING, QUALIFIED, REJECTED)
 
 # Allowed transitions. Everything not listed is refused.
 #
@@ -96,6 +114,25 @@ ALLOWED = {
     SUSPENDED:      {PAPER, RETIRED},
     RETIRED:        set(),
 }
+
+# Phase 13 §14 transitions. Same rules: no skipping forward, and REJECTED and
+# RETIRED are terminal — a failed idea returns as a NEW VERSION (recycling),
+# never by reviving its row.
+ALLOWED[DISCOVERED] = ALLOWED[DISCOVERED] | {SPECIFIED, REJECTED}
+ALLOWED[SPECIFIED] = {BACKTESTED, REJECTED, RETIRED}
+ALLOWED[BACKTESTED] = {VALIDATED, REJECTED, RETIRED}
+ALLOWED[VALIDATED] = {PROMISING, REJECTED, RETIRED}
+ALLOWED[PROMISING] = {PAPER, REJECTED, RETIRED}
+ALLOWED[PAPER] = ALLOWED[PAPER] | {QUALIFIED, DEMOTED, REJECTED}
+ALLOWED[QUALIFIED] = {LIVE_CANDIDATE, PAPER, DEMOTED, RETIRED}
+ALLOWED[LIVE_CANDIDATE] = ALLOWED[LIVE_CANDIDATE] | {QUALIFIED, DEMOTED}
+ALLOWED[DEMOTED] = ALLOWED[DEMOTED] | {QUALIFIED}
+ALLOWED[REJECTED] = set()
+
+
+def canonical(state: str | None) -> str | None:
+    """A state in the Phase 13 vocabulary (legacy names mapped, not rewritten)."""
+    return LEGACY_MAP.get(state, state)
 
 # The fields that change what a strategy DOES. A change to any of these mints a
 # new version; a change to anything else does not. Labels and hypothesis text
