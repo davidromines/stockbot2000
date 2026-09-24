@@ -27,10 +27,13 @@ here.
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
 import asyncio
+import concurrent.futures
+import contextlib
 import json
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -158,7 +161,9 @@ def _parse(result):
         return text
 
 
-async def _session_do(url: str, interactive: bool, fn):
+@contextlib.asynccontextmanager
+async def _open(url: str, interactive: bool):
+    """One authenticated, initialised MCP session."""
     import httpx2
     from mcp import ClientSession
     from mcp.client.streamable_http import streamable_http_client
@@ -166,11 +171,142 @@ async def _session_do(url: str, interactive: bool, fn):
         async with streamable_http_client(url, http_client=http) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
                 await session.initialize()
-                return await fn(session)
+                yield session
+
+
+async def _session_do(url: str, interactive: bool, fn):
+    async with _open(url, interactive) as session:
+        return await fn(session)
+
+
+def _unwrap(e: BaseException) -> BaseException:
+    """The NeedsLogin / RobinhoodError inside an anyio exception group, else e itself."""
+    for x in getattr(e, "exceptions", None) or ():
+        if isinstance(x, (NeedsLogin, RobinhoodError)):
+            return x
+        inner = _unwrap(x)
+        if inner is not x:
+            return inner
+    return e
+
+
+# --- one session per run -----------------------------------------------------
+#
+# Every call() used to open its own MCP session: HTTP connection, OAuth token
+# check, initialise, call, tear down. A trader run makes dozens of calls (a
+# quote per candidate, the portfolio, positions, each order's review / place /
+# poll), so most of a run's latency was handshakes. `session()` keeps ONE
+# session open on a background thread for the length of a run, and while it is
+# open call() and calls() use it. Nothing about WHAT is called changes.
+#
+# If that session dies mid-run, later calls fall back to one session each, as
+# before: a dropped connection must not halt the rest of the run. An error from
+# a call is raised to the caller exactly as before (an order that fails in
+# transport after submission is still UNKNOWN in robinhood_live and resolved by
+# asking Robinhood, never by resubmitting).
+
+_ACTIVE = None
+CALL_TIMEOUT = 120.0
+
+
+class Session:
+    def __init__(self, url: str | None = None, interactive: bool = False, opener=None):
+        self.url = url or settings()["mcp_url"]
+        self.interactive = interactive
+        self.opener = opener or (lambda: _open(self.url, self.interactive))
+        self.loop, self.thread, self.queue = None, None, None
+        self.ready = threading.Event()
+        self.error, self.dead, self.calls_made = None, False, 0
+
+    # the server side, on its own thread and event loop
+    def _run(self) -> None:
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self._serve())
+
+    async def _serve(self) -> None:
+        self.queue = asyncio.Queue()
+        pending = None
+        try:
+            async with self.opener() as session:
+                self.ready.set()
+                while True:
+                    item = await self.queue.get()
+                    if item is None:
+                        break
+                    tool, args, fut = pending = item
+                    try:
+                        fut.set_result(_parse(await session.call_tool(tool, args or {})))
+                    except Exception as e:                   # noqa: BLE001 — the caller gets it
+                        fut.set_exception(_unwrap(e))
+                    pending = None
+        except BaseException as e:                           # noqa: BLE001 — the session is gone
+            self.error = _unwrap(e)
+        finally:
+            self.dead = True
+            self.ready.set()
+            # Nothing waits forever on a session that no longer exists.
+            if pending and not pending[2].done():
+                pending[2].set_exception(self.error or RobinhoodError("MCP session closed"))
+            while self.queue is not None and not self.queue.empty():
+                item = self.queue.get_nowait()
+                if item and not item[2].done():
+                    item[2].set_exception(self.error or RobinhoodError("MCP session closed"))
+
+    # the caller side
+    def __enter__(self):
+        global _ACTIVE
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self._run, name="robinhood-mcp", daemon=True)
+        self.thread.start()
+        if not self.ready.wait(60):
+            raise RobinhoodError("MCP session did not open within 60 s")
+        if self.dead:
+            self.thread.join(5)
+            raise self.error or RobinhoodError("MCP session failed to open")
+        self._prev, _ACTIVE = _ACTIVE, self
+        return self
+
+    def __exit__(self, *exc) -> None:
+        global _ACTIVE
+        if _ACTIVE is self:
+            _ACTIVE = self._prev
+        if not self.dead and self.loop.is_running():
+            self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
+        self.thread.join(30)
+        log.info(f"robinhood: {self.calls_made} call(s) in one session")
+
+    def call(self, tool: str, args: dict | None = None):
+        fut = concurrent.futures.Future()
+        try:
+            self.loop.call_soon_threadsafe(self.queue.put_nowait, (tool, args or {}, fut))
+        except RuntimeError:                                 # loop already closed
+            raise RobinhoodError("MCP session closed") from None
+        self.calls_made += 1
+        try:
+            return fut.result(timeout=CALL_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            # A stuck call would hold up every call queued behind it. Later
+            # calls fall back to their own sessions; this one is reported as a
+            # transport failure (an order in flight is then UNKNOWN, resolved
+            # by asking Robinhood).
+            self.dead = True
+            raise
+
+
+def session(url: str | None = None, interactive: bool = False, opener=None) -> Session:
+    """`with robinhood_mcp.session():` — one MCP session for every call inside the block."""
+    return Session(url, interactive, opener)
+
+
+def _live_session():
+    return _ACTIVE if _ACTIVE is not None and not _ACTIVE.dead else None
 
 
 def calls(batch: list, interactive: bool = False, url: str | None = None) -> list:
     """Run several (tool, args) calls in ONE authenticated session. Returns their parsed results."""
+    s = _live_session()
+    if s is not None and not interactive:
+        return [s.call(tool, args) for tool, args in batch]
     url = url or settings()["mcp_url"]
 
     async def run(session):
@@ -183,11 +319,9 @@ def calls(batch: list, interactive: bool = False, url: str | None = None) -> lis
     except NeedsLogin:
         raise
     except BaseException as e:                               # noqa: BLE001 — surface nested task errors
-        inner = getattr(e, "exceptions", None)
-        if inner:
-            for x in inner:
-                if isinstance(x, (NeedsLogin, RobinhoodError)):
-                    raise x
+        inner = _unwrap(e)
+        if inner is not e:
+            raise inner from None
         raise
 
 

@@ -34,6 +34,7 @@ None and nothing trades.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
+import contextlib
 import json
 import logging
 import sqlite3
@@ -511,43 +512,52 @@ def main(argv=None) -> int:
             intraday.scan(conn)
         except Exception as e:                               # noqa: BLE001
             log.warning(f"intraday scan failed: {type(e).__name__}: {e}")
+    stack = contextlib.ExitStack()
     try:
-        if args.trade:
-            out = trade(conn, cfg, args.mode, provider)
-        elif args.monitor:
-            out = monitor(conn, cfg, args.mode, provider)
-    except Exception as e:                                   # noqa: BLE001
-        if args.mode != "LIVE":
-            raise
-        # Fail closed, loudly: no trading, and the owner is told once a day
-        # (an expired Robinhood sign-in, an unreadable account, a transport error).
-        import killswitch as ks
-        day = _session(conn)
-        seen = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='live_halt' AND "
-                            "substr(at,1,10)=?", (day,)).fetchone()[0]
-        ks.record_event(conn, "live_halt", f"{type(e).__name__}: {e}", "critical")
-        if not seen:
-            try:
-                import notify
-                notify.notify("Stockbot2000 LIVE halted", f"{type(e).__name__}: {e}")
-            except Exception:                                # noqa: BLE001
-                pass
-        print(f"LIVE halted: {type(e).__name__}: {e}")
-        return 3
-    for r in out:
-        print(f"  slot {r['slot']}: {r['action']:<5} {r.get('symbol', ''):<7} {r['status']:<14} "
-              f"{r['reason']}" + (f"  [{'; '.join(r['why'])}]" if r.get("why") else ""))
-    if args.status or not out:
-        pos = open_positions(conn, args.mode)
-        broker, _ = _build(conn, cfg, args.mode, provider if args.mode == "LIVE" else qt.DatabaseQuotes(conn))
-        ok, diffs = reconcile(conn, broker, args.mode)
-        cash = broker.get_buying_power() if args.mode == "LIVE" else broker.cash
-        print(f"  {args.mode}: {len(pos)} open slot position(s), cash ${cash:,.2f}, "
-              f"reconciled {'OK' if ok else 'FAILED: ' + '; '.join(diffs)}")
-        for slot, p in sorted(pos.items()):
-            print(f"    slot {slot}: {p['symbol']} {p['quantity']:.6f} @ {p['price']:.2f} "
-                  f"({p['strategy_key']})")
-    return 0
+        try:
+            if args.mode == "LIVE":
+                # One Robinhood MCP session for the whole run: every quote,
+                # account read and order call reuses it (robinhood_mcp.session).
+                import robinhood_mcp as rh
+                stack.enter_context(rh.session())
+            if args.trade:
+                out = trade(conn, cfg, args.mode, provider)
+            elif args.monitor:
+                out = monitor(conn, cfg, args.mode, provider)
+        except Exception as e:                                   # noqa: BLE001
+            if args.mode != "LIVE":
+                raise
+            # Fail closed, loudly: no trading, and the owner is told once a day
+            # (an expired Robinhood sign-in, an unreadable account, a transport error).
+            import killswitch as ks
+            day = _session(conn)
+            seen = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='live_halt' AND "
+                                "substr(at,1,10)=?", (day,)).fetchone()[0]
+            ks.record_event(conn, "live_halt", f"{type(e).__name__}: {e}", "critical")
+            if not seen:
+                try:
+                    import notify
+                    notify.notify("Stockbot2000 LIVE halted", f"{type(e).__name__}: {e}")
+                except Exception:                                # noqa: BLE001
+                    pass
+            print(f"LIVE halted: {type(e).__name__}: {e}")
+            return 3
+        for r in out:
+            print(f"  slot {r['slot']}: {r['action']:<5} {r.get('symbol', ''):<7} {r['status']:<14} "
+                  f"{r['reason']}" + (f"  [{'; '.join(r['why'])}]" if r.get("why") else ""))
+        if args.status or not out:
+            pos = open_positions(conn, args.mode)
+            broker, _ = _build(conn, cfg, args.mode, provider if args.mode == "LIVE" else qt.DatabaseQuotes(conn))
+            ok, diffs = reconcile(conn, broker, args.mode)
+            cash = broker.get_buying_power() if args.mode == "LIVE" else broker.cash
+            print(f"  {args.mode}: {len(pos)} open slot position(s), cash ${cash:,.2f}, "
+                  f"reconciled {'OK' if ok else 'FAILED: ' + '; '.join(diffs)}")
+            for slot, p in sorted(pos.items()):
+                print(f"    slot {slot}: {p['symbol']} {p['quantity']:.6f} @ {p['price']:.2f} "
+                      f"({p['strategy_key']})")
+        return 0
+    finally:
+        stack.close()
 
 
 if __name__ == "__main__":

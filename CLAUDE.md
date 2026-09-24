@@ -191,8 +191,12 @@ loader. It had added 15 points a year to a momentum backtest.
    waits for the sale to settle (limited_margin, T+1); ERY's AUM ($42.6M) is
    under the $100M floor, so Energy's bear leg is refused. Whether a pair fund
    actually takes a slot is still the league's call (LIVE_CANDIDATE, net rank).
-4. Robinhood sessions: every call opens a fresh MCP session; batch reads per
-   run (`robinhood_mcp.calls`) to cut latency.
+4. ~~Robinhood sessions~~ — **done 2026-09-24.** `robinhood_mcp.session()`
+   keeps ONE MCP session open for a whole LIVE slot_trader run (background
+   thread); every `rh.call`/`rh.calls` inside uses it. A session that dies or a
+   call stuck > 120 s falls back to per-call sessions for the rest of the run;
+   errors reach callers unchanged (an order failing in transport is still
+   UNKNOWN). The log line `robinhood: N call(s) in one session` shows it working.
 5. Addendum C: generator v3 fails the realism gate (AUC 0.768); skew and
    drawdown are the remaining gaps.
 
