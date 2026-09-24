@@ -876,3 +876,18 @@ after publication, so only the **post-publication** record counts.
   ticker, and a ticker map needs CRSP. That is why L3 recomputes signals on
   our data instead of copying stock lists (the ticker-reuse trap applies).
 - **Licence:** JKP data is CC BY-NC 4.0 — fine for this personal project.
+
+---
+
+**Survivorship in the ranking** — added 2026-09-24 (owner: "use the synthetic data")
+
+| | item | state |
+|---:|---|---|
+| S1 | Indicators for the synthetic dead companies; append them to the real panel | **done** — `survivorship_backtest.synthetic_frames` |
+| S2 | Every ranked strategy backtested in exclude / as_is / zero, same simulator, costs and fills | **built, not yet run** — `survivorship_backtest.py`, nightly `daily.sh [9f2]` |
+| S3 | `ranking.py` scores and gates on as_is, shows zero as the worst case | **done** — falls back to the survivors-only backtest only until S2 has run |
+| S4 | Drawdown exposure gate (was only on the retired promotion ladder) | **done** — in `ranking.gate` |
+
+Overrides Addendum C question 5 ("retests and stress bounds only") for the
+ranking, by the owner's ruling, although the generator still fails its realism
+gate. Not used for strategy discovery.

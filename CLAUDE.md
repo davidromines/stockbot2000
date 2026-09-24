@@ -125,8 +125,9 @@ is a config value under `universe_reconstruction:` — change them there).
 `universe_synthetic.py` (v3), `universe_loader.py` (five modes),
 `universe_validate.py`. Store: `data/universe/` only, never `prices`.
 **The generator FAILS the discriminability gate (AUC 0.768, merger-only
-0.737, vs < 0.60; v1 0.987)**, so synthetic rows are for retests and stress
-bounds only. Sensitivity, 12-1 momentum 2009-2024: 23.3% CAGR on our data,
+0.737, vs < 0.60; v1 0.987)**. Synthetic rows were for retests and stress
+bounds only — **until the owner's ruling of 2026-09-24: the ranking now scores
+on backtests WITH them** (`survivorship_backtest.py`, next step 9). Sensitivity, 12-1 momentum 2009-2024: 23.3% CAGR on our data,
 18.9% with synthetic dead companies, 13.2% if every unpriced death was a total
 loss. Synthetic share of the priced universe peaks at 52% (2016).
 
@@ -251,6 +252,19 @@ loader. It had added 15 points a year to a momentum backtest.
    publication evidence only -> L3 rebuild the price/SEC-computable signals
    as factory templates -> L4 owner decides whether the published return
    becomes the ranking prior. Adopt only at t > 3.
+9. **Backtests include the dead companies — BUILT 2026-09-24, NOT YET RUN**
+   (owner: "use the synthetic data, why are you not using the systems we
+   built?"). Until now the synthetic paths had no indicators and no consumer
+   but a report, and `ranking.py` — which fills the live slots — had NO
+   survivorship correction at all (the drawdown gate lived only on the retired
+   promotion ladder). `survivorship_backtest.py` runs every ranked strategy on
+   the factory window in exclude / as_is / zero; ranking scores and gates on
+   **as_is**, shows **zero** as the worst case, and applies the drawdown
+   exposure gate (`survivorship.max_drawdown_exposure`). Assumptions: synthetic
+   volume unknown (liquidity at the floor, volume indicators NaN), no
+   fundamentals, generator fails its realism gate. Nightly `daily.sh [9f2]`;
+   first run on the VM: `./run_bounded.sh ./venv/bin/python
+   survivorship_backtest.py --run`, then `ranking.py` to see who drops out.
 
 **Findings from this session that change numbers elsewhere**
 
@@ -709,6 +723,7 @@ hardcodes paths, thresholds or model parameters.
 | `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
 | `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. The Value Fund (`value:`) trades its top-ranked holding with a `slots.value_risk` stop and sells when the fund sells. Five slots filled from ranking.py's top five tradeable strategies; family cap; controlled replacement on score; the leaderboard. Places no order. |
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. Carries the genome's take-profit (an exit, never a stop). |
+| `survivorship_backtest.py` | Every ranked strategy backtested with the synthetic dead companies (exclude / as_is / zero); ranking.py scores and gates on as_is. |
 | `exit_sweep.py` | Registered `exit_rules` experiment: take-profit x trailing stop against each slot strategy as it is. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |
