@@ -349,3 +349,27 @@ factory:
   validation_window: ["2020-01-01", "2022-12-31"]  # the Lab's validation window; the seal stays sealed
   min_backtest_trades: 30          # fewer is INSUFFICIENT_SAMPLE, not a verdict
   max_entries_per_backtest: 5000
+
+# Phase 13 §16 / Addendum B §B11. Nine leagues, each judged on its own horizon.
+# min_forward_sessions + min_closed_trades + positive net + drawdown under the
+# limit = ELIGIBLE for a live slot; established_sessions = the higher-confidence
+# tier. The Value league is deliberately NOT held to the tactical 60-mark rule
+# (§33): it needs a quarter of forward marks and no minimum trade count.
+leagues:
+  tactical:       {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
+  momentum:       {horizon_days: 20,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
+  mean_reversion: {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
+  fundamental:    {horizon_days: 60,  min_forward_sessions: 40, min_closed_trades: 5,  established_sessions: 120, max_drawdown_pct: 20}
+  value:          {horizon_days: 252, min_forward_sessions: 63, min_closed_trades: 0,  established_sessions: 252, max_drawdown_pct: 25}
+  etf_macro:      {horizon_days: 60,  min_forward_sessions: 20, min_closed_trades: 0,  established_sessions: 60,  max_drawdown_pct: 15}
+  ml:             {horizon_days: 10,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 15}
+  event:          {horizon_days: 20,  min_forward_sessions: 20, min_closed_trades: 5,  established_sessions: 60,  max_drawdown_pct: 15}
+  crypto:         {horizon_days: 14,  min_forward_sessions: 20, min_closed_trades: 10, established_sessions: 60,  max_drawdown_pct: 20}
+league_families:           # legacy fund families -> league
+  crash: mean_reversion
+  momentum: momentum
+  model: ml
+  conviction: fundamental
+  pair_switching: etf_macro
+  value: value
+  crypto: crypto
