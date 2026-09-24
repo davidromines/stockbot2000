@@ -173,6 +173,14 @@ table per stage. **That file is the roadmap; this list is history.**
   for backtesting — see the survivorship-bias item under Open Decisions.
 - Long backfills must be run under `nohup`/`tmux`/`screen`. SSH sessions to this
   box have dropped mid-run before.
+- **Start every heavy job from a Claude session with `./run_bounded.sh`.** A job
+  launched from Claude — even under `setsid nohup` — stays inside the Claude
+  desktop app's systemd scope, and when the kernel OOM-kills it, systemd stops
+  the whole scope, **desktop included**. That crashed Claude three times on
+  2026-09-23, each from one ~9.5 GB Python job. `run_bounded.sh` gives the job
+  its own scope capped at `compute.max_memory_gb` (6 GB): over the ceiling it
+  dies alone with exit 137. A 137 means the job must load less, not that the
+  cap should rise — the desktop, browser and Claude need the other ~5 GB.
 
 ---
 
