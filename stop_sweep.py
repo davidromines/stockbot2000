@@ -80,6 +80,7 @@ ENTRIES = {
 
 STOPS = (1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 8.0)
 HOLDS = (10, 20, 40)
+EXIT_MARGIN_DAYS = 120   # calendar days of exit prices past a block; covers max(HOLDS)
 
 
 def _blocks(window, years: int) -> list:
@@ -116,8 +117,16 @@ def sweep(conn, cfg, window, entries=None, sink: Path | None = None,
         include_liquidity=True, include_open=True)
     if df.empty:
         return []
+    # Exits need prices past the block end, but only as far as the longest
+    # hold can reach: 40 sessions is ~60 calendar days, and 120 leaves room for
+    # a stop that fires on the last day. Loading to 2099, as this did, pulled
+    # twenty years of bars to price a two-year block and was OOM-killed at
+    # 9.5 GB — taking the Claude desktop session down with it.
+    import datetime as _dt
+    exit_end = (_dt.date.fromisoformat(window[1])
+                + _dt.timedelta(days=EXIT_MARGIN_DAYS)).isoformat()
     exitpx = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(),
-                                      window[0], "2099-12-31")
+                                      window[0], exit_end)
     panel = simulator.Panel(df, exit_prices=exitpx)
     surface = bench.null_surface(conn, cfg, window)
     rp = reward.params_from_config(cfg)
