@@ -159,14 +159,14 @@ footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);
       <span><b>Repo</b> davidromines/stockbot2000</span>
       <span><b>Host</b> Ubuntu 26.04, 4 vCPU / 11.7 GB</span>
       <span><b>Real capital</b> ~$89, cash account</span>
-      <span><b>Status</b> research; autonomous trading engine next</span>
+      <span><b>Status</b> trading engine built, SIMULATION; 0 of 5 slots filled</span>
     </div>
     <div class="stats">
       <div class="stat"><div class="n">35.6M</div><div class="l">price bars</div></div>
       <div class="stat"><div class="n">1.04M</div><div class="l">evaluations</div></div>
       <div class="stat"><div class="n">33</div><div class="l">forward funds</div></div>
       <div class="stat"><div class="n neg">−$49.59</div><div class="l">forward net, restated</div></div>
-      <div class="stat"><div class="n">15</div><div class="l">measurement bugs</div></div>
+      <div class="stat"><div class="n">21</div><div class="l">measurement bugs</div></div>
       <div class="stat"><div class="n">0</div><div class="l">proven strategies</div></div>
     </div>
   </div>
@@ -183,8 +183,10 @@ footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);
     a <strong>Strategy Factory</strong> now generates strategies from 40 economically
     motivated families, backtests them, stress-tests them and enrols the survivors in paper
     trading every morning. Backtests only admit a strategy. Forward evidence is the only thing
-    that can qualify one. Next is the trading engine that will run the five best qualified
-    strategies in five ~$20 slots.</p>
+    that can qualify one. The trading engine that runs the five best qualified strategies in
+    five ~$20 slots is built and runs every five minutes in market hours, in SIMULATION — all
+    five slots in cash, because no strategy has yet earned one. Arming live trading is the
+    owner's step, and a 26-item acceptance checklist says it is not ready (no SHADOW record yet).</p>
   <div class="note">
     <strong>The central finding still stands:</strong> every apparent edge this system has
     produced has, on investigation, been an artifact of how it was measured — or, now, a
@@ -231,6 +233,66 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
   <p class="spine">Ordered by date, newest first. Every entry has the same shape: a result
     was believed, a measurement proved it false, and the belief was retracted. This is the
     part of the project an independent reviewer should read first.</p>
+
+  <div class="bug sev-high">
+    <div class="when">2026-09-24 · risk_engine.py, execution.py<span class="new">new</span></div>
+    <h4>Every approved exit sold nothing</h4>
+    <p>The risk engine returned early for sells without setting a size, and the execution
+      engine builds orders from the risk engine's size, never the signal's. So every approved
+      exit became an order with neither quantity nor notional: the simulator "filled" zero
+      shares and a Robinhood order spec would have carried no size. Found while wiring the
+      slot trader, which needs its stops to actually sell.</p>
+    <span class="cost">Every simulated exit, since 22 September</span>
+  </div>
+
+  <div class="bug sev-void">
+    <div class="when">2026-09-24 · universe_layer_a.py<span class="new">new</span></div>
+    <h4>Dead companies were credited with their successors' prices</h4>
+    <p>Tickers get reused. Matching a delisted company by ticker attached it to whoever holds
+      the ticker today, and "has real prices" was true whenever any prices existed under it.
+      All 426 priced dead companies with a delisting date had prices running about 2,000 days
+      past it. The real dead-company sample fell from 676 to 158 once ownership required the
+      prices to end near the company's own end.</p>
+    <span class="cost void">The calibration sample, 77% impostors — caught before use</span>
+  </div>
+
+  <div class="bug sev-void">
+    <div class="when">2026-09-24 · finsaber.py<span class="new">new</span></div>
+    <h4>An external dataset with two companies under one symbol</h4>
+    <p>99 of FINSABER's 1,017 symbols alternate between two price levels day to day — CBE
+      between $170 and $0.005, 761 times. Each bar is individually valid, so the import's row
+      checks passed them, and the cross-dataset check only compared symbols both datasets
+      share. A price-only momentum backtest gained 15 points a year from these names.</p>
+    <span class="cost void">+15 points/yr of fiction — flagged, excluded</span>
+  </div>
+
+  <div class="bug sev-med">
+    <div class="when">2026-09-24 · FINSABER filings<span class="new">new</span></div>
+    <h4>Filing text dated before it could be traded on</h4>
+    <p>FINSABER dates each 10-K and 10-Q on its SEC filed day. Against the SEC's own
+      acceptance time and the next tradeable session, 89.7% are dated too early. Any use of
+      that text must join to the tradeable date instead. The 5.4 million headlines have no
+      reference timestamp at all and stay unusable as a signal.</p>
+    <span class="cost ok">Measured before anything used it</span>
+  </div>
+
+  <div class="bug sev-med">
+    <div class="when">2026-09-24 · execution.py<span class="new">new</span></div>
+    <h4>Simulation could use up live trading's daily order limit</h4>
+    <p>Order ids and daily throttles ignored the execution mode, so a SHADOW run of a
+      SIMULATION decision was suppressed as a duplicate, and SIMULATION orders counted against
+      the SHADOW — and later LIVE — daily order cap. Found by the end-to-end test.</p>
+    <span class="cost ok">Fixed before LIVE existed</span>
+  </div>
+
+  <div class="bug sev-med">
+    <div class="when">2026-09-24 · paper_trading.py, leagues.py<span class="new">new</span></div>
+    <h4>Production worked only because of columns added by hand</h4>
+    <p>Three paper_runs columns and one accounting table existed in the live database and in
+      no code. A rebuilt database broke strategy enrolment. The end-to-end test, run on a
+      fresh database for the first time, found both.</p>
+    <span class="cost ok">Fixed; now created in code</span>
+  </div>
 
   <div class="bug sev-high">
     <div class="when">2026-09-24 · paper_trading.py → accounting.py<span class="new">new</span></div>
@@ -470,14 +532,16 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
           <td>Mid-2008 against mid-2024. Rising toward the present is the signature of survivorship bias.</td></tr>
       <tr><td>Independent delisted-inclusive check</td><td class="num">1,017 symbols</td>
           <td>FINSABER's S&amp;P 500 series (2000–2024, delistings included) now sits beside ours for validation — the S&amp;P only, not the small caps where the missing companies concentrate.</td></tr>
+      <tr><td>What the missing companies cost a strategy</td><td class="num">23.3% → 13.2%</td>
+          <td>12-1 momentum, 2009–2024: 23.3% a year on our data, 18.9% with 8,210 reconstructed dead companies, 13.2% if every one of them was a total loss. The reconstruction fails its own realism test (AUC 0.77 against a 0.60 bar), so these are stress bounds, not estimates.</td></tr>
       <tr><td>Multiple-testing bar</td><td class="num">~5.3 SE</td>
           <td>At 1.04M cumulative trials. The search is frozen; the trial counter is append-only and never reset.</td></tr>
     </tbody>
   </table>
   </div>
-  <div class="note"><strong>The binding constraint is still data, not search.</strong> A
-    survivorship-bias-free reconstruction of the full US universe (Addendum C) is planned and
-    waiting on eight scoping answers.</div>
+  <div class="note"><strong>The binding constraint is still data, not search.</strong> The
+    full-universe reconstruction (Addendum C) was built on 24 September on the recommended
+    answers to its eight scoping questions; every answer is a setting that can be changed.</div>
 </section>
 
 <section>
@@ -500,7 +564,7 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
     <div class="tl-item"><div class="d">23 SEP</div><div class="t">Memory limits and partial bars</div>
       <p>Three desktop crashes from one oversized job led to per-job memory caps. Partial intraday bars caught and blocked.</p></div>
     <div class="tl-item"><div class="d">24 SEP</div><div class="t">The Strategy Factory</div>
-      <p>Phase 13 steps 1–14 built and wired into the daily job. Accounting restated forward P&amp;L to −$49.59. Fundamentals put on one scale. The stop-width lead refuted. FINSABER downloaded, integrated and cross-checked. The Robinhood account confirmed as a cash account.</p></div>
+      <p>Phase 13 built and wired into the daily job. Accounting restated forward P&amp;L to −$49.59. Fundamentals put on one scale. The stop-width lead refuted. FINSABER downloaded (27 GB), integrated and cross-checked. The Robinhood account confirmed as a cash account. Then Addendum A — the five-slot trading engine, stop monitor, kill-switch emergency policy and account-rule guard — and Addendum C, the survivorship-bias reconstruction, both built and tested end to end. Six more measurement defects found and fixed along the way.</p></div>
   </div>
 </section>
 
@@ -544,7 +608,7 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
 
 <footer>
   <div class="wrap" style="padding:0">
-    Stockbot2000 · 330 commits · 124 modules · 40 test files, all passing ·
+    Stockbot2000 · 400+ commits · 140 modules · 50 test files, all passing ·
     1,039,345 evaluations · forward net −$49.59 across 23 funds ·
     No figure on this page is a forecast, and none of it is investment advice.
   </div>
