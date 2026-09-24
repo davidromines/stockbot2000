@@ -117,9 +117,13 @@ def chaikin_osc(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Se
 
 # --- Feature assembly ----------------------------------------------------
 
-def compute_features_for_ticker(df: pd.DataFrame) -> pd.DataFrame:
+def compute_features_for_ticker(df: pd.DataFrame, min_rows: int = 210) -> pd.DataFrame:
+    # min_rows: 210 for real tickers (enough history for the 200-day SMA etc.).
+    # survivorship_backtest.py passes less for synthetic dead companies: a
+    # short-lived failure is exactly the company a survivorship test needs, and
+    # its long-window indicators simply stay NaN until they exist.
     df = df.sort_values("date").reset_index(drop=True)
-    if len(df) < 210:  # need enough history for 200-day SMA etc.
+    if len(df) < min_rows:
         return pd.DataFrame()
 
     high, low, close, volume = df["high"], df["low"], df["close"], df["volume"]
