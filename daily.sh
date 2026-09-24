@@ -157,6 +157,32 @@ $PY value_fund.py --review --if-due --apply --mark >/dev/null 2>&1 || true
 # means an ACCOUNTING_PROBLEM: a difference with no identified cause.
 run "[9b/10] Accounting" $PY accounting.py --restate --snapshot data/accounting.json
 
+# --- the Strategy Factory (Phase 13 H3-H14) ------------------------------
+# Templates, not search: the frozen evolutionary search is untouched (B16).
+# Backtests admit a strategy to PAPER; only forward evidence qualifies it.
+#
+# The pipeline stage peaks ~4.3 GB and ran 20 min at budget 12 (2026-09-24).
+# From a Claude session it must run in its own memory-capped scope, or an OOM
+# takes the desktop with it. Under cron there is no user bus for systemd-run
+# (Linger=no) — and a cron job is not in the desktop's scope — so it runs
+# plain there rather than failing.
+bounded() {
+    if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -S "/run/user/$(id -u)/bus" ]; then
+        export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    fi
+    if [ -S "${XDG_RUNTIME_DIR:-/nonexistent}/bus" ]; then
+        ./run_bounded.sh "$@"
+    else
+        "$@"
+    fi
+}
+run "[9c/10] Research library sync" $PY library_bridge.py --sync
+run "[9d/10] Factory templates" $PY strategy_factory.py --generate
+run "[9e/10] Discovery plan" $PY discovery.py --plan
+run "[9f/10] Factory pipeline" bounded $PY factory_pipeline.py --run --budget 12
+run "[9g/10] League standings" $PY leagues.py --standings --record
+run "[9h/10] Factory report" $PY factory_report.py
+
 $PY build_dashboard.py >/dev/null 2>&1 || true
 
 run "[10/10] Backup" $PY backup.py

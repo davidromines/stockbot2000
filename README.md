@@ -30,18 +30,26 @@ storage.py           → owns that database's schema and writes
 ```
 
 **`daily.sh` is the real daily job** and has been on cron at 07:00 UTC on
-weekdays since 2026-09-12. Seven stages, each independently runnable and
+weekdays since 2026-09-12. Each stage is independently runnable and
 idempotent; a failing stage does not abort the ones after it.
 
 ```
-[1/7] Symbol directory   who is listed today — a missed day loses that day's
-                         delistings PERMANENTLY, which is why it runs first
-[2/7] Price top-up       backfill.py --top-up
-[3/7] Features           the 20 indicators
-[4/7] Paper trading      advance the 16 simulated funds one day
-[5/7] Daily book         best candidate from every system + sell signals
-[6/7] Pair funds         mark the 5 bull/bear switching funds
-[7/7] Fund report        one status line per fund -> Telegram
+[1/10]  Symbol directory      who is listed today — a missed day loses that
+                              day's delistings PERMANENTLY, so it runs first
+[2/10]  Price top-up          backfill.py --top-up
+[3/10]  Features              the 20 indicators
+[3b/10] Fundamental projection daily_fundamentals
+[4/10]  Freshness gate        fails the run if any derived table is behind
+[5/10]  Paper trading         advance the simulated funds one day
+[6/10]  Daily book            best candidate from every system + sell signals
+[7/10]  Pair funds            mark the bull/bear switching funds
+[8/10]  Fund report           one status line per fund
+[9/10]  Research integrity
+[9b/10] Accounting            authoritative gross / costs / net per fund
+[9c-9h] Strategy Factory      library sync, templates, discovery plan,
+                              pipeline (budget 12, ~20 min, ~4.3 GB),
+                              league standings, data/factory_report.txt
+[10/10] Backup
 ```
 
 On success the order slate and fund report go to Telegram; on failure an ALERT
