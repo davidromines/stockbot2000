@@ -504,7 +504,7 @@ def main(argv=None):
         from universe import load_config
         main_db = sqlite3.connect(f"file:{load_config()['database']['market_data_path']}?mode=ro", uri=True)
         rep = pit_check(conn, main_db)
-        json.dump(rep, open("data/finsaber_pit_report.json", "w"), indent=1)
+        json.dump(rep, open("reports/finsaber_pit_report.json", "w"), indent=1)
         print(json.dumps(rep, indent=1))
         return 0
     for row in status(conn):
