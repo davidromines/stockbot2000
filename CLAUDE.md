@@ -77,6 +77,25 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
    S&P 500 delisting returns (revision 1 got that wrong). Feasible free scope
    is 1996-2024.
 
+**Also done 2026-09-24 (late session)**
+
+- `backup.py` now covers 38 tables, up from 18. The League and Phase 13 decision
+  logs (`league_state`, `strategy_decisions`, `fund_accounting`,
+  `experiment_registry`, ...) and the value/crypto funds had been **outside
+  the backup since 09-22**. If you add an append-only table, add it to
+  `backup.GROUPS["forward"]`.
+- Roadmap page republished (version 13): Phase 13 at 14 of 15, decisions
+  resolved. Source `docs/artifacts/roadmap_page.html`.
+- The 09-23 daily run ended "WITH FAILURES": freshness gate, SPY/QQQ/IWM
+  missing the newest bar. That was the partial-bar incident, already fixed.
+- **The user is on Pacific time.** Cron 07:00 UTC is midnight PDT (11 PM PST
+  in winter); the market opens 06:30 PT. The user asked about 05:30 PT; the
+  advice was to keep 07:00 UTC because a run now takes ~65 min and closes are
+  final either way. Offered 10:00 UTC (03:00 PDT) if they want it later.
+- `finsaber_pkl.py` import of the 27.3 GB S&P pickle: **run after the daily
+  job finishes** — `./run_bounded.sh ./venv/bin/python finsaber_pkl.py
+  --import data/finsaber/stock_data_sp500_2000_2024_v2.pkl`. Resumable.
+
 **Next steps, in order**
 
 1. ~~Ship TASK-021~~ — done.
@@ -84,7 +103,7 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 3. Delegate unit tests (strategy_objects, discovery, leagues, robustness,
    factory_pipeline) to DeepSeek; then H15 end-to-end test.
 4. Addendum A, I1 onward.
-5. Refresh the published trackers: the Build Record
+5. Refresh the remaining trackers (Roadmap page is current as of v13): the Build Record
    (https://claude.ai/artifact/TWJYcQ4WCmRAQqs6SfAB2F) is stale since 09-22 —
    the user asked for it to be updated and it never was. The Roadmap page
    (https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo, source

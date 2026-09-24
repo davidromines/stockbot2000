@@ -83,6 +83,18 @@ GROUPS = {
         "experiments", "experiment_trades",
         # which strategies were promoted, when, under which gate
         "promotions", "lab_runs",
+        # the other forward funds (Phase 9 value fund, Phase 12 crypto fund)
+        "value_fund", "value_fund_equity", "value_fund_positions", "value_fund_trades",
+        "crypto_fund", "crypto_fund_equity", "crypto_fund_open", "crypto_fund_trades",
+        # append-only decision logs: identity, lifecycle, every §37 decision,
+        # the authoritative accounting and the pre-registered experiments.
+        # A lifecycle state is DERIVED from league_state, so losing that log
+        # loses every strategy's state history. Added 2026-09-24; the League
+        # and Phase 13 had been running outside the backup since 09-22.
+        "league_strategies", "league_state", "league_standings",
+        "strategy_meta", "strategy_metrics", "strategy_decisions", "strategy_ancestry",
+        "fund_accounting", "experiment_registry", "failure_log",
+        "scoreboard_snapshots", "degradation",
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
