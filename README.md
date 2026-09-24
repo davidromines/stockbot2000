@@ -61,9 +61,10 @@ idempotent; a failing stage does not abort the ones after it.
 adds one cron line that runs `slot_trader.py --auto` every 5 minutes during
 US market hours — the entry pass once per session, the stop monitor after —
 in SIMULATION. LIVE is refused until `config/risk.yaml` says
-`execution_mode: LIVE`, which is the account owner's step. `slots.py
---leaderboard` shows every forward strategy ranked on net P&L and why each is
-or is not eligible for a slot.
+`execution_mode: LIVE`, which is the account owner's step. `ranking.py`
+scores every strategy (backtest first, paper evidence takes over) and `slots.py
+--leaderboard` shows that ranking with the slot or the reason a strategy is not
+in one. The five slots always hold the top five tradeable strategies.
 
 **Survivorship stress data** (Addendum C) lives in `data/universe/`, never in
 `prices`: `universe_layer_a.py --build`, `universe_cohorts.py --build`,

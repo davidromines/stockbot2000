@@ -38,9 +38,12 @@ First live run (15:39-15:40 UTC): BUY SNDK $20 (0.011318 @ 1767.07), DELL $20
 GEN and NWSA unknown market cap, then no settled cash ($19.26 of the owner's
 manual ACT sale settles 2026-09-25). Account before: $87.71.
 
-How it is wired, in one breath: slots.py picks (criteria loosened by the
-owner: any positive-net strategy, 1 session / 0 trades, up to 4 slots per
-family) -> slot_trader.py -> ExecutionEngine -> kill switches -> RiskEngine
+How it is wired, in one breath: ranking.py scores every strategy (owner's
+process, 2026-09-24: backtest -> rank -> paper -> move continuously; score =
+expected net return per trade, starting at the backtest and shifting to the
+paper record with each trade; a losing backtest is out) -> slots.py fills the
+five slots with the top five TRADEABLE strategies on day one (no evidence
+floor, no lifecycle state; up to 4 per family) -> slot_trader.py -> ExecutionEngine -> kill switches -> RiskEngine
 (account rules: PDT limit AND settled funds for limited_margin) ->
 robinhood_live.LiveBroker (review -> place -> confirm, ref_id idempotency)
 -> robinhood_mcp.py (MCP 2.x client, agent.robinhood.com/mcp/trading, OAuth
@@ -662,6 +665,7 @@ hardcodes paths, thresholds or model parameters.
 ### Addendum A — the trading engine (built 2026-09-24, SIMULATION/SHADOW)
 | File | Role |
 |---|---|
+| `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
 | `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. Five slots: eligibility first, net rank, one per family, cash when none qualify, controlled replacement, the P&L leaderboard. Places no order. |
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |

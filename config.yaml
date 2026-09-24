@@ -387,6 +387,13 @@ slots:
   count: 5
   capital_per_slot: 20.0
   max_per_family: 4
+  # Owner's rule 2026-09-24: slots always hold the top five of the ranking;
+  # paper evidence moves strategies up and down continuously. A holder is
+  # replaced when a challenger's score beats it by min_advantage_score (net
+  # return per trade), after min_hold_sessions, at most max_replacements_per_day.
+  min_advantage_score: 0.002
+  min_hold_sessions: 3
+  max_replacements_per_day: 2
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
   # slot must have a price stop (§15), so this one is added and is the slot's
@@ -424,3 +431,12 @@ baselines:
   large_cap_etf: SPY
   large_cap_usd: 10000000000
   random_trials: 1000
+
+# The single strategy ranking (ranking.py). score = (k x backtest + n x paper) /
+# (k + n), in net return per trade: day one ranks on the backtest, each paper
+# trade moves weight to the forward record. prior_trades is k — the forward
+# trades it takes for paper to weigh as much as the backtest. A losing
+# backtest is out; no backtest starts at no_backtest_prior.
+ranking:
+  prior_trades: 10
+  no_backtest_prior: 0.0

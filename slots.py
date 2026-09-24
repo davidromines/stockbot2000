@@ -7,15 +7,17 @@ I4 (P&L-first leaderboard) and I10 (daily reassessment).
 
 THE RULES THAT ARE LOAD-BEARING
 -------------------------------
-1. **Eligibility comes first, ranking second (B4).** Only strategies with a
-   forward record at league tier ELIGIBLE or ESTABLISHED — which already means
-   >= 20 forward sessions, >= 10 closed trades, positive net P&L and drawdown
-   under the league limit (B11) — enter the pool. A backtest never does (B3).
-2. **Empty slots are valid (B6).** If two strategies qualify, three slots stay
-   in cash. Standards are never lowered because capital is idle.
-3. **One strategy per family (B7).** Five stop-width variants of one entry
-   rule are one bet, not five.
-4. **Rank on NET P&L (B5)**, with gross and costs shown beside it.
+1. **Rank, then fill (owner's rule, 2026-09-24; supersedes B3/B4/B6).** Every
+   strategy is ranked by ranking.py: expected net return per trade, starting
+   from its backtest and moving to its paper record as trades arrive. The five
+   slots hold the five best that can be traded — on day one, with no evidence
+   floor and no lifecycle state to reach first. Paper evidence de-ranks.
+2. **What still blocks a slot protects money**: a backtest that loses net
+   (step-1 gate), no valid stop plan, a strategy kill switch, accounting that
+   disagrees with itself, evidence that stopped updating. A slot is cash only
+   when fewer than five strategies clear those.
+3. **Family cap (B7)**, `max_per_family` in config (4 at the owner's request).
+4. **Rank on the score**, with gross / costs / net shown beside it.
 5. **Replacement is controlled (§9, B11).** An eligible holder keeps its slot
    unless a challenger beats it by `min_advantage_usd` AND the holder has had
    `min_hold_sessions`. A holder that stops being eligible is released at once:
@@ -60,6 +62,7 @@ DEFAULTS = {
     "capital_per_slot": 20.0,
     "eligible_tiers": ["ELIGIBLE", "ESTABLISHED"],
     "min_advantage_usd": 2.0,        # challenger must beat the weakest holder by this much net
+    "min_advantage_score": 0.002,    # ... or by this much expected net return per trade (ranking.py)
     "min_hold_sessions": 5,          # a holder keeps its slot at least this long unless ineligible
     "max_replacements_per_day": 1,   # churn bound (§9)
     "max_evidence_lag_sessions": 3,  # evidence older than this is stale data (B19)
@@ -174,32 +177,34 @@ def _latest_session(conn) -> str | None:
 
 def assess(conn, cfg: dict) -> list:
     """
-    Every forward strategy with the verdict on each gate. Nothing is dropped
-    silently: an excluded strategy carries the first reason it failed, so the
-    report can say why a slot is in cash.
+    Every strategy, ranked (ranking.py), with the verdict on each LIVE gate.
+    Nothing is dropped silently: an excluded strategy carries the first reason
+    it failed, so the report can say why it is not in a slot.
+
+    The owner's rule (2026-09-24): the five slots always hold the five best
+    strategies that can be traded. There is no evidence floor and no lifecycle
+    state to reach first; the ranking starts from the backtest and paper
+    evidence moves it. What still blocks a slot is what protects money:
+    a backtest that loses (the step-1 gate), no valid stop plan (so no way to
+    trade it with a price stop), a strategy kill switch, broken accounting, or
+    evidence that has stopped updating.
     """
+    import ranking
     s = settings(cfg)
     latest = _latest_session(conn)
-    rows = []
-    for rs in leagues.standings(conn, cfg).values():
-        rows.extend(rs)
     out = []
-    for r in rows:
+    for r in ranking.rank(conn, cfg):
         key, ver = r["strategy_key"], r["version"]
         reasons = []
-        state = league.canonical(r["state"])
-        # The evidence gap first: it is the cause, the lifecycle state follows from it.
-        if r["tier"] not in s["eligible_tiers"]:
-            lc = cfg["leagues"].get(r["league"], cfg["leagues"]["tactical"])
-            reasons.append(f"tier {r['tier']} ({r.get('sessions') or 0}/{lc['min_forward_sessions']} "
-                           f"sessions, {r.get('closed_trades') or 0}/{lc['min_closed_trades']} trades)")
-        if state not in (league.LIVE_CANDIDATE, league.LIVE):
-            reasons.append(f"state {state}: not a live candidate")
+        if not r["passes_gate"]:
+            reasons.append(r["gate"])
         halted = killswitch.strategy_halted(conn, key)
         if halted:
             reasons.append(f"strategy kill switch: {halted}")
-        if r.get("recon_status") in ("ACCOUNTING_PROBLEM", "NO_ACCOUNTING"):
-            reasons.append(f"accounting {r.get('recon_status')}")
+        # A strategy too new to have an accounting row ranks on its backtest;
+        # only accounting that DISAGREES with itself blocks it.
+        if r.get("recon_status") == "ACCOUNTING_PROBLEM":
+            reasons.append("accounting ACCOUNTING_PROBLEM")
         if r.get("as_of") and latest:
             lag = int(conn.execute("SELECT COUNT(DISTINCT date) FROM prices WHERE ticker='SPY' "
                                    "AND date > ? AND date <= ?", (r["as_of"], latest)).fetchone()[0])
@@ -208,12 +213,18 @@ def assess(conn, cfg: dict) -> list:
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
         ok, why = stop_plans.validate(plan)
         if not ok:
-            reasons.append(f"stop plan: {why[0]}")
+            reasons.append(f"not tradeable in a slot — stop plan: {why[0]}")
         out.append({**r, "eligible": not reasons, "reasons": reasons, "stop_plan": plan})
-    # Rank on net (B5); more forward sessions breaks ties — more evidence wins.
-    out.sort(key=lambda x: (-(x.get("net_usd") if x.get("net_usd") is not None else -1e9),
-                            -(x.get("sessions") or 0)))
+    # Rank on the score; more forward trades breaks ties — more evidence wins.
+    out.sort(key=lambda x: (-_rank_value(x), -(x.get("forward_trades") or 0)))
     return out
+
+
+def _rank_value(r: dict) -> float:
+    """The ranking score where one exists, else net P&L (older callers and tests)."""
+    if r.get("score") is not None:
+        return float(r["score"])
+    return float(r["net_usd"]) if r.get("net_usd") is not None else -1e9
 
 
 # --- I3: allocation and replacement -------------------------------------------
@@ -268,18 +279,21 @@ def plan(conn, cfg: dict) -> dict:
             continue
         if replacements + done_today >= s["max_replacements_per_day"] or not keep:
             break
-        weakest_slot = min(keep, key=lambda k: keep[k]["row"].get("net_usd") or 0)
+        weakest_slot = min(keep, key=lambda k: _rank_value(keep[k]["row"]))
         w = keep[weakest_slot]
-        adv = (r.get("net_usd") or 0) - (w["row"].get("net_usd") or 0)
+        scored = r.get("score") is not None and w["row"].get("score") is not None
+        adv = _rank_value(r) - _rank_value(w["row"])
+        need = s["min_advantage_score"] if scored else s["min_advantage_usd"]
         others = Counter(h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot)
         family_clash = others[r["family"]] >= s["max_per_family"]
         held_for = _sessions_since(conn, w["since"])
-        if adv < s["min_advantage_usd"] or family_clash or held_for < s["min_hold_sessions"]:
+        if adv < need or family_clash or held_for < s["min_hold_sessions"]:
             continue
+        unit = (lambda v: f"{v:+.2%}/trade") if scored else (lambda v: f"${v:+.2f} net")
         releases.append((weakest_slot, w, f"replaced by {r['strategy_key']}: "
-                                          f"net ${r['net_usd']:+.2f} vs ${w['row']['net_usd']:+.2f}"))
+                                          f"{unit(_rank_value(r))} vs {unit(_rank_value(w['row']))}"))
         assigns.append((weakest_slot, r, f"replaces {w['strategy_key']} "
-                                         f"(+${adv:.2f} net, holder had {held_for} sessions)"))
+                                         f"({unit(adv)} better, holder had {held_for} sessions)"))
         del keep[weakest_slot]
         taken.add((r["strategy_key"], r["version"]))
         replacements += 1
@@ -331,7 +345,7 @@ def apply(conn, cfg: dict, mode: str = "SIMULATION", actor: str = "slots") -> di
 # --- I4: the P&L-first leaderboard --------------------------------------------
 
 def leaderboard(conn, cfg: dict) -> list:
-    """Every forward strategy, ranked on net P&L, with slot or status beside it (§10)."""
+    """Every strategy, in ranking order (score), with slot or status beside it (§10)."""
     held = {(h["strategy_key"], h["version"]): slot for slot, h in current(conn, cfg).items() if h}
     rows = []
     for i, r in enumerate(assess(conn, cfg), 1):
@@ -342,6 +356,7 @@ def leaderboard(conn, cfg: dict) -> list:
                      "gross_usd": r.get("gross_usd"), "costs_usd": r.get("costs_usd"),
                      "net_usd": r.get("net_usd"), "max_drawdown_pct": r.get("max_drawdown_pct"),
                      "trades": r.get("closed_trades"), "sessions": r.get("sessions"),
+                     "score": r.get("score"), "backtest": r.get("backtest"), "paper": r.get("forward"),
                      "why_not": None if r["eligible"] else r["reasons"][0]})
     return rows
 
@@ -351,11 +366,14 @@ def _m(v):
 
 
 def render_leaderboard(rows: list, limit: int = 40) -> str:
-    out = ["LEADERBOARD (ranked on net P&L; gross / costs / net side by side)",
-           f"{'#':>3} {'strategy':<30} {'status':<16} {'gross':>8} {'costs':>7} {'net':>8} "
-           f"{'dd%':>6} {'trades':>6} {'sess':>5}  why not eligible"]
+    def pc(v):
+        return "     —" if v is None else f"{v:+.2%}"
+    out = ["LEADERBOARD (ranked on score = expected net return per trade; gross / costs / net side by side)",
+           f"{'#':>3} {'strategy':<30} {'status':<16} {'score':>7} {'bt':>7} {'paper':>7} {'gross':>8} {'costs':>7} "
+           f"{'net':>8} {'dd%':>6} {'trades':>6} {'sess':>5}  why not eligible"]
     for r in rows[:limit]:
         out.append(f"{r['rank']:>3} {str(r['strategy'])[:30]:<30} {r['status'][:16]:<16} "
+                   f"{pc(r.get('score')):>7} {pc(r.get('backtest')):>7} {pc(r.get('paper')):>7} "
                    f"{_m(r['gross_usd']):>8} {_m(-(r['costs_usd'] or 0) if r['costs_usd'] is not None else None):>7} "
                    f"{_m(r['net_usd']):>8} {(r['max_drawdown_pct'] or 0):>6.2f} {r['trades'] or 0:>6} "
                    f"{r['sessions'] or 0:>5}  {r['why_not'] or ''}")
