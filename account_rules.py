@@ -88,9 +88,18 @@ def annotate(conn, portfolio: dict | None, limits: dict, today: str, mode: str) 
     out = dict(portfolio)
     out["account_type"] = kind
     if kind == "cash":
-        out["unsettled_proceeds"] = unsettled_proceeds(
+        ledger = unsettled_proceeds(
             conn, today, mode, int(limits.get("settlement_days", 1)),
             int(limits.get("holiday_margin_days", 1)))
+        if "broker_unsettled" in portfolio:
+            # A real account: sales made outside this system (a manual sell in
+            # the app) settle too. Take the larger figure; if the broker's
+            # cannot be read, leave settled cash unknown so buys are refused.
+            b = portfolio["broker_unsettled"]
+            if b is not None:
+                out["unsettled_proceeds"] = max(ledger, float(b))
+        else:
+            out["unsettled_proceeds"] = ledger
     else:
         out["day_trades_5d"] = day_trades(conn, today, mode)
     return out

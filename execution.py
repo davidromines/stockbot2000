@@ -164,6 +164,8 @@ class ExecutionEngine:
                     "daily_pnl": float(acct.get("daily_pnl") or 0),
                     "drawdown_percent": float(acct.get("drawdown_percent") or 0),
                     "positions": pos}
+            if "unsettled_funds" in acct:            # a real account reports its own figure
+                snap["broker_unsettled"] = acct["unsettled_funds"]
             # Settled cash / day-trade count for the account-rule guard (I12),
             # from this engine's own orders in this mode.
             import account_rules
