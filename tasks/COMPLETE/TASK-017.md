@@ -2,7 +2,7 @@
 
 - component: docs
 - priority: high
-- state: TODO
+- state: COMPLETE
 - branch: ado/task-017
 - created: 2026-09-23T17:31:00+00:00
 - dependencies: none
@@ -19,7 +19,6 @@ merge and are excluded.
 
 ## Relevant files
 - `changelog.py`
-
 ## Requirements
 1. Run `git log --no-merges --date=short --format=%ad%x09%h%x09%s` via subprocess from the script's own directory.
 2. Group commits by date, newest date first; within a date keep git's order (newest first).
@@ -34,5 +33,5 @@ merge and are excluded.
 3. Do not generate CHANGELOG.md yourself; the reviewer runs the script.
 
 ## Acceptance criteria
-1. `PYTHONPATH=. venv/bin/python -c "import changelog as c; g=c.parse('2026-09-23\tabc1234\tAdd x\n2026-09-22\tdef5678\tMerge ADO TASK-1\n2026-09-22\t0123456\tFix y\n'); s=c.render(g); assert '## 2026-09-23' in s and 'Merge ADO' not in s and s.index('2026-09-23') < s.index('2026-09-22'); print('ok')"` prints ok
-2. `./run_tests.sh` reports ALL PASS.
+1. PYTHONPATH=. venv/bin/python -c "import changelog as c; g=c.parse('2026-09-23\tabc1234\tAdd x\n2026-09-22\tdef5678\tMerge ADO TASK-1\n2026-09-22\t0123456\tFix y\n'); s=c.render(g); assert '## 2026-09-23' in s and 'Merge ADO' not in s and s.index('2026-09-23') < s.index('2026-09-22'); print('ok')"` prints ok
+2. ./run_tests.sh` reports ALL PASS.
