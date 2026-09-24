@@ -85,8 +85,19 @@ def league_of(conn, cfg, key: str, version: int = 1) -> str:
     return (cfg.get("league_families") or {}).get(fam, "tactical")
 
 
+PAIR_FAMILIES = {"SPY": "pair_sp500", "QQQ": "pair_nasdaq", "IWM": "pair_russell", "XLE": "pair_energy"}
+
+
 def family_of(conn, key: str, version: int = 1) -> str:
     """The concentration family (§18). Stop-width variants of one rule share it."""
+    if key.startswith("pair:"):
+        # One family per INDEX the switch tracks (owner, 2026-09-24): Nasdaq,
+        # Russell and Energy are different bets; S&P 1x and 2x are one bet at
+        # two leverages, so they share a family.
+        r = conn.execute("SELECT signal FROM pair_funds WHERE name=?", (key.split(":", 1)[1],)).fetchone() \
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='pair_funds'").fetchone() else None
+        if r and r[0]:
+            return PAIR_FAMILIES.get(str(r[0]).upper(), f"pair_{str(r[0]).lower()}")
     m = so.meta(conn, key, version)
     if m and m.get("family"):
         return m["family"]

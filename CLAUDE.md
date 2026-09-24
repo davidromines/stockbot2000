@@ -189,11 +189,12 @@ loader. It had added 15 points a year to a momentum backtest.
    `pair:` holder's slot buys `pair_funds.next_leg()` (the fund's own replay,
    min_hold included; refuses if a leg lacks the newest bar), sells the old leg
    when the fund switches, and carries a stop the fund's record does NOT have:
-   entry - 3 x ATR (`slots.pair_risk`). Caveats: all five share family
-   `pair_switching` (S&P 1x/2x are one bet); on a switch in LIVE the new leg
-   waits for the sale to settle (limited_margin, T+1); ERY's AUM ($42.6M) is
-   under the $100M floor, so Energy's bear leg is refused. Whether a pair fund
-   actually takes a slot is still the league's call (LIVE_CANDIDATE, net rank).
+   entry - 3 x ATR (`slots.pair_risk`). Families split by index (owner,
+   2026-09-24): `pair_sp500` (1x and 2x together), `pair_nasdaq`,
+   `pair_russell`, `pair_energy`. On a switch in LIVE the new leg waits for the
+   sale to settle (limited_margin, T+1); ERY's AUM ($42.6M) is under the $100M
+   floor, so Energy's bear leg is refused. Whether a pair fund takes a slot is
+   the ranking's call (ranking.py), like every other strategy.
 4. ~~Robinhood sessions~~ — **done 2026-09-24.** `robinhood_mcp.session()`
    keeps ONE MCP session open for a whole LIVE slot_trader run (background
    thread); every `rh.call`/`rh.calls` inside uses it. A session that dies or a
@@ -666,7 +667,7 @@ hardcodes paths, thresholds or model parameters.
 | File | Role |
 |---|---|
 | `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
-| `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. Five slots: eligibility first, net rank, one per family, cash when none qualify, controlled replacement, the P&L leaderboard. Places no order. |
+| `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. Five slots filled from ranking.py's top five tradeable strategies; family cap; controlled replacement on score; the leaderboard. Places no order. |
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |

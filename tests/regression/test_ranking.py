@@ -67,6 +67,21 @@ def main():
     got = sorted(k for k, _, _ in ranking.pool(c))
     check("DEMOTED stays in the pool (it can climb back); REJECTED does not", got == ["a", "b"], got)
 
+    # --- pair funds: one family per index ----------------------------------
+    import leagues
+    import pair_funds
+    pc = sqlite3.connect(":memory:")
+    pair_funds.init(pc)
+    for name, sig in (("sp500_1x", "SPY"), ("sp500_2x", "SPY"), ("nasdaq_1x", "QQQ"), ("russell_1x", "IWM"),
+                      ("energy_2x", "XLE")):
+        pc.execute("INSERT INTO pair_funds (name,label,bull,bear,signal,method,param,min_hold,capital_usd,"
+                   "started_on) VALUES (?,?,?,?,?,'roc',5,1,100.0,'2026-09-15')", (name, name, "B", "S", sig))
+    fams = {n: leagues.family_of(pc, f"pair:{n}") for n in ("sp500_1x", "sp500_2x", "nasdaq_1x", "russell_1x",
+                                                          "energy_2x")}
+    check("pair families split by index; S&P 1x and 2x share one",
+          fams == {"sp500_1x": "pair_sp500", "sp500_2x": "pair_sp500", "nasdaq_1x": "pair_nasdaq",
+                   "russell_1x": "pair_russell", "energy_2x": "pair_energy"}, fams)
+
     # --- slots fill from the ranking on day one -----------------------------
     def row(key, sc, fam, bt=0.01, recon=None, gate=True):
         return {"strategy_key": key, "version": 1, "name": key, "state": "PAPER", "family": fam,
