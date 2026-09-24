@@ -153,6 +153,10 @@ $PY compute_priority.py > data/compute_spend.txt 2>/dev/null || true
 # stops a long-horizon fund from rebalancing daily.
 $PY value_fund.py --review --if-due --apply --mark >/dev/null 2>&1 || true
 
+# Authoritative P&L (Phase 13 H2). Runs after every fund has stepped. Exit 1
+# means an ACCOUNTING_PROBLEM: a difference with no identified cause.
+run "[9b/10] Accounting" $PY accounting.py --restate --snapshot data/accounting.json
+
 $PY build_dashboard.py >/dev/null 2>&1 || true
 
 run "[10/10] Backup" $PY backup.py
