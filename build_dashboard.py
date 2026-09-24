@@ -53,7 +53,38 @@ def gather(conn, cfg: dict) -> dict:
             funds.append({"name": r["label"], "family": "pair",
                           "ret": r["equity_usd"] / r["capital_usd"] - 1,
                           "mark": r["date"]})
+    # The authoritative P&L (B18): where accounting has restated a fund, show
+    # its liquidation-basis gross / costs / net instead of the engine's curve.
+    try:
+        acct = {}
+        for r in conn.execute("""SELECT a.label, a.fund_kind, a.capital_usd, a.gross_usd, a.costs_usd,
+                a.net_usd, a.as_of FROM fund_accounting a JOIN (SELECT fund_kind, fund_id,
+                MAX(computed_at) m FROM fund_accounting GROUP BY 1, 2) x ON a.fund_kind=x.fund_kind
+                AND a.fund_id=x.fund_id AND a.computed_at=x.m"""):
+            acct[r["label"]] = r
+        for f in funds:
+            a = acct.get(f["name"])
+            if a and a["capital_usd"]:
+                f.update(ret=a["net_usd"] / a["capital_usd"], gross=a["gross_usd"], costs=a["costs_usd"],
+                         net=a["net_usd"], mark=a["as_of"])
+    except Exception:          # noqa: BLE001 — no accounting yet: keep the engine curves
+        pass
     funds.sort(key=lambda f: -f["ret"])
+
+    slots_view = {"filled": 0, "count": 5, "eligible": 0, "assessed": 0, "mode": "SIMULATION",
+                  "execution_mode": "SIMULATION", "pnl": None}
+    try:
+        import risk_engine
+        import slot_trader
+        import slots
+        cur = slots.current(conn, cfg)
+        ranked = slots.assess(conn, cfg)
+        slots_view.update(filled=sum(1 for h in cur.values() if h), count=len(cur),
+                          eligible=sum(1 for r in ranked if r["eligible"]), assessed=len(ranked),
+                          execution_mode=str(risk_engine.load_limits().get("execution_mode", "SIMULATION")),
+                          pnl=slot_trader.pnl(conn, cfg, "SIMULATION"))
+    except Exception:          # noqa: BLE001 — a dashboard never fails the run
+        pass
 
     lib = {r[0]: r[1] for r in conn.execute(
         "SELECT validation_status, COUNT(*) FROM strategy_library "
@@ -81,7 +112,7 @@ def gather(conn, cfg: dict) -> dict:
         "crypto_pairs": q("SELECT COUNT(DISTINCT symbol) FROM crypto_prices"),
         "crypto_delisted": q("SELECT COUNT(*) FROM crypto_listings "
                              "WHERE status!='online' OR trading_disabled=1"),
-        "library": lib, "funds": funds,
+        "library": lib, "funds": funds, "slots": slots_view,
         "search_mode": (cfg.get("search") or {}).get("mode", "ACTIVE"),
         "min_marks": (cfg.get("league") or {}).get("min_rank_marks", 60),
     }
@@ -98,9 +129,12 @@ def render(d: dict) -> str:
         # eye reads magnitude rather than sign alone.
         mx = max((abs(x["ret"]) for x in d["funds"]), default=1) or 1
         w = abs(f["ret"]) / mx * 100
+        money = (lambda v: "—" if v is None else f"{v:+.2f}")
         fund_rows.append(
-            f'<tr><td class="nm">{html.escape(f["name"])}</td>'
+            f'<tr><td class="nm">{html.escape(f["name"] or "—")}</td>'
             f'<td><span class="fam">{html.escape(f["family"] or "—")}</span></td>'
+            f'<td class="num">{money(f.get("gross"))}</td>'
+            f'<td class="num">{money(-f["costs"] if f.get("costs") is not None else None)}</td>'
             f'<td class="num {cls}">{f["ret"]*100:+.2f}%</td>'
             f'<td class="barcell"><span class="bar {cls}" style="width:{w:.1f}%"></span></td>'
             f'</tr>')
@@ -210,25 +244,25 @@ footer {{ border-top:1px solid var(--line); padding-top:14px; font-size:11px;
       <span class="a">DO NOT SEARCH</span>
       <span class="why">{n(d["evaluations"])} evaluations recorded. The trial
       ledger is append-only, so the multiple-testing bar does not come down.</span></div>
-    <div class="v stop"><span class="q">Ready to promote?</span>
-      <span class="a">NOT READY</span>
-      <span class="why">4 of 15 prerequisites verified. The rest exist as code
-      that has never been exercised here.</span></div>
-    <div class="v warn"><span class="q">Strategies eligible</span>
-      <span class="a">0 of {d["league"]}</span>
-      <span class="why">Every fund is short of the {d["min_marks"]}-mark floor.
-      A Sharpe from seven observations is noise with a decimal point.</span></div>
-    <div class="v stop"><span class="q">Today's live slate</span>
-      <span class="a">NO ORDERS</span>
-      <span class="why">Nothing cleared every gate, which is the system working
-      rather than failing.</span></div>
+    <div class="v {"warn" if not d["slots"]["filled"] else ""}"><span class="q">Slots filled</span>
+      <span class="a">{d["slots"]["filled"]} of {d["slots"]["count"]}</span>
+      <span class="why">Empty slots stay in cash: a slot is earned by forward
+      evidence, never filled to use idle capital.</span></div>
+    <div class="v warn"><span class="q">Strategies eligible for a slot</span>
+      <span class="a">{d["slots"]["eligible"]} of {d["slots"]["assessed"]}</span>
+      <span class="why">A slot needs 20 forward sessions, 10 closed trades, positive
+      net P&amp;L and drawdown under the league limit.</span></div>
+    <div class="v stop"><span class="q">Live trading</span>
+      <span class="a">{"ARMED" if d["slots"]["execution_mode"].upper() == "LIVE" else "NOT ARMED"}</span>
+      <span class="why">The engine runs in {html.escape(d["slots"]["mode"])}. Arming LIVE is
+      an edit to config/risk.yaml, and it is the account owner's.</span></div>
   </div>
 </section>
 
 <section class="panel">
   <h2>Forward record · {len(d["funds"])} funds</h2>
   <table>
-    <thead><tr><th>Fund</th><th>Family</th><th class="num">Return</th><th></th></tr></thead>
+    <thead><tr><th>Fund</th><th>Family</th><th class="num">Gross $</th><th class="num">Costs $</th><th class="num">Net</th><th></th></tr></thead>
     <tbody>{"".join(fund_rows)}</tbody>
   </table>
   <p class="note" style="margin-top:14px">The only measurement here with no
@@ -276,8 +310,9 @@ footer {{ border-top:1px solid var(--line); padding-top:14px; font-size:11px;
 </div>
 
 <footer>
-  Search mode <strong>{html.escape(str(d["search_mode"]))}</strong>. Orders are
-  placed by a person; the system generates and reconciles them. Regenerated by
+  Search mode <strong>{html.escape(str(d["search_mode"]))}</strong>. The five-slot
+  engine trades automatically in SIMULATION; LIVE is armed only by the account
+  owner. Net is the restated accounting (liquidation basis). Regenerated by
   <code>daily.sh</code> from the live database — every figure on this page is
   counted, not estimated.
 </footer>
