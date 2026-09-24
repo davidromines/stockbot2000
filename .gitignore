@@ -48,3 +48,6 @@ backups/listings_*.sql.gz
 # what makes a claim checkable. The .db files are rebuildable from the manifest's
 # parameters and must not bloat the repo.
 truth_sets/*.db
+
+# FINSABER downloads (Hugging Face finsaber-team/FINSABER-reproduce). Data, not source.
+data/finsaber/
