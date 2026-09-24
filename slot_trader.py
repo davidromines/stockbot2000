@@ -49,6 +49,7 @@ import slots
 import stop_plans
 
 log = logging.getLogger("slot_trader")
+MAX_TRIES = 5                # candidates tried per slot per entry pass
 
 
 def _now() -> str:
@@ -289,23 +290,31 @@ def trade(conn, cfg, mode: str, provider) -> list:
             continue
         cands, g = cands_by_slot[slot]
         plan = stop_plans.from_genome(g)
-        pick = next((str(t) for t in cands["ticker"] if str(t) not in taken), None) if len(cands) else None
-        if pick is None:
+        picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []
+        if not picks:
             results.append({"slot": slot, "action": "NONE", "reason": "entry rule fired on nothing new",
                             "status": "no_action"})
             continue
-        if provider.get(pick) is None:
-            results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": "no live quote",
-                            "status": "skipped"})
-            continue
-        sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{h['strategy_key']}",
-                        reason=f"entry rule of {h['strategy_key']} v{h['version']}",
-                        notional_value=float(h["capital_usd"]), session=engine.session)
-        res = engine.execute(sig, reconciled=ok)
-        if _record_trade(conn, mode, slot, h, pick, "OPEN", res, sig.reason, plan=plan, atr=_atr(conn, pick)):
-            taken.add(pick)
-        results.append({"slot": slot, "action": "BUY", "symbol": pick, "reason": sig.reason,
-                        "status": res["status"], "why": res.get("reasons")})
+        # A candidate the risk engine rejects (e.g. unknown market cap) or that
+        # has no live quote is skipped for the strategy's NEXT candidate, rather
+        # than leaving the slot empty for the session.
+        for pick in picks:
+            if provider.get(pick) is None:
+                results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": "no live quote",
+                                "status": "skipped"})
+                continue
+            sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{h['strategy_key']}",
+                            reason=f"entry rule of {h['strategy_key']} v{h['version']}",
+                            notional_value=float(h["capital_usd"]), session=engine.session)
+            res = engine.execute(sig, reconciled=ok)
+            results.append({"slot": slot, "action": "BUY", "symbol": pick, "reason": sig.reason,
+                            "status": res["status"], "why": res.get("reasons")})
+            if _record_trade(conn, mode, slot, h, pick, "OPEN", res, sig.reason, plan=plan,
+                             atr=_atr(conn, pick)):
+                taken.add(pick)
+                break
+            if res["status"] not in ("rejected", "duplicate"):
+                break                   # halted / failed / shadow: do not keep trying
     return results
 
 
@@ -404,9 +413,13 @@ def main(argv=None) -> int:
         # runs once per session; every later poll is the cheap stop monitor.
         import killswitch as ks
         day = _session(conn)
-        done = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='slot_entry_pass' AND "
+        last = conn.execute("SELECT MAX(at) FROM system_events WHERE kind='slot_entry_pass' AND "
                             "detail=?", (f"{args.mode}:{day}",)).fetchone()[0]
-        if done:
+        # Re-run the entry pass when the slots changed after it: slots filled at
+        # 14:40 after a 13:30 pass otherwise waited until the next session
+        # (found 2026-09-24).
+        changed = conn.execute("SELECT MAX(at) FROM slot_assignments").fetchone()[0]
+        if last and not (changed and changed > last):
             args.monitor = True
         else:
             args.trade = True
