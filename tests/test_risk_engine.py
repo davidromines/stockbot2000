@@ -149,6 +149,13 @@ r = E.validate(sig(action="SELL", notional_value=5.0),
                {**PORTFOLIO, "unsettled_proceeds": 100.0,
                 "positions": {"AAPL": {"value": 20.0, "quantity": 0.4}}}, GOOD_QUOTE)
 check("cash account: a SELL is never blocked by settlement", r.approved)
+check("SELL is sized from the requested notional, capped at held", abs((r.sized_quantity or 0) - 0.1) < 1e-9)
+r = E.validate(sig(action="CLOSE", notional_value=None),
+               {**PORTFOLIO, "positions": {"AAPL": {"value": 20.0, "quantity": 0.4}}}, GOOD_QUOTE)
+check("CLOSE sells the whole held quantity", r.approved and abs((r.sized_quantity or 0) - 0.4) < 1e-9)
+r = E.validate(sig(action="SELL", notional_value=None, quantity=5.0),
+               {**PORTFOLIO, "positions": {"AAPL": {"value": 20.0, "quantity": 0.4}}}, GOOD_QUOTE)
+check("SELL never exceeds the held quantity", abs((r.sized_quantity or 0) - 0.4) < 1e-9)
 margin = RiskEngine({**LIMITS, "account_type": "margin"})
 r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 3}, GOOD_QUOTE)
 check("margin under $25k: 3 day trades stops new buys", not r.approved)

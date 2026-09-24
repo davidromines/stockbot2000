@@ -243,6 +243,29 @@ class RiskEngine:
             held = portfolio.get("positions", {}).get(sig.symbol)
             if not held:
                 res.reject(f"no open position in {sig.symbol} to close")
+                return res
+            # Size the exit from what is HELD. Before 2026-09-24 an approved
+            # exit left sized_quantity None, so the order carried no size and a
+            # simulated "fill" sold zero shares — every exit was a no-op. Never
+            # sell more than is held (that would be a short).
+            hq = float(held.get("quantity") or 0)
+            px = float((quote or {}).get("price") or 0) or (
+                float(held.get("value") or 0) / hq if hq else 0)
+            q = hq
+            if sig.action == "SELL":
+                if sig.quantity:
+                    q = min(float(sig.quantity), hq) if hq else float(sig.quantity)
+                elif sig.notional_value and px:
+                    q = min(float(sig.notional_value) / px, hq) if hq else 0.0
+            elif not hq and sig.quantity:
+                # The portfolio did not report a quantity; the caller's recorded
+                # position size is used rather than trapping the exit.
+                q = float(sig.quantity)
+            if q <= 0:
+                res.reject(f"held quantity of {sig.symbol} unknown — cannot size the exit")
+                return res
+            res.sized_quantity = q
+            res.sized_notional = round(q * px, 2) if px else None
             return res
 
         tq = self._check_tradeability(sig, quote)
