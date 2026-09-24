@@ -51,17 +51,46 @@ gross / costs / net side by side.
 | H10 robustness | done | `robustness.py` |
 | H11-H13 pipeline | done | `factory_pipeline.py`; first run: 2 value+quality strategies reached PAPER, 2 momentum+volume rejected out of sample |
 | H14 report + scoreboard | done (TASK-021 merged 2026-09-24) | `factory_report.py` — forward rows never fall back to backtest metrics |
-| H15 end-to-end test | not started | |
+| H15 end-to-end test | done | `tests/e2e/e2e_factory.py` — real data in a temp DB, never production; run under `run_bounded.sh`. Found 5 defects, all fixed |
 | daily.sh wiring | done (`[9c]-[9h]`) | pipeline budget 12: ~20 min, 4.3 GB peak |
 | unit tests for H3-H13 | **none yet** | only `tests/regression/test_accounting.py` exists |
 
-**Addendum A (Stage I, I1-I14): not started.** Order: slot model, slot
-allocation, replacement engine, P&L leaderboard, mandatory stop plans,
-intraday monitor, intraday signals, live execution/reconciliation, kill
-switches, daily reassessment, always-on services, account-rule guard,
-reporting, SIMULATION -> SHADOW -> LIVE. Real-money activation is the user's
-step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
-`execution.py`, `live_pipeline.py` — never a competing execution layer (B13).
+**Addendum A (Stage I): I1-I14 BUILT 2026-09-24 in SIMULATION and SHADOW.**
+All five slots are CASH today: 0 of 33 forward strategies are eligible (every
+one is short of the 20-session / 10-trade floor). LIVE is refused everywhere
+until `config/risk.yaml` `execution_mode: LIVE` — the user's step (B14) — and
+even then `RobinhoodBroker.place_order` only builds the spec; transmission is
+an operator step. Modules: `slots.py`, `stop_plans.py`, `slot_trader.py`,
+`quotes.py`, `account_rules.py`, `intraday.py`, `services.sh`, plus additions
+to `killswitch.py`, `broker.py`, `execution.py`, `risk_engine.py`. The trader
+runs from cron every 5 min, 13:00-20:59 UTC weekdays (`./services.sh`).
+
+**Defects found and fixed while building it — worth knowing:**
+- Approved exits carried NO size (risk_engine returned before sizing), so
+  every simulated sell filled 0 shares. Exits now size from the held quantity.
+- Order ids and daily throttles were shared across modes: a SHADOW run of a
+  SIMULATION decision was suppressed as a duplicate, and SIMULATION orders
+  used up the SHADOW/LIVE order cap. Now per mode.
+- `paper_runs.label/family/last_review` were created by hand in production
+  and by no code; `fund_accounting` only by the daily stage. A fresh database
+  broke enrolment. Both now created in `init`.
+
+**Addendum C (Stage J): Stages 1-5 BUILT 2026-09-24 on the RECOMMENDED answers**
+to the eight questions (the user said build every roadmap item; each answer
+is a config value under `universe_reconstruction:` — change them there).
+`universe_layer_a.py` (Layer A, 1996-2024), `universe_cohorts.py`,
+`universe_synthetic.py` (v2), `universe_loader.py` (five modes),
+`universe_validate.py`. Store: `data/universe/` only, never `prices`.
+**The generator FAILS the discriminability gate (AUC 0.903 vs < 0.60)**, so
+synthetic rows are for retests and stress bounds only. Sensitivity, 12-1
+momentum 2009-2024: 23.3% CAGR on our data, 17.4% with synthetic dead
+companies, 12.1% if every unpriced death was a total loss. Synthetic deaths
+concentrate after 2008 because listing evidence starts there; the 1996-2007
+hole is mostly EDGAR-only filers, excluded by default.
+
+**FINSABER had 99 symbols alternating between two price levels** (CBE:
+$170 / $0.005). Flagged in `finsaber_quality`, excluded by the provider and
+loader. It had added 15 points a year to a momentum backtest.
 
 **Waiting on the user**
 
@@ -100,16 +129,16 @@ step (B14). Reuse `risk_engine.py`, `killswitch.py`, `broker.py`,
 
 1. ~~Ship TASK-021~~ — done.
 2. ~~Wire the factory into `daily.sh`~~ — done.
-3. Delegate unit tests (strategy_objects, discovery, leagues, robustness,
-   factory_pipeline) to DeepSeek; then H15 end-to-end test.
-4. Addendum A, I1 onward.
-5. Refresh the remaining trackers (Roadmap page is current as of v13): the Build Record
-   (https://claude.ai/artifact/TWJYcQ4WCmRAQqs6SfAB2F) is stale since 09-22 —
-   the user asked for it to be updated and it never was. The Roadmap page
-   (https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo, source
-   `docs/artifacts/roadmap_page.html`) is current through Addendum C rev 2 but
-   still shows Phase 13 steps as "not started". Status dashboard:
+3. Unit tests TASK-022..026 are specced in `tasks/TODO` for DeepSeek — run
+   them only when `daily.sh` is NOT running (ADO checks out branches here).
+4. ~~H15~~, ~~Addendum A~~, ~~Addendum C stages 1-5~~ — done (see above).
+5. Trackers: Build Record republished 09-24 (source
+   `docs/artifacts/build_record.html`); Roadmap page source
+   `docs/artifacts/roadmap_page.html`; status dashboard
    https://claude.ai/artifact/JVo9dV1QbQqpGvM7JKHsbp.
+6. Open research items: tighten paper admission (8 of 12 and 4 of 4 admitted);
+   a discriminability-passing generator v3; news/filing point-in-time check
+   before any use of the FINSABER text.
 
 **Findings from this session that change numbers elsewhere**
 
@@ -556,6 +585,27 @@ hardcodes paths, thresholds or model parameters.
 | `signal_decay.py` | §20: decile spread by horizon, t-stat across dates. |
 | `data_dictionary.py` / `changelog.py` | Generate `docs/DATA_DICTIONARY.md` and `CHANGELOG.md`. |
 | `run_bounded.sh` / `ado_ship.sh` | Memory-capped job launcher; ADO review-approve-merge helper. |
+| `finsaber_pkl.py` | Streams FINSABER's pickles (27.3 GB) without loading them; a restricted pickle VM — only `datetime.date` may be built. |
+
+### Addendum A — the trading engine (built 2026-09-24, SIMULATION/SHADOW)
+| File | Role |
+|---|---|
+| `slots.py` | Five slots: eligibility first, net rank, one per family, cash when none qualify, controlled replacement, the P&L leaderboard. Places no order. |
+| `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
+| `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
+| `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |
+| `account_rules.py` | Cash account: settled funds only (T+1 + 1 day margin). Margin: PDT entry stop. |
+| `intraday.py` | Intraday signal engine, SHADOW only (B8). |
+| `services.sh` | Installs the trader's cron line. |
+
+### Addendum C — survivorship-bias-free universe (built 2026-09-24, retest-only)
+| File | Role |
+|---|---|
+| `universe_layer_a.py` | Which companies existed, 1996-2024, per-field provenance. |
+| `universe_cohorts.py` | Real dead-company statistics by cohort; states its own clean-exit bias. |
+| `universe_synthetic.py` | Tagged synthetic paths (v2) for 7,618 unpriced dead companies. |
+| `universe_loader.py` | `load_backtest_data(..., mode)` — exclude / real_only / as_is / zero / optimistic. |
+| `universe_validate.py` | Discriminability gate, provenance checks, five-mode sensitivity. |
 
 ### The daily loop and reporting
 | File | Role |
