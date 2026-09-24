@@ -32,6 +32,7 @@ import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
 import json
 import logging
+import sqlite3
 import uuid
 
 import pandas as pd
@@ -249,6 +250,19 @@ def _conviction_of(run: dict) -> str | None:
         return None
 
 
+def _stale_marks(conn, tickers, prices: dict, today: str) -> dict:
+    """Last real close at or before `today` for held tickers missing from today's prices."""
+    out = {}
+    for t in tickers:
+        if t in prices:
+            continue
+        r = conn.execute("SELECT close FROM prices WHERE ticker=? AND date<=? "
+                         "ORDER BY date DESC LIMIT 1", (t, today)).fetchone()
+        if r and r[0]:
+            out[t] = float(r[0])
+    return out
+
+
 def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
     """
     Advance one conviction run. Reviews weekly; does nothing on other days.
@@ -431,6 +445,7 @@ def step(conn, cfg: dict) -> None:
 
         open_pos = [dict(r) for r in conn.execute(
             "SELECT * FROM paper_positions WHERE run_id = ?", (run["run_id"],))]
+        stale = _stale_marks(conn, [p["ticker"] for p in open_pos], prices, today)
         cash = run["cash_usd"]
         closed = 0
 
@@ -498,17 +513,29 @@ def step(conn, cfg: dict) -> None:
                 stop = px - float(mult) * float(atr)
             else:
                 stop = calculate_stop_loss(px, atr, cfg)
-            conn.execute("""
-                INSERT OR REPLACE INTO paper_positions
-                    (run_id, ticker, entry_date, entry_price, shares, stop_price, days_held)
-                VALUES (?,?,?,?,?,?,0)
-            """, (run["run_id"], t, today, px, shares, float(stop)))
+            # Plain INSERT, and skip on conflict. INSERT OR REPLACE let a
+            # repeated step overwrite a held position: the old shares vanished
+            # with no trade record while the new buy still left cash, which is
+            # how 11 funds' cash stopped reconciling (found 2026-09-24).
+            try:
+                conn.execute("""
+                    INSERT INTO paper_positions
+                        (run_id, ticker, entry_date, entry_price, shares, stop_price, days_held)
+                    VALUES (?,?,?,?,?,?,0)
+                """, (run["run_id"], t, today, px, shares, float(stop)))
+            except sqlite3.IntegrityError:
+                log.warning(f"'{run['name']}' already holds {t}; not overwriting")
+                continue
             cash -= size
             open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
             held_tickers.add(t)
             opened += 1
 
-        positions_value = sum(p["shares"] * prices.get(p["ticker"], p["entry_price"])
+        # A position with no bar today is marked at its LAST REAL CLOSE, never
+        # at entry. Marking at entry hid every loss on 2026-09-22, when the
+        # source was missing that session for most tickers (accounting.py).
+        positions_value = sum(p["shares"] * prices.get(p["ticker"],
+                                                       stale.get(p["ticker"], p["entry_price"]))
                               for p in open_pos)
         equity = cash + positions_value
         conn.execute("""
