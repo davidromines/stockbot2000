@@ -387,3 +387,15 @@ slots:
   count: 5
   capital_per_slot: 20.0
   max_per_family: 4
+
+# Sourced market-cap fallback (market_caps.py) for names the filings miss —
+# GEN and NWSA were refused as "unknown" on the first LIVE session. The filing
+# cap wins when present; else a quoted cap no older than max_age_days. Older
+# or absent -> still unknown, still rejected. LIVE quotes fetch a miss from
+# Robinhood; the daily backfill (daily.sh [3c]) uses backfill_source —
+# robinhood serves 10 names per call; yfinance needs no sign-in but is ~1
+# request per name.
+market_caps:
+  max_age_days: 7
+  backfill_source: robinhood
+  backfill_types: ["common_stock", "etf"]

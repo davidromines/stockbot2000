@@ -80,6 +80,11 @@ run "[3/10] Features" $PY build_features.py
 run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
     --start "$(date -u -d '90 days ago' +%F)"
 
+# Market cap for liquid names the filings miss (GEN, NWSA were refused as
+# "unknown" on the first LIVE session). Sourced and dated, never assumed; a
+# name still unknown after this is still rejected by the risk engine.
+run "[3c/10] Market-cap fallback" $PY market_caps.py --backfill
+
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.
 # Best-effort: a crypto outage must not fail the equity capture.

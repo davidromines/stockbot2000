@@ -38,13 +38,20 @@ def market_open(now: datetime | None = None) -> bool:
     return t.weekday() < 5 and OPEN <= t.time() < CLOSE
 
 
-def _db_fields(conn, symbol: str) -> dict:
+def _db_fields(conn, symbol: str, cap_source: str | None = None, call=None) -> dict:
+    """
+    Liquidity and market cap for a quote. The cap is the filing cap, else a
+    recent sourced one (market_caps.py); with `cap_source` a miss is fetched
+    once from that source. Still unknown after that -> None, and the risk
+    engine rejects it.
+    """
+    import market_caps
     dv = conn.execute("SELECT dollar_volume_20 FROM features WHERE ticker=? AND dollar_volume_20 "
                       "IS NOT NULL ORDER BY date DESC LIMIT 1", (symbol,)).fetchone()
-    cap = conn.execute("SELECT market_cap FROM fundamentals WHERE ticker=? AND market_cap>0 "
-                       "ORDER BY filed DESC LIMIT 1", (symbol,)).fetchone()
+    cap, src = (market_caps.ensure(conn, symbol, cap_source, call=call) if cap_source
+                else market_caps.lookup(conn, symbol))
     return {"dollar_volume_20": float(dv[0]) if dv and dv[0] else None,
-            "market_cap": float(cap[0]) if cap and cap[0] else None}
+            "market_cap": cap, "market_cap_source": src}
 
 
 class QuoteProvider:
@@ -107,7 +114,7 @@ class LiveQuotes(QuoteProvider):
                 else:
                     q = {"symbol": symbol, "price": float(h["Close"].iloc[-1]),
                          "high": float(h["High"].max()), "as_of": ts.isoformat(),
-                         "source": "yfinance_1m", **_db_fields(self.conn, symbol)}
+                         "source": "yfinance_1m", **_db_fields(self.conn, symbol, "yfinance")}
         except Exception as e:                              # noqa: BLE001
             log.error(f"{symbol}: live quote failed: {type(e).__name__}: {e}")
         self._cache[symbol] = q

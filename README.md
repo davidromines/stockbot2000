@@ -39,6 +39,8 @@ idempotent; a failing stage does not abort the ones after it.
 [2/10]  Price top-up          backfill.py --top-up
 [3/10]  Features              the 20 indicators
 [3b/10] Fundamental projection daily_fundamentals
+[3c/10] Market-cap fallback  market_caps.py --backfill: Robinhood caps for
+                              liquid names the filings miss (dated, sourced)
 [4/10]  Freshness gate        fails the run if any derived table is behind
 [5/10]  Paper trading         advance the simulated funds one day
 [6/10]  Daily book            best candidate from every system + sell signals

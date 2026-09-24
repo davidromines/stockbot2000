@@ -16,9 +16,10 @@ Order into Robinhood calls and reads the account back:
     get_account   equity and buying power from get_portfolio; daily P&L and
                   drawdown from this module's own equity snapshots (live_equity)
     get_positions get_equity_positions, valued at real-time quotes
-    get_quote     get_equity_quotes (real time), plus liquidity and market cap
-                  from the database, because the risk engine rejects a quote
-                  without them
+    get_quote     get_equity_quotes (real time), plus liquidity from the database
+                  and market cap from the filings, else Robinhood's own
+                  fundamentals (market_caps.py), because the risk engine
+                  rejects a quote without them
 
 Response shapes are read defensively (field names searched, not assumed); a
 response this module cannot read raises, and the engine treats that as a
@@ -140,7 +141,7 @@ class RobinhoodQuotes(qt.QuoteProvider):
                         px = None
                 if px:
                     q = {"symbol": symbol, "price": px, "as_of": ts, "source": "robinhood",
-                         **qt._db_fields(self.conn, symbol)}
+                         **qt._db_fields(self.conn, symbol, "robinhood", call=self.call)}
         except rh.NeedsLogin:
             raise
         except Exception as e:                               # noqa: BLE001

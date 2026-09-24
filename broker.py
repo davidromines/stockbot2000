@@ -179,12 +179,11 @@ class SimulatedBroker(BrokerInterface):
             "SELECT dollar_volume_20 FROM features WHERE ticker=? AND "
             "dollar_volume_20 IS NOT NULL ORDER BY date DESC LIMIT 1",
             (symbol,)).fetchone()
-        cap = self.conn.execute(
-            """SELECT market_cap FROM fundamentals f WHERE ticker=? AND market_cap>0
-               ORDER BY filed DESC LIMIT 1""", (symbol,)).fetchone()
+        import market_caps
+        cap, src = market_caps.lookup(self.conn, symbol)
         return {"symbol": symbol, "price": float(r["close"]), "as_of": r["date"],
                 "dollar_volume_20": float(dv[0]) if dv and dv[0] else None,
-                "market_cap": float(cap[0]) if cap and cap[0] else None}
+                "market_cap": cap, "market_cap_source": src}
 
     def place_order(self, order: Order) -> Order:
         if order.client_order_id in self.orders:

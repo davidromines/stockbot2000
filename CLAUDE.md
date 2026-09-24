@@ -175,9 +175,13 @@ loader. It had added 15 points a year to a momentum backtest.
    `./venv/bin/python slot_trader.py --status --mode LIVE`; check the alerts.
    Verify slot 5 fills on 2026-09-25 once the $19.26 settles, and that stop
    exits SELL only the slot's shares.
-2. **Market-cap gaps block real picks** (GEN, NWSA rejected as unknown). Either
-   backfill market cap for liquid names or give the risk engine a sourced
-   fallback — never assume a cap (TNON rule).
+2. ~~**Market-cap gaps block real picks**~~ — **done 2026-09-24**
+   (`market_caps.py`). The filing cap still wins; else a Robinhood (LIVE
+   quotes, daily `[3c]` backfill) or yfinance cap no older than 7 days, stored
+   dated and sourced in `market_cap_quotes`. Still unknown -> still rejected.
+   GEN $14.5B and NWSA $15.9B per Robinhood. ETFs quote AUM and meet the same
+   $100M floor. **Deploy: `git pull` on the VM**; the first `[3c]` run fills
+   the gap, and a LIVE quote fetches any miss on its own.
 3. **Diversity:** the ETF switch funds (Nasdaq 1x, S&P 1x/2x, Russell 1x) are
    profitable but cannot hold a slot — they need a stop plan and a slot-trader
    path (hold the ETF the pair fund holds). That is the fastest route to five
@@ -641,6 +645,7 @@ hardcodes paths, thresholds or model parameters.
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |
+| `market_caps.py` | Sourced market-cap fallback (Robinhood / yfinance, dated, <= 7 days) for names the filings miss. Never an assumed cap. |
 | `account_rules.py` | Cash account: settled funds only (T+1 + 1 day margin). Margin: PDT entry stop. |
 | `intraday.py` | Intraday signal engine, SHADOW only (B8). |
 | `services.sh` | Installs the trader's cron line. |
