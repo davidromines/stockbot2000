@@ -44,11 +44,15 @@ import runtime  # noqa: F401  — entry point; must precede anything numeric.
 import argparse
 import datetime as _dt
 import hashlib
+import json
 import logging
 import os
+import sqlite3
 import struct
 import sys
 import zlib
+
+import pandas as pd
 
 import finsaber
 
@@ -432,6 +436,44 @@ def _progress(conn, dataset, path, last, counts, complete, sha256=None):
     conn.commit()
 
 
+def pit_check(fconn, conn, dataset: str = "sp500") -> dict:
+    """
+    Are FINSABER's filing dates point-in-time? Each 10-K/10-Q is matched to the
+    same ticker's SEC filing within 45 days, and its date compared with the
+    SEC `filed` date and with `first_tradeable` — the first session the filing
+    could actually be traded on (pit_facts.py).
+
+    Measured 2026-09-24: FINSABER dates a filing ON its SEC filed date (78%) or
+    the day before, so 89.7% of them fall BEFORE the first tradeable session.
+    The rule that follows: never use a FINSABER filing as of its own date —
+    join to sec_filings.first_tradeable and use that.
+    """
+    import numpy as np
+    fs = pd.read_sql_query("SELECT symbol, date, form FROM finsaber_filings WHERE dataset=?", fconn,
+                           params=(dataset,))
+    sec = pd.read_sql_query("SELECT ticker AS symbol, form, filed, first_tradeable FROM sec_filings "
+                            "WHERE form IN ('10-K','10-Q') AND first_tradeable IS NOT NULL", conn)
+    fs["d"] = pd.to_datetime(fs["date"])
+    sec["fd"], sec["ft"] = pd.to_datetime(sec["filed"]), pd.to_datetime(sec["first_tradeable"])
+    out = []
+    for (sym, form), g in fs.groupby(["symbol", "form"]):
+        s = sec[(sec["symbol"] == sym) & (sec["form"] == form)].sort_values("fd")
+        if s.empty:
+            continue
+        m = pd.merge_asof(g.sort_values("d"), s[["fd", "ft"]], left_on="d", right_on="fd",
+                          direction="nearest", tolerance=pd.Timedelta(days=45))
+        out.append(m.dropna(subset=["fd"]))
+    m = pd.concat(out) if out else pd.DataFrame(columns=["d", "fd", "ft"])
+    vs_filed = (m["d"] - m["fd"]).dt.days
+    vs_trade = (m["d"] - m["ft"]).dt.days
+    return {"dataset": dataset, "filings": int(len(fs)), "matched_to_sec": int(len(m)),
+            "dated_on_filed_day": round(float((vs_filed == 0).mean()), 4) if len(m) else None,
+            "before_first_tradeable": round(float((vs_trade < 0).mean()), 4) if len(m) else None,
+            "median_days_vs_filed": float(np.median(vs_filed)) if len(m) else None,
+            "rule": "never use a FINSABER filing as of its own date; use sec_filings.first_tradeable",
+            "news": "UNVERIFIED — no reference timestamp exists for headlines; not usable as a signal"}
+
+
 def status(conn):
     init(conn)
     out = []
@@ -449,6 +491,7 @@ def main(argv=None):
     ap.add_argument("--dataset", help="dataset name (default: derived from the file name)")
     ap.add_argument("--db", default=finsaber.DEFAULT_DB)
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--pit-check", action="store_true", help="measure filing dates against SEC tradeable dates")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     conn = finsaber.connect(args.db)
@@ -457,6 +500,13 @@ def main(argv=None):
                                 "sp500" if "sp500" in args.path else
                                 os.path.splitext(os.path.basename(args.path))[0])
         print(import_pkl(conn, args.path, name))
+    if args.pit_check:
+        from universe import load_config
+        main_db = sqlite3.connect(f"file:{load_config()['database']['market_data_path']}?mode=ro", uri=True)
+        rep = pit_check(conn, main_db)
+        json.dump(rep, open("data/finsaber_pit_report.json", "w"), indent=1)
+        print(json.dumps(rep, indent=1))
+        return 0
     for row in status(conn):
         print(row)
     return 0

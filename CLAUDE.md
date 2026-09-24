@@ -104,9 +104,13 @@ loader. It had added 15 points a year to a momentum backtest.
 1. ~~Account type~~ — **answered 2026-09-24: CASH.** `config/risk.yaml`
    `account_type: cash`, T+1. No PDT limit; settled-funds / good-faith rule
    applies (I12).
-2. ~~FINSABER go-ahead~~ — **answered: yes, all files.** News and filing
-   dates in the pickles are NOT verified point-in-time; nothing may use them
-   as a signal until measured.
+2. ~~FINSABER go-ahead~~ — **answered: yes, all files; all imported**
+   (4.74M pickle bars, 5.41M headlines, 166,771 filings; the 27.3 GB file in
+   ~25 min at ~3.3 GB). **Filing dates are NOT point-in-time**: FINSABER dates
+   a filing on its SEC filed day, so 89.7% fall before the first tradeable
+   session (`finsaber_pkl.py --pit-check`). Use `sec_filings.first_tradeable`,
+   never FINSABER's date. Headlines have no reference timestamp: UNVERIFIED,
+   not a signal.
 3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
    **do not build** until the user answers the 8 questions in Stage J. It is
    full-US-universe reconstruction with tagged synthetic price paths — NOT

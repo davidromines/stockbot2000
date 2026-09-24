@@ -1,0 +1,10 @@
+{
+ "dataset": "sp500",
+ "filings": 166771,
+ "matched_to_sec": 79798,
+ "dated_on_filed_day": 0.7813,
+ "before_first_tradeable": 0.8972,
+ "median_days_vs_filed": 0.0,
+ "rule": "never use a FINSABER filing as of its own date; use sec_filings.first_tradeable",
+ "news": "UNVERIFIED \u2014 no reference timestamp exists for headlines; not usable as a signal"
+}
