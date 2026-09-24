@@ -1,23 +1,35 @@
 # Stockbot2000 — Roadmap
 
-Last updated: 2026-09-08. 12 phases. Status: full-depth market database loaded; pipeline runs end to end.
+Last updated: 2026-09-24. Phases 01–12 and 6–12 built; Phase 13 and Addendum A
+planned, awaiting review.
 
 Legend: ✅ complete · 🟡 in progress · 🔵 planned · ⚪ backlog
 
 ---
 
+## Product definition — Addendum A (planned, pending review)
+
+**Stockbot2000 is an autonomous algorithmic trading system** that continuously
+discovers, tests, ranks and paper-trades strategies, automatically selects the
+five best currently eligible ones, allocates ~$20 to each of five slots, and
+executes and manages their trades through Robinhood — monitoring performance,
+risk and degradation, and replacing weaker strategies with stronger ones
+automatically. The objective is **positive trading P&L**; beating SPY is
+reported, not required. Spec: `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`; integration:
+`ROADMAP_INTEGRATION.md`, Stage I.
+
+---
+
 ## Operating mandate
 
-Fixed constraints the phases below all sit inside:
-
-- **$100 total account cap** — $10 x 10 positions. Total downside is bounded at $100.
-- **Every order human-approved**, entries and exits alike.
-- **Swing trading only** (days-weeks). Intraday is ruled out by pattern-day-trader
-  rules, which require $25k equity.
-- **Entry threshold: score >= 70.**
-- **Stops are not broker-side.** Robinhood dollar-amount orders are market-only and
-  regular-hours-only, so stops are evaluated once daily by `check_exits.py` and
-  filled as approved market orders. Gap risk is not covered.
+| constraint | in force today | under Addendum A (on approval) |
+|---|---|---|
+| Capital | $100 cap, $20 x 5 (`config.yaml`, since 2026-09-14) | unchanged; slot count and size configurable |
+| Order placement | system generates the slate, a person places it | automatic, through the central risk and execution layer |
+| Holding period | swing only, days to weeks | intraday, day trading, swing and long holds; the risk engine enforces the account's day-trade / settled-cash rules |
+| Selection | top 5 by score daily (`top_n`) | slot engine: up to five distinct eligible strategies; an unqualified slot stays in cash |
+| Stops | checked once daily by `check_exits.py`, exited by market order; gaps not covered | continuous intraday monitoring; risk exits override strategy signals |
+| Broker mechanics | dollar-amount orders are market-only and regular-hours-only, so stops cannot rest at the broker | unchanged — this is why the monitor is client-side |
 
 ---
 
@@ -451,3 +463,23 @@ What it adds, over the existing system rather than replacing it:
 Six decisions are listed in `ROADMAP_INTEGRATION.md` Stage H, each with the
 default the build follows unless changed.
 
+### Addendum A · Autonomous 5-slot trading system 📋 PLANNED 2026-09-24 — awaiting review
+The product definition above, as a build: a **trading engine** fed by the
+Phase 13 research engine. Spec verbatim in `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`;
+reuse map, the 14 steps (I1–I14), sequencing with Phase 13 and seven decisions
+in `ROADMAP_INTEGRATION.md`, Stage I.
+
+- **Slots** — five ~$20 slots, each held by a distinct eligible strategy; a slot
+  with no qualified strategy stays in cash
+- **Replacement engine** — centralized, configurable evidence thresholds with
+  hysteresis, so a stronger strategy displaces the weakest without churn
+- **P&L-first leaderboard** — gross, costs and net on every line
+- **Continuous risk** — intraday position monitor, mandatory stop plan per
+  strategy, risk exits override strategy signals
+- **Automatic execution** — the LIVE path through the existing risk engine,
+  order state machine and broker adapter, with confirmation, retry and
+  recovery on restart
+- **Kill switches** — global and per-strategy: stop orders, cancel, emergency
+  exit, freeze promotions, alert
+- **Daily five-slot reassessment** plus separate always-on services for
+  trading, backtesting, paper, ingestion, ranking and discovery

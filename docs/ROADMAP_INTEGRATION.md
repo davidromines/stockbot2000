@@ -25,6 +25,7 @@ describe what was built; these describe where it goes.
 | 11 | Continuous Research Loop | **built** — Stage F |
 | 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
 | 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **PLANNED 2026-09-24** — Stage H, `PHASE13_STRATEGY_FACTORY.md`; awaiting review |
+| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **PLANNED 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md`; awaiting review |
 
 ---
 
@@ -559,3 +560,104 @@ follow if nothing else is said:
    risk-checked order; the LIVE transmit path is an existing unbuilt item
    (see CLAUDE.md, Robinhood Agentic). H13 connects qualified candidates to
    that layer and does not change it.
+
+---
+
+**Stage I — Addendum A: the autonomous 5-slot trading system** — entered 2026-09-24, **not started**
+
+Spec in `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md`, verbatim. It defines the end
+product: research feeds a trading engine that runs five ~$20 slots, each
+controlled by a distinct eligible strategy, executed, monitored and replaced
+automatically through Robinhood. It reframes Phase 13 as the *research engine*
+and adds the *trading engine* Phase 13 only reaches at H12-H13.
+
+*What it supersedes on approval* (flagged in CLAUDE.md, "Trading mandate"):
+
+| existing rule | replaced by |
+|---|---|
+| human places every order | automatic execution through the central risk/execution layer (§2, §23, §24) |
+| swing only, never intraday | intraday, day trading, swing and long holds all permitted (§3) |
+| `top_n` fills every slot daily | slot engine leaves a slot in cash rather than fund a losing strategy (§11-13) |
+| stops checked once a day | continuous intraday position monitor; risk overrides strategy (§16-17) |
+| scored against the null / benchmark as a gate | positive P&L is the objective; benchmark and null displayed, not required (§5-6) |
+
+*Reuse map*
+
+| addendum concept | existing module(s) | Stage I work |
+|---|---|---|
+| Five slots, ~$20 each | `allocation.py` (3 schemes), `config.yaml` sizing | new slot model and table (§4); capital per slot from config |
+| Slot allocation / replacement | `roster.py` (top five eligible, demotion), `eligibility.py` (correlation) | new slot engine with centralized, configurable replacement rules and hysteresis (§8-11) |
+| Family diversity | Phase 13 H12 family-concentration limit | one slot per family unless evidence supports more; empty slot beats a losing one (§12-13) |
+| Leaderboard | `scoreboard.py`; Phase 13 H14 global scoreboard | continuously updated, P&L-first ordering (§10) |
+| Order path | `signals.py`, `risk_engine.py`, `execution.py`, `broker.py` (`RobinhoodBroker`, order state machine) | finish the LIVE transmit path, execution confirmation, retry/escalation (§16, §23) |
+| Kill switches | `killswitch.py` (six switches, `data/KILL_SWITCH`) | add cancel-open-orders, emergency exit policy, promotion freeze, per-strategy switches (§25) |
+| Stops | `stop_loss.py`, `check_exits.py` (daily) | intraday position monitor + stop/risk engine; all stop types in §15 |
+| Reconciliation | `orders.py --reconcile` | scheduled reconciliation loop and order-state recovery on restart (existing unbuilt items) |
+| Processes | `daily.sh` (cron), `run_bounded.sh` | separate long-running services A-F (§27) with memory caps |
+| Reporting | `fund_report.py`, `notify.py`, `build_dashboard.py` | slots, replacements, risk events, gross/costs/net (§23) |
+
+*Implementation order and status*
+
+| step | item | addendum § | state |
+|---:|---|---|---|
+| I1 | Slot model: table, config (count, capital per slot), slot state fields | §4, §14 | not started |
+| I2 | Live slot allocation engine: filters, ranking, family diversity, cash-when-unqualified | §11-13 | not started |
+| I3 | Centralized replacement engine: configurable evidence thresholds, hysteresis, recorded decisions | §8-9, §21 | not started |
+| I4 | P&L-first leaderboard, continuously updated | §5-7, §10 | not started |
+| I5 | Mandatory risk plan per strategy; all stop types; risk-over-strategy priority | §15, §17 | not started |
+| I6 | Intraday market data feed + position monitor during market hours | §16, §18 | not started |
+| I7 | Intraday signal engine and intraday strategy support | §3, §18 | not started |
+| I8 | LIVE execution path: transmit, confirm, retry/escalate, order-state recovery, reconciliation loop | §16, §23 | not started |
+| I9 | Global and per-strategy kill switches with cancel / emergency-exit / freeze / alert | §25 | not started |
+| I10 | Daily five-slot reassessment | §26 | not started |
+| I11 | Process separation: live trading, backtesting, paper, ingestion, ranking, discovery as independent services | §19, §27 | not started |
+| I12 | Account-rule guard in the risk engine (day-trade count / settled cash) | §3 | not started |
+| I13 | Reporting: slots, trades, replacements, risk events, gross/costs/net | §23 | not started |
+| I14 | End-to-end in SIMULATION, then SHADOW, then live once the operator authorizes the account | §24 | not started |
+
+*Sequencing with Phase 13.* Slots need ranked strategies and trustworthy P&L,
+so H2 (accounting) comes first for both. Proposed interleave: H1-H2, then I1-I5
+and I8-I9 (the trading engine on SIMULATION) alongside H3-H8, then I6-I7 and
+I10-I13 alongside H9-H14, and I14 with H15. Each I-step runs on the simulated
+broker until I14.
+
+*Decisions to confirm before building* — each with the default the build will
+follow if nothing else is said:
+
+1. **What ranks a strategy for a slot: gross or net P&L.** §7 prioritises
+   gross; §6 says a strategy that loses money is not successful. A strategy
+   can be positive gross and negative net — it then loses money in the
+   account. *Default:* rank on **net P&L using measured execution costs**
+   where live fills exist and modeled costs otherwise; gross, costs and net
+   shown side by side on every line.
+2. **Account rules for intraday trading.** FINRA's pattern-day-trader rule
+   applies to margin accounts: 4 or more day trades in 5 business days
+   requires $25,000 equity, and below that the account is restricted. Cash
+   accounts are exempt from PDT but can only trade with settled funds (T+1),
+   so same-day round trips on unsettled proceeds risk good-faith violations.
+   *Needed from you:* is the Agentic account margin or cash? *Default:* the
+   risk engine counts day trades and blocks any trade that would breach the
+   rule for that account type.
+3. **Minimum evidence to take a slot.** The league's `min_rank_marks` is 60
+   sessions, which leaves every slot in cash for about three months.
+   *Default:* a separate, configurable slot-eligibility threshold — proposed
+   20 forward sessions, 10 closed trades, positive net P&L, drawdown under a
+   configured limit — while the 60-mark rank stays as the "established" tier.
+4. **Backtest gates.** The null and SPY benchmark stop being promotion
+   requirements (§5-6). *Default:* a positive net backtest admits a strategy
+   to paper trading; only forward (paper/live) evidence can win a slot (§29:
+   never backtest alone); null and benchmark excess are reported, not gating.
+5. **Intraday data.** Continuous stops and intraday signals need a live quote
+   source; the database holds daily bars, and free intraday history covers
+   about 60 days. *Default:* poll quotes for held positions and candidates
+   at a configurable interval through the broker/market-data interface;
+   intraday strategies are tested forward on paper until an intraday history
+   source exists.
+6. **The current real positions.** The Agentic account holds the positions
+   placed by hand on 2026-09-14. *Default:* adopt them as legacy positions,
+   exit each under its recorded stop, and open nothing new outside the slot
+   engine.
+7. **Arming live execution.** The code path to live is built and tested on
+   SIMULATION and SHADOW; switching the account to LIVE uses the operator
+   authorization §24 reserves for a human. *Default:* I14 ends with LIVE ready
+   to arm, and arming is your step.

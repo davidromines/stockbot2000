@@ -4,6 +4,17 @@ Automated swing-trading system: scores US equities on technical indicators, size
 stops positions by ATR, and evolves its own trading strategies against 20 years of
 market history before any real capital is committed.
 
+> **Product definition — Addendum A, entered 2026-09-24, PLANNED, pending the
+> user's review** (`docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md`). Stockbot2000 is an
+> autonomous trading system that continuously discovers, tests, ranks and
+> paper-trades strategies, automatically selects the five best currently
+> eligible ones, allocates ~$20 to each of five slots, and executes and manages
+> their trades through Robinhood — replacing weaker strategies with stronger
+> ones automatically. The objective is positive trading P&L, not beating SPY.
+> Where anything below conflicts with this, the addendum wins once approved;
+> the affected rules are flagged in "Trading mandate" and integrated in
+> `docs/ROADMAP_INTEGRATION.md`, Stage I. **Do not build it before review.**
+
 Renamed several times: `betbot9000` -> `trend-scanner` -> `stockpicker2000` ->
 **`stockbot2000`** (current, as of 2026-09-08). Older commits, the VM hostname
 and the Linux user still say `stockpicker` — that is expected, not a leftover to
@@ -189,6 +200,19 @@ table per stage. **That file is the roadmap; this list is history.**
 These came out of the original design conversation and are **not** derivable from
 the code. They bound everything else.
 
+> **Addendum A (2026-09-24) revises four of these once the user approves the
+> roadmap.** Kept below unedited as the record of what applied until then.
+>
+> | rule below | under Addendum A |
+> |---|---|
+> | Orders are placed by a person | the system places, monitors and exits orders automatically through the central risk and execution layer; humans handle only configuration, funding, account authorization, maintenance and emergency shutdown (§24) |
+> | Swing trading only, never intraday | intraday, day trading, swing and longer holds are all permitted (§3); the risk engine must enforce the pattern-day-trader / settled-cash rules that apply to the account type — see Stage I decision 2 |
+> | Top 10 by score each day (`top_n`) | the live slot allocation engine fills up to five slots with distinct eligible strategies and leaves a slot in cash rather than fill it with a losing strategy (§11–13) |
+> | Stops checked about once a day | a position monitor checks stops continuously during market hours; risk exits override strategy signals (§16–17) |
+>
+> Unchanged: the $100 cap and ~$20 x 5 sizing (now configurable, §14); the
+> user owns the outcome; Robinhood's dollar-order mechanics below.
+
 - **The account is capped at $100.** That is the entire downside. Sizing is
   **$20 x 5 concentrated positions** (`config.yaml`, changed 2026-09-14 from
   $10 x 10). Do not propose sizing that assumes a larger account.
@@ -241,6 +265,9 @@ against.** Any future work on exits should start from this limitation rather tha
 assume a broker-side stop exists.
 
 ### Claude's role in the daily loop
+
+> Superseded by Addendum A on approval: routine selection and ordering become
+> automatic, with no per-trade approval step (§2, §24).
 
 Claude reads exactly two files — `data/scoresheet.json` and `data/exits_needed.json`
 — and nothing else. Not the raw data, features, or model. For entries it filters to
