@@ -6,7 +6,7 @@ order that document asks for them.
 Written 2026-09-22 as the analysis that preceded implementation. Stages A–G have
 since been built; the status tables in §10 are current. Stages H (Phase 13),
 I (Addendum A, SIMULATION/SHADOW) and J (Addendum C) were built 2026-09-24.
-Stages K (crypto earns a slot) and L (published signals) are planned.
+Stages K (crypto earns a slot), L (published signals) and M (generator v5) are planned.
 
 ---
 
@@ -31,6 +31,7 @@ describe what was built; these describe where it goes.
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.768; v4 written 2026-09-24, not yet scored), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 | K | **Crypto earns a slot** (Stage K) | **planned 2026-09-24** — Robinhood crypto spread measured at ~1.9% round trip, so grid-DCA cannot pass; low-turnover strategies, crypto execution path, 24/7 stop monitoring. Arming (`allow_crypto`) is the owner's step |
 | L | **Published signals as a strategy source** (Stage L) | **planned 2026-09-24** — Open Source Asset Pricing (212 signals, survivorship-free CRSP returns) as the strategy database, Global Factor Data (93 countries) as the cross-check; trader.dev's 797k leaderboard not used |
+| M | **Realistic dead companies — generator v5** (Stage M) | **planned 2026-09-24** — real failure histories (bankruptcy Q tickers, FINSABER, our own delisted names) as templates for synthetic failures; realism graded per exit type |
 
 ---
 
@@ -891,3 +892,30 @@ after publication, so only the **post-publication** record counts.
 Overrides Addendum C question 5 ("retests and stress bounds only") for the
 ranking, by the owner's ruling, although the generator still fails its realism
 gate. Not used for strategy discovery.
+
+---
+
+**Stage M — realistic dead companies (synthetic generator v5)** — entered 2026-09-24, **PLANNED** (owner)
+
+Why: the ranking now scores backtests WITH the synthetic dead companies
+(survivorship_backtest.py), so their realism now moves money. The generator
+copies real dead companies — 158 after impostor removal — but almost all are
+clean ACQUISITIONS: a buyout keeps its price history in free data, a
+bankruptcy does not. v3 fails the realism gate (AUC 0.768 vs < 0.60); v4 fixes
+the buyout shape only; failures still end on literature numbers (Shumway:
+-55% NASDAQ) with no real failing year behind them.
+
+| | step | where | deliverable |
+|---:|---|---|---|
+| M1 | Build and score v4 — measures how much of the gap the buyout fix closes | VM (~1 h) | `synthetic_v4.parquet`, `validation_v4.json` |
+| M2a | **Bankruptcy "Q" tickers**: for every Layer A company with an 8-K item 1.03, try `ticker + "Q"` (OTC continuation, e.g. LEHMQ, WAMUQ) from yfinance; store dated, sourced, tagged `real_failure` | VM (network) | `failure_paths` table / parquet, coverage count |
+| M2b | **FINSABER S&P pickle** (27.3 GB, resumable import): its delisted S&P 500 members as failure donors where 8-K / Layer A says bankruptcy or delisting notice | VM | failures found, by name |
+| M2c | **Label our own delisted names** (418-553 in `prices`) by 8-K item: 1.03 / 3.01 -> failure donors | here | donor labels in `universe_cohorts` |
+| M3 | **Generator v5**: a synthetic FAILURE copies a real failure's final year (collapse, then the OTC slide) on its own dates, as v4 does for buyouts; literature delisting returns only where no real template exists, tagged | here, built on VM | `donor_failure_final_year_v5` |
+| M4 | **Realism test split by exit type**: failures graded separately (AUC per reason), so a buyout pass cannot hide an unrealistic failure | here | `universe_validate.py` per-reason gate |
+| M5 | **Permanent fix (paid, owner's call)**: Norgate or FirstRateData delisted prices (~$270/yr) replace most synthetic companies with real ones | owner | — |
+
+*Limit stated up front:* even with Q tickers there will be tens to a few
+hundred real failure paths against ~3,000 synthetic failures, so each real
+template is reused many times; the realism test measures whether that reuse
+is detectable.

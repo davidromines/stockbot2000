@@ -265,6 +265,12 @@ loader. It had added 15 points a year to a momentum backtest.
    fundamentals, generator fails its realism gate. Nightly `daily.sh [9f2]`;
    first run on the VM: `./run_bounded.sh ./venv/bin/python
    survivorship_backtest.py --run`, then `ranking.py` to see who drops out.
+10. **Realistic dead companies — Stage M, PLANNED 2026-09-24.** The donors
+   are nearly all buyouts; failures have no real final year to copy. M1 build
+   + score v4 -> M2 real failure paths (bankruptcy `ticker+Q` OTC series via
+   yfinance for 8-K 1.03 companies; FINSABER pickle; label our own delisted
+   names by 8-K item) -> M3 v5 copies real failure final years -> M4 realism
+   gate per exit type -> M5 paid delisted data (owner's call).
 
 **Findings from this session that change numbers elsewhere**
 
