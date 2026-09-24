@@ -150,8 +150,11 @@ loader. It had added 15 points a year to a momentum backtest.
    sec_filings.first_tradeable); headlines unverified.
 3. ~~Addendum C answers~~ — built on the recommended answers; change any in
    `config.yaml` `universe_reconstruction:` and rebuild.
-4. **FinanceDatabase** (small GitHub CSV, the one Addendum C source not
-   fetched) — needs the owner's yes.
+4. ~~FinanceDatabase~~ — **owner said yes 2026-09-24; loader built, NOT YET
+   FETCHED** (this cloud session cannot reach it). On the VM:
+   `./venv/bin/python finance_database.py --fetch --import`, then rebuild
+   Layer A (`universe_layer_a.py --build`). Rows attach only on ticker AND
+   name; sector stays in `fd_sector`, never merged into SIC divisions.
 
 **Also done 2026-09-24 (late session)**
 
@@ -679,6 +682,7 @@ hardcodes paths, thresholds or model parameters.
 ### Addendum C — survivorship-bias-free universe (built 2026-09-24, retest-only)
 | File | Role |
 |---|---|
+| `finance_database.py` | FinanceDatabase: sector / identifiers / delisted flag, no dates; attaches on ticker AND name only. |
 | `universe_layer_a.py` | Which companies existed, 1996-2024, per-field provenance. |
 | `universe_cohorts.py` | Real dead-company statistics by cohort; states its own clean-exit bias. |
 | `universe_synthetic.py` | Tagged synthetic paths (v3, joint donor draws) for 7,618 unpriced dead companies. |

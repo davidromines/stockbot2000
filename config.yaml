@@ -440,3 +440,14 @@ baselines:
 ranking:
   prior_trades: 10
   no_backtest_prior: 0.0
+
+# Addendum C Layer A sources (defaults live in universe_layer_a.DEFAULTS).
+# FinanceDatabase, approved by the owner 2026-09-24: sector / industry /
+# identifiers and a delisted flag, NO dates — so it attaches to a company only
+# when ticker AND name agree (finance_database.py).
+universe_reconstruction:
+  financedatabase:
+    repo: https://github.com/JerBouma/FinanceDatabase.git
+    clone_dir: data/external/FinanceDatabase
+    equities_glob: "database/equities*"
+    out: data/universe/financedatabase.parquet

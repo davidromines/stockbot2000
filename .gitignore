@@ -54,3 +54,6 @@ data/finsaber/
 
 # Addendum C data (regenerable from the database); the JSON reports are committed.
 data/universe/*.parquet
+
+# External clones (finance_database.py --fetch). A nested repo, never committed.
+data/external/

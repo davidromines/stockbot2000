@@ -195,6 +195,32 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
         if pd.isna(rec.at[i, "match"]):
             rec.at[i, "match"] = f"internet_archive:{how}"
 
+    # --- FinanceDatabase: sector / industry / identifiers, delisted flag -------
+    # No dates, so a row attaches only when its ticker AND its normalised name
+    # point at the SAME company — a ticker alone attaches a dead company to
+    # whoever holds the ticker today (the ticker reuse trap). Unmatched rows
+    # are counted, never added: without dates they cannot be placed in time.
+    import finance_database
+    fd = finance_database.load(finance_database.settings(cfg)["out"])
+    for c in ("fd_sector", "fd_industry", "fd_delisted", "fd_isin"):
+        rec[c] = None
+    rec["in_fd"] = False
+    fd_stats = {"rows": 0, "matched": 0, "unmatched": 0}
+    if fd is not None:
+        fd_stats["rows"] = int(len(fd))
+        for r in fd.itertuples(index=False):
+            i = by_ticker.get(r.symbol)
+            if i is None or rec.at[i, "norm"] != norm_name(r.name) or not rec.at[i, "norm"]:
+                fd_stats["unmatched"] += 1
+                continue
+            fd_stats["matched"] += 1
+            rec.at[i, "in_fd"] = True
+            rec.at[i, "fd_sector"], rec.at[i, "fd_industry"] = r.sector, r.industry
+            rec.at[i, "fd_delisted"], rec.at[i, "fd_isin"] = r.delisted, r.isin
+            if pd.isna(rec.at[i, "exchange"]) and isinstance(r.exchange, str):
+                rec.at[i, "exchange"], rec.at[i, "exchange_src"] = r.exchange, "financedatabase"
+    build.fd_stats = fd_stats
+
     df = pd.concat([rec, pd.DataFrame(extra)], ignore_index=True)
 
     # --- real prices we hold ----------------------------------------------------
@@ -245,6 +271,8 @@ def build(conn, cfg: dict, finsaber_db: str = "data/finsaber.db") -> pd.DataFram
             return "alphavantage"
         if r["in_ia"]:
             return "internet_archive"
+        if r.get("in_fd") == True and r.get("fd_delisted") == True:  # noqa: E712 — numpy/object bools
+            return "financedatabase"
         if isinstance(r["ticker"], str):
             return "edgar_ticker"
         return "edgar_only"
@@ -269,6 +297,7 @@ def report(df: pd.DataFrame, cfg: dict) -> dict:
         years[y]["priced_share"] = round(years[y]["with_real_prices"] / years[y]["alive"], 3) if len(a) else None
     return {
         "records": int(len(df)), "in_scope": int(len(sc)),
+        "financedatabase": getattr(build, "fd_stats", None),
         "by_listing_evidence": sc["listing_evidence"].value_counts().to_dict(),
         "by_status": sc["status"].fillna("unknown").value_counts().to_dict(),
         "delisting_reason_known": int(sc["delisting_reason"].notna().sum()),
