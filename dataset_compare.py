@@ -54,6 +54,11 @@ SPLIT_FACTORS = [2, 3, 4, 5, 6, 7, 8, 10, 15, 20,
 # Volume is a coarser series than price — different vendors aggregate odd lots
 # and dark pool prints differently — so the threshold is deliberately wide.
 VOLUME_TOLERANCE = 0.05
+# Daily-return disagreement above 0.5 percentage points is a data difference;
+# below it is rounding and adjustment-factor precision.
+RETURN_TOLERANCE = 0.005
+# A per-ticker level ratio moving more than 2% within a window.
+LEVEL_DRIFT_TOLERANCE = 0.02
 
 # Feature warm-up. compute_features_for_ticker needs 210 rows before it returns
 # anything, and the longest indicator window is 252 sessions, so the fetch has
@@ -150,13 +155,17 @@ def store_cross_validation(conn: sqlite3.Connection, key: str, version: int,
 # Comparison
 # --------------------------------------------------------------------------
 
-def _bars_frame(provider: dp.DataProvider, tickers, start: str, end: str) -> pd.DataFrame:
+def _bars_frame(provider: dp.DataProvider, tickers, start: str, end: str,
+                adjusted: bool = False) -> pd.DataFrame:
     """
     Fetch and normalise. `daily_bars` already guarantees BAR_COLUMNS and string
     dates, but a provider that returns an empty frame with no columns would
     break every downstream merge, so the shape is re-asserted here.
     """
-    df = provider.daily_bars(tickers, start, end)
+    # The primary `prices.close` is yfinance auto-adjusted, so it is compared
+    # against a secondary's ADJUSTED close where the provider has one.
+    fetch = getattr(provider, "adjusted_bars", None) if adjusted else None
+    df = (fetch or provider.daily_bars)(tickers, start, end)
     if df is None or len(df) == 0:
         return pd.DataFrame(columns=dp.BAR_COLUMNS)
     df = df.copy()
@@ -189,7 +198,7 @@ def compare(primary: dp.DataProvider, secondary: dp.DataProvider,
     dataset is a finding, not a gap to be filled.
     """
     p = _bars_frame(primary, tickers, start, end)
-    s = _bars_frame(secondary, tickers, start, end)
+    s = _bars_frame(secondary, tickers, start, end, adjusted=True)
 
     p_tickers = set(p["ticker"].unique()) if not p.empty else set()
     s_tickers = set(s["ticker"].unique()) if not s.empty else set()
@@ -244,6 +253,22 @@ def compare(primary: dp.DataProvider, secondary: dp.DataProvider,
          "close_s": float(r.close_s), "ratio": float(r.ratio)}
         for r in worst.itertuples(index=False)
     ]
+
+    # Daily returns — the test that means something across vendors. Two
+    # dividend-adjusted series anchored at different download dates differ in
+    # LEVEL by a per-ticker factor while agreeing on every return; measured
+    # 2026-09-24 against FINSABER, 99.5% of returns agree within 0.1pp while
+    # only ~26% of levels sit within 1%. A level difference is reported above
+    # for completeness; a return difference is a data disagreement.
+    common = common.sort_values(["ticker", "date"])
+    grp = common.groupby("ticker")
+    ret_diff = (grp["close_p"].pct_change() - grp["close_s"].pct_change()).abs().dropna()
+    n_ret = int(len(ret_diff))
+    n_ret_disc = int((ret_diff > RETURN_TOLERANCE).sum())
+    # A level ratio that drifts within the window is either a missed corporate
+    # action or a ticker reused by a different company (PARA, UPC).
+    drift = grp["ratio"].agg(lambda x: x.max() / x.min() - 1.0)
+    drifting = drift[drift > LEVEL_DRIFT_TOLERANCE].sort_values(ascending=False)
 
     # Volume: relative difference, guarded against a zero denominator. A zero
     # volume on one side and a real one on the other is a discrepancy, not a
@@ -304,6 +329,12 @@ def compare(primary: dp.DataProvider, secondary: dp.DataProvider,
         "missing_bars_in_secondary": missing_in_secondary,
         "duplicate_bars_primary": dup_p,
         "duplicate_bars_secondary": dup_s,
+        "returns_compared": n_ret,
+        "return_discrepancies": n_ret_disc,
+        "return_agreement": round(1 - n_ret_disc / n_ret, 4) if n_ret else None,
+        "level_drift_tickers": {"count": int(len(drifting)),
+                                "examples": {t: round(float(v), 3)
+                                             for t, v in drifting.head(MAX_EXAMPLES).items()}},
         "price_discrepancies": n_price_disc,
         "corporate_action_candidates": n_ca,
         "volume_discrepancies": n_vol_disc,
@@ -311,6 +342,7 @@ def compare(primary: dp.DataProvider, secondary: dp.DataProvider,
         "coverage_by_year": coverage_by_year,
         "coverage_by_security": coverage_by_security,
         "price_tolerance": price_tol,
+        "return_tolerance": RETURN_TOLERANCE,
         "volume_tolerance": VOLUME_TOLERANCE,
     }
 
@@ -607,10 +639,12 @@ def main(argv=None) -> int:
     finally:
         conn.close()
 
+    print(f"level_drift_tickers: {report['level_drift_tickers']}")
     for k in ("datasets", "date_range", "securities_primary", "securities_secondary",
               "securities_both", "bars_primary", "bars_secondary",
               "missing_bars_in_primary", "missing_bars_in_secondary",
               "duplicate_bars_primary", "duplicate_bars_secondary",
+              "returns_compared", "return_discrepancies", "return_agreement",
               "price_discrepancies", "corporate_action_candidates",
               "volume_discrepancies"):
         print(f"{k}: {report[k]}")
