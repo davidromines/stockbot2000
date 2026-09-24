@@ -49,8 +49,22 @@ idempotent; a failing stage does not abort the ones after it.
 [9c-9h] Strategy Factory      library sync, templates, discovery plan,
                               pipeline (budget 12, ~20 min, ~4.3 GB),
                               league standings, data/factory_report.txt
+[9i/10] Slot reassessment     slots.py --apply (SIMULATION): the five slots
 [10/10] Backup
 ```
+
+**The trading engine runs separately** (Addendum A): `./services.sh --install`
+adds one cron line that runs `slot_trader.py --auto` every 5 minutes during
+US market hours — the entry pass once per session, the stop monitor after —
+in SIMULATION. LIVE is refused until `config/risk.yaml` says
+`execution_mode: LIVE`, which is the account owner's step. `slots.py
+--leaderboard` shows every forward strategy ranked on net P&L and why each is
+or is not eligible for a slot.
+
+**Survivorship stress data** (Addendum C) lives in `data/universe/`, never in
+`prices`: `universe_layer_a.py --build`, `universe_cohorts.py --build`,
+`universe_synthetic.py --build`, `universe_validate.py --run`; backtests read
+it through `universe_loader.load_backtest_data(conn, start, end, mode)`.
 
 On success the order slate and fund report go to Telegram; on failure an ALERT
 goes instead, naming the symbol-directory step specifically.
