@@ -887,10 +887,12 @@ entirely, and one was a context defect on my side rather than a model error.
 
 ---
 
-## THE PROJECT DIRECTION — Phases 6-11, planned 2026-09-22
+## THE PROJECT DIRECTION — Phases 6-13
 
 **A full revamp of the project's planning. All existing systems integrate into
-this direction.** Roadmap only; nothing implemented.
+this direction.** Phases 6-12 are built (stage tables in
+`docs/ROADMAP_INTEGRATION.md`). **Phase 13 was entered 2026-09-24 and is
+PLANNED — do not start building it until the user has reviewed the roadmap.**
 
 | Phase | | Spec |
 |---|---|---|
@@ -900,6 +902,8 @@ this direction.** Roadmap only; nothing implemented.
 | 9 | Fundamental Value Intelligence Engine | same |
 | 10 | Live Capital Allocation & Strategy Promotion | same |
 | 11 | Continuous Research Loop | same |
+| 12 | Crypto Fund | `docs/PHASE12_CRYPTO_FUND.md` |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `docs/PHASE13_STRATEGY_FACTORY.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.

@@ -375,11 +375,11 @@ result substantially harder to dismiss as an artifact.
 
 ---
 
-## The long-term direction — Phases 6–11
+## The long-term direction — Phases 6–13
 
 **Added 2026-09-22. This is the new direction of the project and a full revamp
-of its planning.** All existing systems integrate into it. Roadmap only —
-nothing implemented.
+of its planning.** All existing systems integrate into it. Phases 6–12 are
+built (status per stage in `ROADMAP_INTEGRATION.md`); Phase 13 is planned.
 
 The numbered phases above (01–15) record what was built. These six describe
 where it goes: Stockbot2000 becomes a continuously operating research
@@ -394,6 +394,8 @@ than a system that searches for a good backtest.
 | 9 | Fundamental Value Intelligence Engine | `PHASES_7_11_STRATEGY_LEAGUE.md` |
 | 10 | Live Capital Allocation & Strategy Promotion | `PHASES_7_11_STRATEGY_LEAGUE.md` |
 | 11 | Continuous Research Loop | `PHASES_7_11_STRATEGY_LEAGUE.md` |
+| 12 | Crypto Fund | `PHASE12_CRYPTO_FUND.md` |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | `PHASE13_STRATEGY_FACTORY.md` |
 
 Dependencies, module reuse, architectural gaps, schema changes, risks, minimum
 infrastructure and the proposed implementation order are in
@@ -413,3 +415,39 @@ SEC filings → fundamental intelligence → intrinsic-value analysis
 Two funds, two philosophies, one research infrastructure: a **Tactical Fund** of
 continuously selected strategies and a **Value Fund** of long-term fundamentally
 selected companies, independently measurable.
+
+### Phase 13 · Strategy Factory 2.0 📋 PLANNED 2026-09-24 — awaiting review
+Full specification, verbatim, in `PHASE13_STRATEGY_FACTORY.md`; integration,
+reuse map and the 15-step status table in `ROADMAP_INTEGRATION.md` (Stage H).
+
+**The shift:** from a backtesting engine that is good at rejecting ideas to a
+continuous research laboratory that decides *what to test next*. Breadth of
+economically motivated hypotheses over more brute-force search; the
+evolutionary search stays frozen.
+
+What it adds, over the existing system rather than replacing it:
+
+- **Strategy Factory** — classical, combination and fundamental generators
+  from controlled templates; every idea becomes a versioned Strategy object
+- **Accounting fix first** — one gross / costs / net model for every fund,
+  opening costs charged, reconciliation to the cent, affected history restated
+- **FINSABER** — an S&P 500 dataset including delisted names, 2000–2024, as an
+  independent *validation* source behind a data-provider interface; never the
+  master database
+- **Survivorship tags** — SAFE / ADJUSTED / LIMITED / UNKNOWN per strategy
+- **Nine leagues** — tactical, momentum, mean reversion, fundamental, value,
+  ETF/macro, ML, event, crypto — each with its own horizon; the Value Fund gets
+  long-horizon gates instead of the 60-mark tactical rule
+- **Continuous discovery** — research queue, experiment budgets, family
+  allocation, failed-strategy recycling as new versions, a priority engine
+- **Robustness** — Monte Carlo, parameter/date/universe perturbation, cost and
+  slippage stress, regime breakdown
+- **Promotion to live candidate** — family-concentration limits so five
+  Rising 200 variants count as one bet; orders only through the central risk
+  and execution layer
+- **Daily factory report and a global scoreboard** — gross, costs and net on
+  every line
+
+Six decisions are listed in `ROADMAP_INTEGRATION.md` Stage H, each with the
+default the build follows unless changed.
+
