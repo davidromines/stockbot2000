@@ -112,6 +112,11 @@ Daily symbol snapshots now record when tickers leave the listings, so the gap st
 widening from here.
 
 ### 07 · Simulator realism & backtest rigor ✅ 100%
+**Its deciding question is answered: the signal does not survive costs.**
+Re-measured 2026-09-24, same model and window, `backtest.py --fill`: gross
+−$82.54 under next-open fills (−$22.70 under close fills), net −$226.11 over
+1,062 trades. Negative before a cent of cost.
+
 Promoted in priority — the Strategy Lab is only as trustworthy as the simulator
 it optimizes against. Every item is now in code:
 
@@ -213,7 +218,8 @@ unbiased measurement this project has:
 
 `fund_report.py` reports all of it every morning. See CLAUDE.md "The funds".
 
-Known broken: two conviction paper runs have been stalled since 2026-09-11.
+The two conviction paper runs stalled 2026-09-11 to 2026-09-22 because
+`daily_fundamentals` stopped rebuilding; fixed 2026-09-22 and running since.
 
 ### 12 · Notifications & polish ✅ 100%
 Telegram + desktop delivery via `notify.py`. The morning slate is formatted for a
@@ -318,9 +324,11 @@ The only open question left, and the one everything above exists to answer.
 **What would settle it fastest:** point-in-time delisted prices (~$270/yr).
 7,062 dead companies are missing, and no amount of search fixes that.
 
-### 14 · Robinhood Agentic autonomous execution 📋 PLANNED — not started
-Full specification in `ROBINHOOD_AGENTIC.md`, added 2026-09-22 at the user's
-direction as a plan only. **No code has been written for it.**
+### 14 · Robinhood Agentic autonomous execution 🟡 core built 2026-09-22
+Full specification in `ROBINHOOD_AGENTIC.md`. **Core built 2026-09-22**: signal
+schema, risk engine, six kill switches, broker abstraction, order state machine,
+execution engine and runner, under test. Not built: the LIVE transmit path,
+scheduled reconciliation, and order-state recovery on restart.
 
 Connects the strategy engine to the Agentic account through Robinhood's official
 Trading MCP (`https://agent.robinhood.com/mcp/trading`), with a deterministic
@@ -339,10 +347,15 @@ Five questions are open and listed at the end of that document, including
 whether to extend this project or fork a new tree, and what the system would
 trade given that nothing here has yet demonstrated an edge.
 
-### 15 · Research integrity & independent validation 📋 PLANNED — not started
+### 15 · Research integrity & independent validation 🟡 mostly built 2026-09-22/23
 **This is the new project direction.** Full specification, reproduced verbatim,
-in `PHASE6_RESEARCH_INTEGRITY.md`. Added 2026-09-22 at the user's direction as a
-plan only; no code has been written for it.
+in `PHASE6_RESEARCH_INTEGRITY.md`. Stage-by-stage status in
+`ROADMAP_INTEGRATION.md`. Built: freeze, ancestry, truth set, PIT universe, audits,
+freshness gate, sealed holdout, experiment registry, random control, multiple
+testing, integrity report, signal decay (§20). Not yet built: baseline portfolios
+(§16), calibration metrics (§19), regime analysis (§21), the TNON case study
+(§24), four of the §29 documents, and the §31 final report. The stop-width
+experiment (§13) is running.
 
 31 sections covering: freezing open-ended search, removing seed contamination and
 tracking strategy ancestry, an immutable versioned truth set, a point-in-time
