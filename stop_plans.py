@@ -13,6 +13,7 @@ A plan is a list of rules. Supported rule types (§15):
     {"type": "trailing_pct", "pct": 10.0}              10% below the high since entry
     {"type": "trailing_atr", "atr_multiple": 3.0}      high since entry - 3 x ATR
     {"type": "time",         "max_hold_days": 20}      exit after N sessions
+    {"type": "take_profit",  "pct": 15.0}              exit once price >= entry x 1.15
     {"type": "strategy"}                                the strategy's own exit rule
 
 Emergency exits are not a per-plan rule: they come from the kill switches and
@@ -25,12 +26,18 @@ can gap to zero inside twenty sessions. That is the rule that makes a stop
 
 When several price stops apply, the HIGHEST stop price wins — the tightest
 protection is the one in force. Risk is never loosened by adding a rule.
+
+**A take-profit is an exit, not a stop.** It bounds no loss, so it never makes a
+plan valid on its own. It comes from the genome's `risk.take_profit_pct` — the
+same gene the backtest (`simulator.py`) and the paper engine
+(`paper_trading.py`) apply. Until 2026-09-24 `from_genome` dropped it, so a
+live slot traded a different strategy from the one that was tested and ranked.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import math
 
 PRICE_STOPS = ("fixed_pct", "atr", "volatility", "trailing_pct", "trailing_atr")
-ALL_TYPES = PRICE_STOPS + ("time", "strategy")
+ALL_TYPES = PRICE_STOPS + ("time", "take_profit", "strategy")
 
 # Parameter each rule type needs, and its sane bounds. A 0.1% stop is noise
 # that exits on the first tick; a 90% stop is no stop. Out-of-range values are
@@ -42,6 +49,7 @@ _PARAMS = {
     "trailing_pct": ("pct", 0.5, 50.0),
     "trailing_atr": ("atr_multiple", 0.25, 10.0),
     "time": ("max_hold_days", 1, 750),
+    "take_profit": ("pct", 0.5, 500.0),
 }
 
 
@@ -59,6 +67,8 @@ def from_genome(g: dict | None) -> list:
         plan.append({"type": "trailing_atr", "atr_multiple": float(risk["trailing_atr_multiple"])})
     if risk.get("max_hold_days"):
         plan.append({"type": "time", "max_hold_days": int(risk["max_hold_days"])})
+    if risk.get("take_profit_pct"):
+        plan.append({"type": "take_profit", "pct": float(risk["take_profit_pct"])})
     if (g or {}).get("exit"):
         plan.append({"type": "strategy"})
     return plan
@@ -124,8 +134,9 @@ def check(plan, position: dict, price: float | None, sessions_held: int,
 
     `position` carries entry_price and optionally atr, high_since_entry, sigma.
     Order of precedence (§17): a missing price is itself an exit condition only
-    when no stop can be computed; a breached price stop exits; then the time
-    exit; then the strategy's own exit. Risk first, strategy last.
+    when no stop can be computed; a breached price stop exits; then the
+    take-profit; then the time exit; then the strategy's own exit. Risk
+    first, strategy last.
     """
     ok, why = validate(plan)
     entry = float(position["entry_price"])
@@ -141,6 +152,11 @@ def check(plan, position: dict, price: float | None, sessions_held: int,
     if price is not None and price <= sp:
         return {"exit": True, "reason": f"stop breached: {price:.4f} <= {sp:.4f}",
                 "stop_price": sp, "kind": "stop"}
+    for rule in plan:
+        if rule["type"] == "take_profit" and price is not None \
+                and price >= entry * (1 + float(rule["pct"]) / 100):
+            return {"exit": True, "reason": f"take profit: {price:.4f} >= entry +{float(rule['pct']):g}%",
+                    "stop_price": sp, "kind": "take_profit"}
     for rule in plan:
         if rule["type"] == "time" and sessions_held >= int(rule["max_hold_days"]):
             return {"exit": True, "reason": f"time exit after {sessions_held} sessions",

@@ -280,6 +280,24 @@ def _exit(conn, engine, mode, slot, pos, reason, reconciled, results):
                     "status": res["status"], "why": res.get("reasons")})
 
 
+def _plan_now(conn, pos) -> list:
+    """
+    The position's stored plan, plus the take-profit its strategy version
+    carries if the stored plan lacks it. Plans recorded before 2026-09-24 were
+    built by a from_genome that dropped take_profit_pct; the version is the
+    same (monitor checks it), so the gene is the one that was tested.
+    """
+    plan = list(pos["stop_plan"] or [])
+    if any(r.get("type") == "take_profit" for r in plan):
+        return plan
+    try:
+        g = slots.genome_for(conn, pos["strategy_key"], pos["version"])
+    except Exception as e:                                   # noqa: BLE001 — never block the stop check
+        log.warning(f"take-profit lookup failed for {pos['strategy_key']}: {type(e).__name__}: {e}")
+        return plan
+    return plan + [r for r in stop_plans.from_genome(g) if r["type"] == "take_profit"]
+
+
 def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -> list:
     """Stops only (I6). Risk exits outrank any strategy HOLD (§17)."""
     init(conn)
@@ -303,7 +321,7 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
         q = provider.get(pos["symbol"])
         price = q["price"] if q else None
         high = max(pos["high_since_entry"], float((q or {}).get("high") or 0), price or 0)
-        v = stop_plans.check(pos["stop_plan"], {"entry_price": pos["price"], "atr": pos["atr"],
+        v = stop_plans.check(_plan_now(conn, pos), {"entry_price": pos["price"], "atr": pos["atr"],
                                                 "high_since_entry": high},
                              price, _sessions_held(conn, pos["at"]),
                              strategy_exit=pos["symbol"] in (strategy_exits or {}).get(slot, set()))
