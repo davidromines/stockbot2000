@@ -256,6 +256,54 @@ class SimulatedBroker(BrokerInterface):
         return None
 
 
+class LedgerSimulatedBroker(SimulatedBroker):
+    """
+    A simulated account that survives restarts (Addendum A I8, B13).
+
+    Cash and positions are REBUILT from the execution engine's own `orders`
+    table every time the broker is constructed — filled orders in this `mode`
+    whose signal strategy starts with `prefix`. There is no separate state file
+    to drift from the ledger, so restart recovery is the constructor.
+
+    Quotes come from an injected provider (quotes.LiveQuotes in production), so
+    a simulated fill happens at a live market price during the session — never
+    at the stored close of the signal bar, which is look-ahead.
+    """
+
+    def __init__(self, conn, capital: float, mode: str, quote_provider,
+                 prefix: str = "slot"):
+        super().__init__(conn=conn, cash=capital)
+        self.provider, self.mode, self.prefix = quote_provider, mode, prefix
+        self.replay()
+
+    def replay(self) -> None:
+        self.positions = {}
+        rows = self.conn.execute(
+            "SELECT o.symbol, o.side, o.filled_quantity, o.avg_fill_price FROM orders o "
+            "JOIN signals s ON s.signal_id = o.signal_id "
+            "WHERE o.mode=? AND s.strategy LIKE ? AND o.filled_quantity > 0 "
+            "AND o.avg_fill_price IS NOT NULL ORDER BY o.created_at",
+            (self.mode, self.prefix + "%")).fetchall()
+        for sym, side, q, px in rows:
+            q, px = float(q), float(px)
+            if side == "BUY":
+                self.cash -= q * px
+                p = self.positions.setdefault(sym, {"quantity": 0.0, "entry": px})
+                tot = p["quantity"] + q
+                p["entry"] = (p["entry"] * p["quantity"] + px * q) / tot if tot else px
+                p["quantity"] = tot
+            else:
+                self.cash += q * px
+                p = self.positions.get(sym)
+                if p:
+                    p["quantity"] -= q
+                    if p["quantity"] <= 1e-9:
+                        del self.positions[sym]
+
+    def get_quote(self, symbol: str) -> dict | None:
+        return self.provider.get(symbol)
+
+
 class RobinhoodBroker(BrokerInterface):
     """
     Adapter over Robinhood's official Trading MCP.
