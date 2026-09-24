@@ -387,6 +387,12 @@ slots:
   count: 5
   capital_per_slot: 20.0
   max_per_family: 4
+  # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
+  # sells it when the fund switches. The fund's forward record has NO stop; a
+  # slot must have a price stop (§15), so this one is added and is the slot's
+  # difference from the record: entry - 3 x ATR(14) at entry.
+  pair_risk:
+    stop_atr_multiple: 3.0
 
 # Sourced market-cap fallback (market_caps.py) for names the filings miss —
 # GEN and NWSA were refused as "unknown" on the first LIVE session. The filing

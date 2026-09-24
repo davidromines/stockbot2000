@@ -182,10 +182,15 @@ loader. It had added 15 points a year to a momentum backtest.
    GEN $14.5B and NWSA $15.9B per Robinhood. ETFs quote AUM and meet the same
    $100M floor. **Deploy: `git pull` on the VM**; the first `[3c]` run fills
    the gap, and a LIVE quote fetches any miss on its own.
-3. **Diversity:** the ETF switch funds (Nasdaq 1x, S&P 1x/2x, Russell 1x) are
-   profitable but cannot hold a slot — they need a stop plan and a slot-trader
-   path (hold the ETF the pair fund holds). That is the fastest route to five
-   distinct bets instead of four copies of Rising 200.
+3. ~~**Diversity: ETF switch funds in slots**~~ — **done 2026-09-24.** A
+   `pair:` holder's slot buys `pair_funds.next_leg()` (the fund's own replay,
+   min_hold included; refuses if a leg lacks the newest bar), sells the old leg
+   when the fund switches, and carries a stop the fund's record does NOT have:
+   entry - 3 x ATR (`slots.pair_risk`). Caveats: all five share family
+   `pair_switching` (S&P 1x/2x are one bet); on a switch in LIVE the new leg
+   waits for the sale to settle (limited_margin, T+1); ERY's AUM ($42.6M) is
+   under the $100M floor, so Energy's bear leg is refused. Whether a pair fund
+   actually takes a slot is still the league's call (LIVE_CANDIDATE, net rank).
 4. Robinhood sessions: every call opens a fresh MCP session; batch reads per
    run (`robinhood_mcp.calls`) to cut latency.
 5. Addendum C: generator v3 fails the realism gate (AUC 0.768); skew and
@@ -641,7 +646,7 @@ hardcodes paths, thresholds or model parameters.
 ### Addendum A — the trading engine (built 2026-09-24, SIMULATION/SHADOW)
 | File | Role |
 |---|---|
-| `slots.py` | Five slots: eligibility first, net rank, one per family, cash when none qualify, controlled replacement, the P&L leaderboard. Places no order. |
+| `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. Five slots: eligibility first, net rank, one per family, cash when none qualify, controlled replacement, the P&L leaderboard. Places no order. |
 | `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |

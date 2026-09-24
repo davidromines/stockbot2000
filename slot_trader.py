@@ -170,6 +170,21 @@ def _build(conn, cfg, mode: str, provider):
     return broker, engine
 
 
+def _pair_signals(conn, cfg, g: dict) -> tuple:
+    """
+    A pair fund's slot: the one candidate is the ETF the fund holds from the
+    next open (pair_funds.next_leg), and the other leg is the strategy exit, so
+    a slot holding the old leg sells it when the fund switches. The same
+    (candidates, exits) shape paper_trading._genome_signals returns.
+    """
+    import pandas as pd
+    import pair_funds
+    nl = pair_funds.next_leg(conn, cfg, g["pair"])
+    if not nl:
+        return pd.DataFrame({"ticker": []}), set()
+    return pd.DataFrame({"ticker": [nl["leg"]]}), {nl["bull"], nl["bear"]} - {nl["leg"]}
+
+
 def _record_trade(conn, mode, slot, holder, symbol, action, res, reason, plan=None, atr=None):
     o = res.get("order")
     if res.get("status") not in ("filled", "partially_filled") or not o or not o.filled_quantity:
@@ -337,7 +352,7 @@ def trade(conn, cfg, mode: str, provider) -> list:
         g = slots.genome_for(conn, h["strategy_key"], h["version"])
         if not g:
             continue
-        cands, exits = pt._genome_signals(conn, cfg, g)
+        cands, exits = _pair_signals(conn, cfg, g) if g.get("pair") else pt._genome_signals(conn, cfg, g)
         exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
 
     results = monitor(conn, cfg, mode, provider, strategy_exits=exits_by_slot)

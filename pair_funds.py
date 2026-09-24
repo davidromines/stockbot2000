@@ -128,6 +128,62 @@ def open_funds(conn, cfg, capital: float = 100.0) -> None:
     log.info(f"opened {len(found)} pair funds at ${capital:.2f} each, from {START}")
 
 
+def replay(conn, cfg, r, latest: str | None = None) -> dict | None:
+    """
+    The fund's whole curve from started_on, with the signal warmed on history
+    from before it opened. None when there are not yet two bars. Shared by
+    step() and next_leg(), so the slot trader holds exactly what the fund's
+    forward record holds.
+    """
+    cm = costs_mod.CostModel(cfg)
+    latest = latest or conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+    w = load_pair(conn, r["bull"], r["bear"], r["signal"], r["started_on"], latest)
+    if w.empty or len(w) < 2:
+        return None
+    fn, _ = METHODS[r["method"]]
+    # The signal needs history from BEFORE the fund opened, or its first
+    # weeks are scored on a half-formed moving average. Loaded long, sliced
+    # short: the curve still starts at started_on.
+    warm = load_pair(conn, r["bull"], r["bear"], r["signal"], "2005-01-01", latest)
+    sig = fn(warm["close_XLE"], r["param"]).reindex(w.index)
+    res = run_switch(w, sig, cm, capital=float(r["capital_usd"]), min_hold=int(r["min_hold"]))
+    return {**res, "signal": sig, "as_of": str(w.index[-1])}
+
+
+def next_leg(conn, cfg, name: str) -> dict | None:
+    """
+    The ETF the fund holds from the NEXT open, by the replay's own rules: the
+    last close's signal picks the leg, and min_hold can delay a switch. This is
+    what a slot holding this fund trades (slot_trader.py). None when the fund
+    is closed, unknown, has no bars yet, or its signal is undefined.
+    """
+    init(conn)
+    cur = conn.execute("SELECT * FROM pair_funds WHERE name=? AND status='open'", (name,))
+    r = cur.fetchone()
+    if not r:
+        return None
+    r = dict(zip([d[0] for d in cur.description], r))
+    latest = conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+    res = replay(conn, cfg, r, latest)
+    if not res or res.get("held") is None:
+        return None
+    if res["as_of"] != latest:
+        # One of the three series is missing the newest bar: the signal would
+        # be a session old. Refuse rather than trade on it (fail closed).
+        log.warning(f"{name}: pair data ends {res['as_of']}, market data {latest} — no leg")
+        return None
+    want = res["signal"].ffill()
+    if want.isna().iloc[-1]:
+        return None
+    leg = {"ERX": r["bull"], "ERY": r["bear"]}
+    held = leg[res["held"]]
+    target = r["bull"] if bool(want.iloc[-1]) else r["bear"]
+    if target != held and (res["bars"] - res["last_switch"]) < int(r["min_hold"]):
+        target = held                        # min_hold: the fund does not flip yet
+    return {"leg": target, "held": held, "bull": r["bull"], "bear": r["bear"],
+            "as_of": res["as_of"], "switching": target != held}
+
+
 def step(conn, cfg) -> None:
     """
     Mark every open fund to the newest bar by replaying its whole curve.
@@ -137,25 +193,15 @@ def step(conn, cfg) -> None:
     same curve it would have produced anyway.
     """
     init(conn)
-    cm = costs_mod.CostModel(cfg)
     latest = conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
     for r in conn.execute("SELECT * FROM pair_funds WHERE status='open'"):
-        w = load_pair(conn, r["bull"], r["bear"], r["signal"], r["started_on"], latest)
-        if w.empty or len(w) < 2:
+        res = replay(conn, cfg, r, latest)
+        if res is None:
             log.info(f"  {r['label']}: no bars since {r['started_on']} yet")
             continue
-        fn, _ = METHODS[r["method"]]
-        # The signal needs history from BEFORE the fund opened, or its first
-        # weeks are scored on a half-formed moving average. Loaded long, sliced
-        # short: the curve still starts at started_on.
-        warm = load_pair(conn, r["bull"], r["bear"], r["signal"],
-                         "2005-01-01", latest)
-        sig_full = fn(warm["close_XLE"], r["param"])
-        res = run_switch(w, sig_full.reindex(w.index), cm,
-                         capital=float(r["capital_usd"]), min_hold=int(r["min_hold"]))
         held = "?"
         try:
-            held = r["bull"] if bool(sig_full.reindex(w.index).ffill().iloc[-2]) else r["bear"]
+            held = r["bull"] if bool(res["signal"].ffill().iloc[-2]) else r["bear"]
         except Exception:
             pass
         conn.execute("INSERT OR REPLACE INTO pair_fund_equity "

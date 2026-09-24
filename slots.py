@@ -127,9 +127,32 @@ def _sessions_since(conn, iso_ts: str) -> int:
                             (day,)).fetchone()[0] or 0)
 
 
+PAIR_RISK = {"stop_atr_multiple": 3.0}
+
+
+def pair_risk(cfg: dict | None = None) -> dict:
+    """The stop a pair fund's slot carries (`slots.pair_risk`). The fund's own record has none."""
+    if cfg is None:
+        try:
+            from universe import load_config
+            cfg = load_config()
+        except Exception:                                    # noqa: BLE001
+            cfg = {}
+    return dict((cfg.get("slots") or {}).get("pair_risk") or PAIR_RISK)
+
+
 def genome_for(conn, key: str, version: int) -> dict | None:
-    """The rules a strategy trades, wherever they are stored."""
+    """
+    The rules a strategy trades, wherever they are stored.
+
+    A pair fund (`pair:<name>`) has no genome: it holds whichever ETF of its
+    pair its signal picks. Its slot rules are {"pair": name} — slot_trader asks
+    pair_funds.next_leg() for the ETF — plus a price stop from `slots.pair_risk`
+    (§15: no slot without one) and the fund's switch as the strategy exit.
+    """
     g = None
+    if key.startswith("pair:"):
+        return {"pair": key.split(":", 1)[1], "risk": pair_risk(), "exit": "switch when the fund switches"}
     if key.startswith("fx_"):
         g = so.genome(conn, key, version)
     else:

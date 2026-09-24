@@ -166,7 +166,10 @@ def run_switch(wide: pd.DataFrame, bullish: pd.Series, cost_model,
     eq = np.array(curve, dtype="float64")
     dd = float(np.max(1 - eq / np.maximum.accumulate(eq))) if eq.size else 0.0
     return {"n_switches": switches, "final": float(equity), "cagr": float(cagr),
-            "max_dd": dd, "equity": eq, "years": years}
+            "max_dd": dd, "equity": eq, "years": years,
+            # Where the replay ended: the leg held and the bar index of the last
+            # switch, so a caller can apply the same min_hold rule to the NEXT open.
+            "held": held, "last_switch": last_switch, "bars": len(dates)}
 
 
 def random_null(wide: pd.DataFrame, n_switches: int, cost_model,
