@@ -95,6 +95,10 @@ GROUPS = {
         "strategy_meta", "strategy_metrics", "strategy_decisions", "strategy_ancestry",
         "fund_accounting", "experiment_registry", "failure_log",
         "scoreboard_snapshots", "degradation",
+        # Addendum A: the slot record — which strategy held which slot, every
+        # slot trade (LIVE included: real money since 2026-09-24), the stop
+        # marks behind each exit, and the live account's equity snapshots.
+        "slot_assignments", "slot_reviews", "slot_trades", "slot_marks", "live_equity",
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
