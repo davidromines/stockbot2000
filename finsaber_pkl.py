@@ -31,6 +31,11 @@ Like `finsaber.py`, everything lands in `data/finsaber.db`, never the primary
 database. Pickle prices go to `finsaber_pkl_prices`, not `finsaber_prices`, so
 the pickle and the CSV can be checked against each other rather than blended.
 
+**The S&P 500 pickle's bars carry NO adjusted close** (open/high/low/close/
+volume only, despite the README; the cherry-pick file has one). Its raw closes
+match the CSV's on every row checked (205,159 in 2015), so for prices use the
+CSV (`finsaber_prices`, which has adj_close); the pickle's value is its text.
+
 **Point-in-time status of news and filings is UNVERIFIED.** The date key is
 FINSABER's; whether a headline or a filing dated D was public before D's open
 is not established here (the SEC's 17:30 `filed` cutoff alone puts ~48% of

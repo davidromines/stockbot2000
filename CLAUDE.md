@@ -110,7 +110,8 @@ loader. It had added 15 points a year to a momentum backtest.
    a filing on its SEC filed day, so 89.7% fall before the first tradeable
    session (`finsaber_pkl.py --pit-check`). Use `sec_filings.first_tradeable`,
    never FINSABER's date. Headlines have no reference timestamp: UNVERIFIED,
-   not a signal.
+   not a signal. The S&P pickle's bars have NO adjusted close (README says
+   otherwise); its raw closes equal the CSV's — use the CSV for prices.
 3. Addendum C revision 2 (`docs/ADDENDUM_C_SYNTHETIC_DELISTING.md`, Stage J):
    **do not build** until the user answers the 8 questions in Stage J. It is
    full-US-universe reconstruction with tagged synthetic price paths — NOT
