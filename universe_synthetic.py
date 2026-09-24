@@ -58,10 +58,15 @@ import pandas as pd
 import universe_cohorts as uc
 
 log = logging.getLogger("universe_synthetic")
-OUT = "data/universe/synthetic_v1.parquet"
-METHOD = "residual_block_bootstrap_v1"
+OUT = "data/universe/synthetic_v2.parquet"
+# v2 (2026-09-24): no-change days. Real dead companies are often illiquid —
+# 1.6% of their days close unchanged (median) — and v1 had none, which alone let
+# a classifier separate the two at AUC 0.987 (Stage 5). Each path now gets a
+# flat-day share drawn from `flat_share` and closes unchanged on those days.
+METHOD = "residual_block_bootstrap_v2"
 DEFAULTS = {
     "seed": 20260924, "max_years": 10, "block": 20, "include_edgar_only": False,
+    "flat_share": [0.0, 0.04],
     "exit_prior": {"performance": 0.40, "merger": 0.55, "other": 0.05},
     "delisting_return": {"performance_nasdaq": [-0.55, 0.15], "performance_other": [-0.30, 0.15],
                          "merger": [0.01, 0.03], "other": [0.0, 0.0]},
@@ -153,6 +158,9 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     e = np.asarray(e[:n]) * vol
     m = spy.pct_change().reindex(dates).fillna(0.0).to_numpy()
     r = beta * m + e
+    flat = rng.random(n) < rng.uniform(*s["flat_share"])
+    r[flat] = 0.0
+    e[flat] = 0.0
 
     fy = cohort.get("final_year_return") or art["cohorts"]["all"]["final_year_return"]
     if not died_in_scope:
@@ -168,10 +176,15 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
         target = rng.uniform(fy["p5"], fy["p95"])
         mu, sd = s["delisting_return"]["other"]
     k = min(252, n)
-    tail = np.prod(1 + r[-k:])
-    if target is not None and tail > 0:
-        d = ((1 + target) / tail) ** (1 / k) - 1
-        r[-k:] = (1 + r[-k:]) * (1 + d) - 1
+    # Shape the final year on TRADED days only: a drift added to a no-change day
+    # would un-flatten it, exactly in the window the Stage 5 test measures.
+    live = ~flat[-k:]
+    tail = np.prod(1 + r[-k:][live])
+    if target is not None and tail > 0 and live.any():
+        d = ((1 + target) / tail) ** (1 / live.sum()) - 1
+        seg = r[-k:]
+        seg[live] = (1 + seg[live]) * (1 + d) - 1
+        r[-k:] = seg
     lo, hi = np.log(np.percentile(start_prices, 10)), np.log(np.percentile(start_prices, 90))
     p0 = float(np.exp(rng.uniform(lo, hi)))
     close = np.maximum(p0 * np.cumprod(1 + np.clip(r, -0.95, 3.0)), 0.01)
@@ -192,7 +205,7 @@ def generate(company: dict, spy: pd.Series, donors: list, art: dict, start_price
     else:
         dret = None
     df["is_synthetic"] = True
-    df["data_source"] = "synthetic_v1"
+    df["data_source"] = "synthetic_v2"
     df["cohort_id"] = f"{level}:{company.get('delisting_reason') or 'unknown'}|{div}"
     df["generation_method"] = METHOD
     df["synthetic_reason"] = tag
@@ -241,7 +254,7 @@ def build(conn, cfg: dict) -> dict:
     rep = {"companies": n_co, "rows": n_rows, "donors": len(donors), "by_reason": reasons,
            "settings": s, "cohort_artifact_sha256": art["sha256"], "method": METHOD,
            "sha256": hashlib.sha256(open(OUT, "rb").read()).hexdigest() if n_rows else None}
-    json.dump(rep, open("data/universe/synthetic_v1_report.json", "w"), indent=1, default=str)
+    json.dump(rep, open("data/universe/synthetic_v2_report.json", "w"), indent=1, default=str)
     return rep
 
 

@@ -35,7 +35,7 @@ import pandas as pd
 
 import data_providers as dp
 
-SYNTH = "data/universe/synthetic_v1.parquet"
+SYNTH = "data/universe/synthetic_v2.parquet"
 MODES = ("exclude", "real_only", "as_is", "zero", "optimistic")
 COLUMNS = dp.BAR_COLUMNS + ["is_synthetic", "data_source"]
 
@@ -59,7 +59,11 @@ def _finsaber(start, end, have: set, db="data/finsaber.db") -> pd.DataFrame:
     df = pd.read_sql_query("SELECT symbol AS ticker, date, open, high, low, adj_close AS close, volume "
                            "FROM finsaber_prices WHERE date BETWEEN ? AND ?", f, params=(start, end))
     f.close()
-    df = df[~df["ticker"].isin(have)]
+    import finsaber
+    fq = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    bad = finsaber.flagged(fq)
+    fq.close()
+    df = df[~df["ticker"].isin(have | bad)]
     df["is_synthetic"], df["data_source"] = False, "finsaber"
     return df
 
@@ -79,7 +83,7 @@ def _synthetic(start, end, mode: str, exclude: set) -> pd.DataFrame:
         prev = df.groupby("company_id")["close"].shift(1)
         df.loc[bar, "close"] = 0.0 if mode == "zero" else prev[bar].fillna(df.loc[bar, "open"])
         df.loc[bar, "low"] = df.loc[bar, ["low", "close"]].min(axis=1)
-        df["data_source"] = f"synthetic_v1:{mode}"
+        df["data_source"] = df["data_source"] + f":{mode}"
     return df[COLUMNS + ["company_id", "cohort_id", "synthetic_reason", "is_delisting_bar"]]
 
 

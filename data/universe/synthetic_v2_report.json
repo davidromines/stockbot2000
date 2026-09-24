@@ -14,6 +14,10 @@
   "max_years": 10,
   "block": 20,
   "include_edgar_only": false,
+  "flat_share": [
+   0.0,
+   0.04
+  ],
   "exit_prior": {
    "performance": 0.4,
    "merger": 0.55,
@@ -39,6 +43,6 @@
   }
  },
  "cohort_artifact_sha256": "65253b07e3aa7e00d00fff8127234a59c992bccf38543c3934b6b76d32225f48",
- "method": "residual_block_bootstrap_v1",
- "sha256": "7b8a2fbe3b9b5107b0314c5d2cc7953cfb43f4ec28690d04e114d2db418f9135"
+ "method": "residual_block_bootstrap_v2",
+ "sha256": "a0a993f21f3d1fb1e946dd21756b600d3a3a3bb88681de1ba8e0003a6a66f6d4"
 }
