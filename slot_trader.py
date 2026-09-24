@@ -135,7 +135,18 @@ def _atr(conn, symbol: str) -> float | None:
     return float(r[0]) if r and r[0] else None
 
 
+class LiveNotWired(RuntimeError):
+    """LIVE was requested but no real broker connection is configured."""
+
+
 def _build(conn, cfg, mode: str, provider):
+    if mode == "LIVE":
+        # The simulated ledger broker must never stand in for the account: a
+        # LIVE run against it would record simulated fills as live trades.
+        # Real orders go through RobinhoodBroker over the owner's authorised
+        # MCP connection, which a cron process does not have.
+        raise LiveNotWired("LIVE needs a real broker connection; none is wired for the slot trader. "
+                           "See docs/ROBINHOOD_AGENTIC.md — transmission is the account owner's step.")
     s = slots.settings(cfg)
     limits = risk_engine.load_limits()
     broker = bk.LedgerSimulatedBroker(conn, capital=s["count"] * s["capital_per_slot"],
@@ -370,6 +381,10 @@ def main(argv=None) -> int:
     limits = risk_engine.load_limits()
     if args.mode == "LIVE" and str(limits.get("execution_mode", "SIMULATION")).upper() != "LIVE":
         print("LIVE refused: config/risk.yaml execution_mode is not LIVE (arming is the user's step, B14)")
+        return 2
+    if args.mode == "LIVE":
+        print("LIVE refused: no real broker connection is wired for the slot trader — it would "
+              "otherwise trade the simulated ledger under a LIVE label")
         return 2
     from universe import load_config
     cfg = load_config()

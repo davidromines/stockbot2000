@@ -127,6 +127,11 @@ def main():
           and any(x["status"] == "skipped" for x in r), r)
 
     check("LIVE refused without the operator's execution_mode", st.main(["--status", "--mode", "LIVE"]) == 2)
+    try:
+        st._build(c, cfg, "LIVE", qt.FixedQuotes({}))
+        check("LIVE never runs on the simulated broker", False)
+    except st.LiveNotWired:
+        check("LIVE never runs on the simulated broker", True)
 
     # --- §25 emergency: the env switch, never the real data/KILL_SWITCH file ---
     import notify
