@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stockbot2000 Roadmap</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F5F1; --surface:#FFFFFF; --surface-2:#EFEDE7; --border:#DEDBD3;
+    --text:#20221F; --text-soft:#5C5F58; --text-mute:#8A8D85;
+    --accent:#2B6E52; --accent-soft:#DCEAE2;
+    --done:#1F8A5F; --done-bg:#E1F1E8;
+    --progress:#B8760B; --progress-bg:#FBEDD6;
+    --planned:#3E6FB0; --planned-bg:#E4EBF5;
+    --backlog:#8B8F98; --backlog-bg:#EBEBEC;
+    --track:#E7E4DC; --caution:#A5471F; --caution-bg:#F7E5DC;
+    --neg:#A5471F;
+    --shadow: 0 1px 2px rgba(30,30,25,0.06), 0 6px 20px rgba(30,30,25,0.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#181A17; --surface:#212420; --surface-2:#282B26; --border:#383B35;
+      --text:#ECEAE3; --text-soft:#B2B4AB; --text-mute:#82857D;
+      --accent:#5FBE94; --accent-soft:#25352C;
+      --done:#3ED28C; --done-bg:#1E3329;
+      --progress:#E3A83E; --progress-bg:#3A2F18;
+      --planned:#7DAAE6; --planned-bg:#212C3A;
+      --backlog:#A9AEB6; --backlog-bg:#2B2D2F;
+      --track:#33362F; --caution:#E8875B; --caution-bg:#39231A;
+      --neg:#E8875B;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#181A17; --surface:#212420; --surface-2:#282B26; --border:#383B35;
+    --text:#ECEAE3; --text-soft:#B2B4AB; --text-mute:#82857D;
+    --accent:#5FBE94; --accent-soft:#25352C;
+    --done:#3ED28C; --done-bg:#1E3329;
+    --progress:#E3A83E; --progress-bg:#3A2F18;
+    --planned:#7DAAE6; --planned-bg:#212C3A;
+    --backlog:#A9AEB6; --backlog-bg:#2B2D2F;
+    --track:#33362F; --caution:#E8875B; --caution-bg:#39231A;
+    --neg:#E8875B;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.25);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text);
+    font-family:'Public Sans', ui-sans-serif, system-ui, sans-serif;
+    margin:0; padding:0 16px 80px;}
+  .wrap{max-width:960px; margin:0 auto;}
+  .mono{font-family:'IBM Plex Mono', ui-monospace, monospace;}
+
+  header{padding:48px 0 28px; border-bottom:1px solid var(--border); margin-bottom:36px;}
+  .eyebrow{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:12.5px;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin:0 0 10px;}
+  h1{font-size:clamp(28px, 4vw, 38px); line-height:1.15; margin:0 0 10px;
+    text-wrap:balance; letter-spacing:-0.01em;}
+  .sub{color:var(--text-soft); font-size:16px; max-width:64ch; line-height:1.55; margin:0 0 18px;}
+  .meta-row{display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--text-mute);
+    font-family:'IBM Plex Mono', ui-monospace, monospace;}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:12px; margin-bottom:40px;}
+  .stat{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px;}
+  .stat .n{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:26px;
+    font-weight:600; font-variant-numeric:tabular-nums;}
+  .stat .l{font-size:12.5px; color:var(--text-soft); margin-top:2px;}
+  .stat.done .n{color:var(--done);}
+  .stat.progress .n{color:var(--progress);}
+  .stat.neg .n{color:var(--neg);}
+  .stat.planned .n{color:var(--planned);}
+  .pill.planned{color:var(--planned); background:var(--planned-bg);}
+  .steps td.st{white-space:nowrap;}
+
+  .distribution{background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:20px 22px 18px; margin-bottom:44px; box-shadow:var(--shadow);}
+  .distribution h3{margin:0 0 4px; font-size:14px; letter-spacing:0.01em;}
+  .distribution .cap{font-size:12.5px; color:var(--text-mute); margin:0 0 14px; line-height:1.5;}
+  .stackbar{display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--track);}
+  .stackbar span{height:100%;}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:12.5px; color:var(--text-soft);}
+  .legend .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+
+  .dataset{border-top:2px solid var(--done); padding-top:22px; margin-bottom:48px;}
+  .dataset.finding{border-top-color:var(--neg);}
+  .dataset h2{margin:0 0 4px;}
+  .dataset .cap{font-size:13.5px; color:var(--text-mute); margin:0 0 20px; line-height:1.5; max-width:72ch;}
+  .figures{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    background:var(--surface); margin-bottom:22px;}
+  .figure{padding:16px 18px; border-right:1px solid var(--border);}
+  .figure:last-child{border-right:none;}
+  .figure .v{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:22px;
+    font-weight:600; font-variant-numeric:tabular-nums; color:var(--done);}
+  .figure .v.neg{color:var(--neg);}
+  .figure .k{font-size:12.5px; color:var(--text-soft); margin-top:3px; line-height:1.4;}
+
+  .scroll{overflow-x:auto;}
+  table.dist{width:100%; border-collapse:collapse; font-size:13.5px; margin-bottom:6px;}
+  table.dist caption{text-align:left; font-size:13px; color:var(--text-mute);
+    padding-bottom:10px; line-height:1.5;}
+  table.dist th{text-align:left; font-weight:600; font-size:12px; text-transform:uppercase;
+    letter-spacing:0.05em; color:var(--text-mute); padding:0 8px 8px 0; border-bottom:1px solid var(--border);}
+  table.dist th.r{text-align:right;}
+  table.dist td{padding:8px 8px 8px 0; border-bottom:1px solid var(--border); color:var(--text-soft);}
+  table.dist td.num{text-align:right; font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric:tabular-nums; color:var(--text); white-space:nowrap;}
+  table.dist td.num.neg{color:var(--neg);}
+  table.dist tr.highlight td{color:var(--text); font-weight:600;}
+
+  section.phase-list{margin-bottom:52px;}
+  h2{font-size:20px; margin:0 0 4px; letter-spacing:-0.005em;}
+  .section-cap{font-size:13.5px; color:var(--text-mute); margin:0 0 22px; line-height:1.5;}
+  .group-label{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:11.5px;
+    letter-spacing:0.07em; text-transform:uppercase; color:var(--accent); margin:34px 0 2px;}
+
+  .phase{display:grid; grid-template-columns:34px 1fr; gap:16px; padding:18px 0;
+    border-top:1px solid var(--border);}
+  .phase.last{border-bottom:1px solid var(--border);}
+  .phase-num{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:13px;
+    color:var(--text-mute); padding-top:3px;}
+  .phase-head{display:flex; align-items:baseline; justify-content:space-between;
+    gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+  .phase-title{font-size:16px; font-weight:600;}
+  .pill{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:11px;
+    letter-spacing:0.03em; text-transform:uppercase; padding:3px 9px;
+    border-radius:999px; white-space:nowrap;}
+  .pill.done{color:var(--done); background:var(--done-bg);}
+  .pill.progress{color:var(--progress); background:var(--progress-bg);}
+
+  .phase-desc{font-size:14.5px; color:var(--text-soft); line-height:1.55; margin:0 0 12px; max-width:70ch;}
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .bar-track{flex:1; height:6px; background:var(--track); border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:4px;}
+  .bar-pct{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:12px;
+    color:var(--text-mute); width:34px; text-align:right; font-variant-numeric:tabular-nums;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{font-size:12px; color:var(--text-soft); background:var(--surface-2);
+    border:1px solid var(--border); padding:4px 9px; border-radius:6px;}
+  .chip.ok{color:var(--done); background:var(--done-bg); border-color:transparent;}
+  .chip .when{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:10.5px; opacity:.75; margin-left:4px;}
+  .note{margin-top:10px; font-size:13px; color:var(--text-mute);
+    border-left:2px solid var(--border); padding-left:10px; line-height:1.5; max-width:74ch;}
+  .note.new{border-left-color:var(--accent);}
+  .note.warn{border-left-color:var(--caution); color:var(--text-soft);}
+
+  .questions{background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:22px 24px; margin-bottom:40px;}
+  .q-item{display:grid; grid-template-columns:20px 1fr; gap:12px; padding:12px 0;
+    border-top:1px solid var(--border);}
+  .q-item:first-of-type{border-top:none; padding-top:2px;}
+  .q-mark{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:13px; padding-top:2px;}
+  .q-mark.resolved{color:var(--done);}
+  .q-mark.no{color:var(--neg);}
+  .q-mark.open{color:var(--progress);}
+  .q-mark.partial{color:var(--planned);}
+  .q-title{font-size:14.5px; font-weight:600; margin-bottom:2px;}
+  .q-body{font-size:13.5px; color:var(--text-soft); line-height:1.5;}
+
+  .changelog{border-top:1px solid var(--border); padding-top:20px; margin-bottom:40px;}
+  .changelog h2{margin-bottom:14px;}
+  .cl-list{display:grid; gap:9px; margin:0; padding:0; list-style:none;}
+  .cl-list li{font-size:13.5px; color:var(--text-soft); line-height:1.55;
+    padding-left:18px; position:relative; max-width:74ch;}
+  .cl-list li::before{content:"—"; position:absolute; left:0; color:var(--accent);
+    font-family:'IBM Plex Mono', ui-monospace, monospace;}
+  .cl-list li b{color:var(--text); font-weight:600;}
+
+  footer{font-size:13px; color:var(--text-mute); padding-top:20px;
+    border-top:1px solid var(--border); line-height:1.6;}
+  footer strong{color:var(--text-soft);}
+  a{color:var(--accent);}
+
+  @media (max-width:640px){
+    .figure{border-right:none; border-bottom:1px solid var(--border);}
+    .figure:last-child{border-bottom:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Project Roadmap</p>
+    <h1>Stockbot2000</h1>
+    <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
+    <div class="meta-row">
+      <span>UPDATED 2026-09-24</span>
+      <span>13 PHASES + ADDENDA A–C</span>
+      <span>STATUS: PHASE 13 + ADDENDUM A PLANNED · AWAITING REVIEW</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat done"><div class="n">11</div><div class="l">Phases complete</div></div>
+    <div class="stat progress"><div class="n">1</div><div class="l">At 85% (smoke test: Ollama)</div></div>
+    <div class="stat planned"><div class="n">2</div><div class="l">Planned — Phase 13, Addendum A</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">Strategies with a proven edge</div></div>
+  </div>
+
+  <div class="distribution">
+    <h3>Where the project stands</h3>
+    <p class="cap">Eleven of twelve build phases are complete. Two pieces are entered and waiting for your review: Phase 13, the research engine (the Strategy Factory), and Addendum A, the trading engine (five automatically managed slots). Nothing is built yet. The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
+    <div class="stackbar">
+      <span style="width:84.6%; background:var(--done);"></span>
+      <span style="width:7.7%; background:var(--progress);"></span>
+      <span style="width:7.7%; background:var(--planned);"></span>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--done);"></i>Complete (11)</span>
+      <span><i class="dot" style="background:var(--progress);"></i>85% (1)</span>
+      <span><i class="dot" style="background:var(--planned);"></i>Planned (1)</span>
+    </div>
+  </div>
+
+  <section class="dataset finding">
+    <h2>Does the signal survive costs? No.</h2>
+    <p class="cap">Phase 07's deciding question, re-measured 2026-09-24 on current data. Same model, same out-of-sample window (2022-07-20 → 2026-09-11), same $20 × 5 configuration. Only the fill convention differs.</p>
+
+    <div class="figures">
+      <div class="figure">
+        <div class="v neg">−$82.54</div>
+        <div class="k">Gross P&amp;L under next-open fills: negative before any cost is charged</div>
+      </div>
+      <div class="figure">
+        <div class="v neg">−$226.11</div>
+        <div class="k">Net P&amp;L after costs and the survivorship haircut</div>
+      </div>
+      <div class="figure">
+        <div class="v">1,062</div>
+        <div class="k">Out-of-sample trades</div>
+      </div>
+      <div class="figure">
+        <div class="v neg">40.3%</div>
+        <div class="k">Win rate</div>
+      </div>
+    </div>
+
+    <div class="scroll">
+    <table class="dist">
+      <caption>The <span class="mono">--fill close</span> column reproduces the old look-ahead convention, where orders filled at the very close that produced the signal. It exists only so the gap can be measured rather than asserted.</caption>
+      <thead>
+        <tr><th></th><th class="r">Close fills (look-ahead)</th><th class="r">Next-open fills (honest)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Trades</td><td class="num">1,063</td><td class="num">1,062</td></tr>
+        <tr class="highlight"><td>Gross P&amp;L</td><td class="num neg">−$22.70</td><td class="num neg">−$82.54</td></tr>
+        <tr><td>Trading costs</td><td class="num">−$105.26</td><td class="num">−$105.20</td></tr>
+        <tr><td>Survivorship haircut</td><td class="num">−$38.31</td><td class="num">−$38.37</td></tr>
+        <tr class="highlight"><td>Net P&amp;L</td><td class="num neg">−$166.27</td><td class="num neg">−$226.11</td></tr>
+        <tr><td>Win rate</td><td class="num">40.8%</td><td class="num">40.3%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note warn"><b>The 0.43%/trade figure this page used to quote is superseded.</b> It came from close fills with a 10-position configuration. Under honest fills the same model is gross negative. Costs don't erase an edge here because there is none to erase. The same result was first recorded on 2026-09-15 (commit <span class="mono">1745a01</span>) and reproduces today.</p>
+    <p class="note">AUC 0.63 across 31 of 31 walk-forward folds is still true: the model ranks better than chance. But a 2026-09-23 decay test found the ranking is mostly about <em>which dates</em> score high, not <em>which stocks</em>. Within a single day, the top decile does not beat the bottom at any horizon from 1 to 20 days. Ranking skill and a tradeable edge are different things, and this is the gap between them.</p>
+  </section>
+
+  <section class="dataset">
+    <h2>Survivorship bias, measured per date</h2>
+    <p class="cap">Measured, not fixed. The delisted companies still have no prices, so backtests can buy only survivors. The measurement is now a direct per-date count of what an investor could have known about, set against what this database can actually price.</p>
+
+    <div class="figures">
+      <div class="figure">
+        <div class="v neg">22.6%</div>
+        <div class="k">Coverage of the knowable universe, mid-2008</div>
+      </div>
+      <div class="figure">
+        <div class="v">83.7%</div>
+        <div class="k">Coverage, mid-2024</div>
+      </div>
+      <div class="figure">
+        <div class="v neg">7,062</div>
+        <div class="k">Delisted common stocks we hold no prices for</div>
+      </div>
+      <div class="figure">
+        <div class="v">~$270/yr</div>
+        <div class="k">Point-in-time delisted prices would close it</div>
+      </div>
+    </div>
+    <p class="note">Coverage rising toward the present is the signature of the bias itself: companies that survived keep their price history, companies that died do not. Forward paper trading has no survivorship bias at all, which is why 21+ paper funds now run daily.</p>
+  </section>
+
+  <section class="phase-list">
+    <h2>Milestones</h2>
+    <p class="section-cap">In build order. Each phase depends on the one above it running cleanly.</p>
+
+    <p class="group-label">Foundation</p>
+
+    <div class="phase">
+      <div class="phase-num">01</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Project foundation</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Repo identity, git conventions, and a real remote. Fourth name for the project: betbot9000 → trend-scanner → stockpicker2000 → Stockbot2000.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">GIT_WORKFLOW.md</span><span class="chip ok">Pushed to GitHub</span><span class="chip ok">Commit-per-change rule</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">02</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Core pipeline build</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">All stages written: universe selection, data pull, feature engineering (20 indicators), scoring, model training, ATR stop-loss, position ledger, backtest, and an LLM-written daily report.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">config.yaml</span><span class="chip ok">SQLite position ledger</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">03</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Environment setup</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Python 3.12 alongside the system 3.14, venv built, requirements installed clean. CPU capped at 3 of 4 cores.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">Python 3.12</span><span class="chip ok">venv</span><span class="chip ok">pandas_ta gone</span><span class="chip ok">CPU capped</span><span class="chip ok">Memory ceiling per job<span class="when">09-24</span></span></div>
+        <p class="note new">Added 2026-09-24: heavy jobs now run through <span class="mono">run_bounded.sh</span> in their own memory-capped scope. Before that, an out-of-memory job took the Claude desktop session down with it, three times on 09-23.</p>
+      </div>
+    </div>
+
+    <div class="phase last">
+      <div class="phase-num">04</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">End-to-end smoke test</div><span class="pill progress">85%</span></div>
+        <p class="phase-desc">Every stage runs start to finish at full scale, and the entry and exit paths are both exercised by the real account. The one gap is the LLM narrative report: Ollama is not installed, so the report runs in fallback mode.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="chips"><span class="chip ok">universe</span><span class="chip ok">backfill</span><span class="chip ok">features</span><span class="chip ok">train</span><span class="chip ok">score</span><span class="chip ok">backtest</span><span class="chip ok">check_exits</span><span class="chip">llm_report — no Ollama</span></div>
+      </div>
+    </div>
+
+    <p class="group-label">Infrastructure</p>
+
+    <div class="phase">
+      <div class="phase-num">05</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Migration to Arena hypervisor</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Running on the Arena VM at <span class="mono">~/stockbot2000</span>, Ubuntu 26.04 LTS, private GitHub remote over SSH. Disk resized from 97 GB to 194 GB.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">4 vCPU</span><span class="chip ok">11.7 GB RAM</span><span class="chip ok">194 GB disk</span><span class="chip ok">git + remote</span></div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">06</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Data infrastructure scale-up</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">35.5M price bars across 13,200+ instruments from 1962, 33.9M feature rows, SEC fundamentals point-in-time to the minute of acceptance. Topped up by cron at 07:00 UTC on weekdays.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">13,200+ listings tagged</span><span class="chip ok">full-depth history</span><span class="chip ok">pipeline on SQLite</span><span class="chip ok">freshness gate</span><span class="chip ok">liquidity floors</span></div>
+      </div>
+    </div>
+
+    <div class="phase last">
+      <div class="phase-num">07</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Simulator realism &amp; backtest rigor</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Costs, slippage and realistic fills, all in code and under test. The deciding question it existed to answer, whether the signal survives costs, is answered: it does not, because under honest fills the gross is already negative.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips">
+          <span class="chip ok">Walk-forward<span class="when">09-11</span></span>
+          <span class="chip ok">Liquidity floors<span class="when">09-11</span></span>
+          <span class="chip ok">Survivorship haircut<span class="when">09-11</span></span>
+          <span class="chip ok">Cost + slippage<span class="when">09-11</span></span>
+          <span class="chip ok">Next-open fills<span class="when">09-15</span></span>
+          <span class="chip ok">Gap-through-stop<span class="when">09-15</span></span>
+        </div>
+        <p class="note new"><b>How each is enforced.</b> <span class="mono">costs.py</span> (spread by liquidity tier, slippage, SEC/FINRA fees) is charged <em>inside</em> every simulated trade, so a search can't select a strategy that fails to pay its own spread. Entries fill at the next open and exits at the open after the trigger. A stop that gaps is booked where it actually filled, and <span class="mono">gap_loss_usd</span> reports the cost. <span class="mono">tests/test_fills.py</span> pins it: a synthetic stop at 93 that gaps to 50 books −$51.46, not the flattering close-fill loss. Verified passing 2026-09-24.</p>
+      </div>
+    </div>
+
+    <p class="group-label">Strategy Lab</p>
+
+    <div class="phase">
+      <div class="phase-num">08</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Genome, simulator &amp; reward engine</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">The searchable strategy definition and the vectorised engine that scores it. Fitness is scored against a null surface over entry price × holding period, never against zero.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">genome.py</span><span class="chip ok">simulator.py</span><span class="chip ok">reward.py</span><span class="chip ok">benchmark.py null surface</span></div>
+        <p class="note warn">Six searches produced six measurement artifacts before the engine was trustworthy. The largest: 71% of reported profit came from exits priced off the filtered universe.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">09</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Evolutionary search &amp; idea ledger</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">The population loop and an append-only ledger of every evaluation with parentage. 1,049,967 cumulative trials. Search is now <b>frozen by policy</b>: past a million trials, the multiple-testing bar is higher than anything the data can clear.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">evolve.py</span><span class="chip ok">ledger.py</span><span class="chip ok">SEARCH_MODE=FROZEN</span><span class="chip ok">seed_mode: NONE</span></div>
+      </div>
+    </div>
+
+    <div class="phase last">
+      <div class="phase-num">10</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Promotion pipeline &amp; lab dashboard</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Six-stage ladder with the sealed holdout enforced in code, now physically carved into a separate read-only snapshot. Gates calibrated against a persistent random control: 0 of 350 random strategies clear them.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">promote.py</span><span class="chip ok">lab_dashboard.py</span><span class="chip ok">Deflated Sharpe</span><span class="chip ok">Sealed holdout</span><span class="chip ok">random_control.py</span></div>
+      </div>
+    </div>
+
+    <p class="group-label">Going live</p>
+
+    <div class="phase">
+      <div class="phase-num">11</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Live integration &amp; paper trading</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Real money in one Robinhood account (~$89): the system generates the slate, a person places it, and the system reconciles. Forward records run daily across 16 paper funds, 5 ETF switching funds, the Value Fund and the crypto paper fund, all graded by the Strategy League.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">orders.py</span><span class="chip ok">paper_trading.py</span><span class="chip ok">Strategy League</span><span class="chip ok">execution engine + kill switches</span></div>
+      </div>
+    </div>
+
+    <div class="phase last">
+      <div class="phase-num">12</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Notifications &amp; polish</div><span class="pill done">Complete</span></div>
+        <p class="phase-desc">Telegram and desktop delivery via <span class="mono">notify.py</span>, with the morning slate formatted for a phone. A live status dashboard is regenerated daily.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="chips"><span class="chip ok">Telegram</span><span class="chip ok">Status dashboard</span><span class="chip">Ollama — optional, not installed</span></div>
+      </div>
+    </div>
+
+    <p class="group-label">Next · awaiting review</p>
+
+    <div class="phase last">
+      <div class="phase-num">13</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Strategy Factory 2.0 + Data Integrity + Continuous Discovery</div><span class="pill planned">Planned</span></div>
+        <p class="phase-desc">Turns the project from a backtesting engine that is good at rejecting ideas into a continuous research laboratory that decides what to test next. It builds on the existing system and replaces nothing. The evolutionary search stays frozen, and the work favours a breadth of economically motivated ideas over more brute-force search.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">Strategy Factory</span><span class="chip">Accounting fix first</span><span class="chip">FINSABER validation data</span><span class="chip">Survivorship tags</span><span class="chip">Nine leagues</span><span class="chip">Continuous discovery</span><span class="chip">Robustness tests</span><span class="chip">Family-concentration limits</span><span class="chip">Daily factory report</span></div>
+        <div class="scroll" style="margin-top:14px;">
+        <table class="dist steps">
+          <caption>Build order, exactly as the spec's §39. Spec: <span class="mono">docs/PHASE13_STRATEGY_FACTORY.md</span> · integration: <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage H.</caption>
+          <thead><tr><th>Step</th><th>Item</th><th>Spec</th><th>State</th></tr></thead>
+          <tbody>
+        <tr><td class="mono">H1</td><td>Audit existing architecture; document the module mapping</td><td class="mono">§39.1</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H2</td><td>Authoritative gross / costs / net accounting; reconciliation; restatement</td><td class="mono">§12, 34, 35</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H3</td><td>Strategy object model, lifecycle, families, generators</td><td class="mono">§4, 13–15</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H4</td><td>Research library schema + automatic strategy generation</td><td class="mono">§7, 32</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H5</td><td>Fundamental strategy factory (point-in-time), incl. Value family</td><td class="mono">§5, 6, 33</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H6</td><td>FINSABER import as a validation dataset + provider interface</td><td class="mono">§8–10</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H7</td><td>Cross-dataset validation, discrepancy report, survivorship tags</td><td class="mono">§11, 29</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H8</td><td>Nine strategy leagues with horizon-appropriate gates</td><td class="mono">§16, 33</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H9</td><td>Continuous discovery: queue, budgets, family allocation, recycling, priority</td><td class="mono">§22–25</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H10</td><td>Robustness: Monte Carlo, perturbations, cost/slippage stress, regimes</td><td class="mono">§28</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H11</td><td>Automatic paper-trading enrolment with the full trade record</td><td class="mono">§26, 27</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H12</td><td>Promotion: factory → validation → paper → league → risk → candidate</td><td class="mono">§18, 37</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H13</td><td>Live allocation through the existing execution/risk layer</td><td class="mono">step 13</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H14</td><td>Daily factory report, global scoreboard, data-quality + coverage reports</td><td class="mono">§17, 36</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">H15</td><td>End-to-end test on a few representative strategies</td><td class="mono">§39.15, 40</td><td class="st"><span class="pill planned">not started</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Phase 13 — decisions for your review</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Places where the new spec meets an existing rule. Each has the default the build will follow unless you change it.</p>
+    <div class="q-item">
+      <div class="q-mark partial">1</div>
+      <div>
+        <div class="q-title">Lifecycle names</div>
+        <div class="q-body">§14 prescribes an exact 9 + 3 state machine; <span class="mono">league.py</span> has 10 states with different names. <b>Default:</b> Adopt §14 exactly; map the existing append-only log through a versioned name mapping, never rewrite it.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">2</div>
+      <div>
+        <div class="q-title">Rising 200 classification</div>
+        <div class="q-body">§19 says PROMISING / INSUFFICIENT EVIDENCE. The pre-registered sweep finished today found the entry rule loses net in all 30 stop × hold settings, 2006–2019. <b>Default:</b> Classify as §19 says and attach the sweep result to the record, so both are visible.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">3</div>
+      <div>
+        <div class="q-title">Template generation vs. the search freeze</div>
+        <div class="q-body">The freeze and <span class="mono">seed_mode: NONE</span> were written for evolutionary search; the governed factory refuses runs while frozen. §4–5 generators are predefined templates. <b>Default:</b> Treat template generation as a separate governed path. The freeze stays on <span class="mono">evolve.py</span>; lifting it remains your edit to config.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">4</div>
+      <div>
+        <div class="q-title">Restating forward records</div>
+        <div class="q-body">§35 requires restatement after the accounting fix; Phase 6 says forward records are never modified retrospectively. <b>Default:</b> Keep original curves untouched; write restated curves alongside under a versioned accounting model; preserve the §35 snapshot.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">5</div>
+      <div>
+        <div class="q-title">FINSABER download</div>
+        <div class="q-body">~253 MB CSV from Hugging Face (finsaber-team/FINSABER-reproduce). <b>Default:</b> I'll ask for an explicit go-ahead at H6 before downloading.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">6</div>
+      <div>
+        <div class="q-title">Live step</div>
+        <div class="q-body">The execution layer produces a validated, risk-checked order; the LIVE transmit path is an existing unbuilt item. <b>Default:</b> H13 connects qualified candidates to that layer and does not change it.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <section class="phase-list" style="margin-top:-12px;">
+    <div class="phase last">
+      <div class="phase-num">A</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Addendum A — Autonomous 5-slot trading system</div><span class="pill planned">Planned</span></div>
+        <p class="phase-desc">The product definition as a build. Phase 13 becomes the research engine; this is the trading engine it feeds. Five ~$20 slots, each held by a distinct eligible strategy, are traded, stop-monitored and replaced automatically through the existing risk and execution layer. A slot with no qualified strategy stays in cash.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">Five slots</span><span class="chip">Replacement engine</span><span class="chip">P&amp;L-first leaderboard</span><span class="chip">Intraday stop monitor</span><span class="chip">Automatic execution</span><span class="chip">Kill switches</span><span class="chip">Daily reassessment</span><span class="chip">Always-on services</span></div>
+        <p class="note new"><b>Supersedes on approval:</b> human-placed orders, swing-only holding, the daily top-5 fill, once-a-day stop checks, and the null/SPY benchmark as a promotion gate. CLAUDE.md flags each rule in place and keeps the old text as the record.</p>
+        <div class="scroll" style="margin-top:14px;">
+        <table class="dist steps">
+          <caption>Proposed sequencing: accounting (H2) first for both; the trading engine is built on the simulated broker alongside Phase 13, and goes live only at I14. Spec: <span class="mono">docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md</span> · integration: <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage I.</caption>
+          <thead><tr><th>Step</th><th>Item</th><th>Addendum</th><th>State</th></tr></thead>
+          <tbody>
+        <tr><td class="mono">I1</td><td>Slot model: table, configurable count and capital per slot</td><td class="mono">§4, 14</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I2</td><td>Slot allocation engine: filters, ranking, family diversity; cash when nothing qualifies</td><td class="mono">§11–13</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I3</td><td>Central replacement engine: configurable evidence thresholds, no churn, every decision recorded</td><td class="mono">§8–9, 21</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I4</td><td>P&amp;L-first leaderboard, continuously updated</td><td class="mono">§5–7, 10</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I5</td><td>Mandatory stop plan per strategy; all stop types; risk overrides strategy</td><td class="mono">§15, 17</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I6</td><td>Intraday quote feed + position monitor during market hours</td><td class="mono">§16, 18</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I7</td><td>Intraday signal engine and intraday strategy support</td><td class="mono">§3, 18</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I8</td><td>Live execution: transmit, confirm, retry/escalate, recover on restart, reconcile</td><td class="mono">§16, 23</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I9</td><td>Global and per-strategy kill switches: stop, cancel, emergency exit, freeze, alert</td><td class="mono">§25</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I10</td><td>Daily five-slot reassessment</td><td class="mono">§26</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I11</td><td>Separate always-on services: trading, backtests, paper, ingestion, ranking, discovery</td><td class="mono">§19, 27</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I12</td><td>Account-rule guard: day-trade count / settled cash</td><td class="mono">§3</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I13</td><td>Reporting: slots, trades, replacements, risk events, gross/costs/net</td><td class="mono">§23</td><td class="st"><span class="pill planned">not started</span></td></tr>
+        <tr><td class="mono">I14</td><td>End-to-end on SIMULATION → SHADOW → live once you authorize the account</td><td class="mono">§24</td><td class="st"><span class="pill planned">not started</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="phase-list" style="margin-top:-12px;">
+    <div class="phase last">
+      <div class="phase-num">C</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Addendum C (revision 2) — Survivorship-bias-free universe reconstruction</div><span class="pill planned">Planned · awaiting your answers</span></div>
+        <p class="phase-desc">Rebuilds which US companies existed (Layer A) and generates tagged, cohort-conditioned synthetic price histories for the ~7,000 delisted companies with no free prices (Layer B). Real rows are never touched; every synthetic row carries its source, cohort, method, inferred reason and seed, and a loader runs any strategy five ways: as generated, excluding synthetic rows, delistings at −100%, at 0%, real rows only. Synthetic data here corrects survivorship bias; it is not a substitute for real data.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">1 · Universe</span><span class="chip">2 · Cohort statistics</span><span class="chip">3 · Synthetic paths</span><span class="chip">4 · Provenance + loader</span><span class="chip">5 · Validation</span></div>
+        <p class="note warn"><b>Feasibility, stated plainly.</b> Free data supports <b>1996–2024</b>: SEC electronic filing phased in 1993–96 (the 1993 Q1 index is 1 KB, 1996 Q1 is 7.8 MB), so an earlier universe would be mostly imputed. The small failing companies that matter most have the least real data to calibrate from. The existing generator is distinguishable from real data at AUC 0.978, so synthetic rows stay out of discovery and promotion until a new one passes that test. Sources verified accessible today: SEC EDGAR, FinanceDatabase (delisted flag and sector, no dates), plus the Alpha Vantage, Internet Archive and 8-K data already loaded.</p>
+        <p class="note new"><b>Questions before any code</b> (revision 1 was too narrow and centred mergers at +20%, which was wrong):</p>
+        <ol style="margin:6px 0 0 18px; padding:0; font-size:13.5px; color:var(--text-soft); line-height:1.55; max-width:74ch;"><li>Start year: 1996–2024, where free coverage is defensible, or 1990–2024 with 1990–95 carried as mostly imputed?</li><li>Use the primary database (35.5M real bars, 553 delisted names) as real data alongside FINSABER? Recommended.</li><li>Universe: common stock on NYSE, NASDAQ and AMEX only — no OTC, ADRs, funds, units or preferreds?</li><li>Dead companies with no recoverable ticker: a synthetic identifier tied to the SEC CIK, tagged imputed?</li><li>Backtest use: retests and stress bounds only, never discovery or promotion, until the generator passes the discriminability test?</li><li>Storage: a separate store under data/universe/, never the primary prices table?</li><li>Time variation: SPY trailing 12-month return (local), plus VIX via a free fetch?</li><li>Merger delisting return default near zero — e.g. +1% ± 3%, configurable?</li></ol>
+      </div>
+    </div>
+  </section>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Addendum A — decisions for your review</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Each has the default the build will follow unless you change it. Decision 2 needs an answer from you.</p>
+    <div class="q-item">
+      <div class="q-mark partial">1</div>
+      <div>
+        <div class="q-title">Rank slots on gross or net P&amp;L?</div>
+        <div class="q-body">§7 prioritises gross; §6 says a strategy that loses money isn't successful. A strategy can be positive gross and negative net, and then it loses money in the account. <b>Default:</b> Rank on <b>net</b> using measured execution costs where live fills exist, modeled costs otherwise; gross, costs and net shown side by side.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">2</div>
+      <div>
+        <div class="q-title">Is the Agentic account margin or cash?</div>
+        <div class="q-body">FINRA's pattern-day-trader rule: in a margin account, 4+ day trades in 5 business days needs $25,000 equity or the account is restricted. Cash accounts are exempt but can only trade with settled funds (T+1). <b>Default:</b> The risk engine counts day trades and blocks any trade that would breach the rule for your account type. <b>I need the account type from you.</b></div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">3</div>
+      <div>
+        <div class="q-title">How much evidence before a strategy gets a slot?</div>
+        <div class="q-body">The league's current rank threshold is 60 sessions, which would leave every slot in cash for about three months. <b>Default:</b> A separate, configurable slot threshold — proposed 20 forward sessions, 10 closed trades, positive net P&amp;L, drawdown under a set limit. The 60-session rank stays as the "established" tier.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">4</div>
+      <div>
+        <div class="q-title">What role do backtests play?</div>
+        <div class="q-body">The null and the SPY benchmark stop being promotion requirements (§5–6), and §29 says never select on backtest alone. <b>Default:</b> A positive net backtest admits a strategy to paper trading; only forward (paper or live) evidence wins a slot. Null and benchmark are reported, not gating.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">5</div>
+      <div>
+        <div class="q-title">Intraday data source</div>
+        <div class="q-body">Continuous stops need live quotes; the database holds daily bars, and free intraday history covers about 60 days. <b>Default:</b> Poll quotes for held positions and candidates at a configurable interval; intraday strategies are proven forward on paper until an intraday history source exists.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">6</div>
+      <div>
+        <div class="q-title">Current real positions</div>
+        <div class="q-body">The Agentic account holds positions placed by hand on 09-14. <b>Default:</b> Adopt them as legacy positions, exit each under its recorded stop, and open nothing new outside the slot engine.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">7</div>
+      <div>
+        <div class="q-title">Arming live execution</div>
+        <div class="q-body">§24 reserves account authorization for a human. <b>Default:</b> I14 ends with LIVE built, tested on SIMULATION and SHADOW, and ready to arm; arming it is your step.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:14px;">Open items for your review</h2>
+
+    <div class="q-item">
+      <div class="q-mark no">✗</div>
+      <div>
+        <div class="q-title">Does the signal survive trading costs? <span class="mono" style="color:var(--neg); font-size:12px;">— answered: no</span></div>
+        <div class="q-body">First answered 2026-09-15 and re-measured 2026-09-24. Under next-open fills the classifier strategy is −$82.54 gross before any cost, and −$226.11 net over 1,062 trades. The table above has the figures.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">◑</div>
+      <div>
+        <div class="q-title">Is there a real edge?</div>
+        <div class="q-body">Ranking skill: yes, AUC 0.63 in 31 of 31 folds. Tradeable edge: no. The ranking is mostly about timing across dates rather than choosing stocks within a day, and it loses money under honest fills. No strategy from any source has cleared a forward test.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark open">?</div>
+      <div>
+        <div class="q-title">Is stop width a real effect?</div>
+        <div class="q-body">The one live lead. It's being tested by a pre-registered stop-width sweep across 2006–2019 that is running now. Every result will be reported, not just the best.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark open">?</div>
+      <div>
+        <div class="q-title">Funded stake vs. the $100 account cap</div>
+        <div class="q-body">The promotion ladder ends in a funded stake, but the mandate caps total exposure at $100. Still unreconciled.</div>
+      </div>
+    </div>
+    <div class="q-item">
+      <div class="q-mark partial">◑</div>
+      <div>
+        <div class="q-title">Survivorship bias</div>
+        <div class="q-body">Enumerated per date: 22.6% coverage in 2008. Not fixed, because that needs delisted prices, about $270/yr.</div>
+      </div>
+    </div>
+  </div>
+
+  <section class="changelog">
+    <h2>Recent changes</h2>
+    <p class="section-cap">What moved since 09-11.</p>
+    <ul class="cl-list">
+      <li><b>Addendum A entered (09-24).</b> The product definition: an autonomous five-slot trading system. Added verbatim with 14 build steps and seven decisions for review. Nothing built.</li>
+      <li><b>Phase 13 entered (09-24).</b> The Strategy Factory spec is in the plan, verbatim, with a reuse map, 15 build steps and six decisions for review. Nothing built.</li>
+      <li><b>Stop-width lead refuted (09-24).</b> The pre-registered sweep found the Rising 200 entry loses net in all 30 settings over 2006–2019, and tight stops did no better than wide.</li>
+      <li><b>Phase 07 closed.</b> Next-open fills and gap-through-stop landed on 09-15, and the costs question was answered negative the same day. Re-measured 09-24 with the same result.</li>
+      <li><b>Phases 08–12 built.</b> Genome and simulator, evolutionary search (1.05M trials, now frozen), the promotion ladder with a sealed holdout, live paper trading, and notifications.</li>
+      <li><b>Research integrity layer.</b> Strategy League, research library (40 entries, 0 supported), point-in-time fundamentals, value engine, crypto paper fund. Tracked in the repo's Phase 6–12 plan.</li>
+      <li><b>Partial-bar guard.</b> 09-23: an intraday top-up stored 41 in-progress bars, which would have been permanent. They were removed, and both the fetch and the freshness gate now reject them.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <strong>Source of truth:</strong> <span class="mono">docs/ROADMAP.md</span> and <span class="mono">docs/ROADMAP_INTEGRATION.md</span> in the repo. This page summarises them.
+    <br><br>
+    Nothing here is investment advice, and no backtested result is a prediction of future returns.
+  </footer>
+
+</div>
+</body>
+</html>
