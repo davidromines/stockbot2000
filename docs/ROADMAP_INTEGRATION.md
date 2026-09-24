@@ -24,8 +24,8 @@ describe what was built; these describe where it goes.
 | 10 | Live Capital Allocation & Strategy Promotion | **built** — Stage E |
 | 11 | Continuous Research Loop | **built** — Stage F |
 | 12 | Crypto Fund | **built** — Stage G, `PHASE12_CRYPTO_FUND.md` |
-| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **H1-H14 built 2026-09-24, in daily.sh; H15 remains** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
-| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **BUILDING from 2026-09-24** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
+| 13 | Strategy Factory 2.0 + Data Integrity + Continuous Discovery | **built 2026-09-24 (H1-H15), in daily.sh** — Stage H, `PHASE13_STRATEGY_FACTORY.md` |
+| A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24 in SIMULATION/SHADOW; LIVE arming is the user's** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **PLANNED 2026-09-24; awaiting confirmation of the staged plan and answers to 8 questions** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 
@@ -525,7 +525,7 @@ components. Build order is the spec's §39, unchanged.
 | H12 | Promotion integration: factory → validation → paper → league → risk → candidate | §18, §37 | **done** 2026-09-24 |
 | H13 | Live allocation into the existing execution/risk layer | §13 (spec step 13) | **done** 2026-09-24 |
 | H14 | Daily factory report, global scoreboard, data-quality + coverage reports | §17, §36 | **done** 2026-09-24 |
-| H15 | End-to-end test on a few representative strategies | §39.15, §40 | not started |
+| H15 | End-to-end test on a few representative strategies | §39.15, §40 | **done** 2026-09-24 `tests/e2e/e2e_factory.py` |
 
 *Phase 6 items this absorbs.* Phase 6 §16 (baseline portfolios) is covered by
 §30 here; §19 (XGBoost calibration) by §20; §21 (regime analysis) by H10. Phase
@@ -602,20 +602,20 @@ and adds the *trading engine* Phase 13 only reaches at H12-H13.
 
 | step | item | addendum § | state |
 |---:|---|---|---|
-| I1 | Slot model: table, config (count, capital per slot), slot state fields | §4, §14 | not started |
-| I2 | Live slot allocation engine: filters, ranking, family diversity, cash-when-unqualified | §11-13 | not started |
-| I3 | Centralized replacement engine: configurable evidence thresholds, hysteresis, recorded decisions | §8-9, §21 | not started |
-| I4 | P&L-first leaderboard, continuously updated | §5-7, §10 | not started |
-| I5 | Mandatory risk plan per strategy; all stop types; risk-over-strategy priority | §15, §17 | not started |
-| I6 | Intraday market data feed + position monitor during market hours | §16, §18 | not started |
-| I7 | Intraday signal engine and intraday strategy support | §3, §18 | not started |
-| I8 | LIVE execution path: transmit, confirm, retry/escalate, order-state recovery, reconciliation loop | §16, §23 | not started |
-| I9 | Global and per-strategy kill switches with cancel / emergency-exit / freeze / alert | §25 | not started |
-| I10 | Daily five-slot reassessment | §26 | not started |
-| I11 | Process separation: live trading, backtesting, paper, ingestion, ranking, discovery as independent services | §19, §27 | not started |
-| I12 | Account-rule guard in the risk engine (day-trade count / settled cash) | §3 | not started |
-| I13 | Reporting: slots, trades, replacements, risk events, gross/costs/net | §23 | not started |
-| I14 | End-to-end in SIMULATION, then SHADOW, then live once the operator authorizes the account | §24 | not started |
+| I1 | Slot model: table, config (count, capital per slot), slot state fields | §4, §14 | **done** `slots.py` (append-only slot log) |
+| I2 | Live slot allocation engine: filters, ranking, family diversity, cash-when-unqualified | §11-13 | **done** `slots.py` (eligibility first, net rank, one per family, cash when none) |
+| I3 | Centralized replacement engine: configurable evidence thresholds, hysteresis, recorded decisions | §8-9, §21 | **done** `slots.py` (margin, min hold, daily churn cap) |
+| I4 | P&L-first leaderboard, continuously updated | §5-7, §10 | **done** `slots.py --leaderboard` |
+| I5 | Mandatory risk plan per strategy; all stop types; risk-over-strategy priority | §15, §17 | **done** `stop_plans.py` |
+| I6 | Intraday market data feed + position monitor during market hours | §16, §18 | **done** `slot_trader.py --monitor`, `quotes.LiveQuotes` (stale refused) |
+| I7 | Intraday signal engine and intraday strategy support | §3, §18 | **done, SHADOW only (B8)** `intraday.py` |
+| I8 | LIVE execution path: transmit, confirm, retry/escalate, order-state recovery, reconciliation loop | §16, §23 | **done for SIMULATION/SHADOW** `slot_trader.py`, `LedgerSimulatedBroker`; LIVE transmit remains the operator step |
+| I9 | Global and per-strategy kill switches with cancel / emergency-exit / freeze / alert | §25 | **done** per-strategy switches + emergency policy (`killswitch.py`, `slot_trader.emergency`) |
+| I10 | Daily five-slot reassessment | §26 | **done** `slots.py --apply` in daily.sh |
+| I11 | Process separation: live trading, backtesting, paper, ingestion, ranking, discovery as independent services | §19, §27 | **done** `services.sh` (cron, 5-min trader) |
+| I12 | Account-rule guard in the risk engine (day-trade count / settled cash) | §3 | **done** `account_rules.py` in the risk engine (cash, T+1) |
+| I13 | Reporting: slots, trades, replacements, risk events, gross/costs/net | §23 | **done** slot section in `factory_report` |
+| I14 | End-to-end in SIMULATION, then SHADOW, then live once the operator authorizes the account | §24 | **SIMULATION + SHADOW done** (`tests/e2e/e2e_factory.py`); LIVE is the user's authorization (B14) |
 
 *Sequencing with Phase 13.* Slots need ranked strategies and trustworthy P&L,
 so H2 (accounting) comes first for both. Proposed interleave: H1-H2, then I1-I5
