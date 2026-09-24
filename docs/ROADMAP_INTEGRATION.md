@@ -819,3 +819,14 @@ mostly a bull market. The ranking will admit it on a positive backtest (the
 owner's rule) and the paper record then moves it; that is the design, not a
 finding of edge. The spread is one after-hours snapshot; K1 measures it
 properly and may find it narrower in US hours.
+
+---
+
+**Profit exits** — added 2026-09-24 (owner: "we have stop loss rules but do we have 'we made some money, let's sell it' rules?")
+
+| | item | state |
+|---:|---|---|
+| P1 | Live slots apply the strategy's own `take_profit_pct` | **done** — `stop_plans.py` dropped it; backtest and paper applied it. Older positions pick it up from their strategy version |
+| P2 | Measure take-profit and trailing stops before adopting any | **built, not yet run** — `exit_sweep.py`, experiment `exit_rules`; simulator gained `trailing_atr_multiple` |
+| P3 | Adopt a winning exit as a new strategy version | waits on P2; only cells that beat the strategy as it is over 2006-2019 AND in most two-year blocks |
+| P4 | Slot-wide trailing stop, untested | **declined by the owner 2026-09-24** (steps 1 and 2 only) |

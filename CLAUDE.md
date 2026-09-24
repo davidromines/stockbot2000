@@ -229,6 +229,18 @@ loader. It had added 15 points a year to a momentum backtest.
    ranked from a neutral 0) -> K5 crypto orders in slot_trader -> K6 hourly
    24/7 crypto cron -> K7 owner sets `allow_crypto: true`. The Agentic account
    has a linked crypto account.
+7. **Profit exits (owner, 2026-09-24: "when will profits be taken?").**
+   Until now live slots sold only on the ATR stop, the time limit or the
+   strategy's exit rule. **Fixed:** `stop_plans.from_genome` had dropped
+   `risk.take_profit_pct`, which the backtest and paper engine both apply, so
+   live traded a different strategy than was tested; now carried (checked
+   after the stop), and positions bought earlier get it from their strategy
+   version. **Built, NOT YET RUN:** `exit_sweep.py` (experiment `exit_rules`):
+   take-profit none/5/10/20% x trailing stop none/2/3 ATR on each slot
+   strategy, 2006-2019. Adoptable only if it beats the strategy as it is over
+   the window AND in most two-year blocks. On the VM:
+   `./run_bounded.sh ./venv/bin/python exit_sweep.py --run`. An adoptable
+   cell becomes a new strategy version; the ranking re-scores it.
 
 **Findings from this session that change numbers elsewhere**
 
@@ -686,7 +698,8 @@ hardcodes paths, thresholds or model parameters.
 |---|---|
 | `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
 | `slots.py` | Pair funds (`pair:`) trade the ETF their fund holds, via `pair_funds.next_leg()`, with a `slots.pair_risk` ATR stop. The Value Fund (`value:`) trades its top-ranked holding with a `slots.value_risk` stop and sells when the fund sells. Five slots filled from ranking.py's top five tradeable strategies; family cap; controlled replacement on score; the leaderboard. Places no order. |
-| `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. |
+| `stop_plans.py` | Mandatory stop plans; valid only with a price stop; tightest wins; risk outranks strategy. Carries the genome's take-profit (an exit, never a stop). |
+| `exit_sweep.py` | Registered `exit_rules` experiment: take-profit x trailing stop against each slot strategy as it is. |
 | `slot_trader.py` | Trades the slots through ExecutionEngine; `--auto` from cron; emergency policy; restart-safe via the orders ledger. |
 | `quotes.py` | Live 1-minute quotes with a staleness refusal; the historical-intraday interface (not provided). |
 | `market_caps.py` | Sourced market-cap fallback (Robinhood / yfinance, dated, <= 7 days) for names the filings miss. Never an assumed cap. |
