@@ -239,6 +239,18 @@ Claude does not read the raw data, features, or model — only the two
 handoff files. This keeps token usage low and keeps the interpretation
 work on your local model, per the design goal.
 
+## Research integrity (Phase 6)
+
+Measurements that say whether a result is real. None of them recommends a
+parameter; see `docs/RESEARCH_METHODOLOGY.md` and `docs/EXPERIMENT_PROTOCOL.md`.
+
+```bash
+./venv/bin/python baselines.py              # each forward fund vs cash, SPY, its ETF, matched null, random
+./venv/bin/python regimes.py --forward      # forward P&L by predefined regime (rates: --load-rates)
+./run_bounded.sh ./venv/bin/python model_calibration.py   # AUC vs calibration vs money, by confidence band
+./run_bounded.sh ./venv/bin/python phase6_report.py       # the §31 report + §30 checklist -> reports/
+```
+
 ## Known v1 rough edges (fix in the "make it good" pass)
 
 See `BACKLOG.md` for the full list — top of mind: no strict train/test
