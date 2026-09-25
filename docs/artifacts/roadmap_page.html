@@ -188,8 +188,8 @@
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
       <span>UPDATED 2026-09-25</span>
-      <span>13 PHASES + ADDENDA A–C + STAGES K–M</span>
-      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED</span>
+      <span>13 PHASES + ADDENDA A–D + STAGES K–N</span>
+      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED · STAGE N (ADDENDUM D) ENTERED 09-25</span>
     </div>
   </header>
 
@@ -198,7 +198,7 @@
     <div class="stat progress"><div class="n">1</div><div class="l">At 85% (smoke test: Ollama)</div></div>
     <div class="stat done"><div class="n">3</div><div class="l">Built 09-24 — Phase 13, Addenda A, C</div></div>
     <div class="stat done"><div class="n">4 / 5</div><div class="l">Slots filled, live — slot 5 waits on settled cash</div></div>
-    <div class="stat planned"><div class="n">3</div><div class="l">Stages planned — crypto, published signals, dead-company realism</div></div>
+    <div class="stat planned"><div class="n">4</div><div class="l">Stages planned — crypto, published signals, dead-company realism, live growth (N)</div></div>
     <div class="stat"><div class="n">0</div><div class="l">Strategies with a proven edge</div></div>
   </div>
 
@@ -217,9 +217,9 @@
 
   <div class="questions">
     <h2 style="margin-bottom:6px;">Next on the VM</h2>
-    <p class="section-cap" style="margin-bottom:12px;">All code from 24–25 September is on GitHub (branch <span class="mono">claude/stock-bot-visibility-l9iym2</span>) but not yet on the VM. A cloud Claude session cannot reach the VM, so these run there, in order. Heavy jobs run one at a time, outside market hours and away from the 07:00 UTC daily job.</p>
-    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Merge the branch and run the tests</div><div class="q-body"><span class="mono">git fetch origin claude/stock-bot-visibility-l9iym2 &amp;&amp; git merge --ff-only FETCH_HEAD</span>, then <span class="mono">./run_tests.sh</span>. Your LIVE setting in <span class="mono">config/risk.yaml</span> is untouched.</div></div></div>
-    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Previews and light data fetches</div><div class="q-body">The ranking and slot plan (read-only), then market caps, T-bill rates and FinanceDatabase.</div></div></div>
+    <p class="section-cap" style="margin-bottom:12px;">The 24–25 September code (branch <span class="mono">claude/stock-bot-visibility-l9iym2</span>) was merged on the VM at 02:05 UTC on 25 September. These run on the VM, in order. Heavy jobs run one at a time, outside market hours and away from the 07:00 UTC daily job.</p>
+    <div class="q-item"><div class="q-mark resolved">1</div><div><div class="q-title">Merge the branch and run the tests <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25, 67 of 67 test files pass</span></div><div class="q-body">Two defects fixed on the way: the LIVE-refusal tests read the real <span class="mono">risk.yaml</span>, now pinned; the kill-switch alert compared a UTC date with a New York date. <span class="mono">git fetch origin claude/stock-bot-visibility-l9iym2 &amp;&amp; git merge --ff-only FETCH_HEAD</span>, then <span class="mono">./run_tests.sh</span>. Your LIVE setting in <span class="mono">config/risk.yaml</span> is untouched.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">2</div><div><div class="q-title">Previews and light data fetches</div><div class="q-body">The ranking and slot plan (read-only) — <b>done 09-25</b>: 264 of 268 eligible, slot 5 planned for <span class="mono">paper:4c373dbad035</span>. Then market caps, T-bill rates and FinanceDatabase.</div></div></div>
     <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">Rebuild the universe and generator v4, then score it</div><div class="q-body">Stage M, step M1: how much realism the buyout fix gains.</div></div></div>
     <div class="q-item"><div class="q-mark no">4</div><div><div class="q-title">Survivorship backtests — affects real money</div><div class="q-body">Once this runs, the ranking scores every strategy with the dead companies included. A live strategy whose backtest turns negative drops out, and its slot is sold at the next reassessment. <b>You see the new ranking before the next market open.</b></div></div></div>
     <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Exit sweep, Phase 6 report, FINSABER pickle import</div><div class="q-body">Long jobs; each resumes if interrupted.</div></div></div>
@@ -672,7 +672,7 @@
       </div>
     </div>
 
-    <div class="phase last">
+    <div class="phase">
       <div class="phase-num">M</div>
       <div>
         <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill planned">Planned</span></div>
@@ -696,6 +696,30 @@
             <tr><td class="mono">M5</td><td>Paid delisted prices (~$270/yr: Norgate, FirstRateData, HistoricalData.net) — your call</td><td>you</td></tr>
           </tbody></table></div>
         <p class="note warn">Even with the Q tickers there will be tens to a few hundred real failures against about 3,000 synthetic ones, so each real template is reused many times. The realism test measures whether that shows.</p>
+      </div>
+    </div>
+    <div class="phase last">
+      <div class="phase-num">N</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage N — Addendum D: Live Growth &amp; Continuous Improvement</div><span class="pill planned">Entered 09-25</span></div>
+        <p class="phase-desc">Keep Stockbot2000 trading live while it becomes more observable, more reliable and better at finding strategies. The live system is not stopped for this phase. A change that can touch live trading is isolated, tested, deployed safely, and the live system is checked afterwards. Research never permanently ends: live → observation → measurement → discovery → backtest → robustness → paper → eligibility → ranking → promotion → live.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">Control Center</span><span class="chip">Five-slot view + why</span><span class="chip">Live trade feed</span><span class="chip">Ranking center</span><span class="chip">Next possible replacements</span><span class="chip">Strategy journal</span><span class="chip">Decay: HEALTHY / WATCH / DEGRADING / FAILED</span><span class="chip">Live → research feedback</span><span class="chip">System health</span><span class="chip">Daily operating loop + EOD report</span><span class="chip">Scaling config</span></div>
+        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
+          <caption>Build order exactly as the spec's §20. Spec verbatim: <span class="mono">docs/ADDENDUM_D_LIVE_GROWTH.md</span> · integration (what exists, what is missing): <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage N.</caption>
+          <thead><tr><th>Step</th><th>Priority</th><th>Builds on</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">N1</td><td>1 — Live visibility: the real-time Control Center (account overview with broker / paper / research kept apart, five slots, trade feed, system health)</td><td><span class="mono">monitor.py --serve</span>, slot and order tables</td><td class="st"><span class="pill planned">next</span></td></tr>
+            <tr><td class="mono">N2</td><td>2 — Live reliability: every execution and reconciliation path in §14 verified</td><td>risk engine, kill switches, LiveBroker, per-run reconciliation</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N3</td><td>3 — Strategy leaderboard: the whole population, with status and movement</td><td><span class="mono">ranking.py</span>, leagues</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N4</td><td>4 — Replacement visibility and a per-strategy journal; every replacement recorded with reason and account effect</td><td><span class="mono">slots.py</span>, append-only decision logs</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N5</td><td>5 — Strategy health / decay monitoring</td><td><span class="mono">degradation.py</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N6</td><td>6 — Live results fed back into research: predicted vs actual, slippage, delay, exit reason, regime</td><td>fills, <span class="mono">costs.py</span>, <span class="mono">regimes.py</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N7</td><td>7 — Continuous discovery aimed at measured weaknesses; the frozen search stays frozen</td><td><span class="mono">discovery.py</span>, factory pipeline</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N8</td><td>8 — Stages K, L, M in parallel</td><td>above</td><td class="st"><span class="pill planned">continuing</span></td></tr>
+            <tr><td class="mono">N9</td><td>9 — Scaling: total capital, slots, per-slot capital, position, daily, strategy and drawdown limits in config; ~$100 / five slots kept for now</td><td><span class="mono">config.yaml</span>, <span class="mono">config/risk.yaml</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
+          </tbody></table></div>
+        <p class="note">Standing rules from the spec: a slot may be cash rather than hold a strategy that doesn’t qualify; broker state is authoritative; research can never place a live order (only live allocation and execution can trade). Done means all 18 criteria in §23, tracked item by item in Stage N.</p>
       </div>
     </div>
   </section>
@@ -798,6 +822,8 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Addendum D entered as Stage N (09-25).</b> Live Growth &amp; Continuous Improvement, added verbatim: keep LIVE running, Control Center first, then reliability, leaderboard, replacement visibility, decay, feedback, discovery, K/L/M, scaling. Not yet started.</li>
+      <li><b>Branch merged on the VM (09-25 02:05 UTC).</b> 67 of 67 test files pass after two fixes: tests no longer read the live arming switch, and the kill-switch alert no longer repeats after 20:00 ET.</li>
       <li><b>Code on GitHub (09-25).</b> All 37 commits pushed once the Claude GitHub App was installed on the repo; the VM merge is step 1 above. Live check at 01:52 UTC: 4 slots open and reconciled, $19.26 settling for slot 5.</li>
       <li><b>Stages K, L and M planned (09-24).</b> Crypto earning a slot, published academic signals as a strategy source, and realistic dead companies built from real failures.</li>
       <li><b>Survivorship in the ranking (09-24).</b> Every ranked strategy is backtested with the synthetic dead companies included, and the ranking scores on that. Built; first run on the VM.</li>
