@@ -1,0 +1,277 @@
+{
+ "cancel_crypto_order": {
+  "type": "object",
+  "properties": {
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Numeric brokerage account number (the 'rhs_account_number' field on get_accounts entries \u2014 distinct from the alphanumeric 'account_number'). The order must belong to this account. Required."
+   },
+   "order_id": {
+    "type": "string",
+    "description": "Order UUID from get_crypto_orders. Must belong to rhs_account_number. Required."
+   }
+  },
+  "required": [
+   "rhs_account_number",
+   "order_id"
+  ],
+  "additionalProperties": false
+ },
+ "get_crypto_account_onboarding_info": {
+  "type": "object",
+  "additionalProperties": false
+ },
+ "get_crypto_orders": {
+  "type": "object",
+  "properties": {
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Numeric brokerage account number (the 'rhs_account_number' field on get_accounts entries \u2014 distinct from the alphanumeric 'account_number'). Required."
+   },
+   "order_id": {
+    "type": "string",
+    "description": "Filter to a single order by UUID. The response shape is unchanged (results[] with at most one entry); empty when the order does not belong to the account."
+   },
+   "state": {
+    "type": "string",
+    "description": "Filter by single state: queued, confirmed, partially_filled, filled, canceled, rejected, failed, voided. For open-vs-closed shortcuts, use state_group instead."
+   },
+   "state_group": {
+    "type": "string",
+    "description": "Filter by state group: 'open' or 'closed'. Quick shortcut \u2014 'open' covers queued/confirmed/partially_filled, 'closed' covers filled/canceled/rejected/failed/voided. Mutually exclusive with state."
+   },
+   "side": {
+    "type": "string",
+    "description": "Filter by side: 'buy' or 'sell'."
+   },
+   "symbol": {
+    "type": "string",
+    "description": "Filter by crypto symbol (e.g. 'BTC', 'ETH', or 'BTC-USD'). Triggers a symbol\u2192currency_pair_id lookup before the orders call."
+   },
+   "created_at_gte": {
+    "type": "string",
+    "description": "Lower bound (inclusive) on created_at. ISO 8601 UTC; naive values are interpreted as UTC."
+   },
+   "updated_at_gte": {
+    "type": "string",
+    "description": "Lower bound (inclusive) on updated_at. ISO 8601 UTC. Useful for polling for fills \u2014 each state transition bumps updated_at."
+   },
+   "cursor": {
+    "type": "string",
+    "description": "Pagination cursor. Omit for the first page; for the next page, pass the prior response's next value back verbatim."
+   }
+  },
+  "required": [
+   "rhs_account_number"
+  ],
+  "additionalProperties": false
+ },
+ "get_crypto_positions": {
+  "type": "object",
+  "properties": {
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Numeric brokerage account number (the 'rhs_account_number' field on get_accounts entries \u2014 distinct from the alphanumeric 'account_number'). Required. Do NOT pass rhc_account_number (the linked crypto account, labeled 'Crypto Account' on get_accounts) \u2014 that is a different identifier space and will return no positions."
+   },
+   "cursor": {
+    "type": "string",
+    "description": "Pagination cursor. Omit for the first page; for the next page, pass the prior response's next value back verbatim."
+   }
+  },
+  "required": [
+   "rhs_account_number"
+  ],
+  "additionalProperties": false
+ },
+ "get_crypto_quotes": {
+  "type": "object",
+  "properties": {
+   "symbols": {
+    "type": [
+     "null",
+     "array"
+    ],
+    "items": {
+     "type": "string"
+    },
+    "description": "One or more crypto pair symbols (e.g. 'BTC-USD', 'ETH-USD'). Hyphenated and unhyphenated forms are both accepted on input; the response symbol field comes back unhyphenated."
+   },
+   "timezone": {
+    "type": "string",
+    "description": "Optional IANA timezone name (e.g. 'America/New_York', 'America/Los_Angeles') that anchors the previous-close (open_price) day boundary to the user's local midnight and sets the timezone the response timestamps (bid_time, ask_time, updated_at) are rendered in. Pass ONLY when the user's timezone is known from context \u2014 do NOT guess it, infer it from language, or default it. When omitted, the previous close is anchored to midnight US Eastern and timestamps are rendered in US Eastern. Must be a valid IANA name \u2014 not an abbreviation ('PST'), a UTC offset ('-08:00'), or 'Local'."
+   },
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Optional numeric brokerage account number (the 'rhs_account_number' from get_accounts). When supplied, bid/ask/mark and the previous close are priced on this account's execution routing \u2014 the venues its orders actually fill at \u2014 and the applied routing is echoed in routing. When omitted, prices use the caller's own routing (it is set at the user level, so any of their crypto accounts yields the same routing). A caller with no crypto account, or an account that cannot be resolved, receives market-maker-routed pricing. Pairs that only trade on market-maker routing are always priced on it, whatever the account's routing, so routing can differ between results in one response."
+   }
+  },
+  "required": [
+   "symbols"
+  ],
+  "additionalProperties": false
+ },
+ "get_currency_pairs": {
+  "type": "object",
+  "properties": {
+   "cursor": {
+    "type": "string",
+    "description": "Pagination cursor. Omit for the first page; for the next page, pass the prior response's next value back verbatim."
+   },
+   "limit": {
+    "type": "integer",
+    "description": "Maximum number of pairs to return on this page (clamped to [1, 700]). Defaults to 25 to keep the response sized for an agent's context window; raise it when the user wants the full catalog and is OK with a larger response."
+   }
+  },
+  "additionalProperties": false
+ },
+ "place_crypto_order": {
+  "type": "object",
+  "properties": {
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Numeric brokerage account number (the 'rhs_account_number' field on get_accounts entries \u2014 distinct from the alphanumeric 'account_number'). Must be an agentic-enabled crypto account. Required. Do NOT pass rhc_account_number (the linked crypto account, labeled 'Crypto Account' on get_accounts) \u2014 that is a different identifier space and will return no crypto account found."
+   },
+   "symbol": {
+    "type": "string",
+    "description": "Crypto symbol (e.g. 'BTC', 'ETH', or 'BTC-USD'). Resolved to a currency pair before the order is placed. Required."
+   },
+   "side": {
+    "type": "string",
+    "description": "'buy' or 'sell'. Required."
+   },
+   "type": {
+    "type": "string",
+    "description": "'market', 'limit', 'stop_loss', or 'stop_limit'. Required. 'stop_loss' is a stop-triggered market order \u2014 despite the name it applies to buy stops too; the equity/option tools call the same concept 'stop_market'. ALWAYS call these by their app names when speaking to the user, including when listing what types are supported: 'stop_loss' is a 'stop order' and 'stop_limit' a 'stop limit order'; the raw values are tool inputs only. A user asking for a 'stop loss', 'stop order', or 'stop market' order means this stop_loss type \u2014 do not ask which stop type (but a limit price given alongside the trigger makes it stop_limit); ask only when the phrasing names no type, e.g. a bare 'stop' or 'protect my position'."
+   },
+   "quantity": {
+    "type": "string",
+    "description": "Asset quantity to trade (e.g. amount of BTC). Provide exactly one of quantity or dollar_amount. Crypto is measured in coins/units, not shares \u2014 when speaking to the user, including order confirmations, NEVER call a crypto quantity 'shares' ('shares' is equity terminology); state the amount of the asset, e.g. '0.001542 ETH'."
+   },
+   "dollar_amount": {
+    "type": "string",
+    "description": "USD notional (e.g. '100.00'). Valid with every order type. Provide exactly one of quantity or dollar_amount. For market, quantity is derived server-side: a buy is sized at the current market price \u2014 the same sizing as the app \u2014 so the typical debit is ~dollar_amount, with a worst case up to ~1% more if the price moves before execution (the buy collar); a sell is likewise sized at the current market price, so the typical credit is ~dollar_amount, with a worst case up to ~5% less if the price moves before execution (the sell collar). For stop_loss, quantity is derived from dollar_amount at stop_price (the trigger price) when the order is placed, not the live quote \u2014 the triggered market order executes near the trigger, so the typical fill notional is ~dollar_amount, with a worst case up to the collar worse (a higher debit for buy stops, a lower credit for sell stops). For limit and stop_limit, quantity is derived from dollar_amount at limit_price when the order is placed \u2014 fills execute at the limit price or better, so a buy's debit is capped at dollar_amount (no collar buffer; on fee-priced accounts fee rounding can add at most one cent) and a sell's credit is at least the derived quantity's worth at the limit, minus any fee. On fee-priced accounts a buy's quantity is sized from the fee-netted amount so the total debit targets dollar_amount, and a sell's fee is deducted from the credit."
+   },
+   "limit_price": {
+    "type": "string",
+    "description": "Limit price; required for limit and stop_limit."
+   },
+   "stop_price": {
+    "type": "string",
+    "description": "Stop trigger price; required for stop_loss and stop_limit."
+   },
+   "time_in_force": {
+    "type": "string",
+    "description": "Allowed values depend on type. market and limit: 'gtc' (good till canceled) only \u2014 market orders execute immediately so a bounded duration does not apply, and limit orders are always for 90 days; omit this field or pass 'gtc' for both. stop_loss and stop_limit: 'gtc' (good for 90 days), 'gfd' (good for day), 'gfw' (good for 7 days), or 'gfm' (good for 30 days). If omitted, defaults to gtc for market and limit, and gfd for stop_loss and stop_limit. 'ioc' is NEVER supported for crypto orders."
+   },
+   "tax_lots": {
+    "type": [
+     "null",
+     "array"
+    ],
+    "items": {
+     "type": "object",
+     "properties": {
+      "open_lot_id": {
+       "type": "string",
+       "description": "open_lot_id of the open tax lot to sell, from get_crypto_tax_lots."
+      },
+      "quantity": {
+       "type": "string",
+       "description": "Units to sell from this lot as a decimal string; at most the lot's quantity_available (or exactly quantity_to_sell from a strategy result)."
+      }
+     },
+     "required": [
+      "open_lot_id",
+      "quantity"
+     ],
+     "additionalProperties": false
+    },
+    "description": "Optional specified-lot selection for a SELL order. To sell specific tax lots instead of the default disposal, pass {open_lot_id, quantity} objects whose quantities sum to the order quantity, with open_lot_id taken from the account's crypto tax lots (see the request guide). Omit for the default. Sell only; quantity-based orders only (not dollar_amount); at most 50 lots; only when the lot listing reports selection_state 'enabled'. Not every account can select lots: if the tool rejects tax_lots as not available, tell the user and offer the default disposal instead."
+   },
+   "ref_id": {
+    "type": "string",
+    "description": "Idempotency key (UUID). Generate once per logical order and re-send the SAME value on retries of transient failures \u2014 the upstream deduplicates by ref_id. Omitting falls back to a server-generated key (loses client\u2194gateway idempotency). Use a new value only when the user wants a new order."
+   }
+  },
+  "required": [
+   "rhs_account_number",
+   "symbol",
+   "side",
+   "type"
+  ],
+  "additionalProperties": false
+ },
+ "preview_crypto_order": {
+  "type": "object",
+  "properties": {
+   "rhs_account_number": {
+    "type": "string",
+    "description": "Numeric brokerage account number (the 'rhs_account_number' field on get_accounts entries \u2014 distinct from the alphanumeric 'account_number'). Must be an agentic-enabled crypto account. Required. Do NOT pass rhc_account_number (the linked crypto account, labeled 'Crypto Account' on get_accounts) \u2014 that is a different identifier space and will return no crypto account found."
+   },
+   "symbol": {
+    "type": "string",
+    "description": "Crypto symbol (e.g. 'BTC', 'ETH', or 'BTC-USD'). Resolved to a currency pair before the preview. Required."
+   },
+   "side": {
+    "type": "string",
+    "description": "'buy' or 'sell'. Required."
+   },
+   "type": {
+    "type": "string",
+    "description": "'market', 'limit', 'stop_loss', or 'stop_limit'. Required. 'stop_loss' is a stop-triggered market order \u2014 despite the name it applies to buy stops too; the equity/option tools call the same concept 'stop_market'. ALWAYS call these by their app names when speaking to the user, including when listing what types are supported: 'stop_loss' is a 'stop order' and 'stop_limit' a 'stop limit order'; the raw values are tool inputs only. A user asking for a 'stop loss', 'stop order', or 'stop market' order means this stop_loss type \u2014 do not ask which stop type (but a limit price given alongside the trigger makes it stop_limit); ask only when the phrasing names no type, e.g. a bare 'stop' or 'protect my position'."
+   },
+   "quantity": {
+    "type": "string",
+    "description": "Asset quantity to trade (e.g. amount of BTC). Provide exactly one of quantity or dollar_amount. Crypto is measured in coins/units, not shares \u2014 when speaking to the user, including order confirmations, NEVER call a crypto quantity 'shares' ('shares' is equity terminology); state the amount of the asset, e.g. '0.001542 ETH'."
+   },
+   "dollar_amount": {
+    "type": "string",
+    "description": "USD notional (e.g. '100.00'). Valid with every order type. Provide exactly one of quantity or dollar_amount. For market, quantity is derived server-side: a buy is sized at the current market price \u2014 the same sizing as the app \u2014 so the typical debit is ~dollar_amount, with a worst case up to ~1% more if the price moves before execution (the buy collar); a sell is likewise sized at the current market price, so the typical credit is ~dollar_amount, with a worst case up to ~5% less if the price moves before execution (the sell collar). For stop_loss, quantity is derived from dollar_amount at stop_price (the trigger price) when the order is placed, not the live quote \u2014 the triggered market order executes near the trigger, so the typical fill notional is ~dollar_amount, with a worst case up to the collar worse (a higher debit for buy stops, a lower credit for sell stops). For limit and stop_limit, quantity is derived from dollar_amount at limit_price when the order is placed \u2014 fills execute at the limit price or better, so a buy's debit is capped at dollar_amount (no collar buffer; on fee-priced accounts fee rounding can add at most one cent) and a sell's credit is at least the derived quantity's worth at the limit, minus any fee. On fee-priced accounts a buy's quantity is sized from the fee-netted amount so the total debit targets dollar_amount, and a sell's fee is deducted from the credit."
+   },
+   "limit_price": {
+    "type": "string",
+    "description": "Limit price; required for limit and stop_limit."
+   },
+   "stop_price": {
+    "type": "string",
+    "description": "Stop trigger price; required for stop_loss and stop_limit."
+   },
+   "time_in_force": {
+    "type": "string",
+    "description": "Allowed values depend on type. market and limit: 'gtc' (good till canceled) only \u2014 market orders execute immediately so a bounded duration does not apply, and limit orders are always for 90 days; omit this field or pass 'gtc' for both. stop_loss and stop_limit: 'gtc' (good for 90 days), 'gfd' (good for day), 'gfw' (good for 7 days), or 'gfm' (good for 30 days). If omitted, defaults to gtc for market and limit, and gfd for stop_loss and stop_limit. 'ioc' is NEVER supported for crypto orders."
+   },
+   "tax_lots": {
+    "type": [
+     "null",
+     "array"
+    ],
+    "items": {
+     "type": "object",
+     "properties": {
+      "open_lot_id": {
+       "type": "string",
+       "description": "open_lot_id of the open tax lot to sell, from get_crypto_tax_lots."
+      },
+      "quantity": {
+       "type": "string",
+       "description": "Units to sell from this lot as a decimal string; at most the lot's quantity_available (or exactly quantity_to_sell from a strategy result)."
+      }
+     },
+     "required": [
+      "open_lot_id",
+      "quantity"
+     ],
+     "additionalProperties": false
+    },
+    "description": "Optional specified-lot selection for a SELL order. To sell specific tax lots instead of the default disposal, pass {open_lot_id, quantity} objects whose quantities sum to the order quantity, with open_lot_id taken from the account's crypto tax lots (see the request guide). Omit for the default. Sell only; quantity-based orders only (not dollar_amount); at most 50 lots; only when the lot listing reports selection_state 'enabled'. Not every account can select lots: if the tool rejects tax_lots as not available, tell the user and offer the default disposal instead."
+   }
+  },
+  "required": [
+   "rhs_account_number",
+   "symbol",
+   "side",
+   "type"
+  ],
+  "additionalProperties": false
+ }
+}

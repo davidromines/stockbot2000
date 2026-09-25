@@ -332,7 +332,7 @@ def call(tool: str, args: dict | None = None, interactive: bool = False) -> obje
 def list_tools(interactive: bool = False) -> list:
     async def run(session):
         r = await session.list_tools()
-        return [{"name": t.name, "schema": t.inputSchema} for t in r.tools]
+        return [{"name": t.name, "schema": getattr(t, "input_schema", None) or getattr(t, "inputSchema", {})} for t in r.tools]
     return asyncio.run(_session_do(settings()["mcp_url"], interactive, run))
 
 
