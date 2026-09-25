@@ -5,7 +5,7 @@ Three ways to watch, all from one file and all stdlib-only — no pip install, n
 sudo, nothing to break when the VM is rebuilt:
 
     python monitor.py            # live terminal dashboard, refreshes in place
-    python monitor.py --serve    # web page on http://localhost:8787
+    python monitor.py --serve    # Control Center on http://localhost:8787 (lab view: /lab)
     python monitor.py --once     # single snapshot, for scripts and cron
 
 The terminal mode works over SSH, which matters because this machine is usually
@@ -311,13 +311,32 @@ def html(s: dict) -> str:
 
 
 def serve(port: int = 8787) -> None:
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import json
+    import control_center as cc
 
     class H(BaseHTTPRequestHandler):
+        # /             the Control Center (Addendum D, N1)
+        # /api/control  its data, JSON, read-only
+        # /lab          the search/lab view this page used to be
         def do_GET(self):
-            body = html(snapshot()).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
+            path = self.path.split("?")[0]
+            try:
+                if path == "/api/control":
+                    body, ctype = json.dumps(cc.snapshot(), default=str).encode(), "application/json"
+                elif path == "/lab":
+                    body, ctype = html(snapshot()).encode(), "text/html; charset=utf-8"
+                elif path in ("/", "/index.html"):
+                    body, ctype = cc.page().encode(), "text/html; charset=utf-8"
+                else:
+                    self.send_error(404)
+                    return
+                code = 200
+            except Exception as e:                           # noqa: BLE001
+                body, ctype, code = json.dumps({"error": f"{type(e).__name__}: {e}"}).encode(), "application/json", 500
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -328,7 +347,7 @@ def serve(port: int = 8787) -> None:
     # Bound to localhost only. This exposes account positions and should not be
     # reachable from the network; to view it remotely, tunnel over SSH:
     #   ssh -L 8787:localhost:8787 stockpicker@<host>
-    srv = HTTPServer(("127.0.0.1", port), H)
+    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
     print(f"  dashboard on http://localhost:{port}  (localhost only; ctrl-C to stop)")
     try:
         srv.serve_forever()

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stockbot2000 Control Center</title>
+<style>
+  :root{
+    --bg:#F5F4F0; --surface:#FFFFFF; --surface-2:#EEECE6; --border:#DCD9D1;
+    --text:#1F211E; --soft:#5A5D56; --mute:#8A8D85;
+    --good:#1F8A5F; --good-bg:#E1F1E8; --bad:#B23A1E; --bad-bg:#F8E1DA;
+    --warn:#A86A06; --warn-bg:#FBEDD4; --info:#3E6FB0; --info-bg:#E4EBF5;
+    --live:#1F8A5F; --paper:#3E6FB0; --research:#7A5AB0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#161816; --surface:#1F221F; --surface-2:#272A26; --border:#363933;
+      --text:#ECEAE3; --soft:#B2B4AB; --mute:#80837B;
+      --good:#3ED28C; --good-bg:#1D3328; --bad:#F0806A; --bad-bg:#3D211B;
+      --warn:#E6AD45; --warn-bg:#3A2F17; --info:#7DAAE6; --info-bg:#202B39;
+      --live:#3ED28C; --paper:#7DAAE6; --research:#B79BE8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#161816; --surface:#1F221F; --surface-2:#272A26; --border:#363933;
+    --text:#ECEAE3; --soft:#B2B4AB; --mute:#80837B;
+    --good:#3ED28C; --good-bg:#1D3328; --bad:#F0806A; --bad-bg:#3D211B;
+    --warn:#E6AD45; --warn-bg:#3A2F17; --info:#7DAAE6; --info-bg:#202B39;
+    --live:#3ED28C; --paper:#7DAAE6; --research:#B79BE8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:0 16px 60px}
+  .wrap{max-width:1280px;margin:0 auto}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:18px 0 14px;
+    border-bottom:1px solid var(--border);margin-bottom:18px;position:sticky;top:0;background:var(--bg);z-index:2}
+  h1{font-size:19px;margin:0;letter-spacing:-.01em}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--soft);margin:26px 0 10px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+    letter-spacing:.03em;white-space:nowrap}
+  .ok{color:var(--good);background:var(--good-bg)} .fail{color:var(--bad);background:var(--bad-bg)}
+  .warn{color:var(--warn);background:var(--warn-bg)} .info{color:var(--info);background:var(--info-bg)}
+  .muted{color:var(--mute)} .pos{color:var(--good)} .neg{color:var(--bad)}
+  .meta{color:var(--mute);font-size:12.5px}
+  .grid{display:grid;gap:12px}
+  .books{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .book{border-top:3px solid var(--live)} .book.paper{border-top-color:var(--paper)}
+  .book.research{border-top-color:var(--research)}
+  .book h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:13px}
+  .kv span:nth-child(odd){color:var(--soft)}
+  .kv span:nth-child(even){text-align:right}
+  .big{font-size:24px;font-weight:650;margin:2px 0 8px}
+  .slots{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .slot h4{margin:0;font-size:13px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .slot .name{font-weight:600;font-size:14.5px;margin:6px 0 2px}
+  .slot .why{margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);font-size:12.5px}
+  .slot .why b{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);margin-bottom:3px}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-weight:600;color:var(--mute);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+  td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+  td.n{text-align:right;white-space:nowrap}
+  tr.live td{background:var(--good-bg)} tr.chal td{background:var(--info-bg)}
+  .feed{max-height:520px;overflow-y:auto}
+  .ev{display:grid;grid-template-columns:78px 150px 1fr;gap:8px;padding:6px 2px;border-bottom:1px solid var(--border);font-size:12.5px}
+  .ev .k{font-weight:600;font-size:11.5px}
+  .two{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+  @media (max-width:900px){.two{grid-template-columns:1fr}.ev{grid-template-columns:62px 1fr}.ev .k{grid-column:2}.ev .t{grid-column:2}}
+  .health{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+  .check{display:flex;gap:8px;align-items:baseline;font-size:12.5px;padding:4px 0}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;transform:translateY(1px)}
+  .dot.ok{background:var(--good)} .dot.warn{background:var(--warn)} .dot.fail{background:var(--bad)}
+  .tabs button{font:inherit;font-size:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--soft);
+    border-radius:6px;padding:3px 9px;cursor:pointer} .tabs button.on{color:var(--text);border-color:var(--text)}
+  #err{display:none;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Stockbot2000 Control Center</h1>
+  <span id="mode" class="pill info">…</span>
+  <span id="market" class="pill info">…</span>
+  <span id="status" class="pill info">loading</span>
+  <span class="meta" id="gen"></span>
+</header>
+<div id="err" class="card fail"></div>
+
+<h2>Account — three books, never mixed</h2>
+<div class="grid books">
+  <div class="card book" id="broker"></div>
+  <div class="card book paper" id="paper"></div>
+  <div class="card book research" id="research"></div>
+</div>
+
+<h2>The five slots — broker account</h2>
+<div class="grid slots" id="slots"></div>
+
+<div class="grid two">
+  <div>
+    <h2>Live trade feed</h2>
+    <div class="card feed" id="feed"></div>
+  </div>
+  <div>
+    <h2>Next possible replacements</h2>
+    <div class="card" id="repl"></div>
+    <h2>System health</h2>
+    <div class="card" id="health"></div>
+  </div>
+</div>
+
+<h2>Strategy ranking — every strategy, best first</h2>
+<div class="card">
+  <div class="tabs" style="margin-bottom:8px">
+    <button data-f="all" class="on">All</button> <button data-f="eligible">Eligible</button>
+    <button data-f="live">Live + challengers</button>
+  </div>
+  <div class="scroll" style="max-height:560px;overflow-y:auto"><table id="board"></table></div>
+</div>
+
+<h2>Replacement &amp; assignment history</h2>
+<div class="card scroll"><table id="hist"></table></div>
+
+<h2>Research activity</h2>
+<div class="card scroll" id="res"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const usd = (v, sign) => v == null ? "—" : (sign && v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toFixed(2);
+const pct = v => v == null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(2) + "%";
+const cls = v => v == null ? "" : v > 0 ? "pos" : v < 0 ? "neg" : "";
+const t = iso => { if (!iso) return "—"; const d = new Date(iso);
+  return d.toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}); };
+const ago = iso => { if (!iso) return "never"; const m = (Date.now() - new Date(iso)) / 60000;
+  return m < 1 ? "just now" : m < 60 ? Math.round(m) + " min ago" : m < 2880 ? (m/60).toFixed(1) + " h ago" : Math.round(m/1440) + " d ago"; };
+const kv = rows => '<div class="kv">' + rows.map(([k, v, c]) =>
+  `<span>${esc(k)}</span><span class="mono ${c || ""}">${v}</span>`).join("") + "</div>";
+let filter = "all", last = null;
+try { filter = localStorage.getItem("cc.filter") || "all"; } catch (e) {}
+
+function render(s) {
+  last = s;
+  const h = s.health, b = s.broker;
+  $("mode").textContent = "MODE " + (s.execution_mode || "?");
+  $("mode").className = "pill " + (s.execution_mode === "LIVE" ? "ok" : "warn");
+  $("market").textContent = h.market_open ? "MARKET OPEN" : "MARKET CLOSED";
+  $("market").className = "pill " + (h.market_open ? "ok" : "info");
+  $("status").textContent = h.failures ? h.failures + " FAILING" : "ALL SYSTEMS OK";
+  $("status").className = "pill " + (h.failures ? "fail" : "ok");
+  $("gen").textContent = "updated " + new Date(s.generated_at).toLocaleTimeString();
+
+  $("broker").innerHTML = `<h3 style="color:var(--live)">Broker account · Robinhood Agentic</h3>
+    <div class="big mono">${usd(b.equity)}</div>` + kv([
+    ["Available cash", usd(b.available_cash)], ["Settled cash", usd(b.settled_cash)],
+    ["Unsettled", usd(b.unsettled)], ["Invested (slots)", usd(b.invested)],
+    ["Unrealized P&L", usd(b.unrealized_pnl, 1), cls(b.unrealized_pnl)],
+    ["Realized P&L", usd(b.realized_pnl, 1), cls(b.realized_pnl)],
+    ["Today's P&L (equity)", usd(b.today_pnl, 1), cls(b.today_pnl)],
+    ["Cumulative live P&L (equity)", usd(b.cumulative_pnl_equity, 1), cls(b.cumulative_pnl_equity)],
+    ["Gross P&L (slots)", usd(b.gross_pnl, 1), cls(b.gross_pnl)],
+    ["Est. transaction costs", usd(-b.est_costs, 1), "neg"],
+    ["Net P&L (slots)", "<b>" + usd(b.net_pnl, 1) + "</b>", cls(b.net_pnl)],
+    ["Active slots / positions", `${s.slots.filter(x => x.strategy_key).length} / ${b.positions}`],
+    ["Last broker sync", ago(b.last_sync)], ["Last trader heartbeat", ago(b.last_heartbeat)]]);
+
+  const p = s.paper;
+  $("paper").innerHTML = `<h3 style="color:var(--paper)">Simulated / paper funds</h3>
+    <div class="big mono ${cls(p.net)}">${usd(p.net, 1)}</div>` + kv([
+    ["Funds", p.funds], ["Capital (notional)", usd(p.capital)], ["Gross", usd(p.gross, 1), cls(p.gross)],
+    ["Costs", usd(-p.costs, 1), "neg"], ["Net", usd(p.net, 1), cls(p.net)],
+    ["Accounting problems", p.problems, p.problems ? "neg" : ""], ["As of", esc(p.as_of)]]) +
+    '<p class="meta">Restated accounting (accounting.py). Not money in the account.</p>';
+
+  const r = s.research;
+  $("research").innerHTML = `<h3 style="color:var(--research)">Research</h3>
+    <div class="big mono">${r.eligible} <span class="meta">of ${r.ranked} eligible</span></div>` + kv(
+    Object.entries(r.states).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v]).concat([
+    ["Last factory decision", ago(r.last_decision_at)]])) +
+    '<p class="meta">Counts only — research has no dollars and cannot trade.</p>';
+
+  $("slots").innerHTML = s.slots.map(sl => {
+    if (!sl.strategy_key) return `<div class="card slot"><h4>Slot ${sl.slot}<span class="pill info">CASH</span></h4>
+      <p class="muted">${esc(sl.why)}</p></div>`;
+    const q = sl.position, w = sl.selected_because || {};
+    const st = q ? "ok" : sl.status.startsWith("WAITING") ? "info" : "warn";
+    const pos = q ? kv([
+      ["Position", `${esc(q.symbol)} ${q.quantity.toFixed(6)}`], ["Entry", usd(q.entry_price) + " · " + t(q.entry_at)],
+      ["Current", usd(q.price) + ` <span class="muted">${ago(q.price_at)}</span>`],
+      ["Market value", usd(q.market_value)],
+      ["Unrealized (net)", usd(q.unrealized_net, 1), cls(q.unrealized_net)],
+      ["Stop", usd(q.stop)], ["Take-profit", q.take_profit_price ? usd(q.take_profit_price) : "none in plan"],
+      ["Held", `${sl.hold_days} d` + (q.max_hold_days ? ` of max ${q.max_hold_days}` : "")],
+      ["Monitor", esc(q.verdict || "—")]]) : '<p class="muted" style="margin:6px 0">No position — the strategy has not signalled, or settled cash is short.</p>';
+    return `<div class="card slot"><h4>Slot ${sl.slot}<span class="pill ${st}">${esc(sl.status)}</span></h4>
+      <div class="name">${esc(sl.name)}</div><div class="meta">${esc(sl.family || "")} · $${sl.capital} allocated</div>
+      ${pos}${kv([["Live trades / win rate", `${sl.live_trades} / ${sl.live_win_rate == null ? "—" : Math.round(sl.live_win_rate*100)+"%"}`],
+        ["Live net", usd(sl.live_net, 1), cls(sl.live_net)],
+        ["Paper net / trades", `${usd(sl.paper.net_usd, 1)} / ${sl.paper.closed_trades ?? "—"}`],
+        ["Paper drawdown", sl.paper.max_drawdown_pct == null ? "—" : sl.paper.max_drawdown_pct.toFixed(2) + "%"]])}
+      <div class="why"><b>Why this strategy is in the slot</b>${kv([
+        ["Rank", w.rank ? "#" + w.rank : "—"], ["Score (exp. net/trade)", pct(w.score), cls(w.score)],
+        ["Backtest", pct(w.backtest) + (w.backtest_source ? ` <span class="muted">(${esc(w.backtest_source)})</span>` : "")],
+        ["Worst case (deaths = 0)", pct(w.worst_case), cls(w.worst_case)],
+        ["Forward (paper)", pct(w.forward) + ` / ${w.forward_trades ?? 0} trades`],
+        ["Eligible", w.eligible ? "YES" : "NO — " + esc((w.reasons || [])[0] || ""), w.eligible ? "pos" : "neg"]])}
+        <div class="meta" style="margin-top:4px">${esc(sl.assigned_reason || "")} · ${t(sl.assigned_at)}</div></div></div>`;
+  }).join("");
+
+  $("feed").innerHTML = s.feed.length ? s.feed.map(e => {
+    const c = {good:"ok", bad:"fail", warn:"warn", info:"info"}[e.sev] || "info";
+    return `<div class="ev"><span class="mono muted">${t(e.at)}</span><span class="k"><span class="pill ${c}">${esc(e.kind)}</span></span>
+      <span class="t">${esc(e.text)}</span></div>`; }).join("") : '<p class="muted">No events yet.</p>';
+
+  const rp = s.replacements;
+  $("repl").innerHTML = (rp.pending.length ? "<b>Pending at the next reassessment</b>" + rp.pending.map(x =>
+      `<div class="check"><span class="pill ${x.action === "ASSIGN" ? "ok" : "warn"}">${x.action}</span>
+       Slot ${x.slot}: ${esc(x.name || x.strategy)} — ${esc(x.reason)}</div>`).join("") : '<p class="muted" style="margin-top:0">No replacement pending.</p>') +
+    (rp.challengers.length ? `<div class="scroll"><table><tr><th>Slot</th><th>Current</th><th>Candidate</th><th class="n">Advantage</th><th>Status</th></tr>` +
+      rp.challengers.map(x => `<tr><td>${x.current_slot}</td><td>#${x.current_rank} ${esc(x.current)}<div class="muted mono">${pct(x.current_score)}</div></td>
+        <td>#${x.candidate_rank} ${esc(x.candidate)}<div class="muted mono">${pct(x.candidate_score)} · ${x.candidate_trades ?? 0} paper trades</div></td>
+        <td class="n mono ${cls(x.advantage)}">${pct(x.advantage)}</td>
+        <td><span class="pill ${x.status === "ELIGIBLE" ? "ok" : "warn"}">${x.status}</span><div class="muted">${esc(x.blocked_by.join("; "))}</div></td></tr>`).join("") +
+      "</table></div>" : "") +
+    (rp.rules ? `<p class="meta">Rules: replace only with ≥ ${pct(rp.rules.min_advantage_score)}/trade advantage over the weakest holder, after ${rp.rules.min_hold_sessions} sessions held, at most ${rp.rules.max_replacements_per_day}/day, ≤ ${rp.rules.max_per_family} slots per family.</p>` : "");
+
+  $("health").innerHTML = h.checks.map(c => `<div class="check"><span class="dot ${c.state}"></span>
+      <span><b>${esc(c.name)}</b> <span class="muted">${esc(c.detail)}</span></span></div>`).join("") +
+    '<div class="kv" style="margin-top:8px">' + Object.entries(h.last).map(([k, v]) =>
+      `<span>Last ${esc(k)}</span><span class="mono">${ago(v)}</span>`).join("") + "</div>" +
+    (h.processes.length ? '<p class="meta" style="margin-bottom:2px">Running: ' + h.processes.map(x =>
+      `${esc(x.what)} (${esc(x.elapsed)}, ${x.rss_gb.toFixed(1)} GB)`).join(" · ") + "</p>" : "");
+
+  let rows = s.leaderboard;
+  if (filter === "eligible") rows = rows.filter(x => x.eligible);
+  if (filter === "live") rows = rows.filter(x => x.slot || x.challenger);
+  $("board").innerHTML = `<tr><th>#</th><th>Strategy</th><th>Family</th><th>Status</th><th class="n">Score</th>
+    <th class="n">Backtest</th><th class="n">Worst</th><th class="n">Paper</th><th class="n">Trades</th><th class="n">Net $</th>
+    <th class="n">DD</th><th>Evidence</th><th>Eligible</th><th>Slot</th></tr>` + rows.map(x =>
+    `<tr class="${x.slot ? "live" : x.challenger ? "chal" : ""}"><td class="mono">${x.rank}</td><td>${esc(x.name)}</td>
+     <td class="muted">${esc(x.family)}</td><td><span class="pill ${x.status === "LIVE" ? "ok" : "info"}">${esc(x.status)}</span>
+     ${x.challenger ? '<span class="pill warn">CHALLENGER</span>' : ""}</td>
+     <td class="n mono ${cls(x.score)}">${pct(x.score)}</td><td class="n mono">${pct(x.backtest)}${x.backtest_source === "with dead companies" ? "*" : ""}</td>
+     <td class="n mono">${pct(x.worst_case)}</td><td class="n mono">${pct(x.paper)}</td><td class="n mono">${x.trades ?? 0}</td>
+     <td class="n mono ${cls(x.net_usd)}">${usd(x.net_usd, 1)}</td><td class="n mono">${x.drawdown == null ? "—" : x.drawdown.toFixed(1) + "%"}</td>
+     <td class="muted mono">${esc(x.as_of || "—")}</td><td>${x.eligible ? '<span class="pos">yes</span>' : '<span class="neg" title="' + esc(x.reasons.join("; ")) + '">no</span> <span class="muted">' + esc((x.reasons[0] || "").slice(0, 48)) + "</span>"}</td>
+     <td>${x.slot || ""}</td></tr>`).join("") +
+    `<tr><td colspan="14" class="meta">* backtest includes the synthetic dead companies. Score = expected net return per trade; backtest first, paper evidence takes over with every trade.</td></tr>`;
+
+  $("hist").innerHTML = "<tr><th>When</th><th>Slot</th><th>Action</th><th>Strategy</th><th>Mode</th><th>Reason</th><th>Evidence at the time</th></tr>" +
+    s.replacement_history.map(x => { let ev = {}; try { ev = JSON.parse(x.evidence || "{}"); } catch (e) {}
+      return `<tr><td class="mono">${t(x.at)}</td><td>${x.slot_id}</td><td>${esc(x.action)}</td><td>${esc(x.strategy_key)}</td>
+      <td>${esc(x.mode)}</td><td>${esc(x.reason)}</td><td class="mono muted">${ev.net_usd != null ? "net " + usd(ev.net_usd, 1) : ""}
+      ${ev.closed_trades != null ? " · " + ev.closed_trades + " trades" : ""}${ev.sessions != null ? " · " + ev.sessions + " sessions" : ""}</td></tr>`; }).join("");
+
+  $("res").innerHTML = (r.last_factory_line ? `<p class="meta mono">${esc(r.last_factory_line)}</p>` : "") +
+    "<table><tr><th>When</th><th>Strategy</th><th>Decision</th><th>To state</th><th>Reason</th></tr>" +
+    r.recent_decisions.map(d => `<tr><td class="mono">${t(d.at)}</td><td>${esc(d.strategy_key)} v${d.version}</td>
+      <td>${esc(d.decision)}</td><td>${esc(d.to_state)}</td><td class="muted">${esc((d.reason || "").slice(0, 160))}</td></tr>`).join("") + "</table>";
+}
+
+document.querySelectorAll(".tabs button").forEach(b => {
+  if (b.dataset.f === filter) { document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on")); b.classList.add("on"); }
+  b.onclick = () => { filter = b.dataset.f; try { localStorage.setItem("cc.filter", filter); } catch (e) {}
+    document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b)); if (last) render(last); };
+});
+
+async function tick() {
+  try {
+    const r = await fetch("api/control", {cache: "no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    render(await r.json());
+    $("err").style.display = "none";
+  } catch (e) {
+    $("err").style.display = "block";
+    $("err").textContent = "Control Center data unavailable: " + e.message + " — the page keeps retrying.";
+    $("status").textContent = "NO DATA"; $("status").className = "pill fail";
+  }
+}
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>
