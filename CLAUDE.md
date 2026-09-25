@@ -68,7 +68,69 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-09-25 (start here in a new session)
+### SESSION HANDOFF — 2026-09-25 VM session, 02:00-05:00 UTC (start here)
+
+**Read this first; the older 09-25 and 09-24 blocks below are still valid
+background, but their "merge the branch" and "VM task list" steps are DONE.**
+
+**Done this session (all committed and pushed to `main`):**
+- Branch `claude/stock-bot-visibility-l9iym2` merged on the VM; 68/68 test
+  files pass. Fixed: LIVE-refusal tests read the real `risk.yaml` (now pinned);
+  kill-switch alert compared a UTC date with a New York date.
+- VM steps 1-5 ran (market caps, rates, FinanceDatabase, Layer A, survivorship
+  backtests). `survivorship_backtest.py` OOM'd at the 6 GB cap — fixed (frees
+  each mode's frames; peak 5.6 GB).
+- **Control Center (Addendum D, N1)**: `control_center.py` + `.html`, served by
+  `monitor.py --serve` at http://localhost:8787 (lab view moved to `/lab`),
+  kept alive by a per-minute cron line (`services.sh`, flock). Reads a new
+  `trader_runs` heartbeat table written by `slot_trader.py` every run.
+  Paper panel shows per-strategy forward evidence — **the owner rejected a
+  summed P&L across paper funds as useless; never report one.**
+- **Profit exits (P2-P3)**: registered sweep `exit_rules` COMPLETE. Early
+  profit-taking (5-10% targets, 2-3 ATR trails) lowers net per trade for every
+  slot strategy. Adopted as NEW strategies with their own paper funds
+  (`exit_adopt.py`): Rising 200 Stop 2.5 + 20% take-profit (`paper:77569b6429ff`,
+  ranks #172 — the ranking scores 2016-19 where it loses) and MACD Pullback
+  without its take-profit (`paper:323dfe67d348`, #14).
+- **Stage M done — generator v5 is what the backtests use**
+  (`universe_loader.SYNTH`). Research: `docs/STAGE_M_RESEARCH.md`. Modules:
+  `dead_evidence.py` (exit type from SEC filings, 70% known vs v4's 1%),
+  `distress_donors.py` (1,127 real distress paths), `universe_synthetic_v5.py`,
+  `validate_v5.py`. Per-type realism, held out, one per template: failures
+  0.557 (v4 0.789), buyouts 0.477, SPACs 0.524 — all pass < 0.60. Effect on
+  the ranking: slot 3 (Rising 200 Stop 2.6) goes -0.056% -> +0.494%/trade, so
+  it is no longer released. Revert = point SYNTH back at v4.
+- **Stage O started (Knowledge Factory, Addendum E)**: `knowledge_library.py`
+  (O1 schema, O2 importers: 3,987 hypotheses — PWB 3,803 titles + 60 coded,
+  QuantConnect 84, curated 40) and `knowledge_translate.py` (O3/O4 first pass:
+  69 untestable on our data, 55 linked to existing families as
+  SOURCE_DERIVED_VARIANT, 20 need new templates). StockSharp is proprietary —
+  not ingested; PWB's 5,000+ coded library is paid — not used.
+- Addenda D (Stage N) and E (Stage O) entered verbatim; `docs/ADDENDUM_D_*`,
+  `docs/ADDENDUM_E_*`. The owner's "Stage N" for the Knowledge Factory is
+  Stage O (N was taken).
+
+**Next, in order:**
+1. Check the 09-25 live session (13:30 UTC on): `tail -80 logs/slot_trader_live.log`,
+   Control Center health panel, `trader_runs` heartbeats (first live test of
+   that code), slot 5 fill once the $19.26 settles.
+2. Stage O: write the 20 NEEDS_TEMPLATE strategies (calendar first:
+   turn-of-month, January, pre-holiday, payday; then size, 12-month cycle,
+   R&D, ROA, short interest, liquidity, pairs); O9 Knowledge Factory section in
+   the Control Center; rule extraction for the 3,803 titles.
+3. N2 tests for five live paths (code already correct, untested): stale quote,
+   quote outside hours, partial fill recorded at filled qty, rejected buy writes
+   no OPEN, failed stop sell keeps the position.
+4. Stage M follow-ups: 10-K Item 5 quarterly price anchors (M2b); the twin test
+   (real dead companies vs synthetic twins, trade-level); French benchmark
+   calibration.
+
+**Gotchas from this session:** `pkill -f "monitor.py ..."` kills its own shell —
+use `pkill -f "[m]onitor.py --serve"`. Validation AUC with many synthetic
+copies of few templates is inflated by CV twins — sample one per template.
+The old realism gate compared everything with a buyout-only sample.
+
+### SESSION HANDOFF — 2026-09-25 (earlier cloud session — merge done)
 
 **Read this block first; the 2026-09-24 handoff below it is still valid.**
 
@@ -834,6 +896,18 @@ hardcodes paths, thresholds or model parameters.
 | `universe_synthetic.py` | Tagged synthetic paths (v3, joint donor draws) for 7,618 unpriced dead companies. |
 | `universe_loader.py` | `load_backtest_data(..., mode)` — exclude / real_only / as_is / zero / optimistic. |
 | `universe_validate.py` | Discriminability gate, provenance checks, five-mode sensitivity. |
+
+### Built 2026-09-25 (VM session)
+| File | Role |
+|---|---|
+| `control_center.py` / `control_center.html` | The Control Center (Addendum D N1): read-only live view, served by `monitor.py --serve` on :8787. |
+| `exit_adopt.py` | Winning profit exits from experiment `exit_rules` become new strategies with their own paper funds. |
+| `dead_evidence.py` | Stage M2: exit type, delisting date and evidence for dead companies from SEC filings. |
+| `distress_donors.py` | Stage M3: real distress paths from our own prices, for synthetic failures to copy. |
+| `universe_synthetic_v5.py` | Stage M4: generator v5 — evidence-first; what the backtests use. |
+| `validate_v5.py` | Stage M5: realism per exit type, held out, one synthetic per real template. |
+| `knowledge_library.py` | Stage O1-O2: the Knowledge Strategy Library and its importers. |
+| `knowledge_translate.py` | Stage O3/O4: data feasibility and family mapping for documented strategies. |
 
 ### The daily loop and reporting
 | File | Role |
