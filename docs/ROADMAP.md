@@ -513,3 +513,22 @@ calibrate from. The existing generator is distinguishable from real data at
 AUC 0.978, so synthetic rows stay out of discovery and promotion until a new
 generator passes that test. Five stages and eight questions are in
 `ROADMAP_INTEGRATION.md`, Stage J.
+
+### Addendum D · Live Growth & Continuous Improvement 📋 entered 2026-09-25 — not yet started
+Spec verbatim in `ADDENDUM_D_LIVE_GROWTH.md`; integration in
+`ROADMAP_INTEGRATION.md`, Stage N. Keep Stockbot2000 trading LIVE while it is
+made more observable, more reliable and better at finding strategies.
+
+Build order, as the spec sets it (§20):
+
+1. Live visibility — the real-time Control Center
+2. Live reliability — every execution and reconciliation path verified
+3. Strategy leaderboard — the whole population, visible
+4. Replacement visibility — candidate → promotion → live → replacement
+5. Strategy health / decay — HEALTHY / WATCH / DEGRADING / FAILED
+6. Research feedback loop — live results back into research
+7. Continuous discovery — Phase 13 architecture, never the frozen search
+8. Stages K / L / M — in parallel
+9. Scaling architecture — capital and risk limits in config
+
+Done means the 18 criteria of §23, tracked item by item in Stage N.

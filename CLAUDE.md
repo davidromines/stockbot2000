@@ -1369,6 +1369,7 @@ which resolves their open decisions — see the table at the end of
 | A | Autonomous 5-slot trading system | `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | Final build directive | `docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | Survivorship-bias-free universe reconstruction (revision 2) — PLANNED; build only after the user confirms the staged plan and answers the questions in Stage J | `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md` |
+| D | Live Growth & Continuous Improvement — entered 2026-09-25, not yet started; keep LIVE running, Control Center first (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.
