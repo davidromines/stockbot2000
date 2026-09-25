@@ -187,7 +187,7 @@
     <h1>Stockbot2000</h1>
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
-      <span>UPDATED 2026-09-24</span>
+      <span>UPDATED 2026-09-25</span>
       <span>13 PHASES + ADDENDA A–C + STAGES K–M</span>
       <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED</span>
     </div>
@@ -213,6 +213,25 @@
       <span><i class="dot" style="background:var(--done);"></i>Complete (12)</span>
       <span><i class="dot" style="background:var(--progress);"></i>85% (1): smoke test, Ollama optional</span>
     </div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Next on the VM</h2>
+    <p class="section-cap" style="margin-bottom:12px;">All code from 24–25 September is on GitHub (branch <span class="mono">claude/stock-bot-visibility-l9iym2</span>) but not yet on the VM. A cloud Claude session cannot reach the VM, so these run there, in order. Heavy jobs run one at a time, outside market hours and away from the 07:00 UTC daily job.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Merge the branch and run the tests</div><div class="q-body"><span class="mono">git fetch origin claude/stock-bot-visibility-l9iym2 &amp;&amp; git merge --ff-only FETCH_HEAD</span>, then <span class="mono">./run_tests.sh</span>. Your LIVE setting in <span class="mono">config/risk.yaml</span> is untouched.</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Previews and light data fetches</div><div class="q-body">The ranking and slot plan (read-only), then market caps, T-bill rates and FinanceDatabase.</div></div></div>
+    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">Rebuild the universe and generator v4, then score it</div><div class="q-body">Stage M, step M1: how much realism the buyout fix gains.</div></div></div>
+    <div class="q-item"><div class="q-mark no">4</div><div><div class="q-title">Survivorship backtests — affects real money</div><div class="q-body">Once this runs, the ranking scores every strategy with the dead companies included. A live strategy whose backtest turns negative drops out, and its slot is sold at the next reassessment. <b>You see the new ranking before the next market open.</b></div></div></div>
+    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Exit sweep, Phase 6 report, FINSABER pickle import</div><div class="q-body">Long jobs; each resumes if interrupted.</div></div></div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Your decisions</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Nothing below is blocking today's trading.</p>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Build Stage K (crypto) and Stage M (real-failure generator) code next?</div><div class="q-body">Offered; not yet answered. Both can be written in a cloud session; running them needs the VM.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">L4 — published returns as a strategy’s starting score</div><div class="q-body">Decided after the Open Source Asset Pricing import (L1).</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">M5 — pay ~$270/yr for delisted price data</div><div class="q-body">Would replace most synthetic dead companies with real ones.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">K7 — <span class="mono">allow_crypto: true</span></div><div class="q-body">Only after K1–K6 are built and a crypto strategy has a positive backtest at Robinhood’s spread.</div></div></div>
   </div>
 
   <section class="dataset finding">
@@ -779,6 +798,7 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Code on GitHub (09-25).</b> All 37 commits pushed once the Claude GitHub App was installed on the repo; the VM merge is step 1 above. Live check at 01:52 UTC: 4 slots open and reconciled, $19.26 settling for slot 5.</li>
       <li><b>Stages K, L and M planned (09-24).</b> Crypto earning a slot, published academic signals as a strategy source, and realistic dead companies built from real failures.</li>
       <li><b>Survivorship in the ranking (09-24).</b> Every ranked strategy is backtested with the synthetic dead companies included, and the ranking scores on that. Built; first run on the VM.</li>
       <li><b>Profit exits (09-24).</b> Live slots now apply the strategy’s own take-profit, which had been silently dropped; a registered exit sweep is built and waiting to run.</li>
