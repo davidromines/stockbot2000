@@ -532,3 +532,15 @@ Build order, as the spec sets it (§20):
 9. Scaling architecture — capital and risk limits in config
 
 Done means the 18 criteria of §23, tracked item by item in Stage N.
+
+### Addendum E · Knowledge Strategy Factory 📋 entered 2026-09-25 — not yet started
+Spec verbatim in `ADDENDUM_E_KNOWLEDGE_FACTORY.md` (it calls itself "Stage N";
+roadmap Stage O, steps O1–O13 = its N1–N13). Documented trading knowledge —
+papers, published factors, books with explicit rules, open-source strategy
+collections — becomes a second source of strategies beside machine discovery.
+Every idea enters as a HYPOTHESIS with full provenance, is reproduced
+faithfully, varied within declared bounds and possibly mutated, and competes
+in the same pipeline, backtester, survivorship controls and ranking as
+everything else. Builds on the existing research library (40 entries, 254
+links, 508 queued), league ancestry and the trial ledger.
+

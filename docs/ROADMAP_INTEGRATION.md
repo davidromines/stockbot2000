@@ -33,6 +33,7 @@ describe what was built; these describe where it goes.
 | L | **Published signals as a strategy source** (Stage L) | **planned 2026-09-24** — Open Source Asset Pricing (212 signals, survivorship-free CRSP returns) as the strategy database, Global Factor Data (93 countries) as the cross-check; trader.dev's 797k leaderboard not used |
 | M | **Realistic dead companies — generator v5** (Stage M) | **planned 2026-09-24** — real failure histories (bankruptcy Q tickers, FINSABER, our own delisted names) as templates for synthetic failures; realism graded per exit type |
 | D | **Addendum D — Live Growth & Continuous Improvement** (Stage N) | **entered 2026-09-25; N1 (Control Center) built 09-25; N2-N9 open; build order is the spec's own (§20)** — keep LIVE running; Live Control Center first, then live reliability, leaderboard, replacement visibility, decay monitoring, live->research feedback, continuous discovery, K/L/M, scaling. `ADDENDUM_D_LIVE_GROWTH.md` |
+| E | **Addendum E — Knowledge Strategy Factory** (Stage O; the spec titles itself "Stage N", renamed because N is Addendum D) | **entered 2026-09-25, not yet started** — documented trading knowledge (papers, factors, books, open-source) as a second strategy source beside machine discovery, provenance-aware, into the SAME pipeline and ranking. `ADDENDUM_E_KNOWLEDGE_FACTORY.md` |
 
 ---
 
@@ -1011,3 +1012,54 @@ component is improved, never duplicated.
 DATABASE/SCHEMA CHANGES, LIVE COMPONENTS AFFECTED, TESTS RUN, LIVE TESTS RUN,
 CURRENT SYSTEM STATUS, CURRENT LIVE STRATEGIES, CURRENT RANKING, NEW RESEARCH
 ACTIVITY, BLOCKERS, NEXT AUTOMATIC JOBS, STARTUP/DEPLOYMENT COMMANDS.
+
+---
+
+**Stage O — Addendum E: Knowledge Strategy Factory** — entered 2026-09-25, **NOT YET STARTED** (owner: "add this to the roadmap")
+
+Spec verbatim in `ADDENDUM_E_KNOWLEDGE_FACTORY.md`. It titles itself "Stage N";
+that letter is Addendum D, so this is Stage O and the spec's steps N1–N13
+(§25) are O1–O13 here, one to one, in the spec's own order. Definition of done
+is §27 (18 items).
+
+**What already exists — Stage O extends it, never duplicates it (§26: reuse,
+no second library, no second backtester, no second promotion system)**
+
+| existing | holds today | Stage O use |
+|---|---|---|
+| `strategy_library` (Phase 8) | 40 entries: author, source, publication, original hypothesis / universe / period / metrics, required data, interpretation, **known_biases and limitations required**, faithfulness, validation status | the Knowledge Library's core; §2 schema is a superset — missing fields added, nothing renamed |
+| `library_meta` | exact rules, entry/exit, sizing, risk, URL, publication date, replication status | §2 rule fields |
+| `library_strategy_link` | 254 source entry -> tested strategy links | §2 "never lose the connection" |
+| `strategy_library.NOT_FAITHFUL` / status INCONCLUSIVE | an encoding that deviates from the source cannot REFUTE the source | §7-8 ASSUMPTION_REQUIRED / SOURCE_DERIVED_VARIANT, §10 SOURCE_REPRODUCTION |
+| `research_queue` (508), `library_bridge.py`, `discovery.py` | queue, priority, budgets, failure log, recycling | §16 prioritisation, O13 continuous ingestion |
+| `strategy_factory.py` | 40 families as fixed small template grids | §10B controlled variants (bounded, declared) |
+| `league_strategies` | `parent_key`, `ancestry`, `source_kind`, `source_ref`, immutable versions | §14 GENERATION_METHOD, §15 parentage (first used 09-25 by `exit_adopt.py`) |
+| `trial_ledger` (append-only), `experiment_registry` (pre-registration, spec hash) | cumulative trials 1.05M+, registered hypotheses | §11-12 multiple-testing controls |
+| `factory.py` governance + `search.mode: FROZEN` + `test_freeze_boundary.py` | evolutionary search frozen; template output cannot reach `evolve.py` | §12 and §23: mutation (O12) goes through the governed path, never by unfreezing |
+| `factory_pipeline.py` -> paper -> `ranking.py` -> `slots.py` | the one pipeline and the one allocator | §17 integration, §27.13 |
+| `simulator.py`, `costs.py`, `survivorship_backtest.py`, `pit_facts.py` | next-open fills, costs, gap stops, dead companies, point-in-time fundamentals | §18 — used as is |
+| Stage L (Open Source Asset Pricing 212 signals, Global Factor Data 153 factors) | planned import | §6 seed set, Tier 1 |
+| Control Center (`control_center.py`, N1) | live dashboard | §20 Knowledge Factory section |
+
+| step | spec | what to build |
+|---:|---|---|
+| O1 | N1 schema | extend `strategy_library` / `library_meta` to the §2 schema; `source_type` (§3 list incl. HYBRID), `generation_method` (§14), `machine_translatable`, `source_confidence`; parents table for HYBRID (many parents) |
+| O2 | N2 ingestion | importer interface (file / URL / structured repo) writing library entries with provenance; credentialed sources get the interface only (§26) |
+| O3 | N3 normalization | library entry -> strategy object (`strategy_objects` / genome) |
+| O4 | N4 translation + ambiguity | original rule, translated rule, assumptions, ambiguities stored per translation; ASSUMPTION_REQUIRED; NON_MACHINE_TESTABLE kept, never invented (§5, §7-8) |
+| O5 | N5 genome | §9 genome fields mapped onto the existing genome + stop plan (take-profit, trailing, time, regime) |
+| O6 | N6 reproduction | SOURCE_REPRODUCTION through the existing backtester; source claim and Stockbot result stored apart (§19) |
+| O7 | N7 controlled variants | bounded, declared variant sets linked to the reproduction (`strategy_factory` grids) |
+| O8 | N8 provenance / multiple testing | per source hypothesis: variants, descendants, tests, selection events, holdout use (§11-12); results discounted by the count |
+| O9 | N9 dashboard | KNOWLEDGE FACTORY section in the Control Center (§20); outcomes by source type, not ranked as "best" (§13) |
+| O10 | N10 seed library | Tier 1 first: Stage L datasets, published factor definitions, open-source strategy collections; the §21 families at minimum |
+| O11 | N11 pipeline integration | every candidate through `factory_pipeline` -> paper -> `ranking.py` -> slots; no second promotion path |
+| O12 | N12 hybrid / mutation | successful concepts as inputs to machine discovery via the governed factory path, ancestry kept (§23); the freeze is not lifted by code |
+| O13 | N13 continuous ingestion | new sources added without redesign; daily.sh stage |
+
+**One conflict stated, not resolved here:** §23 (knowledge -> mutation) and §12
+("do NOT bypass the existing frozen-search policy") meet at `evolve.py`, which
+is frozen and cannot unfreeze itself. O12 is therefore built on the governed
+`factory.py` path (registered experiment, declared budget, ancestry); running
+`evolve.py` on a knowledge seed population stays a human edit to
+`search.mode`, as the freeze requires.
