@@ -60,6 +60,24 @@ def _now() -> str:
 def init(conn) -> None:
     ex.init(conn)
     slots.init(conn)
+    # One row per trader run: the heartbeat and broker sync the Control Center
+    # (control_center.py) reads. Observability only; nothing reads it to trade.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS trader_runs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            at          TEXT NOT NULL,
+            mode        TEXT NOT NULL,
+            pass        TEXT,
+            outcome     TEXT NOT NULL,
+            actions     INTEGER,
+            positions   INTEGER,
+            reconciled  INTEGER,
+            diffs       TEXT,
+            cash        REAL,
+            equity      REAL,
+            unsettled   REAL,
+            error       TEXT
+        )""")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS slot_trades (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +160,20 @@ def _atr(conn, symbol: str) -> float | None:
     r = conn.execute("SELECT atr_14 FROM features WHERE ticker=? AND atr_14 IS NOT NULL "
                      "ORDER BY date DESC LIMIT 1", (symbol,)).fetchone()
     return float(r[0]) if r and r[0] else None
+
+
+def _heartbeat(conn, mode: str, outcome: str, **kw) -> None:
+    """Record this run for the Control Center. Never raises: a failed heartbeat
+    must not be able to stop, delay or alter a trade."""
+    try:
+        conn.execute("INSERT INTO trader_runs (at, mode, pass, outcome, actions, positions, reconciled, diffs, "
+                     "cash, equity, unsettled, error) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (datetime.now(timezone.utc).isoformat(), mode, kw.get("pass_"), outcome, kw.get("actions"),
+                      kw.get("positions"), kw.get("reconciled"), kw.get("diffs"), kw.get("cash"),
+                      kw.get("equity"), kw.get("unsettled"), kw.get("error")))
+        conn.commit()
+    except Exception as e:                                   # noqa: BLE001
+        log.warning(f"heartbeat not recorded: {type(e).__name__}: {e}")
 
 
 class LiveNotWired(RuntimeError):
@@ -539,6 +571,7 @@ def main(argv=None) -> int:
     out = []
     if args.auto and not qt.market_open():
         print("market closed — nothing trades outside the regular session")
+        _heartbeat(conn, args.mode, "market_closed")
         return 0
     if args.auto:
         # The entry pass loads a year of the universe to evaluate rules, so it
@@ -590,6 +623,8 @@ def main(argv=None) -> int:
                 except Exception:                                # noqa: BLE001
                     pass
             print(f"LIVE halted: {type(e).__name__}: {e}")
+            _heartbeat(conn, args.mode, "halted", pass_="trade" if args.trade else "monitor",
+                       error=f"{type(e).__name__}: {e}"[:500])
             return 3
         for r in out:
             print(f"  slot {r['slot']}: {r['action']:<5} {r.get('symbol', ''):<7} {r['status']:<14} "
@@ -604,6 +639,19 @@ def main(argv=None) -> int:
             for slot, p in sorted(pos.items()):
                 print(f"    slot {slot}: {p['symbol']} {p['quantity']:.6f} @ {p['price']:.2f} "
                       f"({p['strategy_key']})")
+            acct = {}
+            if args.mode == "LIVE":
+                try:
+                    acct = broker.get_account()
+                except Exception as e:                           # noqa: BLE001
+                    log.warning(f"account snapshot for the heartbeat failed: {type(e).__name__}")
+            _heartbeat(conn, args.mode, "ok" if ok else "reconcile_failed",
+                       pass_="status" if args.status else ("trade" if args.trade else "monitor"),
+                       actions=len(out), positions=len(pos), reconciled=int(bool(ok)),
+                       diffs="; ".join(diffs) if diffs else None, cash=cash,
+                       equity=acct.get("equity"), unsettled=acct.get("unsettled_funds"))
+        else:
+            _heartbeat(conn, args.mode, "ok", pass_="trade" if args.trade else "monitor", actions=len(out))
         return 0
     finally:
         stack.close()
