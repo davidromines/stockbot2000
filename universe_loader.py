@@ -38,11 +38,13 @@ import pandas as pd
 
 import data_providers as dp
 
-# The newest BUILT generator. v4 replaces v3 once `universe_synthetic.py
-# --build` has written it; until then v3 stays in use. Which one a result used
+# The newest BUILT generator. v5 (universe_synthetic_v5.py, 2026-09-25: exit
+# type from SEC filings, failures from real distress paths, passes the per-type
+# realism test in validate_v5.py) replaces v4; v4 replaced v3. Which one a result used
 # is on every row (`data_source`, `generation_method`).
-SYNTH = next((p for p in ("data/universe/synthetic_v4.parquet", "data/universe/synthetic_v3.parquet")
-              if os.path.exists(p)), "data/universe/synthetic_v4.parquet")
+SYNTH = next((p for p in ("data/universe/synthetic_v5.parquet", "data/universe/synthetic_v4.parquet",
+                          "data/universe/synthetic_v3.parquet")
+              if os.path.exists(p)), "data/universe/synthetic_v5.parquet")
 MODES = ("exclude", "real_only", "as_is", "zero", "optimistic")
 COLUMNS = dp.BAR_COLUMNS + ["is_synthetic", "data_source"]
 
