@@ -368,9 +368,12 @@ def emergency(conn, cfg, mode: str, provider, why: str) -> list:
             _record_trade(conn, mode, slot, pos, pos["symbol"], "CLOSE", res, sig.reason)
             results.append({"slot": slot, "action": "CLOSE", "symbol": pos["symbol"],
                             "reason": sig.reason, "status": res["status"], "why": res.get("reasons")})
+    # Events are stamped in UTC; the session is a New York date. Compare in New
+    # York time, or every alert after 20:00 ET lands on "tomorrow" and repeats.
     day = _session(conn)
-    seen = conn.execute("SELECT COUNT(*) FROM system_events WHERE kind='emergency_alert' AND "
-                        "substr(at,1,10)=?", (day,)).fetchone()[0]
+    seen = any(datetime.fromisoformat(r[0]).astimezone(qt.NY).date().isoformat() == day
+               for r in conn.execute("SELECT at FROM system_events WHERE kind='emergency_alert' "
+                                     "ORDER BY at DESC LIMIT 20"))
     if not seen:
         ks.record_event(conn, "emergency_alert", why, "critical")
         try:
