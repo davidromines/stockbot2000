@@ -1,27 +1,32 @@
 {
   "records": 50355,
-  "in_scope": 43295,
+  "in_scope": 42903,
+  "financedatabase": {
+    "rows": 112706,
+    "matched": 3870,
+    "unmatched": 108836
+  },
   "by_listing_evidence": {
     "edgar_only": 28568,
     "alphavantage": 6990,
     "internet_archive": 4155,
-    "prices": 2741,
-    "edgar_ticker": 841
+    "prices": 2730,
+    "edgar_ticker": 460
   },
   "by_status": {
-    "ended": 28889,
+    "ended": 28820,
     "delisted": 7144,
-    "active": 4253,
+    "active": 3930,
     "unknown": 3009
   },
-  "delisting_reason_known": 92,
+  "delisting_reason_known": 89,
   "by_reason": {
-    "acquisition": 56,
+    "acquisition": 53,
     "delisting_notice": 34,
     "bankruptcy": 2
   },
   "match": {
-    "edgar_spine": 29428,
+    "edgar_spine": 29036,
     "unmatched": 7417,
     "alphavantage:name": 2639,
     "internet_archive:ticker": 1937,
@@ -30,12 +35,12 @@
   },
   "provenance": {
     "first_seen": {
-      "imputed:first_edgar_filing": 33142,
+      "imputed:first_edgar_filing": 32750,
       "alphavantage": 7144,
       "imputed:first_ia_snapshot": 3009
     },
     "last_seen": {
-      "imputed:last_edgar_filing": 33142,
+      "imputed:last_edgar_filing": 32750,
       "alphavantage": 7144,
       "imputed:last_ia_snapshot": 3009
     },
@@ -43,191 +48,191 @@
       "unknown": 28568,
       "alphavantage": 6783,
       "internet_archive": 4566,
-      "edgar": 3378
+      "edgar": 2986
     },
     "exchange": {
-      "unknown": 29428,
+      "unknown": 29036,
       "alphavantage": 7144,
       "internet_archive": 6723
     }
   },
   "by_year": {
     "1996": {
-      "alive": 4863,
-      "with_real_prices": 316,
-      "listing_evidence_beyond_edgar": 1098,
+      "alive": 4845,
+      "with_real_prices": 315,
+      "listing_evidence_beyond_edgar": 1080,
       "priced_share": 0.065
     },
     "1997": {
-      "alive": 8171,
-      "with_real_prices": 486,
-      "listing_evidence_beyond_edgar": 1564,
+      "alive": 8141,
+      "with_real_prices": 484,
+      "listing_evidence_beyond_edgar": 1534,
       "priced_share": 0.059
     },
     "1998": {
-      "alive": 8411,
-      "with_real_prices": 535,
-      "listing_evidence_beyond_edgar": 1735,
+      "alive": 8373,
+      "with_real_prices": 533,
+      "listing_evidence_beyond_edgar": 1697,
       "priced_share": 0.064
     },
     "1999": {
-      "alive": 8252,
-      "with_real_prices": 575,
-      "listing_evidence_beyond_edgar": 1911,
+      "alive": 8205,
+      "with_real_prices": 573,
+      "listing_evidence_beyond_edgar": 1864,
       "priced_share": 0.07
     },
     "2000": {
-      "alive": 8206,
-      "with_real_prices": 616,
-      "listing_evidence_beyond_edgar": 2118,
+      "alive": 8154,
+      "with_real_prices": 614,
+      "listing_evidence_beyond_edgar": 2066,
       "priced_share": 0.075
     },
     "2001": {
-      "alive": 7894,
-      "with_real_prices": 658,
-      "listing_evidence_beyond_edgar": 2380,
-      "priced_share": 0.083
+      "alive": 7836,
+      "with_real_prices": 656,
+      "listing_evidence_beyond_edgar": 2322,
+      "priced_share": 0.084
     },
     "2002": {
-      "alive": 7517,
-      "with_real_prices": 682,
-      "listing_evidence_beyond_edgar": 2475,
+      "alive": 7455,
+      "with_real_prices": 680,
+      "listing_evidence_beyond_edgar": 2413,
       "priced_share": 0.091
     },
     "2003": {
-      "alive": 7122,
-      "with_real_prices": 704,
-      "listing_evidence_beyond_edgar": 2570,
-      "priced_share": 0.099
+      "alive": 7052,
+      "with_real_prices": 702,
+      "listing_evidence_beyond_edgar": 2500,
+      "priced_share": 0.1
     },
     "2004": {
-      "alive": 6792,
-      "with_real_prices": 719,
-      "listing_evidence_beyond_edgar": 2698,
-      "priced_share": 0.106
+      "alive": 6723,
+      "with_real_prices": 717,
+      "listing_evidence_beyond_edgar": 2629,
+      "priced_share": 0.107
     },
     "2005": {
-      "alive": 6573,
-      "with_real_prices": 745,
-      "listing_evidence_beyond_edgar": 2874,
-      "priced_share": 0.113
+      "alive": 6501,
+      "with_real_prices": 743,
+      "listing_evidence_beyond_edgar": 2802,
+      "priced_share": 0.114
     },
     "2006": {
-      "alive": 6422,
-      "with_real_prices": 772,
-      "listing_evidence_beyond_edgar": 3078,
-      "priced_share": 0.12
+      "alive": 6348,
+      "with_real_prices": 770,
+      "listing_evidence_beyond_edgar": 3004,
+      "priced_share": 0.121
     },
     "2007": {
-      "alive": 6569,
-      "with_real_prices": 825,
-      "listing_evidence_beyond_edgar": 3437,
-      "priced_share": 0.126
+      "alive": 6492,
+      "with_real_prices": 823,
+      "listing_evidence_beyond_edgar": 3360,
+      "priced_share": 0.127
     },
     "2008": {
-      "alive": 7545,
-      "with_real_prices": 1007,
-      "listing_evidence_beyond_edgar": 4444,
-      "priced_share": 0.133
+      "alive": 7454,
+      "with_real_prices": 1004,
+      "listing_evidence_beyond_edgar": 4353,
+      "priced_share": 0.135
     },
     "2009": {
-      "alive": 8917,
-      "with_real_prices": 1180,
-      "listing_evidence_beyond_edgar": 4698,
-      "priced_share": 0.132
+      "alive": 8734,
+      "with_real_prices": 1174,
+      "listing_evidence_beyond_edgar": 4515,
+      "priced_share": 0.134
     },
     "2010": {
-      "alive": 8823,
-      "with_real_prices": 1218,
-      "listing_evidence_beyond_edgar": 4737,
-      "priced_share": 0.138
+      "alive": 8604,
+      "with_real_prices": 1212,
+      "listing_evidence_beyond_edgar": 4518,
+      "priced_share": 0.141
     },
     "2011": {
-      "alive": 8573,
-      "with_real_prices": 1268,
-      "listing_evidence_beyond_edgar": 4889,
-      "priced_share": 0.148
+      "alive": 8342,
+      "with_real_prices": 1261,
+      "listing_evidence_beyond_edgar": 4658,
+      "priced_share": 0.151
     },
     "2012": {
-      "alive": 8403,
-      "with_real_prices": 1312,
-      "listing_evidence_beyond_edgar": 4916,
-      "priced_share": 0.156
+      "alive": 8158,
+      "with_real_prices": 1305,
+      "listing_evidence_beyond_edgar": 4671,
+      "priced_share": 0.16
     },
     "2013": {
-      "alive": 8296,
-      "with_real_prices": 1350,
-      "listing_evidence_beyond_edgar": 5027,
-      "priced_share": 0.163
+      "alive": 8036,
+      "with_real_prices": 1341,
+      "listing_evidence_beyond_edgar": 4767,
+      "priced_share": 0.167
     },
     "2014": {
-      "alive": 8293,
-      "with_real_prices": 1409,
-      "listing_evidence_beyond_edgar": 5195,
-      "priced_share": 0.17
+      "alive": 8024,
+      "with_real_prices": 1400,
+      "listing_evidence_beyond_edgar": 4926,
+      "priced_share": 0.174
     },
     "2015": {
-      "alive": 8397,
-      "with_real_prices": 1489,
-      "listing_evidence_beyond_edgar": 5567,
-      "priced_share": 0.177
+      "alive": 8111,
+      "with_real_prices": 1480,
+      "listing_evidence_beyond_edgar": 5281,
+      "priced_share": 0.182
     },
     "2016": {
-      "alive": 8284,
-      "with_real_prices": 1562,
-      "listing_evidence_beyond_edgar": 5699,
-      "priced_share": 0.189
+      "alive": 7989,
+      "with_real_prices": 1553,
+      "listing_evidence_beyond_edgar": 5404,
+      "priced_share": 0.194
     },
     "2017": {
-      "alive": 7953,
-      "with_real_prices": 1609,
-      "listing_evidence_beyond_edgar": 5565,
-      "priced_share": 0.202
+      "alive": 7651,
+      "with_real_prices": 1600,
+      "listing_evidence_beyond_edgar": 5263,
+      "priced_share": 0.209
     },
     "2018": {
-      "alive": 7583,
-      "with_real_prices": 1694,
-      "listing_evidence_beyond_edgar": 5376,
-      "priced_share": 0.223
+      "alive": 7272,
+      "with_real_prices": 1684,
+      "listing_evidence_beyond_edgar": 5065,
+      "priced_share": 0.232
     },
     "2019": {
-      "alive": 7185,
-      "with_real_prices": 1783,
-      "listing_evidence_beyond_edgar": 5205,
-      "priced_share": 0.248
+      "alive": 6866,
+      "with_real_prices": 1773,
+      "listing_evidence_beyond_edgar": 4886,
+      "priced_share": 0.258
     },
     "2020": {
-      "alive": 6947,
-      "with_real_prices": 1878,
-      "listing_evidence_beyond_edgar": 5079,
-      "priced_share": 0.27
+      "alive": 6622,
+      "with_real_prices": 1868,
+      "listing_evidence_beyond_edgar": 4754,
+      "priced_share": 0.282
     },
     "2021": {
-      "alive": 7983,
-      "with_real_prices": 2080,
-      "listing_evidence_beyond_edgar": 6234,
-      "priced_share": 0.261
+      "alive": 7648,
+      "with_real_prices": 2070,
+      "listing_evidence_beyond_edgar": 5899,
+      "priced_share": 0.271
     },
     "2022": {
-      "alive": 8270,
-      "with_real_prices": 2315,
-      "listing_evidence_beyond_edgar": 6629,
-      "priced_share": 0.28
+      "alive": 7925,
+      "with_real_prices": 2304,
+      "listing_evidence_beyond_edgar": 6284,
+      "priced_share": 0.291
     },
     "2023": {
-      "alive": 6991,
-      "with_real_prices": 2395,
-      "listing_evidence_beyond_edgar": 5535,
-      "priced_share": 0.343
+      "alive": 6652,
+      "with_real_prices": 2384,
+      "listing_evidence_beyond_edgar": 5196,
+      "priced_share": 0.358
     },
     "2024": {
-      "alive": 6196,
-      "with_real_prices": 2533,
-      "listing_evidence_beyond_edgar": 4866,
-      "priced_share": 0.409
+      "alive": 5867,
+      "with_real_prices": 2522,
+      "listing_evidence_beyond_edgar": 4537,
+      "priced_share": 0.43
     }
   },
-  "sha256": "3999c5ab91d7aa9db63e11e434a9efb2cce939878724e06888086c03018ecff2",
+  "sha256": "695dc7d6718cfbc6e3bc7e699e511174f024890e67a2f046b1ada6c2cd58d02a",
   "path": "data/universe/layer_a.parquet",
   "settings": {
     "start": "1996-01-01",
@@ -238,6 +243,12 @@
       "NYSE MKT",
       "AMEX",
       "NYSE AMERICAN"
-    ]
+    ],
+    "financedatabase": {
+      "repo": "https://github.com/JerBouma/FinanceDatabase.git",
+      "clone_dir": "data/external/FinanceDatabase",
+      "equities_glob": "database/equities*",
+      "out": "data/universe/financedatabase.parquet"
+    }
   }
 }
