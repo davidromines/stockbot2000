@@ -188,7 +188,7 @@
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
       <span>UPDATED 2026-09-25</span>
-      <span>13 PHASES + ADDENDA A–D + STAGES K–N</span>
+      <span>13 PHASES + ADDENDA A–E + STAGES K–O</span>
       <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED · STAGE N (ADDENDUM D) ENTERED 09-25</span>
     </div>
   </header>
@@ -618,17 +618,26 @@
     <div class="phase">
       <div class="phase-num">·</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Profit exits</div><span class="pill progress">Fix live · sweep not yet run</span></div>
+        <div class="phase-head"><div class="phase-title">Profit exits</div><span class="pill done">Swept · winners adopted 09-25</span></div>
         <p class="phase-desc">You asked when profits are taken. Live slots sold only on the stop, the time limit or the strategy’s own exit — nothing locked in a gain.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:60%; background:var(--progress);"></div></div><span class="bar-pct">60%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
         <div class="scroll"><table class="dist steps">
           <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
           <tbody>
             <tr><td class="mono">P1</td><td>Live slots apply the strategy’s own take-profit. It was dropped by the stop-plan builder, so live traded a different strategy than the one tested</td><td class="st"><span class="pill done">done</span></td></tr>
-            <tr><td class="mono">P2</td><td>Registered sweep: take-profit none / 5 / 10 / 20% × trailing stop none / 2 / 3 ATR, 2006–2019; adopt only if it wins the window and most two-year blocks</td><td class="st"><span class="pill progress">run on VM</span></td></tr>
-            <tr><td class="mono">P3</td><td>A winning exit becomes a new strategy version; the ranking re-scores it</td><td class="st"><span class="pill planned">waits on P2</span></td></tr>
+            <tr><td class="mono">P2</td><td>Registered sweep: take-profit none / 5 / 10 / 20% × trailing stop none / 2 / 3 ATR, 2006–2019; adopt only if it wins the window and most two-year blocks</td><td class="st"><span class="pill done">done 09-25</span></td></tr>
+            <tr><td class="mono">P3</td><td>A winning exit becomes a new strategy with its own paper fund and its parent recorded; the ranking scores it (<span class="mono">exit_adopt.py</span>)</td><td class="st"><span class="pill done">done 09-25</span></td></tr>
             <tr><td class="mono">P4</td><td>Untested slot-wide trailing stop</td><td class="st"><span class="pill">declined</span></td></tr>
           </tbody></table></div>
+        <div class="scroll" style="margin-top:12px;"><table class="dist">
+          <caption>The sweep, 2006–2019, seven two-year blocks: net P&amp;L per trade on a $20 position. A profit exit was adopted only if it beat the strategy as it was over the whole window AND in most blocks — the rule was written before any result.</caption>
+          <thead><tr><th>Slot strategy</th><th class="r">As it was</th><th class="r">Best profit exit</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr class="highlight"><td>Rising 200 · Stop 2.5</td><td class="num neg">−$0.024</td><td class="num">+$0.013 with a +20% take-profit</td><td>adopted — 5 of 7 blocks; loss becomes gain</td></tr>
+            <tr class="highlight"><td>MACD Pullback</td><td class="num">+$0.535</td><td class="num">+$0.547 with its take-profit <em>removed</em></td><td>adopted — 5 of 7 blocks</td></tr>
+            <tr><td>Rising 200 · Stop 3.3 / 2.6 / 5.0 c</td><td class="num">—</td><td class="num">none better</td><td>unchanged</td></tr>
+          </tbody></table></div>
+        <p class="note warn"><b>Taking profit early does not pay.</b> A 5% or 10% take-profit, or a 2–3 × ATR trailing stop, lowered net per trade for every slot strategy: small gains don’t cover costs, and the big winners that carry the result get cut off. Only a wide +20% target helps, and only on one strategy. The two winners are new strategies with their own paper funds (they don’t inherit the originals’ forward record). They reach a slot through the ranking and the slot engine’s own replacement rules.</p>
       </div>
     </div>
 
@@ -698,7 +707,7 @@
         <p class="note warn">Even with the Q tickers there will be tens to a few hundred real failures against about 3,000 synthetic ones, so each real template is reused many times. The realism test measures whether that shows.</p>
       </div>
     </div>
-    <div class="phase last">
+    <div class="phase">
       <div class="phase-num">N</div>
       <div>
         <div class="phase-head"><div class="phase-title">Stage N — Addendum D: Live Growth &amp; Continuous Improvement</div><span class="pill progress">N1 built 09-25</span></div>
@@ -721,6 +730,34 @@
           </tbody></table></div>
         <p class="note new"><b>Control Center live since 25 September.</b> <span class="mono">http://localhost:8787</span> on the VM (cron keeps it running; localhost only, so from another machine tunnel with <span class="mono">ssh -L 8787:localhost:8787</span>). Broker account, paper and research kept apart; five slots with position, stop, take-profit and why each strategy holds its slot; the live event feed; the full ranking with challengers; next possible replacements, blocked by the same rules the slot engine applies; system health. A heartbeat row per trader run feeds it. 17 of 18 done criteria are now fully or partly met; 11 fully.</p>
         <p class="note">Standing rules from the spec: a slot may be cash rather than hold a strategy that doesn’t qualify; broker state is authoritative; research can never place a live order (only live allocation and execution can trade). Done means all 18 criteria in §23, tracked item by item in Stage N.</p>
+      </div>
+    </div>
+    <div class="phase last">
+      <div class="phase-num">O</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage O — Addendum E: Knowledge Strategy Factory</div><span class="pill planned">Entered 09-25</span></div>
+        <p class="phase-desc">A second source of strategies beside machine discovery: documented trading knowledge — academic papers, published factors, systematic research, open-source strategy collections, books with explicit rules. Every idea enters as a hypothesis with full provenance, is reproduced as faithfully as the source allows, varied within declared bounds, and possibly mutated — then competes in the same backtester, survivorship controls, pipeline and ranking as everything else. The five live slots stay the only allocator.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="chips"><span class="chip">Knowledge library + provenance</span><span class="chip">Ingestion</span><span class="chip">Translation + ambiguity</span><span class="chip">Reproduction</span><span class="chip">Controlled variants</span><span class="chip">Multiple-testing controls</span><span class="chip">Hybrids + mutation</span><span class="chip">Dashboard: where strategies come from</span></div>
+        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
+          <caption>Build order exactly as the spec's §25. The spec calls itself Stage N and its steps N1–N13; N is already Addendum D, so here they are O1–O13, one to one. Spec verbatim: <span class="mono">docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md</span> · integration: <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage O.</caption>
+          <thead><tr><th>Step</th><th>Item</th><th>Builds on</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">O1</td><td>Knowledge schema: source type, generation method, machine-translatable, provenance, HYBRID parents</td><td>research library (40 entries), <span class="mono">library_meta</span></td></tr>
+            <tr><td class="mono">O2</td><td>Source ingestion</td><td><span class="mono">research_queue</span> (508), <span class="mono">library_bridge.py</span></td></tr>
+            <tr><td class="mono">O3</td><td>Normalization into strategy objects</td><td><span class="mono">strategy_objects.py</span></td></tr>
+            <tr><td class="mono">O4</td><td>Translation and ambiguity — never invent rules; NON_MACHINE_TESTABLE kept</td><td>the existing faithful / not-faithful rule</td></tr>
+            <tr><td class="mono">O5</td><td>Strategy genome</td><td>genome + stop plans</td></tr>
+            <tr><td class="mono">O6</td><td>Reproduction — source claim and Stockbot result kept apart</td><td>the one backtester, costs, survivorship</td></tr>
+            <tr><td class="mono">O7</td><td>Controlled variants, linked to the original</td><td><span class="mono">strategy_factory.py</span> grids</td></tr>
+            <tr><td class="mono">O8</td><td>Provenance and multiple-testing controls</td><td>trial ledger, experiment registry, league ancestry</td></tr>
+            <tr><td class="mono">O9</td><td>Knowledge Factory section in the Control Center</td><td>Control Center</td></tr>
+            <tr><td class="mono">O10</td><td>Initial seed library, Tier 1 first</td><td>Stage L datasets</td></tr>
+            <tr><td class="mono">O11</td><td>Into the existing pipeline — no second promotion system</td><td>factory pipeline → paper → ranking → slots</td></tr>
+            <tr><td class="mono">O12</td><td>Hybrids and mutation from successful concepts</td><td>governed <span class="mono">factory.py</span> path</td></tr>
+            <tr><td class="mono">O13</td><td>Continuous ingestion</td><td><span class="mono">daily.sh</span></td></tr>
+          </tbody></table></div>
+        <p class="note warn"><b>One conflict, stated.</b> Mutating knowledge-derived strategies (§23) meets the frozen evolutionary search (§12: “do not bypass it”). O12 is built on the governed factory path — registered experiment, declared budget, ancestry — and running the frozen search on a knowledge seed population stays your edit to <span class="mono">search.mode</span>, as the freeze requires.</p>
       </div>
     </div>
   </section>
@@ -823,6 +860,7 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Profit exits swept; Addendum E entered as Stage O (09-25).</b> Early profit-taking lowers net per trade for every slot strategy; a +20% target (Rising 200 Stop 2.5) and dropping MACD Pullback’s target won and are now new strategies with their own paper funds. The Knowledge Strategy Factory spec added verbatim.</li>
       <li><b>Control Center live, survivorship in the ranking (09-25).</b> Stage N1 built and kept running by cron. Generator v4 passes the realism gate (AUC 0.593). Survivorship backtests run for 258 strategies; slot 3 moves from Rising 200 Stop 2.6 to Value Book at today’s reassessment.</li>
       <li><b>Addendum D entered as Stage N (09-25).</b> Live Growth &amp; Continuous Improvement, added verbatim: keep LIVE running, Control Center first, then reliability, leaderboard, replacement visibility, decay, feedback, discovery, K/L/M, scaling. Not yet started.</li>
       <li><b>Branch merged on the VM (09-25 02:05 UTC).</b> 67 of 67 test files pass after two fixes: tests no longer read the live arming switch, and the kill-switch alert no longer repeats after 20:00 ET.</li>
