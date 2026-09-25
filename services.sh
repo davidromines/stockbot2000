@@ -10,12 +10,15 @@
 #                        slot_trader.py --auto  entry pass once per session,
 #                                      then the stop monitor; intraday SHADOW scan
 #   every 15 min         lab_watchdog.sh (existing)
+#   every minute         the Control Center (monitor.py --serve, port 8787,
+#                                      localhost only): started if not running,
+#                                      so it survives reboots and crashes
 #
 # The trader runs in SIMULATION. Its hours cover the US session in both EDT
 # and EST (the VM clock is UTC and does not observe DST); outside the regular
 # session slot_trader exits at once, so the extra polls cost nothing.
 #
-#   ./services.sh --install   add the trader line to the crontab (idempotent)
+#   ./services.sh --install   add the trader and Control Center lines to the crontab (idempotent)
 #   ./services.sh --status    show the project's cron lines
 #   ./services.sh --remove    remove the trader line
 set -uo pipefail
@@ -29,15 +32,19 @@ LINE_SHADOW="2-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --
 # unless config/risk.yaml says execution_mode: LIVE and names the account, and
 # it halts (and alerts) if the Robinhood sign-in has expired.
 LINE_LIVE="4-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --auto --mode LIVE >> $DIR/logs/slot_trader_live.log 2>&1"
+# Control Center (Addendum D, N1). flock makes the per-minute line a no-op while
+# the server runs; if it dies, the next minute restarts it. Read-only page.
+LINE_CC="* * * * * cd $DIR && flock -n /tmp/stockbot2000_control_center.lock ./venv/bin/python monitor.py --serve --port 8787 >> $DIR/logs/control_center.log 2>&1"
 TAG="slot_trader.py --auto"
+TAG_CC="monitor.py --serve"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;
   --remove)
-    crontab -l 2>/dev/null | grep -vF "$TAG" | crontab - && echo "removed" ;;
+    crontab -l 2>/dev/null | grep -vF "$TAG" | grep -vF "$TAG_CC" | crontab - && echo "removed" ;;
   *)
     crontab -l 2>/dev/null | grep -E "stockbot2000" ;;
 esac
