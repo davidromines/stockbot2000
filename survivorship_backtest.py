@@ -52,6 +52,7 @@ ASSUMPTIONS — stated because they are not measurements
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
 import datetime as dt
+import gc
 import json
 import logging
 import os
@@ -260,7 +261,15 @@ def run(conn, cfg, only: list | None = None) -> dict:
                 wrote += 1
                 log.info(f"{key} v{ver} {mode}: {n:,} trades ({int(is_syn[rows].sum()) if n else 0} synthetic) "
                          f"net ${float(r.get('net_pnl_usd') or 0):,.2f}")
-            del panel
+            # Release this mode's combined frames BEFORE the next mode builds its own:
+            # holding both (real + synthetic, twice) exceeded the 6 GB cap (exit 137,
+            # 2026-09-25). `real` stays; everything derived from it goes.
+            del panel, dd, is_syn, df, ex
+            if mode != "exclude":
+                del srows, sex
+            gc.collect()
+        del real, real_ex
+        gc.collect()
     return {"generator": gen, "window": list(window), "strategies": len(todo), "rows_written": wrote}
 
 
