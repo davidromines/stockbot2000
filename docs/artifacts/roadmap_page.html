@@ -189,7 +189,7 @@
     <div class="meta-row">
       <span>UPDATED 2026-09-25</span>
       <span>13 PHASES + ADDENDA A–E + STAGES K–O</span>
-      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–M PLANNED · STAGE N (ADDENDUM D) ENTERED 09-25</span>
+      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGE M BUILT 09-25 · N1 BUILT · O BUILDING</span>
     </div>
   </header>
 
@@ -221,8 +221,8 @@
     <div class="q-item"><div class="q-mark resolved">1</div><div><div class="q-title">Merge the branch and run the tests <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25, 67 of 67 test files pass</span></div><div class="q-body">Two defects fixed on the way: the LIVE-refusal tests read the real <span class="mono">risk.yaml</span>, now pinned; the kill-switch alert compared a UTC date with a New York date. <span class="mono">git fetch origin claude/stock-bot-visibility-l9iym2 &amp;&amp; git merge --ff-only FETCH_HEAD</span>, then <span class="mono">./run_tests.sh</span>. Your LIVE setting in <span class="mono">config/risk.yaml</span> is untouched.</div></div></div>
     <div class="q-item"><div class="q-mark resolved">2</div><div><div class="q-title">Previews and light data fetches <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body">The ranking and slot plan (read-only) — <b>done 09-25</b>: 264 of 268 eligible, slot 5 planned for <span class="mono">paper:4c373dbad035</span>. Then market caps, T-bill rates and FinanceDatabase.</div></div></div>
     <div class="q-item"><div class="q-mark resolved">3</div><div><div class="q-title">Rebuild the universe and generator v4, then score it <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body"><b>v4 passes the realism gate for the first time: AUC 0.593</b> against a limit of 0.60 (v3: 0.768); merger-only 0.484. Only just, and failures are not yet graded on their own (M4).</div></div></div>
-    <div class="q-item"><div class="q-mark resolved">4</div><div><div class="q-title">Survivorship backtests — affects real money <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body">258 strategies × 3 modes on v4, after a memory fix. <b>At today’s reassessment slot 3 (Rising 200 Stop 2.6, holds MRNA) is released</b> — with the dead companies included its backtest loses 0.056% a trade — and Value Book (hold 60, top 10%, 5 × ATR stop) takes the slot: 0 paper trades, backtest +3.58% a trade. Fundamental templates now lead the ranking; their survivorship check is empty, because synthetic companies have no fundamentals to screen.</div></div></div>
-    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Exit sweep, Phase 6 report, FINSABER pickle import</div><div class="q-body">Long jobs; each resumes if interrupted.</div></div></div>
+    <div class="q-item"><div class="q-mark resolved">4</div><div><div class="q-title">Survivorship backtests — affects real money <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body">First run on v4 (258 strategies × 3 modes, after a memory fix), then <b>rerun on generator v5</b> (260 strategies). On v5, slot 3 (Rising 200 Stop 2.6, holds MRNA) goes from −0.056% to <b>+0.494% a trade, so it is no longer released</b>; no slot change is pending. Fundamental templates lead the ranking; their survivorship check is empty, because synthetic companies have no fundamentals to screen.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">5</div><div><div class="q-title">Exit sweep, Phase 6 report, FINSABER pickle import</div><div class="q-body">Exit sweep <b>done 09-25</b> (see Profit exits). Phase 6 report and the 27 GB FINSABER pickle import still to run; each resumes if interrupted.</div></div></div>
   </div>
 
   <div class="questions">
@@ -600,18 +600,18 @@
     <div class="phase">
       <div class="phase-num">·</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Survivorship in the ranking</div><span class="pill progress">Built · not yet run</span></div>
+        <div class="phase-head"><div class="phase-title">Survivorship in the ranking</div><span class="pill done">In use · generator v5</span></div>
         <p class="phase-desc">You asked why the synthetic dead companies weren’t being used. They weren’t: they had no indicators, so the simulator couldn’t trade them, and the ranking that fills the live slots had no survivorship correction at all. Now every ranked strategy is backtested three ways, and the ranking scores on the version that includes the dead.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
         <div class="scroll"><table class="dist steps">
           <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
           <tbody>
             <tr><td class="mono">S1</td><td>Indicators for the synthetic dead companies, appended to the real data</td><td class="st"><span class="pill done">done</span></td></tr>
-            <tr><td class="mono">S2</td><td>Every ranked strategy backtested without them, with them, and with every death a total loss — same simulator, costs and fills; nightly</td><td class="st"><span class="pill progress">first run on VM</span></td></tr>
+            <tr><td class="mono">S2</td><td>Every ranked strategy backtested without them, with them, and with every death a total loss — same simulator, costs and fills; nightly</td><td class="st"><span class="pill done">nightly · v5</span></td></tr>
             <tr><td class="mono">S3</td><td>Ranking scores and gates on the with-the-dead result; worst case shown beside it</td><td class="st"><span class="pill done">done</span></td></tr>
             <tr><td class="mono">S4</td><td>Drawdown exposure gate restored (it lived only on the retired promotion ladder)</td><td class="st"><span class="pill done">done</span></td></tr>
           </tbody></table></div>
-        <p class="note warn">In the test, one survivor plus two dying companies turned a +$105 strategy into −$949 with the dead included and −$1,296 in the worst case. Limits: synthetic companies have no volume (treated as sitting at the liquidity floor) and no fundamentals, and the generator still fails its realism test — Stage M.</p>
+        <p class="note warn">In the test, one survivor plus two dying companies turned a +$105 strategy into −$949 with the dead included and −$1,296 in the worst case. Limits: synthetic companies have no volume (treated as sitting at the liquidity floor) and no fundamentals. The dead companies now come from generator v5, which passes the realism test for every exit type (Stage M).</p>
       </div>
     </div>
 
@@ -684,9 +684,16 @@
     <div class="phase">
       <div class="phase-num">M</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill planned">Planned</span></div>
-        <p class="phase-desc">The ranking now depends on the synthetic dead companies, so their realism moves money. The generator copies real dead companies, but almost all of the 158 we have were bought out; a bankrupt company’s price history usually disappears from free data. Real failures behave in three phases, and the generator models only one.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill done">Built · in use 09-25</span></div>
+        <p class="phase-desc">The ranking depends on the synthetic dead companies, so their realism moves money. Researched first (Shumway 1997 and 1999, Harris et al. 2008, Campbell–Hilscher–Szilagyi 2008, Schwert 1996), then rebuilt around real evidence: <span class="mono">docs/STAGE_M_RESEARCH.md</span>.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="figures" style="margin-top:6px;">
+          <div class="figure"><div class="v">70%</div><div class="k">exit type read from SEC filings (v4 guessed 99%)</div></div>
+          <div class="figure"><div class="v">1,127</div><div class="k">real distress paths from our own prices, copied by synthetic failures</div></div>
+          <div class="figure"><div class="v">0.557</div><div class="k">failures vs held-out real distress (v4 0.789; pass &lt; 0.60)</div></div>
+          <div class="figure"><div class="v">0.477 · 0.524</div><div class="k">buyouts · SPACs — both pass</div></div>
+        </div>
+        <p class="note warn"><b>What v4 got wrong.</b> Its “failed” companies ended at a median $5.04 — still buyable the day before they died — and only 13% ever looked distressed; real ones fall from their last $5 close to under $2 in a median 51 sessions. Its delisting returns were far too narrow (sd 15% vs 49% measured, and never worthless), and ~1,300 SPAC shells were treated as operating companies. The old realism test graded everything against a sample that is almost all buyouts. On v5, slot 3’s backtest turns positive and it keeps its slot.</p>
         <div class="scroll"><table class="dist">
           <caption>How real failures behave, from the research literature. M4 checks synthetic failures against these.</caption>
           <thead><tr><th>Phase</th><th>What happens</th><th>Source</th></tr></thead>
@@ -698,13 +705,15 @@
         <div class="scroll" style="margin-top:12px;"><table class="dist steps">
           <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
           <tbody>
-            <tr><td class="mono">M1</td><td>Build and score v4 (fixes the buyout shape) — how much of the gap is left</td><td>VM, ~1 h</td></tr>
-            <tr><td class="mono">M2</td><td>Real failure histories: the LoPucki bankruptcy database (1,000+ large public bankruptcies since 1979, free, with filing dates) to drive bankruptcy “Q” tickers on Yahoo (e.g. LEHKQ); the FINSABER S&amp;P pickle; our own delisted stocks labeled by their SEC 8-K filings; a Kaggle delisted archive to inspect</td><td>VM</td></tr>
-            <tr><td class="mono">M3</td><td>Generator v5: synthetic failures copy a real failure’s decline, delisting and over-the-counter slide</td><td>here, built on VM</td></tr>
-            <tr><td class="mono">M4</td><td>Realism graded separately for failures and buyouts</td><td>here</td></tr>
-            <tr><td class="mono">M5</td><td>Paid delisted prices (~$270/yr: Norgate, FirstRateData, HistoricalData.net) — your call</td><td>you</td></tr>
+            <tr><td class="mono">M1</td><td>Build and score v4 — passed overall (0.593) but graded only against buyouts</td><td><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">M2</td><td>Exit type, delisting date and evidence from SEC filings for 36,833 dead companies (<span class="mono">dead_evidence.py</span>); tested on 116 real ones. Yahoo “Q” tickers: 0 of 9 exist — dead end</td><td><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">M3</td><td>1,127 real distress paths from our own prices (<span class="mono">distress_donors.py</span>)</td><td><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">M4</td><td>Generator v5 (<span class="mono">universe_synthetic_v5.py</span>): evidence-first exit types, real distress declines, Shumway-shaped delisting returns, real SPAC paths, Form 25 filers added (358 deaths in 2000–06)</td><td><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">M5</td><td>Realism per exit type, held out, one synthetic per real template (<span class="mono">validate_v5.py</span>)</td><td><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">M6</td><td>10-K Item 5 quarterly price ranges as anchors; the twin test (real dead companies vs synthetic twins, trade by trade); calibration against Ken French’s CRSP series</td><td><span class="pill planned">next</span></td></tr>
+            <tr><td class="mono">M7</td><td>Paid delisted prices (~$270/yr: Norgate, FirstRateData) — your call</td><td>you</td></tr>
           </tbody></table></div>
-        <p class="note warn">Even with the Q tickers there will be tens to a few hundred real failures against about 3,000 synthetic ones, so each real template is reused many times. The realism test measures whether that shows.</p>
+        <p class="note">Each synthetic path records the real company it copies. The realism test samples one synthetic company per real template, because many copies of a few templates let a classifier recognise twins rather than fakes.</p>
       </div>
     </div>
     <div class="phase">
@@ -735,9 +744,16 @@
     <div class="phase last">
       <div class="phase-num">O</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage O — Addendum E: Knowledge Strategy Factory</div><span class="pill planned">Entered 09-25</span></div>
+        <div class="phase-head"><div class="phase-title">Stage O — Addendum E: Knowledge Strategy Factory</div><span class="pill progress">Building · O1–O4</span></div>
         <p class="phase-desc">A second source of strategies beside machine discovery: documented trading knowledge — academic papers, published factors, systematic research, open-source strategy collections, books with explicit rules. Every idea enters as a hypothesis with full provenance, is reproduced as faithfully as the source allows, varied within declared bounds, and possibly mutated — then competes in the same backtester, survivorship controls, pipeline and ranking as everything else. The five live slots stay the only allocator.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:25%; background:var(--progress);"></div></div><span class="bar-pct">25%</span></div>
+        <div class="figures" style="margin-top:6px;">
+          <div class="figure"><div class="v">3,987</div><div class="k">hypotheses: Papers With Backtest 3,803 titles + 60 coded, QuantConnect 84, ours 40</div></div>
+          <div class="figure"><div class="v">55</div><div class="k">linked to existing families as our variant of the idea (457 links)</div></div>
+          <div class="figure"><div class="v">20</div><div class="k">testable, need new templates — next</div></div>
+          <div class="figure"><div class="v neg">69</div><div class="k">not testable on our data (futures, forex, options, intraday…) — not refuted</div></div>
+        </div>
+        <p class="note warn"><b>What the sources really give.</b> Papers With Backtest’s 5,000+ coded library is paid ($50/month); its free GitHub list has 3,803 titles and 60 coded strategies. Its own record: across 4,843 coded papers the median Sharpe is 0.37 and only 48% clear t = 1.96 — most published results don’t survive being coded. QuantConnect’s library is Apache-2.0. StockSharp’s collection is proprietary (all rights reserved) and is not ingested.</p>
         <div class="chips"><span class="chip">Knowledge library + provenance</span><span class="chip">Ingestion</span><span class="chip">Translation + ambiguity</span><span class="chip">Reproduction</span><span class="chip">Controlled variants</span><span class="chip">Multiple-testing controls</span><span class="chip">Hybrids + mutation</span><span class="chip">Dashboard: where strategies come from</span></div>
         <div class="scroll" style="margin-top:12px;"><table class="dist steps">
           <caption>Build order exactly as the spec's §25. The spec calls itself Stage N and its steps N1–N13; N is already Addendum D, so here they are O1–O13, one to one. Spec verbatim: <span class="mono">docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md</span> · integration: <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage O.</caption>
@@ -860,6 +876,7 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Stage M finished; Stage O started (09-25).</b> Generator v5 — exit types from SEC filings, failures from 1,127 real distress paths, real SPAC paths — passes the realism test for every exit type and now feeds the ranking. The Knowledge Library holds 3,987 documented strategies from your sources.</li>
       <li><b>Profit exits swept; Addendum E entered as Stage O (09-25).</b> Early profit-taking lowers net per trade for every slot strategy; a +20% target (Rising 200 Stop 2.5) and dropping MACD Pullback’s target won and are now new strategies with their own paper funds. The Knowledge Strategy Factory spec added verbatim.</li>
       <li><b>Control Center live, survivorship in the ranking (09-25).</b> Stage N1 built and kept running by cron. Generator v4 passes the realism gate (AUC 0.593). Survivorship backtests run for 258 strategies; slot 3 moves from Rising 200 Stop 2.6 to Value Book at today’s reassessment.</li>
       <li><b>Addendum D entered as Stage N (09-25).</b> Live Growth &amp; Continuous Improvement, added verbatim: keep LIVE running, Control Center first, then reliability, leaderboard, replacement visibility, decay, feedback, discovery, K/L/M, scaling. Not yet started.</li>
