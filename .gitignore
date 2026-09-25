@@ -57,3 +57,6 @@ data/universe/*.parquet
 
 # External clones (finance_database.py --fetch). A nested repo, never committed.
 data/external/
+
+# Stage O source cache (knowledge_library.py): third-party text read for translation, never committed.
+data/knowledge/
