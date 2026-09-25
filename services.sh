@@ -35,11 +35,14 @@ LINE_LIVE="4-59/5 13-20 * * 1-5 cd $DIR && ./venv/bin/python slot_trader.py --au
 # Control Center (Addendum D, N1). flock makes the per-minute line a no-op while
 # the server runs; if it dies, the next minute restarts it. Read-only page.
 LINE_CC="* * * * * cd $DIR && flock -n /tmp/stockbot2000_control_center.lock ./venv/bin/python monitor.py --serve --port 8787 >> $DIR/logs/control_center.log 2>&1"
+# Stage K1: Robinhood crypto bid/ask every hour, every day (read-only quotes),
+# so backtests charge the measured spread rather than one snapshot.
+LINE_SPREAD="17 * * * * cd $DIR && ./venv/bin/python crypto_costs.py --log >> $DIR/logs/crypto_spreads.log 2>&1"
 TAG="slot_trader.py --auto"
 TAG_CC="monitor.py --serve"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;

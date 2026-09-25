@@ -93,12 +93,17 @@ run "[3d/10] Rates series" $PY regimes.py --load-rates
 # Best-effort: a crypto outage must not fail the equity capture.
 $PY crypto_data.py --load --interval 1h --max-bars 600 >/dev/null 2>&1 || true
 $PY crypto_data.py --status >/dev/null 2>&1 || true
+# Daily bars feed the Stage K trend funds and backtests (crypto_trend.py).
+$PY crypto_data.py --load --interval 1d --max-bars 30 >/dev/null 2>&1 || true
 # The crypto paper fund steps and marks after its data tops up, then the slate
 # is built from the fund's fresh state (Phase 12 items 40 and 42). Stepping
 # first matters: the slate's kill switch treats a fund not stepped today as an
 # unreconciled book and halts.
 $PY crypto_fund.py --step --mark >/dev/null 2>&1 || true
 $PY crypto_orders.py --build >/dev/null 2>&1 || true
+# Stage K4 trend funds: deterministic replay over 1d bars (weekend bars are
+# replayed on Monday, so a weekday-only schedule loses nothing).
+$PY crypto_trend_fund.py --step --mark >/dev/null 2>&1 || true
 
 run "[4/10] Freshness gate" $PY freshness.py
 
