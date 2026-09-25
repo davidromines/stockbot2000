@@ -68,7 +68,82 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-09-24 (start here in a new session)
+### SESSION HANDOFF — 2026-09-25 (start here in a new session)
+
+**Read this block first; the 2026-09-24 handoff below it is still valid.**
+
+**Where the code is.** Everything from the 09-24/25 cloud session is on GitHub
+branch **`claude/stock-bot-visibility-l9iym2`** (36+ commits on top of
+`957c9ef` "Forward backup after the first live session"). **It is NOT yet on
+the VM.** First job on the VM, outside market hours (13:30-20:00 UTC) and not
+near the 07:00 UTC daily run:
+
+```bash
+cd ~/stockbot2000
+git status --short     # config/risk.yaml modified = the owner's LIVE arming; leave it
+git fetch origin claude/stock-bot-visibility-l9iym2
+git merge --ff-only FETCH_HEAD
+./run_tests.sh         # expect all pass on the VM (3 were VM-only in the cloud)
+```
+
+No commit touches `config/risk.yaml` or `requirements.txt`. The Claude GitHub
+App was installed on the repo 2026-09-25 (pushes had failed with 403 until
+then).
+
+**Cloud vs VM — a trap that cost a round trip.** A Claude session started from
+the web/phone runs in a CLOUD container (hostname `vm`, user `root`, a 16 KB
+empty `data/market_data.db`). It cannot reach the VM, the real database, cron
+or the Robinhood token. Work that needs data runs on the VM
+(`stockpicker2000`, user `stockpicker`): start Claude there with
+`cd ~/stockbot2000 && claude remote-control` (then drive it from the Claude
+Code app) or the desktop app.
+
+**Live account at 2026-09-25 01:52 UTC** (`slot_trader.py --status --mode
+LIVE`): 4 open slot positions, reconciled OK — SNDK, DELL, MRNA, TWST; cash
+$19.26 (settles 09-25, so slot 5 should buy after the open). Read-only
+Robinhood quote at the 09-24 close: SNDK -0.7%, DELL +0.8%, MRNA +5.1%, TWST
++6.6%, total +$1.59 on $68.45. The log shows `Session termination failed:
+400` warnings when an MCP session closes — harmless noise, not an order error.
+
+**VM task list, in order** (each heavy job through `./run_bounded.sh`, one at a
+time, never during market hours or near 07:00 UTC):
+
+| # | command | why |
+|---:|---|---|
+| 1 | merge the branch + `./run_tests.sh` (above) | code |
+| 2 | `ranking.py`; `slots.py --plan` (read-only) | every slot has a valid stop plan |
+| 3 | `market_caps.py --backfill`; `regimes.py --load-rates`; `finance_database.py --fetch --import` | light fetches |
+| 4 | `universe_layer_a.py --build` -> `universe_synthetic.py --build` -> `universe_validate.py --run` | Layer A with FinanceDatabase; generator v4 built and scored (Stage M, M1) |
+| 5 | `survivorship_backtest.py --run`, then `ranking.py` | **changes real money**: the ranking now scores backtests WITH the dead companies; a live strategy whose as_is backtest is negative drops out and its slot is sold at the next reassessment. Show the owner `ranking.py` BEFORE the next open |
+| 6 | `exit_sweep.py --run` | profit-exit experiment `exit_rules` (long, resumable) |
+| 7 | `phase6_report.py` | Phase 6 §31 report |
+| 8 | `finsaber_pkl.py --import data/finsaber/stock_data_sp500_2000_2024_v2.pkl` | 27.3 GB, resumable; Stage M2b |
+
+**What the 09-24/25 session built** (details in "Next steps" 2-10 below and
+`docs/ROADMAP_INTEGRATION.md`): market-cap fallback; pair funds and the Value
+Fund (option C) in slots; one Robinhood session per run; Phase 6 finished;
+`ranking.py` replacing the Phase 10 promotion path (owner's process, slots
+filled from day one); pair families split by index; FinanceDatabase loader;
+the take-profit fix (live had dropped `take_profit_pct`) and `exit_sweep.py`;
+`survivorship_backtest.py` (ranking scores with the synthetic dead companies,
+drawdown exposure gate restored); simulator `trailing_atr_multiple` gene.
+Planned only: Stage K (crypto slot; Robinhood crypto spread ~1.9% round trip),
+Stage L (published signals: Open Source Asset Pricing + Global Factor Data),
+Stage M (generator v5 from real failures: LoPucki bankruptcy DB, Q tickers,
+FINSABER pickle; literature targets -30%/-55% delisting, ~-28% post-filing
+drift). Roadmap page v16: https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo
+(source `docs/artifacts/roadmap_page.html`).
+
+**Owner decisions still open:** Stage L4 (published return as ranking prior),
+Stage M5 (paid delisted data ~$270/yr), K7 (`allow_crypto`), and whether to
+build Stage K / M code next (the cloud session offered; not yet answered).
+
+**Owner preferences learned this session:** use the systems already built
+before building new ones; slots never sit empty waiting for evidence; results
+always gross / costs / net; be brief; the owner works from a phone, Pacific
+time.
+
+### SESSION HANDOFF — 2026-09-24
 
 **What the user wants now:** build Phase 13 (Strategy Factory, research engine)
 then Addendum A (autonomous 5-slot trading engine), as ordered by Addendum B
@@ -98,12 +173,11 @@ gross / costs / net side by side.
 | daily.sh wiring | done (`[9c]-[9h]`) | pipeline budget 12: ~20 min, 4.3 GB peak |
 | unit tests for H3-H13 | done (TASK-022..026, DeepSeek) | strategy_objects, discovery, leagues, robustness, factory_pipeline; gate is 50 files, all passing |
 
-**Addendum A (Stage I): I1-I14 BUILT 2026-09-24 in SIMULATION and SHADOW.**
-All five slots are CASH today: 0 of 33 forward strategies are eligible (every
-one is short of the 20-session / 10-trade floor). LIVE is refused everywhere
-until `config/risk.yaml` `execution_mode: LIVE` — the user's step (B14) — and
-even then `RobinhoodBroker.place_order` only builds the spec; transmission is
-an operator step. Modules: `slots.py`, `stop_plans.py`, `slot_trader.py`,
+**Addendum A (Stage I): I1-I14 BUILT 2026-09-24; LIVE since 15:39 UTC that
+day** (see the top of this file). *Superseded:* the build-time state was all
+five slots in cash behind a 20-session / 10-trade floor; the owner replaced
+the floor with `ranking.py` the same day, and LIVE transmits through
+`robinhood_live.LiveBroker`. Modules: `slots.py`, `stop_plans.py`, `slot_trader.py`,
 `quotes.py`, `account_rules.py`, `intraday.py`, `services.sh`, plus additions
 to `killswitch.py`, `broker.py`, `execution.py`, `risk_engine.py`. The trader
 runs from cron every 5 min, 13:00-20:59 UTC weekdays (`./services.sh`).
@@ -723,7 +797,7 @@ hardcodes paths, thresholds or model parameters.
 | `run_bounded.sh` / `ado_ship.sh` | Memory-capped job launcher; ADO review-approve-merge helper. |
 | `finsaber_pkl.py` | Streams FINSABER's pickles (27.3 GB) without loading them; a restricted pickle VM — only `datetime.date` may be built. |
 
-### Addendum A — the trading engine (built 2026-09-24, SIMULATION/SHADOW)
+### Addendum A — the trading engine (built 2026-09-24, LIVE since 15:39 UTC)
 | File | Role |
 |---|---|
 | `ranking.py` | The single ranking: score = (k x backtest + n x paper) / (k + n) in net return per trade; losing backtest out; DEMOTED stays in the pool. What slots.py fills from. |
@@ -738,7 +812,7 @@ hardcodes paths, thresholds or model parameters.
 | `intraday.py` | Intraday signal engine, SHADOW only (B8). |
 | `services.sh` | Installs the trader's cron line. |
 
-### Addendum C — survivorship-bias-free universe (built 2026-09-24, retest-only)
+### Addendum C — survivorship-bias-free universe (built 2026-09-24; in the ranking since the owner's 09-24 ruling)
 | File | Role |
 |---|---|
 | `finance_database.py` | FinanceDatabase: sector / identifiers / delisted flag, no dates; attaches on ticker AND name only. |
