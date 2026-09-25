@@ -113,7 +113,8 @@ def _schema_of(words: list) -> list:
 def _header(tok: list, first: int) -> tuple:
     """(schema, years) from the run of table words right before the first label."""
     i = first - 1
-    while i >= 0 and (_w(tok[i]) in TABLE_WORDS or YEAR.match(tok[i])):
+    # A token ending a sentence ("... of 2025 and 2024.") is prose, not header.
+    while i >= 0 and (_w(tok[i]) in TABLE_WORDS or YEAR.match(tok[i])) and not tok[i].endswith("."):
         i -= 1
     head = tok[i + 1:first]
     return _schema_of(head), [int(YEAR.match(t).group(1)) for t in head if YEAR.match(t)]
@@ -137,8 +138,25 @@ def _row_values(tok: list, start: int, stop: int, year_ends: bool = False) -> tu
 
 
 def _hl(vals: list, schema: list):
-    h, lo = vals[schema.index("H")], vals[schema.index("L")]
-    return (h, lo) if h is not None and lo is not None else None
+    """(high, low, dividend column) for one row group, or None.
+
+    Header word order does not say where the dividend column is: a two-line
+    header ("Market Price / Dividends Declared" over "High Low") reads D-H-L
+    while the cells run H-L-D (DGX, 2017). So the dividend is found from the
+    values — the dash, else the smallest cell — and the callers require it to
+    sit in the same column in every row. High and low are the other two cells.
+    """
+    if "D" not in schema:
+        h, lo = vals[schema.index("H")], vals[schema.index("L")]
+        return (h, lo, None) if h is not None and lo is not None else None
+    if len(vals) != 3 or schema.count("D") != 1:
+        return None
+    nones = [i for i, v in enumerate(vals) if v is None]
+    if len(nones) > 1:
+        return None
+    d = nones[0] if nones else min(range(3), key=lambda i: vals[i])
+    a, b = [vals[i] for i in range(3) if i != d]
+    return max(a, b), min(a, b), d
 
 
 def _columns(tok: list, labels: list) -> list:
@@ -157,7 +175,7 @@ def _columns(tok: list, labels: list) -> list:
     per = len(schema) // len(quarters)
     if "H" not in schema[:per] or "L" not in schema[:per]:
         return []
-    out, i = [], j
+    out, i, dcols = [], j, set()
     while i < len(tok):
         while i < len(tok) and _w(tok[i]) in ("fiscal", "year", "calendar"):
             i += 1
@@ -172,8 +190,9 @@ def _columns(tok: list, labels: list) -> list:
         for n, q in enumerate(quarters):
             hl = _hl(vals[n * per:(n + 1) * per], schema[:per])
             if hl:
+                dcols.add(hl[2])
                 out.append({"year": year, "quarter": q, "high": hl[0], "low": hl[1]})
-    return out
+    return out if len(dcols) <= 1 else []
 
 
 def _rows(tok: list, labels: list) -> list:
@@ -188,7 +207,7 @@ def _rows(tok: list, labels: list) -> list:
     if "H" not in sub or "L" not in sub:
         return []
     year = hyears[-1] if len(hyears) == 1 else None
-    out = []
+    out, dcols = [], set()
     for n, (_, e, q, yr) in enumerate(labels):
         stop = labels[n + 1][0] if n + 1 < len(labels) else len(tok)
         vals, seen, _ = _row_values(tok, e, stop)
@@ -200,6 +219,7 @@ def _rows(tok: list, labels: list) -> list:
             for g in range(groups):
                 hl = _hl(vals[g * per:(g + 1) * per], sub)
                 if hl:
+                    dcols.add(hl[2])
                     out.append({"year": hyears[g], "quarter": q, "high": hl[0], "low": hl[1]})
         else:
             fy = yr if yr is not None else year
@@ -207,10 +227,11 @@ def _rows(tok: list, labels: list) -> list:
                 return []
             hl = _hl(vals, sub)
             if hl:
+                dcols.add(hl[2])
                 out.append({"year": fy, "quarter": q, "high": hl[0], "low": hl[1]})
         if seen:
             year = seen[-1]                                   # a year between rows starts the next group
-    return out
+    return out if len(dcols) <= 1 else []                     # the dividend moved column: unreadable
 
 
 def parse(text: str, fye_month: int = 12) -> list:

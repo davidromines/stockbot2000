@@ -499,5 +499,58 @@
     "low": 7.07
    }
   ]
+ },
+ "cik1022079_2017-02-22.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2015,
+    "quarter": 1,
+    "high": 78.33,
+    "low": 66.09
+   },
+   {
+    "year": 2015,
+    "quarter": 2,
+    "high": 89.0,
+    "low": 69.47
+   },
+   {
+    "year": 2015,
+    "quarter": 3,
+    "high": 75.25,
+    "low": 60.07
+   },
+   {
+    "year": 2015,
+    "quarter": 4,
+    "high": 72.43,
+    "low": 60.15
+   },
+   {
+    "year": 2016,
+    "quarter": 1,
+    "high": 72.64,
+    "low": 59.66
+   },
+   {
+    "year": 2016,
+    "quarter": 2,
+    "high": 81.41,
+    "low": 70.92
+   },
+   {
+    "year": 2016,
+    "quarter": 3,
+    "high": 86.85,
+    "low": 80.27
+   },
+   {
+    "year": 2016,
+    "quarter": 4,
+    "high": 93.57,
+    "low": 79.12
+   }
+  ]
  }
 }

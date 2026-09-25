@@ -63,7 +63,7 @@ def main():
             complete += 1
         check("complete " + fname, not missing, "missing " + ",".join(missing))
 
-    check("at least 7 of 9 complete", complete >= 7, "got %d" % complete)
+    check("at least 7 of %d complete" % len(expected), complete >= 7, "got %d" % complete)
 
     check("quarter_end 2016Q4 fye8", item5.quarter_end(2016, 4, 8) == "2016-08-31")
     check("quarter_end 2009Q1 fye12", item5.quarter_end(2009, 1, 12) == "2009-03-31")
