@@ -1015,7 +1015,7 @@ ACTIVITY, BLOCKERS, NEXT AUTOMATIC JOBS, STARTUP/DEPLOYMENT COMMANDS.
 
 ---
 
-**Stage O — Addendum E: Knowledge Strategy Factory** — entered 2026-09-25, **NOT YET STARTED** (owner: "add this to the roadmap")
+**Stage O — Addendum E: Knowledge Strategy Factory** — entered 2026-09-25, **BUILDING: O1-O2 done, O3/O4 first pass done (2026-09-25)** (owner: "add this to the roadmap"; build started on the owner's sources: Papers With Backtest, QuantConnect Strategy Library, StockSharp)
 
 Spec verbatim in `ADDENDUM_E_KNOWLEDGE_FACTORY.md`. It titles itself "Stage N";
 that letter is Addendum D, so this is Stage O and the spec's steps N1–N13
@@ -1063,3 +1063,16 @@ is frozen and cannot unfreeze itself. O12 is therefore built on the governed
 `factory.py` path (registered experiment, declared budget, ancestry); running
 `evolve.py` on a knowledge seed population stays a human edit to
 `search.mode`, as the freeze requires.
+
+**Stage O progress, 2026-09-25** (`knowledge_library.py`, `knowledge_translate.py`)
+
+| step | state | result |
+|---|---|---|
+| O1 schema | done | `knowledge_entries` (§2 fields + data_available / factory_family / translation_state), `knowledge_parents`, `knowledge_links` |
+| O2 ingestion | done | 3,987 hypotheses: Papers With Backtest catalogue 3,803 (titles only — its 5,000+ coded library is paid), its 60 free coded strategies, QuantConnect Strategy Library 84 (Apache-2.0), the 40 curated entries. StockSharp's collection is proprietary (all rights reserved) — not ingested |
+| O3/O4 first pass | done | of 144 with rule descriptions: 69 not testable on our data, 55 linked to existing families as SOURCE_DERIVED_VARIANT (457 links), 20 need new templates |
+| next | — | the 20 templates (calendar: turn-of-month, January, pre-holiday, payday; size; 12-month cycle; R&D; ROA; short interest; liquidity; pairs); rule extraction for the 3,803 titles; the Knowledge Factory section of the Control Center (O9) |
+
+Source statistics worth keeping (Papers With Backtest's own replication record,
+4,843 papers): median Sharpe 0.37, 48% clear t = 1.96 — most published results
+do not survive being coded, which is why every import enters as a hypothesis.
