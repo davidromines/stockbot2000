@@ -140,6 +140,23 @@ def main():
     finally:
         st.risk_engine.load_limits = real_limits
 
+    # Strategy exit on a name the entry rule still fires on = hold (2026-09-25).
+    c5 = fixture()
+    assign(c5, 1, "fx_test")
+    st.trade(c5, cfg, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c5))
+    pt._genome_signals = lambda conn, cfg, g: (pd.DataFrame({"ticker": ["AAA", "BBB"]}), {"AAA"})
+    r = st.trade(c5, cfg, "SIMULATION", qt.FixedQuotes({"AAA": 50.5, "BBB": 60.0}, conn=c5))
+    check("exit suppressed while the entry rule still fires on the name",
+          not [x for x in r if x["action"] == "CLOSE"] and 1 in st.open_positions(c5, "SIMULATION"), r)
+    pt._genome_signals = lambda conn, cfg, g: (pd.DataFrame({"ticker": ["BBB"]}), {"AAA"})
+    r = st.trade(c5, cfg, "SIMULATION", qt.FixedQuotes({"AAA": 50.5, "BBB": 60.0}, conn=c5))
+    check("exit fires once the entry rule no longer does",
+          any(x["action"] == "CLOSE" and x["symbol"] == "AAA" and x["status"] == "filled" for x in r), r)
+    check("net_exits keeps pair/value-free logic simple",
+          st.net_exits({"A", "B"}, pd.DataFrame({"ticker": ["B"]})) == {"A"}
+          and st.net_exits({"A"}, pd.DataFrame({"ticker": []})) == {"A"})
+    pt._genome_signals = lambda conn, cfg, g: (pd.DataFrame({"ticker": ["AAA", "BBB"]}), set())
+
     # --- §25 emergency: the env switch, never the real data/KILL_SWITCH file ---
     import notify
     alerts = []

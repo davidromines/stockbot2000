@@ -417,6 +417,27 @@ def emergency(conn, cfg, mode: str, provider, why: str) -> list:
     return results
 
 
+def net_exits(exits: set, cands, slot=None) -> set:
+    """
+    A strategy exit on a name the same strategy's entry rule still fires on is
+    not an exit: the paper engine sells it and buys it straight back the same
+    day, so on net the position is held. Live cannot do that round trip — the
+    sale's cash is unsettled (limited_margin, T+1) and the rebuy is refused —
+    so selling would only pay the spread and leave the slot in cash until
+    settlement. Found 2026-09-25: four exit rules that are true on most of the
+    market (e.g. "200-day average 3 days ago > $6.08", 97% of names) sold every
+    slot at the first run and the rebuys were refused. Stops, take-profit and
+    the time limit are unaffected.
+    """
+    fired = {str(t) for t in cands["ticker"]} if cands is not None and len(cands) else set()
+    kept = set(exits) - fired
+    held_on = set(exits) & fired
+    if held_on:
+        log.info(f"slot {slot}: strategy exit suppressed on {len(held_on)} name(s) its entry rule still "
+                 f"fires on (sell-and-rebuy is a hold)")
+    return kept
+
+
 def trade(conn, cfg, mode: str, provider) -> list:
     """At the open: exits, then entries (I8)."""
     init(conn)
@@ -435,6 +456,8 @@ def trade(conn, cfg, mode: str, provider) -> list:
             cands, exits = _value_signals(conn, g)
         else:
             cands, exits = pt._genome_signals(conn, cfg, g)
+        if not (g.get("pair") or g.get("value")):
+            exits = net_exits(exits, cands, slot)
         exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
 
     results = monitor(conn, cfg, mode, provider, strategy_exits=exits_by_slot)
