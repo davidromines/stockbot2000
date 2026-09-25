@@ -126,12 +126,19 @@ def main():
     check("no quote -> no entry", not st.open_positions(c3, "SIMULATION")
           and any(x["status"] == "skipped" for x in r), r)
 
-    check("LIVE refused without the operator's execution_mode", st.main(["--status", "--mode", "LIVE"]) == 2)
+    # Pin the arming switch: the production config/risk.yaml may really say LIVE,
+    # and a test must neither depend on it nor reach the real account through it.
+    real_limits = st.risk_engine.load_limits
+    st.risk_engine.load_limits = lambda *a, **k: {**real_limits(*a, **k), "execution_mode": "SIMULATION"}
     try:
-        st._build(c, cfg, "LIVE", qt.FixedQuotes({}))
-        check("LIVE never runs on the simulated broker", False)
-    except st.LiveNotWired:
-        check("LIVE never runs on the simulated broker", True)
+        check("LIVE refused without the operator's execution_mode", st.main(["--status", "--mode", "LIVE"]) == 2)
+        try:
+            st._build(c, cfg, "LIVE", qt.FixedQuotes({}))
+            check("LIVE never runs on the simulated broker", False)
+        except st.LiveNotWired:
+            check("LIVE never runs on the simulated broker", True)
+    finally:
+        st.risk_engine.load_limits = real_limits
 
     # --- §25 emergency: the env switch, never the real data/KILL_SWITCH file ---
     import notify

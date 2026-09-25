@@ -169,11 +169,15 @@ def main():
         check("pending order resolved into the slot log", len(done) == 1 and pos.get(2, {}).get("quantity") == 0.4,
               (done, pos))
 
-    try:
-        st._build(c, {}, "LIVE", None)
-        check("LIVE refused while execution_mode is not LIVE", False)
-    except st.LiveNotWired:
-        check("LIVE refused while execution_mode is not LIVE", True)
+    # Pinned: the production config/risk.yaml may really say LIVE.
+    with mock.patch.object(st.risk_engine, "load_limits",
+                           lambda *a, **k: {"execution_mode": "SIMULATION",
+                                            "robinhood": {"account_number": "403446024"}}):
+        try:
+            st._build(c, {}, "LIVE", None)
+            check("LIVE refused while execution_mode is not LIVE", False)
+        except st.LiveNotWired:
+            check("LIVE refused while execution_mode is not LIVE", True)
 
     print()
     if FAILED:
