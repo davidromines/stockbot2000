@@ -53,6 +53,7 @@ in names already 30% below their 200-day high is out.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
+import json
 import logging
 import sqlite3
 import sys
@@ -113,6 +114,22 @@ def backtest_per_trade(conn, cfg: dict, key: str, version: int) -> float | None:
         if m and m.get("trades") and m.get("net_usd") is not None:
             return float(m["net_usd"]) / int(m["trades"]) / size
         return None
+    if key.startswith("crypto:"):
+        # Stage K4: a crypto trend fund's backtest is its crypto_backtests row
+        # (net of the measured Robinhood spread). The grid fund has none and
+        # ranks from the neutral start, as before.
+        r = conn.execute("SELECT strategy FROM crypto_fund WHERE name=?", (key.split(":", 1)[1],)).fetchone() \
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='crypto_fund'").fetchone() else None
+        try:
+            st = json.loads(r[0]) if r else {}
+        except (TypeError, ValueError):
+            st = {}
+        if st.get("engine") == "crypto_trend" and st.get("strategy_id"):
+            import crypto_backtest
+            row = crypto_backtest.result(conn, st["strategy_id"])
+            if row and row.get("trades") and row.get("net_per_trade") is not None:
+                return float(row["net_per_trade"])
+        return None
     if key.startswith("paper:"):
         import degradation
         sid, _ = degradation._link(conn, key.split(":", 1)[1])
@@ -166,6 +183,15 @@ def rank(conn, cfg: dict) -> list:
             # Its positions are its capital split across its holdings, not $20.
             if ev.get("capital_usd") and ev["open_positions"]:
                 ev["position_usd"] = float(ev["capital_usd"]) / ev["open_positions"]
+        elif ev.get("fund_kind") == "crypto":
+            # A crypto fund splits its capital evenly across its pairs.
+            r = conn.execute("SELECT symbols FROM crypto_fund WHERE name=?", (ev["fund_id"],)).fetchone()
+            try:
+                n_sym = len(json.loads(r[0])) if r else 0
+            except (TypeError, ValueError):
+                n_sym = 0
+            if ev.get("capital_usd") and n_sym:
+                ev["position_usd"] = float(ev["capital_usd"]) / n_sym
         sv = survivorship(conn, key, ver)
         bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)

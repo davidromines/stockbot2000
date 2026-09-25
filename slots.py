@@ -217,6 +217,8 @@ def assess(conn, cfg: dict) -> list:
                                    "AND date > ? AND date <= ?", (r["as_of"], latest)).fetchone()[0])
             if lag > s["max_evidence_lag_sessions"]:
                 reasons.append(f"stale evidence: {lag} sessions behind")
+        if key.startswith("crypto:") and not _crypto_armed():
+            reasons.append("crypto not armed: config/risk.yaml allow_crypto is false (Stage K7, owner)")
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
         ok, why = stop_plans.validate(plan)
         if not ok:
@@ -225,6 +227,15 @@ def assess(conn, cfg: dict) -> list:
     # Rank on the score; more forward trades breaks ties — more evidence wins.
     out.sort(key=lambda x: (-_rank_value(x), -(x.get("forward_trades") or 0)))
     return out
+
+
+def _crypto_armed() -> bool:
+    """The operator's switch. Unknown (unreadable limits) counts as off."""
+    try:
+        import risk_engine
+        return bool(risk_engine.load_limits().get("allow_crypto"))
+    except Exception:                                        # noqa: BLE001 — fail closed
+        return False
 
 
 def _rank_value(r: dict) -> float:
