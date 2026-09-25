@@ -49,6 +49,10 @@ def main():
     check("grid fund has no backtest (neutral start)", ranking.backtest_per_trade(c, {}, "crypto:grid", 1) is None)
     check("unknown crypto fund has no backtest", ranking.backtest_per_trade(c, {}, "crypto:nope", 1) is None)
 
+    g = slots.genome_for(c, "crypto:t1", 1)
+    check("trend fund gets a slot stop plan from its ATR stop",
+          g and g.get("crypto") == "t1" and g["risk"]["stop_atr_multiple"] == 3.0, g)
+    check("grid fund gets no slot rules (no stop)", slots.genome_for(c, "crypto:grid", 1) is None)
     import risk_engine
     real = risk_engine.load_limits
     try:

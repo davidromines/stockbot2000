@@ -163,6 +163,21 @@ def genome_for(conn, key: str, version: int) -> dict | None:
         # NOT use (a slot must have one, §15), and sells when the fund does.
         return {"value": key.split(":", 1)[1], "risk": pair_risk("value_risk"),
                 "exit": "sell when the fund sells it"}
+    if key.startswith("crypto:"):
+        # Stage K5: a crypto trend fund's slot mirrors the fund's holding
+        # (crypto_slot_trader.py); its price stop is the fund's own ATR stop,
+        # resting at the broker. The grid fund has no stop and stays out.
+        r = conn.execute("SELECT strategy FROM crypto_fund WHERE name=?", (key.split(":", 1)[1],)).fetchone() \
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='crypto_fund'").fetchone() else None
+        try:
+            st = json.loads(r[0]) if r else {}
+        except (TypeError, ValueError):
+            st = {}
+        cg = st.get("genome") if st.get("engine") == "crypto_trend" else None
+        if not cg or not cg.get("stop_atr"):
+            return None
+        return {"crypto": key.split(":", 1)[1], "risk": {"stop_atr_multiple": float(cg["stop_atr"])},
+                "exit": "sell when the fund closes the position"}
     if key.startswith("fx_"):
         g = so.genome(conn, key, version)
     else:
