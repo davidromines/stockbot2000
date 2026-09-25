@@ -1,0 +1,503 @@
+{
+ "cik20_2010-03-15.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2008,
+    "quarter": 1,
+    "high": 127.1,
+    "low": 95.33
+   },
+   {
+    "year": 2008,
+    "quarter": 2,
+    "high": 140.5,
+    "low": 122.2
+   },
+   {
+    "year": 2008,
+    "quarter": 3,
+    "high": 170.0,
+    "low": 108.93
+   },
+   {
+    "year": 2008,
+    "quarter": 4,
+    "high": 133.91,
+    "low": 53.47
+   },
+   {
+    "year": 2009,
+    "quarter": 1,
+    "high": 85.45,
+    "low": 45.7
+   },
+   {
+    "year": 2009,
+    "quarter": 2,
+    "high": 89.01,
+    "low": 62.12
+   },
+   {
+    "year": 2009,
+    "quarter": 3,
+    "high": 99.69,
+    "low": 77.03
+   },
+   {
+    "year": 2009,
+    "quarter": 4,
+    "high": 113.48,
+    "low": 87.1
+   }
+  ]
+ },
+ "cik1138400_2012-03-13.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2011,
+    "quarter": 1,
+    "high": 14.8,
+    "low": 11.18
+   },
+   {
+    "year": 2011,
+    "quarter": 2,
+    "high": 14.49,
+    "low": 4.99
+   },
+   {
+    "year": 2011,
+    "quarter": 3,
+    "high": 5.17,
+    "low": 2.68
+   },
+   {
+    "year": 2011,
+    "quarter": 4,
+    "high": 3.75,
+    "low": 2.7
+   },
+   {
+    "year": 2010,
+    "quarter": 1,
+    "high": 13.99,
+    "low": 11.14
+   },
+   {
+    "year": 2010,
+    "quarter": 2,
+    "high": 14.2,
+    "low": 10.93
+   },
+   {
+    "year": 2010,
+    "quarter": 3,
+    "high": 11.99,
+    "low": 7.96
+   },
+   {
+    "year": 2010,
+    "quarter": 4,
+    "high": 13.0,
+    "low": 10.01
+   }
+  ]
+ },
+ "cik18396_2017-03-08.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2016,
+    "quarter": 4,
+    "high": 8.4,
+    "low": 4.9
+   },
+   {
+    "year": 2016,
+    "quarter": 3,
+    "high": 7.03,
+    "low": 4.84
+   },
+   {
+    "year": 2016,
+    "quarter": 2,
+    "high": 7.82,
+    "low": 5.39
+   },
+   {
+    "year": 2016,
+    "quarter": 1,
+    "high": 6.79,
+    "low": 4.31
+   },
+   {
+    "year": 2015,
+    "quarter": 4,
+    "high": 9.39,
+    "low": 6.46
+   },
+   {
+    "year": 2015,
+    "quarter": 3,
+    "high": 13.25,
+    "low": 8.36
+   },
+   {
+    "year": 2015,
+    "quarter": 2,
+    "high": 14.71,
+    "low": 11.93
+   },
+   {
+    "year": 2015,
+    "quarter": 1,
+    "high": 19.24,
+    "low": 13.16
+   }
+  ]
+ },
+ "cik1096385_2018-02-21.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2017,
+    "quarter": 1,
+    "high": 59.03,
+    "low": 51.5
+   },
+   {
+    "year": 2017,
+    "quarter": 2,
+    "high": 62.79,
+    "low": 58.03
+   },
+   {
+    "year": 2017,
+    "quarter": 3,
+    "high": 68.3,
+    "low": 57.48
+   },
+   {
+    "year": 2017,
+    "quarter": 4,
+    "high": 69.86,
+    "low": 64.0
+   },
+   {
+    "year": 2016,
+    "quarter": 1,
+    "high": 51.0,
+    "low": 39.43
+   },
+   {
+    "year": 2016,
+    "quarter": 2,
+    "high": 52.68,
+    "low": 46.96
+   },
+   {
+    "year": 2016,
+    "quarter": 3,
+    "high": 53.33,
+    "low": 47.87
+   },
+   {
+    "year": 2016,
+    "quarter": 4,
+    "high": 53.05,
+    "low": 46.52
+   }
+  ]
+ },
+ "cik1165231_2015-03-13.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2014,
+    "quarter": 1,
+    "high": 15.17,
+    "low": 10.06
+   },
+   {
+    "year": 2013,
+    "quarter": 1,
+    "high": 19.67,
+    "low": 11.35
+   },
+   {
+    "year": 2014,
+    "quarter": 2,
+    "high": 10.81,
+    "low": 8.33
+   },
+   {
+    "year": 2013,
+    "quarter": 2,
+    "high": 15.13,
+    "low": 10.12
+   },
+   {
+    "year": 2014,
+    "quarter": 3,
+    "high": 10.72,
+    "low": 9.12
+   },
+   {
+    "year": 2013,
+    "quarter": 3,
+    "high": 16.48,
+    "low": 11.68
+   },
+   {
+    "year": 2014,
+    "quarter": 4,
+    "high": 9.54,
+    "low": 5.6
+   },
+   {
+    "year": 2013,
+    "quarter": 4,
+    "high": 15.5,
+    "low": 13.4
+   }
+  ]
+ },
+ "cik742112_2012-02-27.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2011,
+    "quarter": 4,
+    "high": 24.8,
+    "low": 14.7
+   },
+   {
+    "year": 2010,
+    "quarter": 4,
+    "high": 30.71,
+    "low": 26.52
+   },
+   {
+    "year": 2011,
+    "quarter": 3,
+    "high": 34.29,
+    "low": 22.85
+   },
+   {
+    "year": 2010,
+    "quarter": 3,
+    "high": 26.51,
+    "low": 20.0
+   },
+   {
+    "year": 2011,
+    "quarter": 2,
+    "high": 33.58,
+    "low": 30.99
+   },
+   {
+    "year": 2010,
+    "quarter": 2,
+    "high": 27.5,
+    "low": 21.02
+   },
+   {
+    "year": 2011,
+    "quarter": 1,
+    "high": 31.12,
+    "low": 27.64
+   },
+   {
+    "year": 2010,
+    "quarter": 1,
+    "high": 30.16,
+    "low": 24.52
+   }
+  ]
+ },
+ "cik929887_2016-10-20.txt": {
+  "fye_month": 8,
+  "rows": [
+   {
+    "year": 2016,
+    "quarter": 4,
+    "high": 9.26,
+    "low": 8.81
+   },
+   {
+    "year": 2016,
+    "quarter": 3,
+    "high": 9.34,
+    "low": 7.1
+   },
+   {
+    "year": 2016,
+    "quarter": 2,
+    "high": 8.94,
+    "low": 6.31
+   },
+   {
+    "year": 2016,
+    "quarter": 1,
+    "high": 12.43,
+    "low": 6.83
+   },
+   {
+    "year": 2015,
+    "quarter": 4,
+    "high": 17.36,
+    "low": 10.2
+   },
+   {
+    "year": 2015,
+    "quarter": 3,
+    "high": 28.53,
+    "low": 16.05
+   },
+   {
+    "year": 2015,
+    "quarter": 2,
+    "high": 34.55,
+    "low": 24.82
+   },
+   {
+    "year": 2015,
+    "quarter": 1,
+    "high": 31.44,
+    "low": 23.3
+   }
+  ]
+ },
+ "cik1162556_2019-03-21.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2018,
+    "quarter": 4,
+    "high": 2.83,
+    "low": 2.01
+   },
+   {
+    "year": 2018,
+    "quarter": 3,
+    "high": 3.49,
+    "low": 1.78
+   },
+   {
+    "year": 2018,
+    "quarter": 2,
+    "high": 2.4,
+    "low": 1.25
+   },
+   {
+    "year": 2018,
+    "quarter": 1,
+    "high": 1.79,
+    "low": 0.96
+   },
+   {
+    "year": 2017,
+    "quarter": 4,
+    "high": 1.07,
+    "low": 0.92
+   },
+   {
+    "year": 2017,
+    "quarter": 3,
+    "high": 1.18,
+    "low": 0.95
+   },
+   {
+    "year": 2017,
+    "quarter": 2,
+    "high": 1.18,
+    "low": 1.01
+   },
+   {
+    "year": 2017,
+    "quarter": 1,
+    "high": 1.17,
+    "low": 1.01
+   }
+  ]
+ },
+ "cik799526_2010-03-23.txt": {
+  "fye_month": 12,
+  "rows": [
+   {
+    "year": 2009,
+    "quarter": 4,
+    "high": 5.57,
+    "low": 3.79
+   },
+   {
+    "year": 2009,
+    "quarter": 3,
+    "high": 6.76,
+    "low": 5.0
+   },
+   {
+    "year": 2009,
+    "quarter": 2,
+    "high": 6.44,
+    "low": 4.18
+   },
+   {
+    "year": 2009,
+    "quarter": 1,
+    "high": 5.37,
+    "low": 3.62
+   },
+   {
+    "year": 2008,
+    "quarter": 4,
+    "high": 6.35,
+    "low": 4.39
+   },
+   {
+    "year": 2008,
+    "quarter": 3,
+    "high": 7.22,
+    "low": 5.2
+   },
+   {
+    "year": 2008,
+    "quarter": 2,
+    "high": 7.7,
+    "low": 5.86
+   },
+   {
+    "year": 2008,
+    "quarter": 1,
+    "high": 6.7,
+    "low": 5.06
+   },
+   {
+    "year": 2007,
+    "quarter": 4,
+    "high": 6.86,
+    "low": 4.53
+   },
+   {
+    "year": 2007,
+    "quarter": 3,
+    "high": 8.2,
+    "low": 4.39
+   },
+   {
+    "year": 2007,
+    "quarter": 2,
+    "high": 7.67,
+    "low": 6.31
+   },
+   {
+    "year": 2007,
+    "quarter": 1,
+    "high": 9.52,
+    "low": 7.07
+   }
+  ]
+ }
+}
