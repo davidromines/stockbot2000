@@ -195,18 +195,26 @@ def broker_book(c):
     }
 
 
-def paper_book(c):
-    """The forward funds' restated accounting (accounting.py) — never added to the broker figures."""
-    # Each fund's latest statement: funds are accounted on the days they step,
-    # so the newest date alone holds only the funds that stepped that day.
-    rows = _rows(c, """SELECT f.* FROM fund_accounting f JOIN (
-                         SELECT fund_kind, fund_id, MAX(as_of) m FROM fund_accounting GROUP BY fund_kind, fund_id) l
-                       ON f.fund_kind=l.fund_kind AND f.fund_id=l.fund_id AND f.as_of=l.m""")
-    at = max((r["as_of"] for r in rows), default=None)
-    return {"as_of": at, "funds": len(rows),
-            "gross": sum(r["gross_usd"] or 0 for r in rows), "costs": sum(r["costs_usd"] or 0 for r in rows),
-            "net": sum(r["net_usd"] or 0 for r in rows), "capital": sum(r["capital_usd"] or 0 for r in rows),
-            "problems": sum(1 for r in rows if r.get("recon_status") == "ACCOUNTING_PROBLEM")}
+def paper_book(c, plan):
+    """
+    Forward (paper) evidence PER STRATEGY — never a total across strategies.
+
+    A sum over unrelated paper funds answers no question this system asks. Paper
+    trading exists to say which strategies make money forward, whether that is
+    growing, and which could take a live slot. So: how many are positive, the
+    best by forward return per trade (with the trade count beside it), and the
+    live holders' own paper record.
+    """
+    ranked = (plan or {}).get("ranked") or []
+    fw = [r for r in ranked if (r.get("forward_trades") or 0) > 0 and r.get("forward") is not None]
+    top = sorted(fw, key=lambda r: -r["forward"])[:6]
+    held = {(h["strategy_key"], h["version"]) for h in ((plan or {}).get("held") or {}).values() if h}
+    pick = lambda r: {k: r.get(k) for k in ("name", "family", "forward", "forward_trades", "net_usd",  # noqa: E731
+                                            "max_drawdown_pct", "sessions", "eligible")}
+    return {"with_forward": len(fw), "positive": sum(1 for r in fw if r["forward"] > 0),
+            "no_forward": len(ranked) - len(fw), "top": [pick(r) for r in top],
+            "live_holders": [pick(r) for r in ranked if (r["strategy_key"], r["version"]) in held],
+            "problems": sum(1 for r in ranked if r.get("recon_status") == "ACCOUNTING_PROBLEM")}
 
 
 def research_book(c, plan):
@@ -505,7 +513,7 @@ def snapshot(cfg=None) -> dict:
             "generated_at": _now().isoformat(), "execution_mode": _risk_limits().get("execution_mode"),
             "broker": {k: v for k, v in book.items() if k not in ("open", "closed")},
             "positions": list(book["open"].values()), "closed_trades": book["closed"],
-            "paper": paper_book(c), "research": research_book(c, plan),
+            "paper": paper_book(c, plan), "research": research_book(c, plan),
             "slots": slot_rows, "leaderboard": board, "replacements": replacements(c, plan, board),
             "replacement_history": replacement_history(c), "feed": feed(c), "health": health(c, cfg, plan_error),
         }

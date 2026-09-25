@@ -170,12 +170,12 @@ function render(s) {
     ["Last broker sync", ago(b.last_sync)], ["Last trader heartbeat", ago(b.last_heartbeat)]]);
 
   const p = s.paper;
-  $("paper").innerHTML = `<h3 style="color:var(--paper)">Simulated / paper funds</h3>
-    <div class="big mono ${cls(p.net)}">${usd(p.net, 1)}</div>` + kv([
-    ["Funds", p.funds], ["Capital (notional)", usd(p.capital)], ["Gross", usd(p.gross, 1), cls(p.gross)],
-    ["Costs", usd(-p.costs, 1), "neg"], ["Net", usd(p.net, 1), cls(p.net)],
-    ["Accounting problems", p.problems, p.problems ? "neg" : ""], ["As of", esc(p.as_of)]]) +
-    '<p class="meta">Restated accounting (accounting.py). Not money in the account.</p>';
+  const line = x => [`${esc(x.name)}`, `${pct(x.forward)} · ${x.forward_trades} tr`, cls(x.forward)];
+  $("paper").innerHTML = `<h3 style="color:var(--paper)">Paper — forward evidence per strategy</h3>
+    <div class="big mono">${p.positive} <span class="meta">of ${p.with_forward} with trades are positive</span></div>` +
+    '<div class="meta" style="margin:2px 0 4px">Best forward return per trade</div>' + kv(p.top.map(line)) +
+    '<div class="meta" style="margin:8px 0 4px">Live slot strategies on paper</div>' + kv(p.live_holders.map(line)) +
+    `<p class="meta">${p.no_forward} strategies have no forward trades yet${p.problems ? " · " + p.problems + " with accounting problems" : ""}. Simulated — not money in the account.</p>`;
 
   const r = s.research;
   $("research").innerHTML = `<h3 style="color:var(--research)">Research</h3>
