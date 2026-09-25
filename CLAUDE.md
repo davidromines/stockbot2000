@@ -105,19 +105,32 @@ Robinhood quote at the 09-24 close: SNDK -0.7%, DELL +0.8%, MRNA +5.1%, TWST
 +6.6%, total +$1.59 on $68.45. The log shows `Session termination failed:
 400` warnings when an MCP session closes — harmless noise, not an order error.
 
-**VM task list, in order** (each heavy job through `./run_bounded.sh`, one at a
-time, never during market hours or near 07:00 UTC):
+**VM task list — steps 1-5 DONE 2026-09-25 02:05-02:36 UTC** (heavy jobs via
+`./run_bounded.sh`, one at a time, never during market hours or near 07:00 UTC):
 
-| # | command | why |
+| # | command | result |
 |---:|---|---|
-| 1 | merge the branch + `./run_tests.sh` (above) | code |
-| 2 | `ranking.py`; `slots.py --plan` (read-only) | every slot has a valid stop plan |
-| 3 | `market_caps.py --backfill`; `regimes.py --load-rates`; `finance_database.py --fetch --import` | light fetches |
-| 4 | `universe_layer_a.py --build` -> `universe_synthetic.py --build` -> `universe_validate.py --run` | Layer A with FinanceDatabase; generator v4 built and scored (Stage M, M1) |
-| 5 | `survivorship_backtest.py --run`, then `ranking.py` | **changes real money**: the ranking now scores backtests WITH the dead companies; a live strategy whose as_is backtest is negative drops out and its slot is sold at the next reassessment. Show the owner `ranking.py` BEFORE the next open |
-| 6 | `exit_sweep.py --run` | profit-exit experiment `exit_rules` (long, resumable) |
-| 7 | `phase6_report.py` | Phase 6 §31 report |
-| 8 | `finsaber_pkl.py --import data/finsaber/stock_data_sp500_2000_2024_v2.pkl` | 27.3 GB, resumable; Stage M2b |
+| 1 | merge the branch + `./run_tests.sh` | **done** — 38 commits fast-forwarded; LIVE setting kept. Two fixes: LIVE-refusal tests read the real `risk.yaml` (now pinned); kill-switch alert compared a UTC date with a New York date |
+| 2 | `ranking.py`; `slots.py --plan` | **done** |
+| 3 | `market_caps.py --backfill`; `regimes.py --load-rates`; `finance_database.py --fetch --import` | **done** |
+| 4 | Layer A -> `universe_synthetic.py --build` -> `universe_validate.py --run` | **done — generator v4 PASSES the realism gate: AUC 0.593 (< 0.60; v3 0.768), merger-only 0.484.** Barely; failures are not yet graded separately (Stage M4) |
+| 5 | `survivorship_backtest.py --run`, then `ranking.py` | **done** after a memory fix (exit 137: two modes' panels held at once; peak now 5.6 GB). 258 strategies x 3 modes. Runs nightly in `daily.sh` [9f2] |
+| 6 | `exit_sweep.py --run` | open — profit-exit experiment `exit_rules` (long, resumable) |
+| 7 | `phase6_report.py` | open |
+| 8 | `finsaber_pkl.py --import data/finsaber/stock_data_sp500_2000_2024_v2.pkl` | open — 27.3 GB, resumable; Stage M2b |
+
+**What the new ranking does to real money (09-25 reassessment, `daily.sh` [9i] at ~07:00 UTC,
+then the LIVE trader from 13:34 UTC):** slot 3 (`paper:5c30377d97c8`, Rising 200 Stop 2.6,
+holds MRNA) is RELEASED — its backtest with the dead companies loses net (-0.056%/trade)
+— and "Value Book hold=60 q=0.9 stop=5" (0 paper trades, backtest +3.58%/trade) is
+assigned. The top of the ranking is now fundamental templates with no forward
+record; their "with the dead" backtest equals the survivors-only one, because
+synthetic companies have no fundamentals and those screens can never buy them.
+
+**Control Center (Addendum D, N1) — live since 2026-09-25:** `http://localhost:8787`
+(cron keeps `monitor.py --serve` up; localhost only — from another machine
+`ssh -L 8787:localhost:8787 stockpicker@<vm>`). `control_center.py --once` in a
+terminal. Reads `trader_runs`, one heartbeat row per trader run (new).
 
 **What the 09-24/25 session built** (details in "Next steps" 2-10 below and
 `docs/ROADMAP_INTEGRATION.md`): market-cap fallback; pair funds and the Value
@@ -1369,7 +1382,7 @@ which resolves their open decisions — see the table at the end of
 | A | Autonomous 5-slot trading system | `docs/ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | Final build directive | `docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | Survivorship-bias-free universe reconstruction (revision 2) — PLANNED; build only after the user confirms the staged plan and answers the questions in Stage J | `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md` |
-| D | Live Growth & Continuous Improvement — entered 2026-09-25, not yet started; keep LIVE running, Control Center first (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
+| D | Live Growth & Continuous Improvement — entered 2026-09-25; N1 Control Center built 09-25, N2-N9 open (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.

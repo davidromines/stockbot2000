@@ -514,7 +514,7 @@ AUC 0.978, so synthetic rows stay out of discovery and promotion until a new
 generator passes that test. Five stages and eight questions are in
 `ROADMAP_INTEGRATION.md`, Stage J.
 
-### Addendum D · Live Growth & Continuous Improvement 📋 entered 2026-09-25 — not yet started
+### Addendum D · Live Growth & Continuous Improvement 🟡 N1 Control Center built 2026-09-25
 Spec verbatim in `ADDENDUM_D_LIVE_GROWTH.md`; integration in
 `ROADMAP_INTEGRATION.md`, Stage N. Keep Stockbot2000 trading LIVE while it is
 made more observable, more reliable and better at finding strategies.

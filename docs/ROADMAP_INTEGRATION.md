@@ -32,7 +32,7 @@ describe what was built; these describe where it goes.
 | K | **Crypto earns a slot** (Stage K) | **planned 2026-09-24** — Robinhood crypto spread measured at ~1.9% round trip, so grid-DCA cannot pass; low-turnover strategies, crypto execution path, 24/7 stop monitoring. Arming (`allow_crypto`) is the owner's step |
 | L | **Published signals as a strategy source** (Stage L) | **planned 2026-09-24** — Open Source Asset Pricing (212 signals, survivorship-free CRSP returns) as the strategy database, Global Factor Data (93 countries) as the cross-check; trader.dev's 797k leaderboard not used |
 | M | **Realistic dead companies — generator v5** (Stage M) | **planned 2026-09-24** — real failure histories (bankruptcy Q tickers, FINSABER, our own delisted names) as templates for synthetic failures; realism graded per exit type |
-| D | **Addendum D — Live Growth & Continuous Improvement** (Stage N) | **entered 2026-09-25, not yet started; build order is the spec's own (§20)** — keep LIVE running; Live Control Center first, then live reliability, leaderboard, replacement visibility, decay monitoring, live->research feedback, continuous discovery, K/L/M, scaling. `ADDENDUM_D_LIVE_GROWTH.md` |
+| D | **Addendum D — Live Growth & Continuous Improvement** (Stage N) | **entered 2026-09-25; N1 (Control Center) built 09-25; N2-N9 open; build order is the spec's own (§20)** — keep LIVE running; Live Control Center first, then live reliability, leaderboard, replacement visibility, decay monitoring, live->research feedback, continuous discovery, K/L/M, scaling. `ADDENDUM_D_LIVE_GROWTH.md` |
 
 ---
 
@@ -946,7 +946,7 @@ is detectable.
 
 ---
 
-**Stage N — Addendum D: Live Growth & Continuous Improvement** — entered 2026-09-25, **NOT YET STARTED** (owner: "add the following items to the roadmap. do not change them just add them in and integrate them faithfully")
+**Stage N — Addendum D: Live Growth & Continuous Improvement** — entered 2026-09-25, **N1 BUILT 2026-09-25, N2-N9 OPEN** (owner: "add the following items to the roadmap. do not change them just add them in and integrate them faithfully")
 
 Spec verbatim in `ADDENDUM_D_LIVE_GROWTH.md`. It sets its own order (§20) and
 its own definition of done (§23); both are reproduced here unchanged. The
@@ -973,7 +973,7 @@ component is improved, never duplicated.
 
 | step | spec | priority (§20) | exists today | gap to build |
 |---:|---|---|---|---|
-| N1 | §3, §4, §5, §15 | 1 — Live visibility: the real-time **Control Center** — account overview (BROKER / SIMULATED-PAPER / RESEARCH never mixed), five-slot view with "why this strategy is in the slot", live trade feed, system health | `monitor.py --serve` (stdlib web page, read-only DB, port 8787); `build_dashboard.py` (daily static page); tables `slot_assignments`, `slot_trades`, `slot_marks`, `slot_reviews`, `orders`, `signals`, `system_events`, `risk_events`; `slot_trader.py --status` | one served live page over those tables + broker snapshot: account block, slot cards, event feed, health panel (heartbeats, last quote/order/fill/reconcile, CPU/RAM/disk, error counts) |
+| N1 | §3, §4, §5, §15 | 1 — Live visibility: the real-time **Control Center** — account overview (BROKER / SIMULATED-PAPER / RESEARCH never mixed), five-slot view with "why this strategy is in the slot", live trade feed, system health | `monitor.py --serve` (stdlib web page, read-only DB, port 8787); `build_dashboard.py` (daily static page); tables `slot_assignments`, `slot_trades`, `slot_marks`, `slot_reviews`, `orders`, `signals`, `system_events`, `risk_events`; `slot_trader.py --status` | **built 2026-09-25**: `control_center.py` + `control_center.html`, served by `monitor.py --serve` at `/` (lab view moved to `/lab`), kept up by cron (`services.sh`); `trader_runs` heartbeat table written by `slot_trader.py`. Also covers N3/N4 views (leaderboard, next possible replacements under `slots.plan()`'s own rules, assignment history) |
 | N2 | §14 | 2 — Live reliability: verify every execution and reconciliation path in the §14 list | `risk_engine.py`, `killswitch.py`, `execution.py` (idempotent `signal_id`), `robinhood_live.LiveBroker` (review -> place -> confirm, ref_id), per-run reconciliation in `slot_trader.py`, 67 test files | a §14 checklist test per item (partial fills, rejects, stale price, market closed, API failure, restart) against the live broker's fake; any item uncovered is fixed |
 | N3 | §6 | 3 — Strategy leaderboard: every eligible strategy, status, scores, evidence age, current slot | `ranking.py` (single ranking), `scoreboard.py`, `leagues.py`, `league_standings` | leaderboard view in the Control Center with lifecycle status (LIVE / PAPER / PROMISING / BACKTEST) and movement since the previous ranking |
 | N4 | §7, §8 | 4 — Replacement visibility + strategy journal | `slots.py` replacement engine, `slot_assignments` / `slot_reviews`, `strategy_decisions`, `league_state` (append-only), `strategy_objects.py` | "NEXT POSSIBLE REPLACEMENTS" table; a replacement record with old/new strategy, reason, old/new performance, time, account effect; a per-strategy journal view assembled from the append-only logs (nothing deleted) |
@@ -988,23 +988,23 @@ component is improved, never duplicated.
 
 | # | criterion | state |
 |---:|---|---|
-| 1 | Open a dashboard and see Stockbot2000 operating live | open |
-| 2 | See all five strategy slots | open |
-| 3 | See every live position | open |
-| 4 | See live P&L | open |
-| 5 | See stops and exits | open |
-| 6 | See the live event stream | open |
-| 7 | See the complete strategy leaderboard | open |
-| 8 | See potential replacement strategies | open |
-| 9 | See why a strategy was promoted or replaced | open |
-| 10 | See research activity occurring in the background | open |
+| 1 | Open a dashboard and see Stockbot2000 operating live | **done** — `http://localhost:8787` |
+| 2 | See all five strategy slots | **done** |
+| 3 | See every live position | **done** |
+| 4 | See live P&L | **done** — gross, estimated costs, net; equity-based today / cumulative |
+| 5 | See stops and exits | **done** — stop, take-profit, max hold, monitor verdict |
+| 6 | See the live event stream | **done** — signals, orders, fills, risk rejections, slot changes, monitor, halts |
+| 7 | See the complete strategy leaderboard | **done** |
+| 8 | See potential replacement strategies | **done** — with what blocks each |
+| 9 | See why a strategy was promoted or replaced | **done** — assignment reason + evidence at the time; per-strategy journal (N4) open |
+| 10 | See research activity occurring in the background | partly — recent factory decisions and pipeline states; live discovery progress open |
 | 11 | New strategies move through the pipeline without manual intervention | partly — factory pipeline in `daily.sh` |
 | 12 | Live performance feeds back into strategy evaluation | partly — `ranking.py` shifts to paper/forward evidence per trade |
 | 13 | Strategy degradation detected automatically | open |
 | 14 | Qualified strategies automatically replace weaker live ones | partly — `slots.py` controlled replacement |
 | 15 | Restart and reconcile safely | partly — ledger recovery + per-run reconciliation; §14 verification (N2) open |
 | 16 | Live trading isolated from research code | partly — freeze-boundary and eligibility import tests |
-| 17 | K, L and M continue progressing | open — Stage M1 is on the VM run list |
+| 17 | K, L and M continue progressing | partly — M1 done 09-25: generator v4 passes the realism gate (AUC 0.593) |
 | 18 | Operates without manually starting each research/trading cycle | partly — cron; research steps still started by hand |
 
 **End-of-session report format (§24)**: IMPLEMENTED, FILES/MODULES CHANGED,
