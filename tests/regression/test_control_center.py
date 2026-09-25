@@ -48,7 +48,7 @@ def fixture(path):
     c.executemany("INSERT INTO prices VALUES ('SPY', ?, 1)", [("2026-09-2%d" % i,) for i in range(1, 5)])
     ins = ("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
            "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
-    plan = '[{"type": "atr", "atr_multiple": 3}, {"type": "take_profit", "pct": 0.1}]'
+    plan = '[{"type": "atr", "atr_multiple": 3}, {"type": "take_profit", "pct": 10.0}]'
     c.execute(ins, ("2026-09-24T14:00:00", "LIVE", 1, "k1", 1, "AAA", "OPEN", 1.0, 100.0, 2.0, plan, "entry", "s1"))
     c.execute(ins, ("2026-09-24T15:00:00", "LIVE", 1, "k1", 1, "AAA", "CLOSE", 1.0, 110.0, 2.0, plan, "take-profit", "s2"))
     c.execute(ins, ("2026-09-24T15:10:00", "LIVE", 2, "k2", 1, "BBB", "OPEN", 2.0, 50.0, 1.0, plan, "entry", "s3"))

@@ -152,7 +152,7 @@ def live_positions(c):
         pos[slot] = {"slot": slot, "symbol": o["symbol"], "quantity": q, "entry_price": entry,
                      "entry_at": o["at"], "price": px, "price_at": m.get("at"), "stop": m.get("stop"),
                      "verdict": m.get("verdict"), "take_profit_pct": tp,
-                     "take_profit_price": entry * (1 + float(tp)) if tp else None, "max_hold_days": max_hold,
+                     "take_profit_price": entry * (1 + float(tp) / 100) if tp else None,   # pct, as stop_plans "max_hold_days": max_hold,
                      "cost_basis": entry * q, "market_value": px * q if px else None,
                      "unrealized_gross": gross, "est_costs": cost,
                      "unrealized_net": gross - cost if gross is not None else None,
