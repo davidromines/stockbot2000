@@ -232,6 +232,29 @@
     <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">K7 — <span class="mono">allow_crypto: true</span></div><div class="q-body">K1–K6 built. Recommended first: a one-slot cap for crypto and a week of spread data — crypto’s per-trade scores (+12% to +22%) would otherwise take three of five slots.</div></div></div>
   </div>
 
+  <section class="dataset">
+    <h2>What the system has actually made</h2>
+    <p class="cap">The real Robinhood account, slot trades only, since LIVE was armed on 24 September. Paper funds and backtests are not in it, and neither are trades you placed by hand. Commission is $0 and the spread is already inside the fill prices, so costs are only the regulatory fees on sells. Source: <span class="mono">live_pnl.py</span>, also in the 21:10 UTC Telegram report.</p>
+    <div class="figures">
+      <div class="figure"><div class="v">+$2.46</div><div class="k">net on 4 closed trades (gross +$2.46, costs $0.00)</div></div>
+      <div class="figure"><div class="v">+3.60%</div><div class="k">net return on $68.45 traded</div></div>
+      <div class="figure"><div class="v">4 of 4</div><div class="k">closed trades won</div></div>
+      <div class="figure"><div class="v neg">−$0.25</div><div class="k">unrealized on the 1 open position ($19.26)</div></div>
+    </div>
+    <div class="scroll"><table class="dist">
+      <caption>Every live slot trade. The four sells on 25 September were the exit-rule bug (since fixed), not planned exits, so these gains came from one day’s market move rather than the strategies’ own exit rules.</caption>
+      <thead><tr><th>Slot</th><th>Symbol</th><th>Strategy</th><th class="r">Entry → exit</th><th class="r">Stake</th><th class="r">Gross</th><th class="r">Costs</th><th class="r">Net</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5</td><td class="num">1,767.07 → 1,795.10</td><td class="num">$20.00</td><td class="num">+$0.32</td><td class="num">$0.00</td><td class="num">+$0.32</td></tr>
+        <tr><td>2</td><td>DELL</td><td>Rising 200 · Stop 3.3</td><td class="num">532.05 → 548.25</td><td class="num">$20.00</td><td class="num">+$0.61</td><td class="num">$0.00</td><td class="num">+$0.61</td></tr>
+        <tr><td>3</td><td>MRNA</td><td>Rising 200 · Stop 2.6</td><td class="num">185.31 → 196.21</td><td class="num">$20.00</td><td class="num">+$1.18</td><td class="num">$0.00</td><td class="num">+$1.18</td></tr>
+        <tr><td>4</td><td>TWST</td><td>Rising 200 · Stop 5.0 c</td><td class="num">172.62 → 180.00</td><td class="num">$8.45</td><td class="num">+$0.36</td><td class="num">$0.00</td><td class="num">+$0.36</td></tr>
+        <tr class="highlight"><td colspan="4">Closed</td><td class="num">$68.45</td><td class="num">+$2.46</td><td class="num">$0.00</td><td class="num">+$2.46</td></tr>
+        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5 (open)</td><td class="num">1,801.60 → 1,778.25 mark</td><td class="num">$19.26</td><td class="num neg">−$0.25</td><td class="num">—</td><td class="num">—</td></tr>
+      </tbody></table></div>
+    <p class="note warn">Four trades over two days is far too few to say what the system can earn; the figure grows with every closed trade. From Monday, slots 1–3 move to Profitability and Value Book strategies.</p>
+  </section>
+
   <section class="dataset finding">
     <h2>Does the signal survive costs? No.</h2>
     <p class="cap">Phase 07's deciding question, re-measured 2026-09-24 on current data. Same model, same out-of-sample window (2022-07-20 → 2026-09-11), same $20 × 5 configuration. Only the fill convention differs.</p>
@@ -452,7 +475,7 @@
         <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
         <div class="chips"><span class="chip ok">Strategy Factory</span><span class="chip ok">Accounting fix first</span><span class="chip ok">FINSABER validation data</span><span class="chip ok">Survivorship tags</span><span class="chip ok">Nine leagues</span><span class="chip ok">Continuous discovery</span><span class="chip ok">Robustness tests</span><span class="chip ok">Family-concentration limits</span><span class="chip ok">Daily factory report</span><span class="chip ok">In daily.sh<span class="when">09-24</span></span></div>
         <p class="note new"><b>Built 2026-09-24.</b> 40 strategy families (229 template objects, 244 more linked from the research library), authoritative accounting, nine leagues, discovery budgets, robustness tests and the pipeline. First daily-size run: 12 strategies processed, 8 admitted to paper trading on a positive net backtest, 4 rejected. Backtests only admit; forward evidence is what qualifies a strategy.</p>
-        <p class="note warn"><b>Restated P&amp;L.</b> Under the new accounting the 23 simulated funds are <b>−$49.59 net</b> (gross −$41.19, costs −$8.40), not the −$4.52 the old curves implied. The originals are kept beside the restatement, never overwritten.</p>
+        <p class="note">Paper funds are research: each strategy’s forward record is judged on its own, never added up. What the system has actually earned is the real-account section above.</p>
         <div class="scroll" style="margin-top:14px;">
         <table class="dist steps">
           <caption>Build order, exactly as the spec's §39. Spec: <span class="mono">docs/PHASE13_STRATEGY_FACTORY.md</span> · integration: <span class="mono">docs/ROADMAP_INTEGRATION.md</span>, Stage H.</caption>
