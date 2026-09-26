@@ -29,9 +29,9 @@ describe what was built; these describe where it goes.
 | A | **Addendum A — Autonomous 5-Slot Trading System** (product definition; overrides ambiguity) | **I1-I14 built 2026-09-24; LIVE armed by the owner 2026-09-24 15:39 UTC (real orders, Agentic account)** — Stage I, `ADDENDUM_A_AUTONOMOUS_5_SLOT.md` |
 | B | **Addendum B — Final Build Directive** (resolves the Stage H/I decisions; authorizes the build) | **in force 2026-09-24** — `ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | **Addendum C (rev 2) — Survivorship-bias-free universe reconstruction** | **Stages 1-5 built 2026-09-24 on the recommended answers; generator fails the realism gate (AUC 0.768; v4 written 2026-09-24, not yet scored), so retest-only** — Stage J, `ADDENDUM_C_SYNTHETIC_DELISTING.md` |
-| K | **Crypto earns a slot** (Stage K) | **planned 2026-09-24** — Robinhood crypto spread measured at ~1.9% round trip, so grid-DCA cannot pass; low-turnover strategies, crypto execution path, 24/7 stop monitoring. Arming (`allow_crypto`) is the owner's step |
+| K | **Crypto earns a slot** (Stage K) | **K1-K6 built 2026-09-25** — spreads logged hourly (~1.9% round trip, US hours too); daily bars to 2015; 36-cell trend grid (all net positive, bull-market dominated); three trend paper funds opened; crypto slot trader with a resting broker stop. Ranking/slot wiring on branch `stage-k/ranking` (owner merge); how crypto competes for slots and arming (`allow_crypto`, K7) are the owner's |
 | L | **Published signals as a strategy source** (Stage L) | **planned 2026-09-24** — Open Source Asset Pricing (212 signals, survivorship-free CRSP returns) as the strategy database, Global Factor Data (93 countries) as the cross-check; trader.dev's 797k leaderboard not used |
-| M | **Realistic dead companies — generator v5** (Stage M) | **planned 2026-09-24** — real failure histories (bankruptcy Q tickers, FINSABER, our own delisted names) as templates for synthetic failures; realism graded per exit type |
+| M | **Realistic dead companies — generator v5** (Stage M) | **v5 in use; M2b + M5 built 2026-09-25/26** — 41,120 filed quarterly price anchors; twin test (pre-registered): failures FAIL (twins +1.00%/trade vs -0.45% real), buyouts PASS; the passing fix fails the realism gate (reference ~94% survivors) — owner decision; French calibration: synthetic closes ~60% of the gap to CRSP (+10.6 -> +4.0 pp/yr) |
 | D | **Addendum D — Live Growth & Continuous Improvement** (Stage N) | **entered 2026-09-25; N1 (Control Center) built 09-25; N2-N9 open; build order is the spec's own (§20)** — keep LIVE running; Live Control Center first, then live reliability, leaderboard, replacement visibility, decay monitoring, live->research feedback, continuous discovery, K/L/M, scaling. `ADDENDUM_D_LIVE_GROWTH.md` |
 | E | **Addendum E — Knowledge Strategy Factory** (Stage O; the spec titles itself "Stage N", renamed because N is Addendum D) | **entered 2026-09-25, not yet started** — documented trading knowledge (papers, factors, books, open-source) as a second strategy source beside machine discovery, provenance-aware, into the SAME pipeline and ranking. `ADDENDUM_E_KNOWLEDGE_FACTORY.md` |
 
@@ -773,7 +773,7 @@ add-on, ~$270/yr).
 
 ---
 
-**Stage K — crypto earns a slot** — entered 2026-09-24, **PLANNED** (owner: "add the plan for crypto to the roadmap")
+**Stage K — crypto earns a slot** — entered 2026-09-24, **K1-K6 BUILT 2026-09-25** (wiring on branch `stage-k/ranking`; K7 and the slot-competition rule are the owner's; see CLAUDE.md handoff 09-25/26)
 
 Goal: a crypto strategy competes for one of the five slots through the same
 ranking as everything else (`ranking.py`: backtest gate, then paper evidence
@@ -897,7 +897,7 @@ gate. Not used for strategy discovery.
 
 ---
 
-**Stage M — realistic dead companies (synthetic generator v5)** — entered 2026-09-24, **PLANNED** (owner)
+**Stage M — realistic dead companies (synthetic generator v5)** — entered 2026-09-24, **v5 IN USE; Item 5 anchors, twin test and French calibration BUILT 2026-09-25/26** (results in CLAUDE.md handoff 09-25/26; generator options built but not adopted pending the owner)
 
 Why: the ranking now scores backtests WITH the synthetic dead companies
 (survivorship_backtest.py), so their realism now moves money. The generator

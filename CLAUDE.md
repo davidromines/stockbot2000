@@ -68,6 +68,56 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### SESSION HANDOFF — 2026-09-25/26 overnight session (start here)
+
+**Read this first; the 09-25 VM block below is still valid background.**
+
+**Waiting on the owner (nothing below is live until these happen):**
+1. **Exit fix — merge `fix/strategy-exit-rebuy`** (`git merge --no-ff fix/strategy-exit-rebuy`,
+   outside market hours). 09-25 13:34 UTC the first LIVE run sold all four slots on
+   "strategy exit signal" and the rebuys of the same names were refused (unsettled cash,
+   limited_margin T+1): the exit rules are true on most of the market (slot 4
+   `lag(sma_200,3) > 6.08`: 2,971 of 3,056 names). The fix treats an exit on a name the
+   same strategy's entry rule still fires on as a hold. Auto mode blocked Claude from
+   merging live-trading code. **Unmerged, Monday repeats: every slot sells at the first run.**
+2. **Stage K wiring — merge `stage-k/ranking`**: crypto trend funds rank on their
+   backtest, get slot rules from their ATR stop, are blocked from slots while
+   `allow_crypto` is false; equity trader skips crypto slots; hourly crypto cron line
+   (`services.sh --install` after the merge).
+3. **How crypto competes (decide before arming K7):** crypto scores +12..+22% per trade
+   (30-60 day holds) vs ~0.5% for equities; armed, three crypto funds would take three
+   of five slots. Options: score by excess over the null, per holding day, or cap crypto
+   at one slot.
+4. **Synthetic failures (Stage M):** twin test says v5 failures are too kind (below);
+   the fix that passes it fails the realism gate because that gate's reference is ~94%
+   survivors. Which reference defines a realistic failure is the owner's call.
+
+**Built this session (all on `main` unless noted):**
+- Stage K: `crypto_costs.py` (K1, hourly spread cron INSTALLED — Robinhood ~1.9% round
+  trip in US hours too), daily crypto bars to 2015 (K2, `daily.sh` tops up),
+  `crypto_trend.py` + `crypto_backtest.py` (K3: 36 cells, all net positive, 29 beat the
+  null; means driven by 2017/2020, buy-and-hold beat every cell; experiment
+  `crypto_trend_grid`, POST-HOC registration), `crypto_trend_fund.py` + three paper funds
+  opened 09-25 (K4: crypto_trend_sma200, crypto_breakout55, crypto_tsmom180, league PAPER,
+  stepped by `daily.sh`), `crypto_live.py` + `crypto_broker.py` + `crypto_slot_trader.py`
+  (K5/K6: crypto slot mirrors its fund, resting stop_loss at Robinhood, cslot prefix and
+  own table so the equity reconcile never sees it). Inert until items 2 and K7.
+- Stage M: `item5.py` + `item5_anchors.py` (10-K Item 5 quarterly high/low; out of sample
+  751 of 765 quarters consistent; the SEC dropped the table after 2018; **41,120 anchors**
+  for 5,907 dead companies), `twin_test.py` (pre-registered; **failures FAIL**: real
+  -0.45%/trade, twin +1.00%; buyouts PASS), v5 options `donor_total_returns`,
+  `failure_donors='died'`, `item5_anchors` (all OFF — see commit messages; anchoring fixes
+  levels but not per-trade returns, pre-registered FAIL), `french_calibration.py`
+  (synthetic v5 closes ~60% of the survivorship gap: +10.6 -> +4.0 pp/yr vs CRSP).
+- FINSABER S&P pickle import was already complete. It holds ~11 real S&P failures not
+  yet used as donors (KM, FTR, JCP, FRC, ENDP, DF, MDR, BGG, GAPTQ, DALRQ, PRD); MYL,
+  PGN, XL there are ticker reuse — curate by hand before use.
+- ADO now runs in a separate worktree (`~/sb2k-ado`, ship with `~/sb2k_ship.sh`) so
+  cron never runs task-branch code. `robinhood_mcp.list_tools` fixed for MCP 2.x.
+
+**Next:** N2 live-path tests; Stage O templates; the FINSABER failure donors (curated);
+re-run `twin_test.py` and `validate_v5.py` after any generator change.
+
 ### SESSION HANDOFF — 2026-09-25 VM session, 02:00-05:00 UTC (start here)
 
 **Read this first; the older 09-25 and 09-24 blocks below are still valid
