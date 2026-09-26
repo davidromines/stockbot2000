@@ -2,7 +2,7 @@
 
 - component: research
 - priority: medium
-- state: TODO
+- state: IN_PROGRESS
 - branch: ado/task-038
 - created: 2026-09-26T06:00:00+00:00
 - dependencies: none
