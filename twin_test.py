@@ -269,6 +269,87 @@ def register(conn) -> None:
     er.start(conn, EXPERIMENT)
 
 
+# --- Stage M2b: anchoring twins to their own company's filed prices ---------------
+
+ANCHOR_EXPERIMENT = "twin_test_anchors"
+
+
+def anchors_for(conn, cik) -> list:
+    """[(period_end, high, low)] filed for this company, the newest filing's figure per quarter."""
+    if cik is None:
+        return []
+    rows = conn.execute("SELECT period_end, high, low, filed FROM item5_anchors WHERE cik=? "
+                        "ORDER BY period_end, filed DESC", (int(cik),)).fetchall()
+    out, seen = [], set()
+    for pe, hi, lo, _ in rows:
+        if pe not in seen:
+            seen.add(pe)
+            out.append((pe, float(hi), float(lo)))
+    return out
+
+
+def cik_of(conn, ticker: str, company_id: str | None = None):
+    if company_id and str(company_id).startswith("CIK"):
+        return int(str(company_id)[3:])
+    r = conn.execute("SELECT cik FROM sec_filings WHERE ticker=? GROUP BY cik ORDER BY COUNT(*) DESC LIMIT 1",
+                     (ticker,)).fetchone()
+    return int(r[0]) if r else None
+
+
+def anchored(twin: pd.DataFrame, anchors: list) -> tuple:
+    import universe_synthetic_v5 as v5
+    f, n = v5.anchor_factor(twin["date"], twin["close"], anchors)
+    if not n:
+        return twin, 0
+    out = twin.copy()
+    for c in ("open", "high", "low", "close"):
+        out[c] = out[c].to_numpy() * f
+    return out, n
+
+
+def register_anchors(conn) -> None:
+    import experiment_registry as er
+    try:
+        er.get(conn, ANCHOR_EXPERIMENT)
+        return
+    except er.RegistryError:
+        pass
+    er.create(conn, ANCHOR_EXPERIMENT,
+              "Rescaling a twin's price level onto its own company's filed 10-K Item 5 quarterly high/low "
+              "(universe_synthetic_v5.anchor_factor) moves its mean net return per trade CLOSER to the real "
+              "company's than the unanchored twin, on the companies with at least two filed quarters inside "
+              "their path. Fails if |anchored - real| >= |unanchored - real| for a kind.", "claude",
+              {"subset": "twin-test companies with >= 2 anchors in path", "method": "anchor_factor, log-linear "
+               "interpolation of filed/path quarter mids", "anchors": "item5_anchors (10-Ks filed before 2019)"})
+    er.register(conn, ANCHOR_EXPERIMENT)
+    er.start(conn, ANCHOR_EXPERIMENT)
+
+
+def anchored_subset(conn, cfg, strats, pairs, cids: dict) -> dict:
+    sub = []
+    for t, real, twin, _ in pairs:
+        a = anchors_for(conn, cik_of(conn, t, cids.get(t)))
+        tw, n = anchored(twin, a)
+        if n >= 2:
+            sub.append((t, real, twin, tw, n))
+    if not sub:
+        return {"companies": 0}
+    names = [t for t, *_ in sub]
+    rr, re_ = _frames([(f"R:{t}", r) for t, r, _, _, _ in sub], cfg)
+    ur, ue = _frames([(f"T:{t}", w) for t, _, w, _, _ in sub], cfg)
+    ar, ae = _frames([(f"T:{t}", w) for t, _, _, w, _ in sub], cfg)
+    a, b, c = _trades(strats, rr, re_, cfg), _trades(strats, ur, ue, cfg), _trades(strats, ar, ae, cfg)
+    unan, anch = compare(a, b, names), compare(a, c, names)
+    closer = (abs(anch["diff"]) < abs(unan["diff"])) if "diff" in anch and "diff" in unan else None
+    return {"companies": len(sub), "anchors_median": float(np.median([n for *_, n in sub])),
+            "unanchored": {k: unan.get(k) for k in ("mean_real", "mean_twin", "diff", "diff_ci95", "verdict")},
+            "anchored": {k: anch.get(k) for k in ("mean_real", "mean_twin", "diff", "diff_ci95", "verdict")},
+            "price_real_median": float(np.median([r["close"].median() for _, r, *_ in sub])),
+            "price_unanchored_median": float(np.median([w["close"].median() for _, _, w, _, _ in sub])),
+            "price_anchored_median": float(np.median([w["close"].median() for *_, w, _ in sub])),
+            "anchoring_moves_closer": closer}
+
+
 def run(conn, cfg) -> dict:
     import survivorship_backtest as sb
     import universe_synthetic as v4
@@ -281,6 +362,9 @@ def run(conn, cfg) -> dict:
     fails = failure_pairs(conn, cfg, spy, donors)
     report = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "experiment": EXPERIMENT,
               "strategies": len(strats), "generator": "v5 (failures) / v4 final-year donor (buyouts, as v5 uses)"}
+    register_anchors(conn)
+    sample = pd.read_parquet("data/universe/cohort_sample_v1.parquet")
+    cids = dict(zip(sample["ticker"], sample["company_id"]))
     for kind, pairs in (("failures", fails), ("buyouts", buys)):
         rr, re_ = _frames([(f"R:{t}", real) for t, real, _, _ in pairs], cfg)
         tr, te = _frames([(f"T:{t}", twin) for t, _, twin, _ in pairs], cfg)
@@ -289,9 +373,18 @@ def run(conn, cfg) -> dict:
                         "rows_real": int(len(rr)), "rows_twin": int(len(tr)),
                         "price_real_median": float(np.median([p[1]["close"].median() for p in pairs])),
                         "price_twin_median": float(np.median([p[2]["close"].median() for p in pairs]))}
+        report[kind]["anchored_subset"] = anchored_subset(conn, cfg, strats, pairs,
+                                                          cids if kind == "buyouts" else {})
         log.info(f"{kind}: {report[kind].get('verdict')}  real {report[kind].get('mean_real')}  "
                  f"twin {report[kind].get('mean_twin')}")
     OUT.write_text(json.dumps(report, indent=1, default=str))
+    try:
+        er_res = {k: report[k]["anchored_subset"] for k in ("failures", "buyouts")}
+        import experiment_registry as er2
+        er2.complete(conn, ANCHOR_EXPERIMENT, er_res,
+                     "; ".join(f"{k}: closer={v.get('anchoring_moves_closer')}" for k, v in er_res.items()))
+    except Exception as e:                                       # noqa: BLE001
+        log.warning(f"anchor registry: {type(e).__name__}: {e}")
     import experiment_registry as er
     try:
         er.complete(conn, EXPERIMENT, {k: {x: report[k].get(x) for x in ("verdict", "mean_real", "mean_twin",
@@ -317,6 +410,14 @@ def render(rep: dict) -> str:
                  f"{p(r.get('mean_twin')):>8} {p(r.get('diff')):>8} "
                  f"{('[' + p(ci[0]) + ',' + p(ci[1]) + ']') if ci else '—':>18} "
                  f"{r['price_real_median']:>6.2f}/{r['price_twin_median']:<6.2f}  {r['verdict']}")
+    for k in ("failures", "buyouts"):
+        a = rep[k].get("anchored_subset") or {}
+        if a.get("companies"):
+            L.append(f"  {k} with filed anchors ({a['companies']} cos, median {a['anchors_median']:.0f} quarters): "
+                     f"real {p(a['anchored']['mean_real'])}  twin {p(a['unanchored']['mean_twin'])} -> anchored "
+                     f"{p(a['anchored']['mean_twin'])}   price ${a['price_real_median']:.2f} real, "
+                     f"${a['price_unanchored_median']:.2f} -> ${a['price_anchored_median']:.2f} twin   "
+                     f"closer: {a['anchoring_moves_closer']}")
     return "\n".join(L)
 
 

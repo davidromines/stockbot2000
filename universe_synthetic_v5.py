@@ -97,6 +97,12 @@ DEFAULTS = {
     # test on the same 70 companies, so not independent evidence. Production
     # stays "all" (v5) until the owner decides; validation_v5b.json has the run.
     "failure_donors": "all",
+    # Stage M2b: rescale a company's path onto its own filed 10-K quarterly prices
+    # (item5_anchors). Twin test 2026-09-26 (pre-registered, twin_test_anchors):
+    # levels become right (buyout twins $8.40 -> $33.92 vs $35.34 real) but per-
+    # trade returns do NOT move closer (buyouts -0.24% -> -0.33% vs -0.24% real).
+    # Off until the owner decides levels are worth adopting on their own.
+    "item5_anchors": False,
 }
 
 
@@ -148,6 +154,44 @@ def _delist_return(rng, exch: str, s: dict) -> float:
     if rng.random() < m["p_worthless"]:
         return -1.0
     return float(np.clip(rng.normal(m["mu"], m["sd"]), -0.99, 2.0))
+
+
+def anchor_factor(dates, close, anchors: list) -> tuple:
+    """
+    Stage M2b (docs/STAGE_M_RESEARCH.md §4D): a multiplicative factor per day that
+    moves a synthetic path's LEVEL onto the company's own filed quarterly prices
+    (10-K Item 5, item5_anchors.py), keeping its daily shape.
+
+    For each filed quarter inside the path: L = log(filed mid / path mid), both
+    mids sqrt(high * low) over the quarter (the path's from its closes). L is
+    interpolated linearly in trading days between quarters and held flat beyond
+    the first and last. Returns (factor array, quarters used). The drift this adds
+    is the company's REAL drift between filed quarters.
+    """
+    d = np.asarray(pd.Index(dates).astype(str))
+    c = np.asarray(close, dtype=float)
+    pos, logs = [], []
+    for pe, hi, lo in anchors:
+        if not (hi and lo and hi >= lo > 0):
+            continue
+        m = int(pe[5:7])
+        qs = f"{int(pe[:4]) - (1 if m <= 2 else 0)}-{(m - 3) % 12 + 1:02d}-01"
+        if pe < d[0] or qs > d[-1]:
+            continue                                   # the quarter does not overlap the path
+        idx = np.nonzero((d >= qs) & (d <= pe))[0]
+        if len(idx) < 20:
+            continue
+        seg = c[idx]
+        mid_syn = float(np.sqrt(seg.max() * seg.min()))
+        if mid_syn <= 0:
+            continue
+        pos.append(float(idx.mean()))
+        logs.append(np.log(np.sqrt(hi * lo) / mid_syn))
+    if not pos:
+        return np.ones(len(c)), 0
+    order = np.argsort(pos)
+    f = np.exp(np.interp(np.arange(len(c)), np.asarray(pos)[order], np.asarray(logs)[order]))
+    return f, len(pos)
 
 
 def failure(company: dict, spy: pd.Series, v4donors: list, dd: list, post_pool: list, s: dict, rng,
@@ -295,6 +339,13 @@ def build(conn, cfg: dict, out: Path | None = None, donor_parity: int | None = N
     starts = np.array([c for (c,) in conn.execute(
         "SELECT close FROM (SELECT p.ticker, p.close, MIN(p.date) FROM prices p JOIN symbols s ON "
         "s.ticker=p.ticker WHERE s.security_type='common_stock' AND p.close>0 GROUP BY p.ticker)")])
+    anchors, n_anchored = {}, 0
+    if s.get("item5_anchors"):
+        for cik, pe, hi, lo in conn.execute("SELECT cik, period_end, high, low FROM item5_anchors "
+                                            "ORDER BY cik, period_end, filed DESC"):
+            lst = anchors.setdefault(int(cik), [])
+            if not lst or lst[-1][0] != pe:
+                lst.append((pe, float(hi), float(lo)))
     tg = targets(la, ev, s)
     if len(ev):
         not_dead = set(ev.loc[ev["exit_type"] == "transfer_not_death", "company_id"])
@@ -380,6 +431,12 @@ def build(conn, cfg: dict, out: Path | None = None, donor_parity: int | None = N
             df["synthetic_seed"] = seed
             df["event_date"] = event           # failures: the last close at the tradeable level
             df["template"] = template          # the REAL company whose path this copies
+        if s.get("item5_anchors") and e_row is not None and pd.notna(e_row.get("cik")):
+            fac, nq = anchor_factor(df["date"], df["close"], anchors.get(int(e_row["cik"]), []))
+            if nq:
+                for col in ("open", "high", "low", "close"):
+                    df[col] = df[col].to_numpy() * fac
+                n_anchored += 1
         df["data_source"] = "synthetic_v5"
         df["generation_method"] = METHOD
         df["synthetic_reason"] = tag
@@ -399,7 +456,7 @@ def build(conn, cfg: dict, out: Path | None = None, donor_parity: int | None = N
     if writer:
         writer.close()
     rep = {"companies": int(sum(counts.values())), "rows": int(n_rows), "by_reason": counts,
-           "prior_used": prior, "evidence_mix_not_used": evidence_mix, "settings": s, "distress_donors": len(dd), "post_distress_pool": len(post_pool),
+           "prior_used": prior, "evidence_mix_not_used": evidence_mix, "settings": s, "distress_donors": len(dd), "post_distress_pool": len(post_pool), "anchored_companies": n_anchored,
            "method": METHOD}
     if donor_parity is None:
         Path("data/universe/synthetic_v5_report.json").write_text(json.dumps(rep, indent=1, default=str))
