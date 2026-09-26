@@ -188,10 +188,9 @@ def synthetic_frames(conn, cfg, window, mode: str, fundamentals: bool = False) -
         # Without them no fundamental screen could ever buy a synthetic company.
         import storage
         import synthetic_fundamentals as sfund
-        fd = sfund.load(synth_id())
         cols = list(storage.FUNDAMENTAL_PANEL_COLS)
+        fd = sfund.load(synth_id(), window[0], window[1], cols)
         if fd is not None and not fd.empty:
-            fd = fd[["company_id", "date", *cols]].copy()
             fd["ticker"] = PREFIX + fd["company_id"].astype(str)
             fd["date"] = pd.to_datetime(fd["date"])
             rows = rows.merge(fd.drop(columns="company_id"), on=["ticker", "date"], how="left")

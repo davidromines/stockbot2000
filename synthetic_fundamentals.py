@@ -192,14 +192,30 @@ def build(conn, synth: str | None = None) -> dict:
     return stamp
 
 
-def load(generator: str | None) -> pd.DataFrame | None:
-    """The build for `generator`, or None when absent or stale."""
+def load(generator: str | None, start: str | None = None, end: str | None = None,
+         columns: list | None = None) -> pd.DataFrame | None:
+    """
+    The build for `generator`, or None when absent or stale. `start`/`end` (ISO) and
+    `columns` restrict what is read: the full file is 4.5M rows, and loading it whole
+    beside a real fundamental panel took the survivorship run past its 6 GB cap
+    (OOM, 2026-09-26).
+    """
     if not (OUT.exists() and STAMP.exists()):
         return None
     if json.loads(STAMP.read_text()).get("generator") != generator:
         log.warning("synthetic fundamentals are from another synthetic build — ignored; rebuild them")
         return None
-    return pd.read_parquet(OUT)
+    filters = []
+    if start:
+        filters.append(("date", ">=", start))
+    if end:
+        filters.append(("date", "<=", end))
+    cols = None if columns is None else ["company_id", "date", *columns]
+    df = pd.read_parquet(OUT, columns=cols, filters=filters or None)
+    for c in df.columns:
+        if c not in ("company_id", "date"):
+            df[c] = df[c].astype("float32")
+    return df
 
 
 def main(argv=None) -> int:
