@@ -163,6 +163,21 @@ def genome_for(conn, key: str, version: int) -> dict | None:
         # NOT use (a slot must have one, §15), and sells when the fund does.
         return {"value": key.split(":", 1)[1], "risk": pair_risk("value_risk"),
                 "exit": "sell when the fund sells it"}
+    if key.startswith("crypto:"):
+        # Stage K5: a crypto trend fund's slot mirrors the fund's holding
+        # (crypto_slot_trader.py); its price stop is the fund's own ATR stop,
+        # resting at the broker. The grid fund has no stop and stays out.
+        r = conn.execute("SELECT strategy FROM crypto_fund WHERE name=?", (key.split(":", 1)[1],)).fetchone() \
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='crypto_fund'").fetchone() else None
+        try:
+            st = json.loads(r[0]) if r else {}
+        except (TypeError, ValueError):
+            st = {}
+        cg = st.get("genome") if st.get("engine") == "crypto_trend" else None
+        if not cg or not cg.get("stop_atr"):
+            return None
+        return {"crypto": key.split(":", 1)[1], "risk": {"stop_atr_multiple": float(cg["stop_atr"])},
+                "exit": "sell when the fund closes the position"}
     if key.startswith("fx_"):
         g = so.genome(conn, key, version)
     else:
@@ -217,6 +232,8 @@ def assess(conn, cfg: dict) -> list:
                                    "AND date > ? AND date <= ?", (r["as_of"], latest)).fetchone()[0])
             if lag > s["max_evidence_lag_sessions"]:
                 reasons.append(f"stale evidence: {lag} sessions behind")
+        if key.startswith("crypto:") and not _crypto_armed():
+            reasons.append("crypto not armed: config/risk.yaml allow_crypto is false (Stage K7, owner)")
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
         ok, why = stop_plans.validate(plan)
         if not ok:
@@ -225,6 +242,15 @@ def assess(conn, cfg: dict) -> list:
     # Rank on the score; more forward trades breaks ties — more evidence wins.
     out.sort(key=lambda x: (-_rank_value(x), -(x.get("forward_trades") or 0)))
     return out
+
+
+def _crypto_armed() -> bool:
+    """The operator's switch. Unknown (unreadable limits) counts as off."""
+    try:
+        import risk_engine
+        return bool(risk_engine.load_limits().get("allow_crypto"))
+    except Exception:                                        # noqa: BLE001 — fail closed
+        return False
 
 
 def _rank_value(r: dict) -> float:

@@ -448,8 +448,8 @@ def trade(conn, cfg, mode: str, provider) -> list:
         if h is None:
             continue
         g = slots.genome_for(conn, h["strategy_key"], h["version"])
-        if not g:
-            continue
+        if not g or g.get("crypto"):
+            continue                        # crypto slots trade in crypto_slot_trader.py
         if g.get("pair"):
             cands, exits = _pair_signals(conn, cfg, g)
         elif g.get("value"):
