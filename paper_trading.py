@@ -620,7 +620,7 @@ def close(conn, cfg: dict, name: str) -> None:
 
 
 def promote_survivors(conn, cfg: dict, limit: int = 5, stage: str = "validation",
-                      order: str = "excess") -> list[str]:
+                      order: str = "excess", run_id: str | None = None) -> list[str]:
     """
     Open a paper run for each of the best strategies that cleared `stage`.
 
@@ -640,9 +640,9 @@ def promote_survivors(conn, cfg: dict, limit: int = 5, stage: str = "validation"
         FROM promotions p
         JOIN strategies s ON s.id = p.strategy_id
         JOIN evaluations e ON e.strategy_id = s.id
-        WHERE p.stage = ? AND p.decision = 'pass'
+        WHERE p.stage = ? AND p.decision = 'pass'""" + (" AND s.run_id = ?" if run_id else "") + """
         ORDER BY e.excess_pnl_usd """ + ("ASC" if order == "reverse" else "DESC"),
-        (stage,)).fetchall()
+        (stage, run_id) if run_id else (stage,)).fetchall()
     if not rows:
         log.warning(f"Nothing has passed {stage} — nothing to paper trade.")
         return []
@@ -689,6 +689,7 @@ def main():
     parser.add_argument("--start", metavar="NAME", help="Open a new paper run.")
     parser.add_argument("--step", action="store_true", help="Advance open runs one day.")
     parser.add_argument("--status", action="store_true")
+    parser.add_argument("--run-id", default=None, help="With --promote: only this search run's survivors.")
     parser.add_argument("--close", metavar="NAME")
     parser.add_argument("--promote", action="store_true",
                         help="Open paper runs for the best strategies that passed validation.")
@@ -706,7 +707,7 @@ def main():
     init(conn)
 
     if args.promote:
-        promote_survivors(conn, cfg, args.limit, order=args.order)
+        promote_survivors(conn, cfg, args.limit, order=args.order, run_id=args.run_id)
     elif args.start:
         start(conn, cfg, args.start)
     elif args.step:
