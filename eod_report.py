@@ -25,6 +25,7 @@ LINE_WIDTH = 60
 
 HEADINGS = [
     ("account", "ACCOUNT"),
+    ("real_account", "REAL ACCOUNT SINCE START"),
     ("pnl", "P&L"),
     ("trades", "TRADES"),
     ("positions", "POSITIONS"),
@@ -422,6 +423,16 @@ def _section_next_actions(conn, mode, failures, system_health):
     return actions
 
 
+def _section_real_account(conn, mode):
+    """What the system has made in the real account: slot trades only (live_pnl.py).
+    Never a sum across paper funds (owner, 2026-09-26)."""
+    import live_pnl
+    try:
+        return live_pnl.render(live_pnl.compute(conn, load_config(), mode))
+    except sqlite3.Error:
+        return []
+
+
 def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     """Assemble the twelve sections. Read-only; never raises on missing tables."""
     if now is None:
@@ -433,6 +444,7 @@ def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     system_health = _section_system_health(conn, now)
     return {
         "account": account,
+        "real_account": _section_real_account(conn, mode),
         "pnl": _section_pnl(conn, day, mode, account, positions),
         "trades": _section_trades(conn, day, mode),
         "positions": positions,
@@ -482,6 +494,12 @@ def render(report):
     _emit(lines, "equity %s  bp %s" % (_fmt(a["equity"]), _fmt(a["buying_power"])))
     _emit(lines, "cash %s  unsettled %s" % (_fmt(a["cash"]), _fmt(a["unsettled"])))
     _emit(lines, "change vs %s: %s" % (a["prev_session"] or "n/a", _fmt(a["equity_change"])))
+
+    head("real_account", "REAL ACCOUNT SINCE START")
+    if not report.get("real_account"):
+        _emit(lines, "no data")
+    for line in report.get("real_account") or []:
+        _emit(lines, line)
 
     head("pnl", "P&L")
     p = report["pnl"]
