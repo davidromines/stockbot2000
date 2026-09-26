@@ -79,6 +79,8 @@ run "[3/10] Features" $PY build_features.py
 # INSERT OR REPLACE makes re-running it a no-op on days with nothing new.
 run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
     --start "$(date -u -d '90 days ago' +%F)"
+# Earnings surprise (sue_features.py): new 10-Q/10-K EPS -> daily_sue, point-in-time.
+run "[3b2/10] Earnings surprise" $PY sue_features.py --build
 
 # Market cap for liquid names the filings miss (GEN, NWSA were refused as
 # "unknown" on the first LIVE session). Sourced and dated, never assumed; a

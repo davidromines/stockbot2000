@@ -77,11 +77,13 @@ def _register():
         "earnings_surprise", "event",
         "Standardized earnings surprise (Foster, Olsen & Shevlin 1984); JKP "
         "post-publication +0.35%/month (t 3.43).",
-        {"q": [0.8]},
-        lambda p: sf.G(sf.gt(sf.rank(sf.col("sue")), sf.k(p["q"])), None, 3.0, 60),
-        data=("features", "quarterly EPS"), available=False,
-        missing="standardized unexpected earnings is computed by pead.py per "
-                "filing but not projected onto the daily panel")
+        {"q": [0.8, 0.9], "age": [5, 10], "hold": [40, 60]},
+        # Available since 2026-09-26 (sue_features.py -> daily_sue, joined by
+        # storage.attach_fundamentals). Bought only within `age` calendar days of the
+        # filing, so an old surprise is never bought as news.
+        lambda p: sf.G(sf.and_(sf.gt(sf.rank(sf.col("sue")), sf.k(p["q"])),
+                               sf.lt(sf.col("sue_age"), sf.k(p["age"] + 0.5))), None, 3.0, p["hold"]),
+        data=("features", "daily_fundamentals"))
 
 
 def link_library(conn):

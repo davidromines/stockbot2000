@@ -73,7 +73,9 @@ def main():
 
     spec = strategy_factory.F["fcf_to_price"]
     check("fcf_to_price is available (on the daily panel since 2026-09-26)", spec.get("data_available") is True)
-    for name in ("earnings_surprise",):
+    check("earnings_surprise is available (daily_sue since 2026-09-26)",
+          strategy_factory.F["earnings_surprise"].get("data_available") is True)
+    for name in ():
         spec = strategy_factory.F[name]
         avail = spec.get("data_available") if isinstance(spec, dict) else getattr(spec, "data_available", None)
         missing = spec.get("missing") if isinstance(spec, dict) else getattr(spec, "missing", None)

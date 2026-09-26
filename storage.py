@@ -708,6 +708,9 @@ FUNDAMENTAL_PANEL_COLS = ("piotroski_f", "book_to_market", "gross_profitability"
                           "chs_distress", "asset_growth", "accruals", "roa",
                           "earnings_yield", "net_share_issuance", "debt_to_equity",
                           "cash_to_assets", "altman_z", "fcf_to_price")
+# Earnings surprise (sue_features.py): its own point-in-time table, joined beside the
+# fundamentals. sue_age is calendar days since the filing (rows only up to 63 days).
+SUE_COLS = ("sue", "sue_age")
 
 
 def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
@@ -742,8 +745,20 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
     left["_d"] = left["date"].astype(str).str[:10]
     left["_t"] = left["ticker"].astype(str)
     f = f.rename(columns={"date": "_d", "ticker": "_t"})
-    out = left.merge(f, on=["_t", "_d"], how="left").drop(columns=["_t", "_d"])
-    return out
+    out = left.merge(f, on=["_t", "_d"], how="left")
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE name='daily_sue'").fetchone():
+        sparts = []
+        for i in range(0, len(tickers), 900):
+            chunk = tickers[i:i + 900]
+            ph = ",".join("?" * len(chunk))
+            sparts.append(pd.read_sql_query(
+                f"SELECT ticker AS _t, date AS _d, sue, sue_age FROM daily_sue "
+                f"WHERE date BETWEEN ? AND ? AND ticker IN ({ph})", conn, params=(lo, hi, *chunk)))
+        sf = pd.concat(sparts, ignore_index=True) if sparts else pd.DataFrame(columns=["_t", "_d", *SUE_COLS])
+        for c in SUE_COLS:
+            sf[c] = pd.to_numeric(sf[c], errors="coerce").astype("float32")
+        out = out.merge(sf, on=["_t", "_d"], how="left")
+    return out.drop(columns=["_t", "_d"])
 
 
 def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,
