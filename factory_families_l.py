@@ -65,12 +65,13 @@ def _register():
         "fcf_to_price", "fundamental",
         "Free cash flow to price (Lakonishok, Shleifer & Vishny 1994); JKP "
         "post-publication +0.52%/month (t 4.43).",
-        {"q": [0.8]},
-        lambda p: sf.G(sf.gt(sf.rank(sf.col("fcf_to_price")), sf.k(p["q"])), None, 3.0, 60),
-        data=("features", "daily_fundamentals", "free cash flow"), available=False,
-        missing="free cash flow (operating cash flow minus capex) is not on the "
-                "daily panel; value_metrics.fcf_yield is operating cash flow / "
-                "market cap (JKP ocf_me), not free cash flow")
+        {"q": [0.8, 0.9], "hold": [40, 60], "stop": [3.0, 5.0]},
+        lambda p: sf.G(sf.gt(sf.rank(sf.col("fcf_to_price")), sf.k(p["q"])),
+                       sf.lt(sf.rank(sf.col("fcf_to_price")), sf.k(0.5)), p["stop"], p["hold"]),
+        # Available since 2026-09-26: value_metrics.fcf_to_price = (OCF - capex) / market
+        # cap, projected into daily_fundamentals. The same shape as value_book /
+        # earnings_yield (top of the rank in, below the median out).
+        data=("features", "daily_fundamentals"))
 
     sf.family(
         "earnings_surprise", "event",
