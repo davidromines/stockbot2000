@@ -275,6 +275,7 @@ for nm, why, need in (("quality_low_volatility", "Profitable, stable firms: two 
 import sys as _sys  # noqa: E402
 _sys.modules.setdefault("strategy_factory", _sys.modules[__name__])
 import factory_families_o  # noqa: E402,F401
+import factory_families_l  # noqa: E402,F401  — Stage L3: rebuilt from published signals
 
 
 # --- generation -------------------------------------------------------------
