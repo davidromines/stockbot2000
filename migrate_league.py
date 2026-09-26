@@ -94,8 +94,17 @@ def plan(conn) -> list:
     """What would be migrated. Reads only; writes nothing."""
     lg.init(conn)
     items = []
+    # A fund opened for a factory strategy (factory_paper_link) already belongs
+    # to that strategy; registering it again as paper:<run_id> made a second,
+    # identical strategy in the ranking (12 found 2026-09-26).
+    try:
+        linked = {r[0] for r in conn.execute("SELECT run_id FROM factory_paper_link")}
+    except Exception:
+        linked = set()
     for r in conn.execute("SELECT * FROM paper_runs ORDER BY label"):
         run = dict(r)
+        if run["run_id"] in linked:
+            continue
         key = f"{PAPER_PREFIX}:{run['run_id']}"
         items.append({
             "strategy_key": key,
