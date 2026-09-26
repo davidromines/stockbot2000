@@ -226,6 +226,22 @@ class Grammar:
 # Evaluation
 # --------------------------------------------------------------------------
 
+def _calendar_col(df: pd.DataFrame, col: str) -> pd.Series:
+    """
+    A `cal_*` column (trading_calendar.calendar_columns) from each row's date.
+
+    From the exchange calendar, never from the panel's own future dates, so a
+    live run on today's bar sees the same value a backtest saw (Stage O
+    calendar templates). Computed once per unique date.
+    """
+    import trading_calendar as tc
+    u = pd.unique(df["date"])
+    cc = tc.calendar_columns(list(u))
+    if col not in cc.columns:
+        return pd.Series(np.nan, index=df.index, dtype="float64")
+    return df["date"].map(dict(zip(u, cc[col].to_numpy()))).astype("float64")
+
+
 def evaluate(node: dict, df: pd.DataFrame) -> pd.Series:
     """
     Turn a tree into a Series aligned to `df`.
@@ -239,6 +255,8 @@ def evaluate(node: dict, df: pd.DataFrame) -> pd.Series:
         return pd.Series(node["const"], index=df.index, dtype="float64")
     if "col" in node:
         col = node["col"]
+        if col not in df.columns and col.startswith("cal_") and "date" in df.columns:
+            return _calendar_col(df, col)
         if col not in df.columns:
             return pd.Series(np.nan, index=df.index, dtype="float64")
         return df[col].astype("float64")
