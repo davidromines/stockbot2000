@@ -2,7 +2,7 @@
 
 - component: data
 - priority: high
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-034
 - created: 2026-09-26T02:00:00+00:00
 - dependencies: none
