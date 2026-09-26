@@ -77,6 +77,15 @@ in a new session for anything touching orders.
 
 **Read this first; the 09-25 VM block below is still valid background.**
 
+**UPDATE 2026-09-26 ~18:00 UTC (Saturday) — state at close of session.** LIVE: 1 slot open
+(slot 1 SNDK 0.010690 @ 1801.60), cash $70.92, reconciled OK. Monday's first run
+reassesses slots 1-3 (Profitability hold=60 q=0.8, Value Book q=0.9, Value Book q=0.8).
+Built since the entries below: Telegram phone bot (`telegram_bot.py`, cron every minute);
+roadmap page / tracker v22 and `docs/ROADMAP_INTEGRATION.md` updated (K, L1-L3, M v5c, N2
+N5 N6 N10, O templates + O9); an independent-reviewer report (`docs/artifacts/review_report.html`).
+Still open: owner merge `n6/decision-quote`; L4; crypto slot cap then K7; N3/N4/N7/N9; O5-O13;
+Phase 6 report; FINSABER pickle import.
+
 **UPDATE 2026-09-26 ~01:30 UTC — generator v5c ADOPTED (owner: "use real failures as the
 reference"), exit fix MERGED by the owner.** v5c: failures copy only real failures (80, incl.
 10 hand-checked FINSABER S&P failures), measured pre-collapse drift (-0.516/yr log, 3 years),
@@ -86,9 +95,8 @@ twin pass is not independent. Full set rebuilt (`synthetic_v5a_backup.parquet` =
 survivorship backtests re-run: **24 strategies now lose money net and are OUT, incl. Rising 200
 Stop 2.5 / 2.6 / 3.3 (slots 1-3) and most TS Momentum.** Monday's [9i] reassessment releases
 slots 1-3 (slot 1 sells SNDK) and assigns Value Book / Profitability / Earnings Yield
-(hold 60). CAVEAT for the owner: those fundamental screens score "with dead companies" only in
-name — synthetic companies have no fundamentals, so their backtests are untested against
-survivorship and rank on survivors-only numbers. Snapshots: `data/universe/ranking_before_v5c.json`,
+(hold 60). (The caveat that fundamental screens could not meet dead companies was fixed at ~06:00 UTC —
+see the next update.) Snapshots: `data/universe/ranking_before_v5c.json`,
 `ranking_after_v5c.json`. Revert = restore the backup parquet and set the three v5 settings back.
 
 **UPDATE 2026-09-26 ~06:00 UTC — dead companies now have fundamentals and volume; N2, N5,
