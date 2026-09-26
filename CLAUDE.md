@@ -72,8 +72,22 @@ in a new session for anything touching orders.
 
 **Read this first; the 09-25 VM block below is still valid background.**
 
+**UPDATE 2026-09-26 ~01:30 UTC — generator v5c ADOPTED (owner: "use real failures as the
+reference"), exit fix MERGED by the owner.** v5c: failures copy only real failures (80, incl.
+10 hand-checked FINSABER S&P failures), measured pre-collapse drift (-0.516/yr log, 3 years),
+realism gate's failure reference = held-out real failures. Both tests pass (gate 0.597, twin
+-0.38% vs real -0.45%); five configurations were looked at on the same 70 companies, so the
+twin pass is not independent. Full set rebuilt (`synthetic_v5a_backup.parquet` = old),
+survivorship backtests re-run: **24 strategies now lose money net and are OUT, incl. Rising 200
+Stop 2.5 / 2.6 / 3.3 (slots 1-3) and most TS Momentum.** Monday's [9i] reassessment releases
+slots 1-3 (slot 1 sells SNDK) and assigns Value Book / Profitability / Earnings Yield
+(hold 60). CAVEAT for the owner: those fundamental screens score "with dead companies" only in
+name — synthetic companies have no fundamentals, so their backtests are untested against
+survivorship and rank on survivors-only numbers. Snapshots: `data/universe/ranking_before_v5c.json`,
+`ranking_after_v5c.json`. Revert = restore the backup parquet and set the three v5 settings back.
+
 **Waiting on the owner (nothing below is live until these happen):**
-1. **Exit fix — merge `fix/strategy-exit-rebuy`** (`git merge --no-ff fix/strategy-exit-rebuy`,
+1. ~~Exit fix — merge `fix/strategy-exit-rebuy`~~ **MERGED 2026-09-26 by the owner.** (`git merge --no-ff fix/strategy-exit-rebuy`,
    outside market hours). 09-25 13:34 UTC the first LIVE run sold all four slots on
    "strategy exit signal" and the rebuys of the same names were refused (unsettled cash,
    limited_margin T+1): the exit rules are true on most of the market (slot 4
@@ -88,9 +102,10 @@ in a new session for anything touching orders.
    (30-60 day holds) vs ~0.5% for equities; armed, three crypto funds would take three
    of five slots. Options: score by excess over the null, per holding day, or cap crypto
    at one slot.
-4. **Synthetic failures (Stage M):** twin test says v5 failures are too kind (below);
-   the fix that passes it fails the realism gate because that gate's reference is ~94%
-   survivors. Which reference defines a realistic failure is the owner's call.
+4. ~~Synthetic failures (Stage M)~~ **decided 2026-09-26: real failures are the reference (v5c).**
+5. **Fundamental screens are untested against survivorship** (see the update above): decide
+   whether they get a haircut (e.g. the measured +4.0 pp/yr residual gap to CRSP) before they
+   hold slots on Monday.
 
 **Built this session (all on `main` unless noted):**
 - Stage K: `crypto_costs.py` (K1, hourly spread cron INSTALLED — Robinhood ~1.9% round
