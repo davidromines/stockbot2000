@@ -1,0 +1,452 @@
+<title>Stockbot2000 Review Dossier</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F5F6F3; --paper:#FFFFFF; --ink:#1B2226; --soft:#4E5A60; --mute:#7C878C;
+  --rule:#D8DDD9; --tint:#EBEFEC; --accent:#1F5F7A; --accent-bg:#E0ECF1;
+  --pos:#2E7D4F; --pos-bg:#E2F1E7; --neg:#B0452C; --neg-bg:#F6E4DE; --warn:#9A6A0E; --warn-bg:#F6ECD6;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#15191B; --paper:#1C2124; --ink:#E6EAE8; --soft:#AEB8BB; --mute:#838E92;
+    --rule:#30383C; --tint:#232A2D; --accent:#7CB9D4; --accent-bg:#1E3440;
+    --pos:#6FCB93; --pos-bg:#1C3326; --neg:#EE8C6F; --neg-bg:#3A231C; --warn:#E3B45A; --warn-bg:#3A2F17;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#15191B; --paper:#1C2124; --ink:#E6EAE8; --soft:#AEB8BB; --mute:#838E92;
+  --rule:#30383C; --tint:#232A2D; --accent:#7CB9D4; --accent-bg:#1E3440;
+  --pos:#6FCB93; --pos-bg:#1C3326; --neg:#EE8C6F; --neg-bg:#3A231C; --warn:#E3B45A; --warn-bg:#3A2F17;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font:15.5px/1.6 'Libre Franklin', system-ui, sans-serif; padding:0 16px 80px;}
+.shell{max-width:1120px; margin:0 auto; display:grid; grid-template-columns:220px minmax(0,1fr); gap:44px;}
+@media (max-width:900px){.shell{grid-template-columns:minmax(0,1fr);} nav.toc{display:none;}}
+nav.toc{position:sticky; top:env(safe-area-inset-top,0px); align-self:start; padding-top:40px; font-size:13px; max-height:100vh; overflow:auto;}
+nav.toc a{display:block; color:var(--soft); text-decoration:none; padding:3px 0 3px 10px; border-left:2px solid var(--rule);}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--accent); border-left-color:var(--accent); outline:none;}
+nav.toc .n{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--mute); margin-right:6px;}
+main{min-width:0; padding-top:40px;}
+header.cover{border-bottom:1px solid var(--rule); padding-bottom:26px; margin-bottom:10px;}
+.kicker{font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 10px;}
+h1{font-family:'Newsreader',Georgia,serif; font-weight:600; font-size:clamp(30px,4.4vw,44px); line-height:1.1; margin:0 0 12px; text-wrap:balance;}
+.lede{font-size:17px; color:var(--soft); max-width:68ch; margin:0 0 16px;}
+.meta{display:flex; flex-wrap:wrap; gap:8px 22px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--mute);}
+section{padding-top:34px; border-top:1px solid var(--rule); margin-top:34px;}
+section:first-of-type{border-top:none; margin-top:10px;}
+h2{font-family:'Newsreader',Georgia,serif; font-weight:600; font-size:27px; line-height:1.2; margin:0 0 6px; text-wrap:balance;}
+h2 .n{font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--mute); font-weight:400; margin-right:10px; vertical-align:3px;}
+h3{font-size:16.5px; margin:26px 0 6px; font-weight:600;}
+p{max-width:72ch; margin:0 0 12px;}
+.cap{color:var(--soft); font-size:14.5px;}
+code,.m{font-family:'JetBrains Mono',monospace; font-size:.86em;}
+code{background:var(--tint); padding:1px 5px; border-radius:4px;}
+ul,ol{max-width:72ch; padding-left:20px; margin:0 0 12px;}
+li{margin:3px 0;}
+.x{overflow-x:auto; margin:12px 0 16px; border:1px solid var(--rule); border-radius:8px; background:var(--paper);}
+table{border-collapse:collapse; width:100%; font-size:13.8px;}
+th{text-align:left; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); padding:10px 12px; border-bottom:1px solid var(--rule); background:var(--tint); white-space:nowrap;}
+td{padding:8px 12px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink);}
+tr:last-child td{border-bottom:none;}
+td.r,th.r{text-align:right; font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; white-space:nowrap;}
+td.m{font-family:'JetBrains Mono',monospace; font-size:12.5px; white-space:nowrap;}
+.pos{color:var(--pos);} .neg{color:var(--neg);} .mu{color:var(--mute);}
+.pill{display:inline-block; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:99px; white-space:nowrap;}
+.p-ok{background:var(--pos-bg); color:var(--pos);} .p-bad{background:var(--neg-bg); color:var(--neg);} .p-warn{background:var(--warn-bg); color:var(--warn);} .p-info{background:var(--accent-bg); color:var(--accent);}
+.facts{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:16px 0;}
+.fact{background:var(--paper); padding:14px 16px;}
+.fact .v{font-family:'JetBrains Mono',monospace; font-size:21px; font-weight:500; font-variant-numeric:tabular-nums;}
+.fact .k{font-size:12.5px; color:var(--soft); line-height:1.4; margin-top:2px;}
+.callout{border-left:3px solid var(--accent); background:var(--paper); padding:12px 16px; margin:14px 0; max-width:76ch; border-radius:0 6px 6px 0;}
+.callout.warn{border-left-color:var(--neg);}
+.callout p:last-child{margin-bottom:0;}
+.flow{overflow-x:auto; background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:16px; margin:14px 0;}
+.flow pre{margin:0; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.55; color:var(--ink);}
+.qs{counter-reset:q; list-style:none; padding:0; max-width:76ch;}
+.qs li{counter-increment:q; background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:12px 16px 12px 52px; position:relative; margin:10px 0;}
+.qs li::before{content:"Q" counter(q); position:absolute; left:14px; top:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent);}
+.qs b{display:block; margin-bottom:2px;}
+footer{margin-top:50px; padding-top:18px; border-top:1px solid var(--rule); font-size:13px; color:var(--mute); max-width:76ch;}
+a{color:var(--accent);}
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="Contents">
+  <a href="#s1"><span class="n">1</span>Summary</a>
+  <a href="#s2"><span class="n">2</span>Money: live and paper</a>
+  <a href="#s3"><span class="n">3</span>Architecture</a>
+  <a href="#s4"><span class="n">4</span>Data</a>
+  <a href="#s5"><span class="n">5</span>Research method</a>
+  <a href="#s6"><span class="n">6</span>Dead companies</a>
+  <a href="#s7"><span class="n">7</span>Strategies and ranking</a>
+  <a href="#s8"><span class="n">8</span>Live execution</a>
+  <a href="#s9"><span class="n">9</span>Operations</a>
+  <a href="#s10"><span class="n">10</span>Engineering process</a>
+  <a href="#s11"><span class="n">11</span>Change history</a>
+  <a href="#s12"><span class="n">12</span>Defect ledger</a>
+  <a href="#s13"><span class="n">13</span>Risks and weaknesses</a>
+  <a href="#s14"><span class="n">14</span>Questions</a>
+  <a href="#s15"><span class="n">15</span>Module map</a>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="kicker">Independent review dossier · as of Saturday 2026-09-26, 18:00 UTC</p>
+  <h1>Stockbot2000</h1>
+  <p class="lede">An autonomous system that discovers, tests and ranks trading strategies, and puts the five highest-ranked ones in charge of five ~$20 slots in a real Robinhood account. This document gives an outside reviewer the architecture, methods, money, processes and open problems in enough depth to judge progress and advise on what comes next.</p>
+  <div class="meta"><span>Repo: davidromines/stockbot2000 (private)</span><span>576 commits since 2026-09-08</span><span>277 Python modules · 65k lines</span><span>95 test files</span><span>Host: 4 vCPU / 11.7 GB VM</span></div>
+</header>
+
+<section id="s1">
+<h2><span class="n">1</span>Summary for the reviewer</h2>
+<p>The owner funds a <b>$100 cap</b> in a Robinhood "Agentic" account (type <code>limited_margin</code>). Since <b>2026-09-24 15:39 UTC</b> the system places real orders there every five minutes during market hours, with no human approval per trade. Research, ranking and risk run on one VM against a 16 GB SQLite market database. The software is mostly built, and live trading is running. <b>No strategy has yet shown an edge in forward trading.</b></p>
+<div class="facts">
+  <div class="fact"><div class="v">~$89</div><div class="k">real capital in the traded account (cap $100)</div></div>
+  <div class="fact"><div class="v pos">+$2.46</div><div class="k">gross on the 4 closed live trades (1 day each); commission $0</div></div>
+  <div class="fact"><div class="v">1 / 5</div><div class="k">slots holding a position today (SNDK); $70.92 cash</div></div>
+  <div class="fact"><div class="v">321</div><div class="k">forward (paper) strategies; 255 eligible for a slot</div></div>
+  <div class="fact"><div class="v">≤ 5</div><div class="k">closed paper trades for any strategy in the ranking's top 40</div></div>
+  <div class="fact"><div class="v">1.05M</div><div class="k">strategy evaluations recorded (search now frozen)</div></div>
+</div>
+<div class="x"><table>
+<thead><tr><th>Question</th><th>Answer today</th><th>Confidence</th></tr></thead>
+<tbody>
+<tr><td>Does the software run end to end with real money?</td><td>Yes: signal → risk → order → fill → reconciliation, every 5 min, since 09-24</td><td><span class="pill p-ok">high</span></td></tr>
+<tr><td>Is any strategy proven profitable forward?</td><td>No. Forward records are 0–5 trades per strategy</td><td><span class="pill p-ok">high</span></td></tr>
+<tr><td>Are the backtests that choose slots honest?</td><td>Next-open fills, real costs, dead companies simulated, point-in-time fundamentals. The dead-company model is synthetic and was tuned (§6)</td><td><span class="pill p-warn">medium</span></td></tr>
+<tr><td>Did the original ML classifier have a tradeable edge?</td><td>No: AUC 0.63 but gross −$82.54 under honest fills, before costs</td><td><span class="pill p-ok">high</span></td></tr>
+<tr><td>What leads the ranking?</td><td>Fundamental templates (profitability, book value, earnings yield, FCF, buybacks) at +2.0–2.8% per trade backtested; crypto trend above them but blocked</td><td><span class="pill p-warn">backtest only</span></td></tr>
+<tr><td>Can the owner stop it?</td><td>Yes: a kill file, a config switch, and a Telegram command from a phone</td><td><span class="pill p-ok">high</span></td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><b>The central tension a reviewer should weigh.</b> The owner's rule (2026-09-24) is that the slots always hold the current top five of the ranking, from the first day and with no forward-evidence floor. The ranking starts from the backtest and shifts to paper evidence one trade at a time (prior weight: 10 trades). So today, real capital follows backtests. The project's own history (§12) is a long list of backtest results that turned out to be measurement artifacts.</p></div>
+</section>
+
+<section id="s2">
+<h2><span class="n">2</span>Money: live and paper</h2>
+<h3>Real account</h3>
+<p class="cap">Robinhood Agentic account ••••6024, limited margin, settled cash only (T+1), pattern-day-trader limit enforced. Three other Robinhood accounts belong to the owner; this system does not touch them.</p>
+<div class="x"><table>
+<thead><tr><th>Symbol</th><th>Slot strategy</th><th class="r">Bought 09-24</th><th class="r">Sold 09-25</th><th class="r">Stake</th><th class="r">Gross</th><th class="r">Return</th></tr></thead>
+<tbody>
+<tr><td>SNDK</td><td>Rising 200 · stop 2.5 ATR</td><td class="r">1,767.07</td><td class="r">1,795.10</td><td class="r">$20.00</td><td class="r pos">+$0.32</td><td class="r pos">+1.59%</td></tr>
+<tr><td>DELL</td><td>Rising 200 · stop 3.26 ATR</td><td class="r">532.05</td><td class="r">548.25</td><td class="r">$20.00</td><td class="r pos">+$0.61</td><td class="r pos">+3.04%</td></tr>
+<tr><td>MRNA</td><td>Rising 200 · stop 2.55 ATR</td><td class="r">185.31</td><td class="r">196.21</td><td class="r">$20.00</td><td class="r pos">+$1.18</td><td class="r pos">+5.88%</td></tr>
+<tr><td>TWST</td><td>Rising 200 · stop 4.98 ATR</td><td class="r">172.62</td><td class="r">180.00</td><td class="r">$8.45</td><td class="r pos">+$0.36</td><td class="r pos">+4.28%</td></tr>
+<tr><td colspan="5"><b>Closed, gross</b> (Robinhood charges no commission; spread is inside the fill prices; SEC/FINRA fees are cents)</td><td class="r pos"><b>+$2.46</b></td><td></td></tr>
+<tr><td>SNDK</td><td>Rising 200 · stop 2.5 ATR (rebought 09-25)</td><td class="r">1,801.60</td><td class="r mu">open</td><td class="r">$19.26</td><td class="r mu">—</td><td class="r mu">—</td></tr>
+</tbody></table></div>
+<p><b>The 09-25 incident.</b> At the first run on 09-25, all four positions sold on "strategy exit signal". The exit rules were true for almost the whole market: slot 4's exit, <code>lag(sma_200,3) &gt; 6.08</code>, fired on 2,971 of 3,056 names. The trader then tried to rebuy. Only SNDK went through; the rest were refused because the sale proceeds were unsettled (T+1). The gains were real but accidental. <b>Fix, merged by the owner 09-26:</b> a strategy exit on a name the same strategy's entry rule still selects is treated as a hold. Slot 5 has never filled: its picks were first refused for unknown market cap, then for unsettled cash.</p>
+<p><b>Monday 09-28.</b> The slot plan releases slots 1–3. With dead companies simulated, their Rising 200 strategies' backtests now lose money net (−0.33%, −0.07% and −0.47% per trade). It assigns Profitability hold=60 q=0.8, Value Book q=0.9 and Value Book q=0.8, none of which has a forward trade yet.</p>
+
+<h3>Paper (forward) evidence</h3>
+<p>Paper funds trade the same rules on live daily data with modelled costs. Forward records are the only measurement free of both look-ahead and survivorship bias, but they accrue only in calendar time. Per the owner's standing instruction, <b>results are reported per strategy and never summed across unrelated funds.</b></p>
+<div class="x"><table>
+<thead><tr><th>Strategy (ranking view)</th><th class="r">Backtest, with dead</th><th class="r">Worst case</th><th class="r">Paper net / trade</th><th class="r">Paper trades</th></tr></thead>
+<tbody>
+<tr><td>Fundamental Price Momentum</td><td class="r">+0.54%</td><td class="r">+0.17%</td><td class="r pos">+5.33%</td><td class="r">5</td></tr>
+<tr><td>MACD Pullback (take-profit removed)</td><td class="r">+3.02%</td><td class="r">+2.11%</td><td class="r neg">−0.17%</td><td class="r">5</td></tr>
+<tr><td>Top 16 of the ranking (fundamental templates)</td><td class="r">+2.1% to +2.8%</td><td class="r">+0.8% to +1.9%</td><td class="r mu">—</td><td class="r">0</td></tr>
+</tbody></table></div>
+<p class="cap">Older restated accounting (liquidation basis, 09-24) showed the crash-buyer family negative in every fund and the momentum family positive in every fund over about ten sessions. The pre-registered 2006–2019 sweep refuted the momentum family's entry rule (§12), so that split is read as market regime, not skill.</p>
+
+<h3>Cost model</h3>
+<div class="x"><table>
+<thead><tr><th>Item</th><th>Value</th><th>Where</th></tr></thead>
+<tbody>
+<tr><td>Commission</td><td>$0</td><td><code>config.yaml costs</code></td></tr>
+<tr><td>Spread</td><td>By liquidity tier (dollar volume), times 1.0</td><td><code>costs.py</code></td></tr>
+<tr><td>Slippage</td><td>0.05% per side</td><td><code>costs.py</code></td></tr>
+<tr><td>SEC fee / FINRA TAF</td><td>$27.80 per $1M sold / $0.000166 per share (cap $8.30)</td><td><code>costs.py</code></td></tr>
+<tr><td>Crypto round trip</td><td>~1.9% measured hourly at Robinhood (not the 1.2% first assumed)</td><td><code>crypto_costs.py</code>, table <code>crypto_spreads</code></td></tr>
+<tr><td>Live slippage</td><td>Measured per fill against the decision quote (N6); the decision-quote column is on an unmerged branch</td><td><code>live_feedback.py</code></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s3">
+<h2><span class="n">3</span>Architecture</h2>
+<p>There are three layers, and the code keeps them from calling each other. The <b>research factory</b> creates and backtests ideas. The <b>league and ranking</b> paper-trade and score them. <b>Capital deployment</b> trades only through the risk and execution layer. The research code cannot import the broker; a regression test enforces this.</p>
+<div class="flow"><pre>
+ DATA (07:00 UTC weekdays, daily.sh)
+   NASDAQ Trader directory ─ prices (yfinance, top-up) ─ 20 indicators ─ SEC filings → point-in-time fundamentals
+   earnings surprise (daily_sue) ─ market caps ─ rates ─ FINSABER / JKP / OSAP reference sets
+        │
+ RESEARCH FACTORY
+   strategy_factory (40+ families, fixed small grids) ─ knowledge library (3,987 hypotheses)
+   published signals (153 JKP factors) ─ exit sweeps ─ crypto grid        [evolutionary search: FROZEN]
+        │  simulator.py: next-open fills, costs, gap-through-stop, unfiltered exit prices
+        │  survivorship_backtest.py: exclude / as_is (with synthetic dead) / zero (every death −100%)
+        ▼
+ LEAGUE + RANKING
+   paper_trading / pair_funds / value_fund / crypto funds → accounting.py (gross · costs · net)
+   ranking.py: score = (k·backtest + n·paper) / (k + n), k = 10, per-trade net; losing backtest = OUT
+        │
+ CAPITAL DEPLOYMENT
+   slots.py (top 5 tradeable, ≤4 per family, replacement rules) → slot_trader.py (cron, 5 min)
+     → execution.py (idempotent signal_id) → killswitch.py → risk_engine.py + account_rules.py
+     → robinhood_live.LiveBroker (review → place → confirm, ref_id) → robinhood_mcp.py (OAuth, MCP 2.x)
+        │
+ OBSERVATION
+   Control Center :8787 ─ Telegram alerts + bot ─ EOD report 21:10 UTC ─ strategy_health ─ live_feedback
+</pre></div>
+<h3>Design rules that bear load</h3>
+<ul>
+<li><b>Fail closed on unknowns.</b> An unknown market cap, liquidity or correlation blocks a trade; it is never treated as average.</li>
+<li><b>Append-only records.</b> Strategy identity and version (<code>league.py</code> contains no UPDATE), decisions, the trial counter and accounting. Restatements sit beside originals with an accounting version.</li>
+<li><b>Risk limits live apart from strategy config.</b> <code>config/risk.yaml</code> is separate so that a strategy edit cannot widen a limit. LIVE is armed by one line there, and changing it is the owner's step.</li>
+<li><b>Idempotency.</b> <code>signal_id</code> is a content hash; broker orders carry a ref_id; after a restart the ledger is rebuilt from the orders table.</li>
+<li><b>Broker is authoritative.</b> Every LIVE run reconciles the slot log against Robinhood positions and halts on any difference.</li>
+<li><b>Forward genomes stored inline</b> as JSON in <code>paper_runs</code>, which is why forward records survived a 2026-09-12 database corruption.</li>
+</ul>
+</section>
+
+<section id="s4">
+<h2><span class="n">4</span>Data</h2>
+<div class="x"><table>
+<thead><tr><th>Store / table</th><th>Contents</th><th class="r">Scale</th></tr></thead>
+<tbody>
+<tr><td class="m">market_data.db</td><td>Everything below (SQLite, WAL; never versioned)</td><td class="r">16 GB</td></tr>
+<tr><td class="m">prices</td><td>Daily OHLCV, all US listings (NASDAQ Trader directory), 1962 onward; impossible and inflated bars flagged</td><td class="r">35.6M bars · 13.2k tickers</td></tr>
+<tr><td class="m">features</td><td>20 hand-rolled indicators (no TA library)</td><td class="r">33.9M rows</td></tr>
+<tr><td class="m">sec_filings / sec_facts</td><td>SEC financial statement data 2009+, acceptance time to the minute, amendments flagged</td><td class="r">400.7k filings · 23.5M facts</td></tr>
+<tr><td class="m">daily_fundamentals</td><td>~40 metrics lagged to first tradeable session (filed + 2 days, as-of join); includes <code>fcf_to_price</code> = (OCF − capex) / market cap</td><td class="r">daily panel</td></tr>
+<tr><td class="m">daily_sue</td><td>Earnings surprise: same quarter a year earlier, volatility from prior quarters only</td><td class="r">93,208 surprises</td></tr>
+<tr><td class="m">edgar_filers / delistings</td><td>Point-in-time filer registry 1993+; Alpha Vantage delisting registry</td><td class="r">38.9k co. · 9.5k delistings</td></tr>
+<tr><td class="m">item5_anchors</td><td>Quarterly high/low prices parsed from 10-K Item 5 (real prices for dead companies)</td><td class="r">41,120</td></tr>
+<tr><td class="m">published_*</td><td>JKP Global Factor Data (US, CRSP-based) + OSAP signal documentation</td><td class="r">153 factors, 1926–2025</td></tr>
+<tr><td class="m">finsaber.db</td><td>FINSABER validation set: 4.74M-bar CSV (1,017 symbols incl. dead) + streamed pickles</td><td class="r">9 GB</td></tr>
+<tr><td class="m">data/universe/*.parquet</td><td>Synthetic dead-company paths, their fundamentals and volume (never mixed into <code>prices</code>)</td><td class="r">7.6k companies</td></tr>
+<tr><td class="m">orders / slot_trades / trader_runs</td><td>Live and simulated order ledger, slot trade log, per-run heartbeat</td><td class="r">append-only</td></tr>
+</tbody></table></div>
+<h3>Integrity rules</h3>
+<ul>
+<li><b>Point in time.</b> Fundamentals become visible only from the first session after SEC acceptance plus a 2-day lag. Market cap = shares from the filing × price on the filing date. Tested: 2 of 20,000 filings were optimistic, and both are SEC data defects.</li>
+<li><b>Freshness.</b> The newest completed session is read from a liquid ETF at the source, never from the table being updated. Partial intraday bars are refused. <code>features</code>, <code>daily_fundamentals</code> and <code>prices</code> are checked against each other.</li>
+<li><b>Absence is not zero.</b> Missing debt, R&amp;D or EPS stays missing, and any ratio built from it is missing too. Debt is tagged for only 38% of filers, which limits every EV-based metric.</li>
+<li><b>Backups.</b> 46 forward and decision tables are dumped nightly to <code>backups/forward.sql.gz</code>, which is committed to git (last run 09-26: 19,423 rows).</li>
+</ul>
+</section>
+
+<section id="s5">
+<h2><span class="n">5</span>Research method</h2>
+<div class="x"><table>
+<thead><tr><th>Control</th><th>What it prevents</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Next-open fills; stop exits fill at the next open (gaps booked)</td><td>Buying at the close that produced the signal. This look-ahead was worth 0.29 pts per trade</td><td><span class="pill p-ok">pinned by test</span></td></tr>
+<tr><td>Exit prices from the unfiltered series</td><td>Tradeability filters hiding collapses. 71% of the Lab's reported profit was this bug</td><td><span class="pill p-ok">fixed 09-12</span></td></tr>
+<tr><td>Null surface over entry price × holding period</td><td>Paying strategies for market drift, or for buying cheap stocks</td><td><span class="pill p-ok">in fitness</span></td></tr>
+<tr><td>Random-genome control</td><td>Gates never tested against noise: 0 of 350 random strategies pass</td><td><span class="pill p-ok">calibrated</span></td></tr>
+<tr><td>Sealed holdout (2023+), used once per strategy</td><td>Peeking</td><td><span class="pill p-ok">enforced in code</span></td></tr>
+<tr><td>Append-only trial counter (1.05M) and deflated Sharpe</td><td>The file-drawer problem</td><td><span class="pill p-ok">in ledger</span></td></tr>
+<tr><td>Search frozen; <code>seed_mode: NONE</code></td><td>More search over the same data finding the same holes. A seeded rule was once "rediscovered" 231 times</td><td><span class="pill p-info">policy</span></td></tr>
+<tr><td>Pre-registered experiments (hypothesis and fail criterion written first)</td><td>Choosing criteria after seeing results</td><td><span class="pill p-ok">registry</span></td></tr>
+<tr><td>Size buckets per date; $5 price, $1M/day liquidity, $100M market-cap floors</td><td>Value ranks that are really size ranks; illiquid microcaps (the TNON loss)</td><td><span class="pill p-ok">applied</span></td></tr>
+<tr><td>Cross-dataset check against FINSABER</td><td>Silent price errors: 99.5–99.8% of daily returns agree each year</td><td><span class="pill p-ok">2001–2024</span></td></tr>
+<tr><td>Post-publication evidence only (Stage L), adopt at t &gt; 3</td><td>Trusting in-sample academic results</td><td><span class="pill p-ok">built 09-26</span></td></tr>
+</tbody></table></div>
+<p><b>What the ranking uses is weaker than what the Lab ladder required.</b> The six-stage promotion ladder (null surface, sealed holdout, deflated Sharpe) belonged to the frozen evolutionary search. The live slots are filled by <code>ranking.py</code>, which requires only a positive net backtest with dead companies included (2006–2019 factory window) and a drawdown-exposure gate. Factory strategies do pass out-of-sample and robustness stages before paper (<code>factory_pipeline.py</code>), but those gates are looser than the Lab's.</p>
+</section>
+
+<section id="s6">
+<h2><span class="n">6</span>Dead companies (survivorship)</h2>
+<p>Free price data omits companies that died. In 2008 our database could price only 22.6% of the universe an investor could have known about; by 2024 it could price 83.7%. Rather than wait for paid data (~$270/yr), the project reconstructs the missing companies:</p>
+<ol>
+<li><b>Which companies existed</b> (Layer A): SEC filers, the delisting registry, Internet Archive snapshots of the symbol directory and FinanceDatabase. 7,618 dead companies have no price history.</li>
+<li><b>How each died</b>: exit type (bankruptcy, buyout, SPAC, other) read from SEC filings for 70% of them (<code>dead_evidence.py</code>).</li>
+<li><b>Their price paths</b> (generator v5c): failures copy the final years of <b>80 real failed companies</b> (70 from our own prices plus 10 hand-checked FINSABER S&amp;P failures), with the measured pre-death drift (−0.516/yr in log terms over 3 years). Buyouts and SPACs copy real donors of their own type. Delisting-day returns are drawn in the Shumway shape.</li>
+<li><b>Their fundamentals</b>: each dead company's own SEC filings, run through the same metric code. Market cap uses the real 10-K price level where one exists (22% of filings); otherwise it uses the synthetic price.</li>
+<li><b>Their trading volume</b>: a model fitted on 228 real dead companies, checked on held-out companies, so the liquidity rules bind on them too.</li>
+</ol>
+<div class="x"><table>
+<thead><tr><th>Validation</th><th>Result</th><th>Bar</th></tr></thead>
+<tbody>
+<tr><td>Realism gate: can a classifier tell synthetic failures from held-out real ones?</td><td class="r">AUC 0.597</td><td>&lt; 0.60 <span class="pill p-warn">just passes</span></td></tr>
+<tr><td>Twin test (pre-registered): same strategy trading real dead companies vs their synthetic twins</td><td class="r">−0.38% vs −0.45% / trade</td><td>close <span class="pill p-ok">pass</span></td></tr>
+<tr><td>Equal-weighted market vs Ken French's CRSP-based series (dead included)</td><td class="r">gap +10.6 → +4.0 pp/yr</td><td>narrower <span class="pill p-ok">better</span></td></tr>
+<tr><td>Book-to-market of dead companies with no filed price</td><td class="r">0.348 vs 0.417 real</td><td><span class="pill p-warn">still biased</span></td></tr>
+</tbody></table></div>
+<div class="callout warn"><p><b>Tuning caveat.</b> Five generator configurations were tried on the same ~70 real failures before v5c was adopted. The realism gate and the twin test had conflicted, and v5c is the configuration that passed both. The twin pass is therefore not independent evidence. v5c removed 24 strategies from the ranking, including the Rising 200 variants holding slots 1–3.</p></div>
+<p><b>Effect on the leading families</b> (net per trade, 2006–2019): Value Book +3.58% → +2.69%; Profitability +3.43% → +2.79%; Earnings Yield +3.08% → +2.36%. Thirteen volume-momentum strategies drop out. FCF-to-price stays positive (+0.6% to +1.35%) even if every dead company is a total loss.</p>
+</section>
+
+<section id="s7">
+<h2><span class="n">7</span>Strategies and the ranking</h2>
+<h3>Ranking formula</h3>
+<p><code>score = (k × backtest + n × paper) / (k + n)</code>, with k = 10 prior trades and n = closed paper trades, both measured as net return per trade. A strategy whose dead-company backtest loses money is out. A strategy with no backtest starts at 0. Slots take the top five tradeable strategies, at most four from one family. A holder is replaced only when a challenger beats it by 0.2 pts per trade, after at least 3 sessions held, with at most 2 replacements a day.</p>
+<h3>Top of the ranking, 09-26</h3>
+<div class="x"><table>
+<thead><tr><th class="r">#</th><th>Strategy</th><th class="r">Score</th><th class="r">Worst case</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td class="r">1–3</td><td>Crypto Breakout 55 · Trend SMA200 · TSMOM 180</td><td class="r">+22.3 / +18.1 / +12.0%</td><td class="r mu">—</td><td><span class="pill p-bad">blocked</span> 30–60-day holds; not comparable per trade</td></tr>
+<tr><td class="r">4</td><td>Profitability hold=60 q=0.8</td><td class="r">+2.75%</td><td class="r">+1.11%</td><td>Monday slot 1</td></tr>
+<tr><td class="r">5</td><td>Value Book hold=60 q=0.9</td><td class="r">+2.69%</td><td class="r">+1.86%</td><td>Monday slot 2</td></tr>
+<tr><td class="r">6</td><td>Value Book hold=60 q=0.8</td><td class="r">+2.53%</td><td class="r">+1.63%</td><td>Monday slot 3</td></tr>
+<tr><td class="r">7–16</td><td>Profitability, Earnings Yield, Buyback, Quality ROA, FCF/Price, January Illiquid, Debt Reduction</td><td class="r">+2.1 to +2.4%</td><td class="r">+0.8 to +1.9%</td><td>0 paper trades</td></tr>
+<tr><td class="r">20</td><td>Earnings Surprise age=5 hold=60</td><td class="r">+2.12%</td><td class="r mu">n/a</td><td>dead companies have no EPS, so the survivorship test cannot be run</td></tr>
+</tbody></table></div>
+<h3>Where strategies come from</h3>
+<div class="x"><table>
+<thead><tr><th>Source</th><th>Volume</th><th>Result so far</th></tr></thead>
+<tbody>
+<tr><td>Evolutionary search (frozen)</td><td>1.05M evaluations</td><td>Every "finding" was an artifact or its own seed (§12)</td></tr>
+<tr><td>20 published technical seeds</td><td>20</td><td>0 cleared the promotion gate. 5 encodings were not faithful to the publication, so those are marked INCONCLUSIVE, not refuted</td></tr>
+<tr><td>Strategy factory templates</td><td>40 + 10 (Stage O) + 4 (Stage L) families</td><td>Fundamental families lead the ranking</td></tr>
+<tr><td>Knowledge library (Stage O)</td><td>3,987 hypotheses (Papers With Backtest titles, QuantConnect, curated)</td><td>144 have rules: 69 untestable on our data, the rest mapped to families</td></tr>
+<tr><td>Published factors (Stage L)</td><td>153 JKP factors, post-publication only</td><td>Survive at t &gt; 3: FCF/price +0.52%/mo, momentum 9-1 +0.48, 12-1 +0.45, value +0.41, earnings yield +0.40, surprise +0.35, Piotroski +0.34. Gone: liquidity, size</td></tr>
+<tr><td>ETF bull/bear switching</td><td>5 pairs</td><td>Beats a random-switch null, loses to buy-and-hold at every leverage level</td></tr>
+<tr><td>Crypto trend (Stage K)</td><td>36-cell grid</td><td>All positive, carried by 2017 and 2020; buy-and-hold beat every cell</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s8">
+<h2><span class="n">8</span>Live execution</h2>
+<h3>One run of the trader (every 5 minutes, 13:04–20:59 UTC weekdays)</h3>
+<ol>
+<li>Kill switches checked: <code>data/KILL_SWITCH</code>, daily loss $15 / 15%, drawdown 35%, order throttles (10 a day, 2 per symbol), broker errors, stale data.</li>
+<li>Broker positions reconciled against the slot log; any difference halts the run and alerts.</li>
+<li>Stop monitor: ATR stop, time limit, take-profit, strategy exit. Risk exits outrank strategy signals.</li>
+<li>Empty slots: the holder strategy's current pick is quoted live, and a quote that is stale or outside market hours is refused.</li>
+<li>Risk engine: $25 per order and per position, 30% per symbol, 5 positions, market-cap floor, settled cash (T+1), and the PDT limit of 3 day trades in 5 sessions.</li>
+<li>LiveBroker: review → place a dollar-based market order → confirm, with a ref_id. An order whose outcome is unknown is recorded as UNKNOWN and never retried blindly. Partial fills are recorded at the filled quantity.</li>
+<li>Heartbeat row written; fills and halts sent to Telegram and the desktop.</li>
+</ol>
+<h3>Broker mechanics that shape the design</h3>
+<ul>
+<li>Dollar orders are market orders only, and only in regular hours. <b>No stop can rest at the broker for equities</b>, so stops are checked every 5 minutes and overnight gaps are unprotected.</li>
+<li>Crypto orders can carry a resting stop, which the crypto trader uses. It is inert until <code>allow_crypto: true</code>.</li>
+<li>Settlement is T+1, so a rotation (sell, then buy) cannot complete on the same day.</li>
+</ul>
+<h3>Owner controls</h3>
+<div class="x"><table>
+<thead><tr><th>Control</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>touch data/KILL_SWITCH</code> or Telegram <code>/kill</code> (confirmed within 120 s)</td><td>Stop everything and flatten slot positions</td></tr>
+<tr><td><code>execution_mode: SIMULATION</code> in <code>config/risk.yaml</code></td><td>No new real orders; positions kept</td></tr>
+<tr><td>Telegram <code>/status /positions /health /report /resume</code></td><td>Read-only views, plus resume. Answers only the owner's user ID and cannot place orders</td></tr>
+<tr><td>Control Center, <code>localhost:8787</code></td><td>Read-only live view: slots, feed, ranking, replacements, health, knowledge, published evidence</td></tr>
+<tr><td><code>robinhood_mcp.py --login</code></td><td>Renew the OAuth sign-in (trading halts and alerts when it expires)</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s9">
+<h2><span class="n">9</span>Operations</h2>
+<div class="x"><table>
+<thead><tr><th>Schedule (UTC)</th><th>Job</th></tr></thead>
+<tbody>
+<tr><td class="m">07:00 Mon–Fri</td><td><code>daily.sh</code> (~65 min): symbol directory, price top-up, features, fundamentals, SUE, market caps, paper steps, factory pipeline, survivorship backtests, ranking, slot reassessment, health, backup</td></tr>
+<tr><td class="m">*/5 13–20 Mon–Fri</td><td><code>slot_trader.py</code> in SIMULATION (:00), SHADOW (:02), LIVE (:04)</td></tr>
+<tr><td class="m">21:10 Mon–Fri</td><td>End-of-day report to Telegram</td></tr>
+<tr><td class="m">:17 hourly</td><td>Crypto spread log</td></tr>
+<tr><td class="m">:41 hourly</td><td>Crypto slot trader (inert while unarmed)</td></tr>
+<tr><td class="m">every minute</td><td>Control Center server, Telegram bot (both under flock)</td></tr>
+<tr><td class="m">*/15</td><td>Lab watchdog (must not restart the frozen search)</td></tr>
+</tbody></table></div>
+<p><b>Resource limits.</b> Heavy jobs run through <code>run_bounded.sh</code> in their own systemd scope capped at 6 GB. An uncapped 9.5 GB job crashed the desktop session three times on 09-23. The survivorship backtest peaks at 5.6 GB. CPU is capped at 3 of 4 threads, set before numpy is imported.</p>
+</section>
+
+<section id="s10">
+<h2><span class="n">10</span>Engineering process</h2>
+<ul>
+<li><b>Roles.</b> The owner sets direction, approves spend and arms live trading. Claude (Anthropic) architects, specifies, reviews and writes the hard parts. DeepSeek implements specified tasks through an orchestrator (ADO) for about $0.01–0.05 per task.</li>
+<li><b>ADO rules.</b> A task needs checkable acceptance criteria. The model may write only the files its task names. Nothing merges automatically: review → approve → merge, with the test gate run under the memory cap. DeepSeek defects caught in review this week include a parser that parsed nothing, ISO-versus-YYYYMMDD date comparisons, a bot token written to logs, and an order join that ignored mode.</li>
+<li><b>Tests.</b> 95 test files. The gate (<code>run_tests.sh</code>) passed all 94 gated files on 09-26. Regression tests pin fills, the freeze boundary, live paths (stale quote, partial fill, rejected buy, failed stop sell), point-in-time joins and FCF arithmetic.</li>
+<li><b>Change control.</b> One commit per change. Paths are added explicitly, never <code>git commit -a</code>. Changes to live trading code go on a branch and the owner merges them (Claude's auto mode refuses to merge them). The database and its WAL are never versioned.</li>
+<li><b>Records.</b> <code>CLAUDE.md</code> holds the project brief and session handoffs. <code>docs/ROADMAP_INTEGRATION.md</code> holds per-stage status. Addenda A–E are the owner's specifications, stored verbatim.</li>
+</ul>
+</section>
+
+<section id="s11">
+<h2><span class="n">11</span>Change history</h2>
+<div class="x"><table>
+<thead><tr><th>Date</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td class="m">09-08</td><td>Moved to the VM; full-market database built (35M bars); smoke test passes</td></tr>
+<tr><td class="m">09-11</td><td>Walk-forward: AUC 0.63 in 31 of 31 folds. The 97.9% backtest win rate found to be a leaking split</td></tr>
+<tr><td class="m">09-12</td><td>Exit-pricing bug (71% of profit); price-filter artifact; search capped; database corruption recovered</td></tr>
+<tr><td class="m">09-14</td><td>First real trades, placed by hand. TNON −29% led to the $100M market-cap floor. Size-neutral value ranks</td></tr>
+<tr><td class="m">09-15</td><td>Next-open fills: the classifier goes gross negative. Staleness circularity fixed</td></tr>
+<tr><td class="m">09-17</td><td>Five ETF switching funds (loses to buy-and-hold)</td></tr>
+<tr><td class="m">09-22</td><td>Execution engine, risk engine, kill switches; Strategy League; research library; point-in-time fundamentals; seed-convergence retraction</td></tr>
+<tr><td class="m">09-24</td><td>Phase 13 factory; authoritative accounting; FINSABER; Addendum A slot engine; Addendum C dead-company reconstruction. <b>LIVE armed by the owner 15:39 UTC</b></td></tr>
+<tr><td class="m">09-25</td><td>Control Center; profit-exit sweep; generator v5; knowledge library; N2 live-path tests; N5 strategy health; <b>Stage K crypto</b> (spreads, grid, funds, trader); 09-25 sell-all incident</td></tr>
+<tr><td class="m">09-26</td><td>Exit fix merged; <b>generator v5c</b> (real-failure reference, twin test, French calibration, Item 5 anchors); dead companies get fundamentals and volume; <b>Stage L</b> (JKP post-publication evidence, 142 library entries, momentum 9-1 / 12-1); FCF with capex subtracted; earnings surprise; 10 Stage O families; N6 live feedback; EOD report; Control Center panels; <b>Telegram bot</b></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s12">
+<h2><span class="n">12</span>Defect ledger: results that were artifacts</h2>
+<p>This is the most useful section for judging trust. Every row was a positive result reported as real, then traced to measurement.</p>
+<div class="x"><table>
+<thead><tr><th>Apparent result</th><th>Actual cause</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>97.9% win rate</td><td>Shuffled train/test split over time</td><td>Void</td></tr>
+<tr><td>Lab profit +$26k</td><td>Exits priced from the filtered universe</td><td>71% of profit removed</td></tr>
+<tr><td>"sma_200 &lt; 8" strategies</td><td>Market-wide null used for cheap stocks</td><td>66 survivors voided</td></tr>
+<tr><td>+0.43% per trade for the classifier</td><td>Close fills + 10 positions</td><td>−0.28% gross under honest fills</td></tr>
+<tr><td>Momentum + pullback consensus</td><td>An injected seed with constant 40</td><td>Retracted within the hour</td></tr>
+<tr><td>Tight stops win</td><td>12 forward sessions in a friendly market</td><td>Refuted over 14 years</td></tr>
+<tr><td>Backtest decay 3,428–26,065%</td><td>Units: summed P&amp;L divided by one fund's capital</td><td>Per-trade basis adopted</td></tr>
+<tr><td>Forward P&amp;L −$4.52</td><td>Positions without a bar marked at entry; overwritten holdings</td><td>Restated −$49.59 (23 funds, accounting v1)</td></tr>
+<tr><td>Value screens favouring small caps</td><td>Size in the denominator; 212 large issuers mapped to preferred tickers</td><td>Fixed; JPM etc. visible</td></tr>
+<tr><td>Fundamentals ×4 jumps</td><td>Quarterly and annual flows mixed</td><td>Annualised; rebuilt</td></tr>
+<tr><td>+15 pts/yr momentum (FINSABER)</td><td>99 symbols alternating price levels</td><td>Quarantined</td></tr>
+<tr><td>Live sells on 09-25</td><td>Exit rules true for most of the market</td><td>Exit-is-hold fix</td></tr>
+<tr><td>"FCF yield"</td><td>Was operating cash flow / market cap (no capex)</td><td>Correct <code>fcf_to_price</code> added</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s13">
+<h2><span class="n">13</span>Risks and weaknesses</h2>
+<div class="x"><table>
+<thead><tr><th>Risk</th><th>Why it matters</th><th>Current handling</th></tr></thead>
+<tbody>
+<tr><td>Capital follows backtests</td><td>Slots are filled from day one; the forward record overtakes the backtest only after about 10 trades per strategy, which takes months at 60-day holds</td><td>Owner's explicit choice; the $100 cap bounds the loss</td></tr>
+<tr><td>Crowded, correlated ranking</td><td>The top 40 is mostly variants of 5–6 fundamental ideas, so slots may hold near-copies</td><td>Up to 4 per family; correlation gate not yet enforced on the ranking</td></tr>
+<tr><td>Dead-company model tuned to pass</td><td>Five configurations tried on the same data (§6)</td><td>Worst-case column shown; paid delisted data is the owner's call</td></tr>
+<tr><td>2006–2019 window only</td><td>Fundamental templates are scored where value and quality worked. 2020–26 behaviour not in the score</td><td>Paper record will move the score</td></tr>
+<tr><td>Crypto per-trade scores</td><td>Long holds inflate the per-trade figure; armed crypto would take 3 of 5 slots</td><td>Blocked; one-slot cap recommended before arming</td></tr>
+<tr><td>No broker-side equity stops</td><td>Gaps and overnight moves go through the stop</td><td>5-minute checks; accepted</td></tr>
+<tr><td>Settlement and scale</td><td>T+1 blocks same-day rotation; $20 positions make fees and spread a larger share</td><td>Settled-cash guard; costs in every backtest</td></tr>
+<tr><td>Single VM, single SQLite file</td><td>A missed day loses that day's delistings; the database was corrupted once before</td><td>Nightly forward backup to git; WAL never versioned</td></tr>
+<tr><td>Tokens and auth</td><td>OAuth token on disk (mode 600); Telegram bot token</td><td>Owner-only bot; token scrubbed from logs</td></tr>
+<tr><td>Unmerged live change</td><td>Buy slippage is not measurable until the decision quote is stored</td><td>Branch <code>n6/decision-quote</code> awaits the owner</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s14">
+<h2><span class="n">14</span>Questions for the reviewer</h2>
+<ol class="qs">
+<li><b>Evidence floor.</b> Should real capital wait for a minimum forward record (for example 10 closed paper trades), or is "top five of a blended score" defensible at $100 scale?</li>
+<li><b>Prior weight.</b> Is k = 10 trades the right weight for a backtest prior, given the defect ledger in §12? Should the prior be shrunk (for example halved, or deflated by the number of trials)?</li>
+<li><b>Synthetic dead companies.</b> Is a tuned synthetic reconstruction acceptable for choosing strategies, or should the ranking gate on the worst case until real delisted prices (~$270/yr) are bought?</li>
+<li><b>Diversity.</b> Should the slot engine enforce return correlation between holders, not just a family cap?</li>
+<li><b>Horizon comparability.</b> How should strategies with 5-day and 60-day holds, and crypto, be put on one scale (per trade, per day, or risk-adjusted)?</li>
+<li><b>Test window.</b> Should the backtest window extend to 2020–2025, with the sealed holdout re-drawn, now that the search is frozen?</li>
+<li><b>Published priors (L4).</b> Should post-publication factor returns feed the ranking as a prior, and at what discount for one-stock, $20 implementation?</li>
+<li><b>Operational risk.</b> Is anything in the execution path (§8) missing for unattended trading on a limited-margin account?</li>
+</ol>
+</section>
+
+<section id="s15">
+<h2><span class="n">15</span>Module map</h2>
+<div class="x"><table>
+<thead><tr><th>Area</th><th>Modules</th></tr></thead>
+<tbody>
+<tr><td>Plumbing</td><td class="m">universe.py runtime.py storage.py costs.py notify.py monitor.py backup.py freshness.py</td></tr>
+<tr><td>Data</td><td class="m">backfill.py build_features.py features.py sec_fundamentals.py value_metrics.py fundamental_features.py sue_features.py market_caps.py edgar_registry.py delistings.py item5.py item5_anchors.py</td></tr>
+<tr><td>Simulation</td><td class="m">genome.py simulator.py reward.py benchmark.py control.py evolve.py promote.py ledger.py</td></tr>
+<tr><td>Factory</td><td class="m">strategy_factory.py factory_families_o.py factory_families_l.py factory_pipeline.py discovery.py robustness.py leagues.py accounting.py</td></tr>
+<tr><td>Knowledge</td><td class="m">knowledge_library.py knowledge_translate.py published_signals.py published_library.py strategy_library.py</td></tr>
+<tr><td>Survivorship</td><td class="m">universe_layer_a.py dead_evidence.py distress_donors.py universe_synthetic_v5.py synthetic_fundamentals.py synthetic_volume.py survivorship_backtest.py validate_v5.py twin_test.py french_calibration.py</td></tr>
+<tr><td>Ranking &amp; slots</td><td class="m">ranking.py slots.py stop_plans.py strategy_health.py</td></tr>
+<tr><td>Execution</td><td class="m">slot_trader.py execution.py risk_engine.py account_rules.py killswitch.py broker.py robinhood_live.py robinhood_mcp.py quotes.py</td></tr>
+<tr><td>Crypto</td><td class="m">crypto_costs.py crypto_trend.py crypto_backtest.py crypto_trend_fund.py crypto_live.py crypto_broker.py crypto_slot_trader.py</td></tr>
+<tr><td>Observation</td><td class="m">control_center.py control_center_extra.py eod_report.py live_feedback.py telegram_bot.py</td></tr>
+</tbody></table></div>
+</section>
+
+<footer>Prepared from the repository, the live database and the Robinhood account state on 2026-09-26. Figures marked "backtest" are historical simulations and not forecasts. Nothing here is investment advice. The owner owns every trading decision; the system's authority to trade comes from the owner's configuration.</footer>
+</main>
+</div>
