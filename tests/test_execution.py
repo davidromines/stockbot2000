@@ -168,5 +168,12 @@ except bk.TransitionError:
     check("a FILLED order cannot be resubmitted", True)
 
 print()
+
+# N6: the quote the risk engine sized on is stored on the order.
+conn, b, e = fresh()
+r = e.execute(sig(signal_id="", strategy="quote-test"), reconciled=True)
+q = conn.execute("SELECT quote_price, quote_at FROM orders WHERE signal_id=?", (r["signal_id"],)).fetchone()
+check("decision-time quote stored on the order", q is not None and q["quote_price"] == 50.0 and q["quote_at"],
+      str(dict(q) if q else None) + " / " + str(r.get("status")) + " " + str(r.get("reasons")))
 print(f"  RESULT: {'PASS' if not fails else 'FAIL — ' + ', '.join(fails)}")
 raise SystemExit(0 if not fails else 1)

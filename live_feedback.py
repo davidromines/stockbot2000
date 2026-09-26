@@ -83,17 +83,21 @@ def trades(conn, mode="LIVE"):
     ).fetchall()
     out = []
     for (tid, at, slot_id, key, symbol, action, qty, price, signal_id) in rows:
-        created_at = None
+        created_at, quote_price = None, None
         if signal_id:
+            has_q = "quote_price" in {r[1] for r in conn.execute("PRAGMA table_info(orders)")}
             o = conn.execute(
                 # A signal id is shared across SIMULATION / SHADOW / LIVE: match the mode,
                 # or the delay is measured from another mode's earlier order (~700 s).
-                "SELECT created_at FROM orders WHERE signal_id = ? AND mode = ? "
-                "ORDER BY created_at LIMIT 1",
+                "SELECT created_at" + (", quote_price" if has_q else ", NULL") + " FROM orders "
+                "WHERE signal_id = ? AND mode = ? ORDER BY created_at LIMIT 1",
                 (signal_id, mode),
             ).fetchone()
-            created_at = o[0] if o else None
-        expected = _expected_price(conn, symbol, created_at, mode)
+            if o:
+                created_at, quote_price = o[0], o[1]
+        # The engine's own decision-time quote where recorded (execution.py orders.quote_price,
+        # from 2026-09-26), else a same-mode mark from just before the order.
+        expected = quote_price if quote_price else _expected_price(conn, symbol, created_at, mode)
         delay_s = None
         if created_at:
             t0, t1 = _parse_ts(created_at), _parse_ts(at)
