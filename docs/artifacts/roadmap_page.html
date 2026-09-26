@@ -187,9 +187,9 @@
     <h1>Stockbot2000</h1>
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
-      <span>UPDATED 2026-09-25</span>
+      <span>UPDATED 2026-09-26</span>
       <span>13 PHASES + ADDENDA A–E + STAGES K–O</span>
-      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGE M BUILT 09-25 · N1 BUILT · O BUILDING</span>
+      <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K, L, M BUILT · N1–N6, N10 · O TEMPLATES · TELEGRAM BOT</span>
     </div>
   </header>
 
@@ -197,14 +197,14 @@
     <div class="stat done"><div class="n">11</div><div class="l">Phases complete</div></div>
     <div class="stat progress"><div class="n">1</div><div class="l">At 85% (smoke test: Ollama)</div></div>
     <div class="stat done"><div class="n">3</div><div class="l">Built 09-24 — Phase 13, Addenda A, C</div></div>
-    <div class="stat done"><div class="n">4 / 5</div><div class="l">Slots filled, live — slot 5 waits on settled cash</div></div>
-    <div class="stat planned"><div class="n">4</div><div class="l">Stages planned — crypto, published signals, dead-company realism, live growth (N)</div></div>
+    <div class="stat done"><div class="n">1 / 5</div><div class="l">Slots holding today (SNDK); $70.92 cash; three new holders buy Monday</div></div>
+    <div class="stat done"><div class="n">3</div><div class="l">Stages built 09-25/26 — crypto (K), published signals (L), dead-company realism (M)</div></div>
     <div class="stat"><div class="n">0</div><div class="l">Strategies with a proven edge</div></div>
   </div>
 
   <div class="distribution">
     <h3>Where the project stands</h3>
-    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship data) were built. <b>You armed LIVE at 15:39 UTC on 24 September:</b> the slot trader now places real orders in the Agentic account every five minutes in market hours. Slots are filled from one ranking (backtest first, paper evidence takes over, a losing backtest is out), and since the evening of the 24th that ranking scores backtests that include the synthetic dead companies. Three new stages are planned: crypto earning a slot (K), published academic signals as a strategy source (L), and more realistic dead companies (M). The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
+    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship data) were built. <b>You armed LIVE at 15:39 UTC on 24 September:</b> the slot trader now places real orders in the Agentic account every five minutes in market hours. Slots are filled from one ranking (backtest first, paper evidence takes over, a losing backtest is out), and since the evening of the 24th that ranking scores backtests that include the synthetic dead companies. On 25–26 September stages K (crypto, built but not armed), L (published signals judged after publication) and M (dead companies from real failures, with their own filings and trading volume) were built; the ranking now drops 24 strategies it used to keep, including the Rising 200 variants that held slots 1–3, and fundamental templates lead. The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
     <div class="stackbar">
       <span style="width:92.3%; background:var(--done);"></span>
       <span style="width:7.7%; background:var(--progress);"></span>
@@ -217,21 +217,19 @@
 
   <div class="questions">
     <h2 style="margin-bottom:6px;">Next on the VM</h2>
-    <p class="section-cap" style="margin-bottom:12px;">The 24–25 September code (branch <span class="mono">claude/stock-bot-visibility-l9iym2</span>) was merged on the VM at 02:05 UTC on 25 September. These run on the VM, in order. Heavy jobs run one at a time, outside market hours and away from the 07:00 UTC daily job.</p>
-    <div class="q-item"><div class="q-mark resolved">1</div><div><div class="q-title">Merge the branch and run the tests <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25, 67 of 67 test files pass</span></div><div class="q-body">Two defects fixed on the way: the LIVE-refusal tests read the real <span class="mono">risk.yaml</span>, now pinned; the kill-switch alert compared a UTC date with a New York date. <span class="mono">git fetch origin claude/stock-bot-visibility-l9iym2 &amp;&amp; git merge --ff-only FETCH_HEAD</span>, then <span class="mono">./run_tests.sh</span>. Your LIVE setting in <span class="mono">config/risk.yaml</span> is untouched.</div></div></div>
-    <div class="q-item"><div class="q-mark resolved">2</div><div><div class="q-title">Previews and light data fetches <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body">The ranking and slot plan (read-only) — <b>done 09-25</b>: 264 of 268 eligible, slot 5 planned for <span class="mono">paper:4c373dbad035</span>. Then market caps, T-bill rates and FinanceDatabase.</div></div></div>
-    <div class="q-item"><div class="q-mark resolved">3</div><div><div class="q-title">Rebuild the universe and generator v4, then score it <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body"><b>v4 passes the realism gate for the first time: AUC 0.593</b> against a limit of 0.60 (v3: 0.768); merger-only 0.484. Only just, and failures are not yet graded on their own (M4).</div></div></div>
-    <div class="q-item"><div class="q-mark resolved">4</div><div><div class="q-title">Survivorship backtests — affects real money <span class="mono" style="color:var(--done); font-size:12px;">— done 09-25</span></div><div class="q-body">First run on v4 (258 strategies × 3 modes, after a memory fix), then <b>rerun on generator v5</b> (260 strategies). On v5, slot 3 (Rising 200 Stop 2.6, holds MRNA) goes from −0.056% to <b>+0.494% a trade, so it is no longer released</b>; no slot change is pending. Fundamental templates lead the ranking; their survivorship check is empty, because synthetic companies have no fundamentals to screen.</div></div></div>
-    <div class="q-item"><div class="q-mark partial">5</div><div><div class="q-title">Exit sweep, Phase 6 report, FINSABER pickle import</div><div class="q-body">Exit sweep <b>done 09-25</b> (see Profit exits). Phase 6 report and the 27 GB FINSABER pickle import still to run; each resumes if interrupted.</div></div></div>
+    <p class="section-cap" style="margin-bottom:12px;">As of Saturday 26 September. Everything below runs on the VM.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Monday’s open: three slots change holder</div><div class="q-body">Slots 1–3 move from Rising 200 variants (which lose once dead companies are real) to Profitability hold=60 q=0.8, Value Book q=0.9 and Value Book q=0.8. Slots 4–5 keep their holders. Check with <span class="mono">/positions</span> in Telegram or the Control Center.</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Your merges and decisions</div><div class="q-body"><span class="mono">n6/decision-quote</span> (live path); L4; crypto slot cap then <span class="mono">allow_crypto</span>. Listed under “Your decisions”.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">3</div><div><div class="q-title">Still to run</div><div class="q-body">Phase 6 report and the 27 GB FINSABER pickle import, each resumable. Stage N3/N4/N7/N9 and O5–O13 remain to build.</div></div></div>
   </div>
 
   <div class="questions">
     <h2 style="margin-bottom:6px;">Your decisions</h2>
     <p class="section-cap" style="margin-bottom:12px;">Nothing below is blocking today's trading.</p>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Build Stage K (crypto) and Stage M (real-failure generator) code next?</div><div class="q-body">Offered; not yet answered. Both can be written in a cloud session; running them needs the VM.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">L4 — published returns as a strategy’s starting score</div><div class="q-body">Decided after the Open Source Asset Pricing import (L1).</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Merge branch <span class="mono">n6/decision-quote</span></div><div class="q-body">Stores the quote the trader decided on beside each order, so slippage is measured from the decision, not a later mark. Touches <span class="mono">execution.py</span> (live path), so it is your merge.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">L4 — published returns as a strategy’s starting score</div><div class="q-body">L1 is done: momentum, value, earnings yield, FCF/price, Piotroski and earnings surprise survive publication at t &gt; 3; liquidity and size do not. Default: not used as a prior.</div></div></div>
     <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">M5 — pay ~$270/yr for delisted price data</div><div class="q-body">Would replace most synthetic dead companies with real ones.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">K7 — <span class="mono">allow_crypto: true</span></div><div class="q-body">Only after K1–K6 are built and a crypto strategy has a positive backtest at Robinhood’s spread.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">K7 — <span class="mono">allow_crypto: true</span></div><div class="q-body">K1–K6 built. Recommended first: a one-slot cap for crypto and a week of spread data — crypto’s per-trade scores (+12% to +22%) would otherwise take three of five slots.</div></div></div>
   </div>
 
   <section class="dataset finding">
@@ -644,20 +642,25 @@
     <div class="phase">
       <div class="phase-num">K</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage K — Crypto earns a slot</div><span class="pill planned">Planned</span></div>
-        <p class="phase-desc">A crypto strategy competes for a slot through the same ranking and trades through the Agentic account’s linked crypto account.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
-        <p class="note warn"><b>The finding that sets the plan.</b> Robinhood’s crypto spread measured about <b>1.9% per round trip</b> (BTC, ETH, SOL, XRP, LINK; one after-hours snapshot) against the 1.2% the backtests assume. The only crypto strategy we have, grid-DCA, takes profit at +2%, so the spread eats nearly every win. Crypto needs strategies that trade rarely.</p>
+        <div class="phase-head"><div class="phase-title">Stage K — Crypto earns a slot</div><span class="pill progress">K1–K6 built 09-25 · arming is yours</span></div>
+        <p class="phase-desc">A crypto strategy competes for a slot through the same ranking and trades through the Agentic account’s linked crypto account, with a stop resting at Robinhood (dollar-based stock orders can’t do that).</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="figures" style="margin-top:6px;">
+          <div class="figure"><div class="v">1.9%</div><div class="k">Robinhood crypto round trip, US hours too (logged hourly)</div></div>
+          <div class="figure"><div class="v">36 · 29</div><div class="k">trend variants tested · beat a random entry after costs</div></div>
+          <div class="figure"><div class="v">3</div><div class="k">crypto trend paper funds, open since 09-25</div></div>
+        </div>
+        <p class="note warn"><b>Why it isn’t armed.</b> Crypto backtests score +12% to +22% per trade on 30–60-day holds against about +0.5% for stock strategies, so once armed three crypto funds would take three of five slots. The averages are carried by 2017 and 2020; 2021–26 is mostly flat or negative, and buy-and-hold beat every variant. Recommended before arming: a one-slot cap for crypto, a week of spread data, and a first paper trade.</p>
         <div class="scroll"><table class="dist steps">
-          <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
+          <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
           <tbody>
-            <tr><td class="mono">K1</td><td>Robinhood crypto cost model: log real spreads for a week</td><td>here + VM</td></tr>
-            <tr><td class="mono">K2</td><td>Daily history back to ~2016 (through the 2018 and 2022 crashes)</td><td>VM</td></tr>
-            <tr><td class="mono">K3</td><td>Low-turnover strategies (trend, BTC-or-cash), vs random entry and buy-and-hold; an hour-of-day test only if the hour is chosen in advance and tested unchanged</td><td>here, run on VM</td></tr>
-            <tr><td class="mono">K4</td><td>Crypto backtests into the ranking (a losing one is out)</td><td>here</td></tr>
-            <tr><td class="mono">K5</td><td>Crypto orders in the slot trader, with a stop</td><td>here</td></tr>
-            <tr><td class="mono">K6</td><td>Hourly, seven-day stop checks</td><td>here + VM</td></tr>
-            <tr><td class="mono">K7</td><td><span class="mono">allow_crypto: true</span> — your step</td><td>you</td></tr>
+            <tr><td class="mono">K1</td><td>Robinhood crypto spreads logged hourly (<span class="mono">crypto_costs.py</span>)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K2</td><td>Daily history to 2015 (BTC) / 2016 (ETH), topped up nightly</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K3</td><td>Trend / momentum / breakout grid net of the measured spread (<span class="mono">crypto_trend.py</span>, <span class="mono">crypto_backtest.py</span>)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K4</td><td>Three trend paper funds; crypto ranked on its backtest; blocked from slots while unarmed</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K5</td><td>Crypto order client, broker adapter, crypto slot trader with a resting stop</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K6</td><td>Hourly, seven-day crypto trader (cron, inert until armed)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">K7</td><td><span class="mono">allow_crypto: true</span> and a slot cap — your step</td><td class="st"><span class="pill planned">you</span></td></tr>
           </tbody></table></div>
       </div>
     </div>
@@ -665,28 +668,39 @@
     <div class="phase">
       <div class="phase-num">L</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage L — Published signals as a strategy source</div><span class="pill planned">Planned</span></div>
-        <p class="phase-desc">You asked for a big strategy database like trader.dev’s 797,000. That list is ranked on its own backtests — the multiple-testing trap. The academic equivalent is smaller, independently reproduced, and built on data that includes the dead companies.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
-        <div class="chips"><span class="chip">Open Source Asset Pricing — 212 signals, CRSP returns incl. dead companies</span><span class="chip">Global Factor Data — 153 factors, 93 countries</span><span class="chip">trader.dev — not used</span></div>
-        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
-          <thead><tr><th>Step</th><th>Item</th><th>Where</th></tr></thead>
+        <div class="phase-head"><div class="phase-title">Stage L — Published signals as a strategy source</div><span class="pill progress">L1–L3 built 09-26 · L4 is yours</span></div>
+        <p class="phase-desc">Published factors judged only on their record after publication, from data that includes the dead companies (CRSP-based). Open Source Asset Pricing’s Google Drive files were quota-blocked for this VM, so the returns come from JKP Global Factor Data (153 US factors, 1926–2025) and the signal documentation from OSAP’s GitHub.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:75%; background:var(--progress);"></div></div><span class="bar-pct">75%</span></div>
+        <div class="scroll"><table class="dist">
+          <caption>Long tercile minus the market, per month, after publication (equal-weighted)</caption>
+          <thead><tr><th>Family</th><th>Per month</th><th>t</th><th>Verdict</th></tr></thead>
           <tbody>
-            <tr><td class="mono">L1</td><td>Import both datasets into their own tables</td><td>VM</td></tr>
-            <tr><td class="mono">L2</td><td>One research-library entry per signal, judged only on its record after publication</td><td>here</td></tr>
-            <tr><td class="mono">L3</td><td>Rebuild the signals our price and SEC data can compute; backtest → rank → paper trade</td><td>here</td></tr>
-            <tr><td class="mono">L4</td><td>Whether the published return becomes a signal’s starting score — your decision</td><td>you</td></tr>
+            <tr><td>Free cash flow to price</td><td class="num">+0.52%</td><td class="num">4.43</td><td>survives — built, 9 paper funds</td></tr>
+            <tr><td>12-1 / 9-1 momentum</td><td class="num">+0.45% / +0.48%</td><td class="num">3.25 / 3.43</td><td>survives — 9-1 to paper; 12-1 fails validation here</td></tr>
+            <tr><td>Value (book-to-market)</td><td class="num">+0.41%</td><td class="num">3.21</td><td>survives</td></tr>
+            <tr><td>Earnings yield</td><td class="num">+0.40%</td><td class="num">4.59</td><td>survives</td></tr>
+            <tr><td>Earnings surprise</td><td class="num">+0.35%</td><td class="num">3.43</td><td>survives — built, 7 paper funds</td></tr>
+            <tr><td>Piotroski</td><td class="num">+0.34%</td><td class="num">4.20</td><td>survives</td></tr>
+            <tr><td>Profitability</td><td class="num">+0.08%</td><td class="num">0.46</td><td>weak (VW +0.21%, t 2.1)</td></tr>
+            <tr><td>Liquidity premium · size</td><td class="num">−0.05% · −0.01%</td><td class="num">−0.3 · 0.0</td><td>gone after publication</td></tr>
           </tbody></table></div>
-        <p class="note">Adopt only at t &gt; 3. Published returns come from portfolios of hundreds of stocks, so they are a discounted starting point for one $20 position, never a forecast.</p>
+        <div class="scroll" style="margin-top:12px;"><table class="dist steps">
+          <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">L1</td><td>JKP returns + OSAP documentation in their own tables; post-publication evidence per family</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">L2</td><td>142 research-library entries (HYPOTHESIS), 10 adoption candidates at t &gt; 3</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">L3</td><td>Rebuilt: momentum 9-1 / 12-1, free cash flow to price (capex now on the panel), earnings surprise</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">L4</td><td>Whether the published return feeds the ranking — your decision</td><td class="st"><span class="pill planned">you</span></td></tr>
+          </tbody></table></div>
       </div>
     </div>
 
     <div class="phase">
       <div class="phase-num">M</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill done">Built · in use 09-25</span></div>
+        <div class="phase-head"><div class="phase-title">Stage M — Realistic dead companies (synthetic generator v5)</div><span class="pill done">v5c in use 09-26 · M7 yours</span></div>
         <p class="phase-desc">The ranking depends on the synthetic dead companies, so their realism moves money. Researched first (Shumway 1997 and 1999, Harris et al. 2008, Campbell–Hilscher–Szilagyi 2008, Schwert 1996), then rebuilt around real evidence: <span class="mono">docs/STAGE_M_RESEARCH.md</span>.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--progress);"></div></div><span class="bar-pct">85%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:95%; background:var(--progress);"></div></div><span class="bar-pct">95%</span></div>
         <div class="figures" style="margin-top:6px;">
           <div class="figure"><div class="v">70%</div><div class="k">exit type read from SEC filings (v4 guessed 99%)</div></div>
           <div class="figure"><div class="v">1,127</div><div class="k">real distress paths from our own prices, copied by synthetic failures</div></div>
@@ -710,7 +724,7 @@
             <tr><td class="mono">M3</td><td>1,127 real distress paths from our own prices (<span class="mono">distress_donors.py</span>)</td><td><span class="pill done">done</span></td></tr>
             <tr><td class="mono">M4</td><td>Generator v5 (<span class="mono">universe_synthetic_v5.py</span>): evidence-first exit types, real distress declines, Shumway-shaped delisting returns, real SPAC paths, Form 25 filers added (358 deaths in 2000–06)</td><td><span class="pill done">done</span></td></tr>
             <tr><td class="mono">M5</td><td>Realism per exit type, held out, one synthetic per real template (<span class="mono">validate_v5.py</span>)</td><td><span class="pill done">done</span></td></tr>
-            <tr><td class="mono">M6</td><td>10-K Item 5 quarterly price ranges as anchors; the twin test (real dead companies vs synthetic twins, trade by trade); calibration against Ken French’s CRSP series</td><td><span class="pill planned">next</span></td></tr>
+            <tr><td class="mono">M6</td><td>Done 09-26: 41,120 Item 5 price anchors; twin test (synthetic twins −0.38%/trade vs real −0.45%); French CRSP gap +10.6 → +4.0 pp/yr; v5c (real-failure reference, measured pre-death drift; gate 0.597); dead companies get their own filings (fundamentals) and a fitted volume model (liquidity rules now bind)</td><td><span class="pill done">done</span></td></tr>
             <tr><td class="mono">M7</td><td>Paid delisted prices (~$270/yr: Norgate, FirstRateData) — your call</td><td>you</td></tr>
           </tbody></table></div>
         <p class="note">Each synthetic path records the real company it copies. The realism test samples one synthetic company per real template, because many copies of a few templates let a classifier recognise twins rather than fakes.</p>
@@ -719,7 +733,7 @@
     <div class="phase">
       <div class="phase-num">N</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage N — Addendum D: Live Growth &amp; Continuous Improvement</div><span class="pill progress">N1 built 09-25</span></div>
+        <div class="phase-head"><div class="phase-title">Stage N — Addendum D: Live Growth &amp; Continuous Improvement</div><span class="pill progress">N1 N2 N5 N6 N10 built · Telegram bot</span></div>
         <p class="phase-desc">Keep Stockbot2000 trading live while it becomes more observable, more reliable and better at finding strategies. The live system is not stopped for this phase. A change that can touch live trading is isolated, tested, deployed safely, and the live system is checked afterwards. Research never permanently ends: live → observation → measurement → discovery → backtest → robustness → paper → eligibility → ranking → promotion → live.</p>
         <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:20%; background:var(--progress);"></div></div><span class="bar-pct">20%</span></div>
         <div class="chips"><span class="chip ok">Control Center</span><span class="chip ok">Five-slot view + why</span><span class="chip ok">Live trade feed</span><span class="chip ok">Ranking center</span><span class="chip ok">Next possible replacements</span><span class="chip">Strategy journal</span><span class="chip">Decay: HEALTHY / WATCH / DEGRADING / FAILED</span><span class="chip">Live → research feedback</span><span class="chip ok">System health</span><span class="chip">Daily operating loop + EOD report</span><span class="chip">Scaling config</span></div>
@@ -728,13 +742,13 @@
           <thead><tr><th>Step</th><th>Priority</th><th>Builds on</th><th>State</th></tr></thead>
           <tbody>
             <tr><td class="mono">N1</td><td>1 — Live visibility: the real-time Control Center (account overview with broker / paper / research kept apart, five slots, trade feed, system health)</td><td><span class="mono">monitor.py --serve</span>, slot and order tables</td><td class="st"><span class="pill done">built 09-25</span></td></tr>
-            <tr><td class="mono">N2</td><td>2 — Live reliability: every execution and reconciliation path in §14 verified</td><td>risk engine, kill switches, LiveBroker, per-run reconciliation</td><td class="st"><span class="pill planned">next</span></td></tr>
+            <tr><td class="mono">N2</td><td>2 — Live reliability: every execution and reconciliation path in §14 verified</td><td>risk engine, kill switches, LiveBroker, per-run reconciliation</td><td class="st"><span class="pill done">built 09-25</span></td></tr>
             <tr><td class="mono">N3</td><td>3 — Strategy leaderboard: the whole population, with status and movement</td><td><span class="mono">ranking.py</span>, leagues</td><td class="st"><span class="pill planned">planned</span></td></tr>
             <tr><td class="mono">N4</td><td>4 — Replacement visibility and a per-strategy journal; every replacement recorded with reason and account effect</td><td><span class="mono">slots.py</span>, append-only decision logs</td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">N5</td><td>5 — Strategy health / decay monitoring</td><td><span class="mono">degradation.py</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">N6</td><td>6 — Live results fed back into research: predicted vs actual, slippage, delay, exit reason, regime</td><td>fills, <span class="mono">costs.py</span>, <span class="mono">regimes.py</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">N5</td><td>5 — Strategy health / decay monitoring (<span class="mono">strategy_health.py</span>, Control Center panel)</td><td><span class="mono">degradation.py</span></td><td class="st"><span class="pill done">built 09-25</span></td></tr>
+            <tr><td class="mono">N6</td><td>6 — Live results fed back into research: predicted vs actual, slippage, delay, exit reason, regime (<span class="mono">live_feedback.py</span>; decision-quote branch awaits your merge)</td><td>fills, <span class="mono">costs.py</span>, <span class="mono">regimes.py</span></td><td class="st"><span class="pill done">built 09-26</span></td></tr>
             <tr><td class="mono">N7</td><td>7 — Continuous discovery aimed at measured weaknesses; the frozen search stays frozen</td><td><span class="mono">discovery.py</span>, factory pipeline</td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">N8</td><td>8 — Stages K, L, M in parallel</td><td>above</td><td class="st"><span class="pill planned">continuing</span></td></tr>
+            <tr><td class="mono">N8</td><td>8 — Stages K, L, M in parallel</td><td>above</td><td class="st"><span class="pill done">K, L, M built</span></td></tr>
             <tr><td class="mono">N9</td><td>9 — Scaling: total capital, slots, per-slot capital, position, daily, strategy and drawdown limits in config; ~$100 / five slots kept for now</td><td><span class="mono">config.yaml</span>, <span class="mono">config/risk.yaml</span></td><td class="st"><span class="pill planned">planned</span></td></tr>
           </tbody></table></div>
         <p class="note new"><b>Control Center live since 25 September.</b> <span class="mono">http://localhost:8787</span> on the VM (cron keeps it running; localhost only, so from another machine tunnel with <span class="mono">ssh -L 8787:localhost:8787</span>). Broker account, paper and research kept apart; five slots with position, stop, take-profit and why each strategy holds its slot; the live event feed; the full ranking with challengers; next possible replacements, blocked by the same rules the slot engine applies; system health. A heartbeat row per trader run feeds it. 17 of 18 done criteria are now fully or partly met; 11 fully.</p>
@@ -744,13 +758,13 @@
     <div class="phase last">
       <div class="phase-num">O</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Stage O — Addendum E: Knowledge Strategy Factory</div><span class="pill progress">Building · O1–O4</span></div>
+        <div class="phase-head"><div class="phase-title">Stage O — Addendum E: Knowledge Strategy Factory</div><span class="pill progress">O1–O4 · templates · O9 built</span></div>
         <p class="phase-desc">A second source of strategies beside machine discovery: documented trading knowledge — academic papers, published factors, systematic research, open-source strategy collections, books with explicit rules. Every idea enters as a hypothesis with full provenance, is reproduced as faithfully as the source allows, varied within declared bounds, and possibly mutated — then competes in the same backtester, survivorship controls, pipeline and ranking as everything else. The five live slots stay the only allocator.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:25%; background:var(--progress);"></div></div><span class="bar-pct">25%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:45%; background:var(--progress);"></div></div><span class="bar-pct">45%</span></div>
         <div class="figures" style="margin-top:6px;">
           <div class="figure"><div class="v">3,987</div><div class="k">hypotheses: Papers With Backtest 3,803 titles + 60 coded, QuantConnect 84, ours 40</div></div>
           <div class="figure"><div class="v">55</div><div class="k">linked to existing families as our variant of the idea (457 links)</div></div>
-          <div class="figure"><div class="v">20</div><div class="k">testable, need new templates — next</div></div>
+          <div class="figure"><div class="v">20 → 0</div><div class="k">needing a template: 10 new families built 09-26 (calendar, size, cycle, R&amp;D, ROA, short interest, liquidity, pairs…)</div></div>
           <div class="figure"><div class="v neg">69</div><div class="k">not testable on our data (futures, forex, options, intraday…) — not refuted</div></div>
         </div>
         <p class="note warn"><b>What the sources really give.</b> Papers With Backtest’s 5,000+ coded library is paid ($50/month); its free GitHub list has 3,803 titles and 60 coded strategies. Its own record: across 4,843 coded papers the median Sharpe is 0.37 and only 48% clear t = 1.96 — most published results don’t survive being coded. QuantConnect’s library is Apache-2.0. StockSharp’s collection is proprietary (all rights reserved) and is not ingested.</p>
@@ -876,6 +890,16 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Telegram phone controls (09-26).</b> Owner-only bot: /status /positions /health /report, and /kill and /resume behind a confirmation. It cannot place orders.</li>
+      <li><b>Control Center panels (09-26).</b> Strategy health, Knowledge Factory and published-signal evidence added; an end-of-day report goes to Telegram at 21:10 UTC.</li>
+      <li><b>Free cash flow and earnings surprise (09-26).</b> Capex is subtracted into a new FCF-to-price metric (the only family still positive in the worst survivorship case); point-in-time earnings surprise built. 16 new paper funds.</li>
+      <li><b>Stage L built (09-26).</b> 153 published factors (JKP, CRSP-based) judged only after publication: momentum, value, earnings yield, FCF, Piotroski and earnings surprise survive at t &gt; 3; liquidity and size are gone. 142 library entries.</li>
+      <li><b>Fundamental screens and liquidity rules fixed for dead companies (09-26).</b> Synthetic dead companies now carry their own SEC filings and a volume model fitted on 228 real dead companies. Value Book +2.69%, Profitability +2.79% per trade with the dead; 13 volume-momentum strategies drop out.</li>
+      <li><b>Generator v5c adopted (09-26).</b> Graded against real failures, with the measured pre-death drift; twin test −0.38% vs −0.45% real per trade; French CRSP gap +10.6 → +4.0 pp/yr. 24 strategies leave the ranking.</li>
+      <li><b>Stage O templates (09-26).</b> Ten new families (calendar, size, 12-month cycle, R&amp;D, ROA, short interest, liquidity, pairs…); no documented strategy is left waiting for a template.</li>
+      <li><b>Stage K built (09-25).</b> Crypto spreads logged hourly (1.9% round trip), 36-cell backtest, three trend paper funds, a crypto slot trader with a resting stop — inert until you arm it.</li>
+      <li><b>Exit fix (09-25).</b> A strategy exit on a name its own entry rule still selects is now a hold; four slots had sold and rebought for nothing.</li>
+      <li><b>Live-path tests and strategy health (09-25).</b> N2: five live paths pinned by tests. N5: per-strategy decay against its own backtest. N6: every live fill measured against its decision.</li>
       <li><b>Stage M finished; Stage O started (09-25).</b> Generator v5 — exit types from SEC filings, failures from 1,127 real distress paths, real SPAC paths — passes the realism test for every exit type and now feeds the ranking. The Knowledge Library holds 3,987 documented strategies from your sources.</li>
       <li><b>Profit exits swept; Addendum E entered as Stage O (09-25).</b> Early profit-taking lowers net per trade for every slot strategy; a +20% target (Rising 200 Stop 2.5) and dropping MACD Pullback’s target won and are now new strategies with their own paper funds. The Knowledge Strategy Factory spec added verbatim.</li>
       <li><b>Control Center live, survivorship in the ranking (09-25).</b> Stage N1 built and kept running by cron. Generator v4 passes the realism gate (AUC 0.593). Survivorship backtests run for 258 strategies; slot 3 moves from Rising 200 Stop 2.6 to Value Book at today’s reassessment.</li>
