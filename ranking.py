@@ -173,6 +173,23 @@ def pool(conn) -> list:
     return [(k, v, st) for k, v, st in rows if st not in OUT_STATES and k not in linked]
 
 
+SEARCH_PREFIXES = ("lab_", "survivor_")
+
+
+def from_search(conn, key: str) -> bool:
+    """True for a strategy the evolutionary search found (its paper fund is named
+    lab_* / survivor_* by paper_trading.promote_survivors). Owner, 2026-09-26:
+    search strategies earn their score on paper only — a search backtest is the
+    best of up to a million tries on the same history, too lucky to guide money."""
+    if not key.startswith("paper:"):
+        return False
+    try:
+        r = conn.execute("SELECT name FROM paper_runs WHERE run_id=?", (key.split(":", 1)[1],)).fetchone()
+    except sqlite3.Error:
+        return False
+    return bool(r and r[0] and str(r[0]).startswith(SEARCH_PREFIXES))
+
+
 def rank(conn, cfg: dict) -> list:
     """Every strategy with its backtest, forward, score and gate verdict, best first."""
     import leagues
@@ -198,6 +215,7 @@ def rank(conn, cfg: dict) -> list:
                 n_sym = 0
             if ev.get("capital_usd") and n_sym:
                 ev["position_usd"] = float(ev["capital_usd"]) / n_sym
+        searched = from_search(conn, key)
         sv = survivorship(conn, key, ver)
         bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)
@@ -213,7 +231,8 @@ def rank(conn, cfg: dict) -> list:
                                         else ("survivors only" if bt is not None else None)),
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
                     "synthetic_trades": sv.get("synthetic_trades"),
-                    "score": score(bt, fw, n, s), "passes_gate": ok, "gate": why,
+                    "from_search": searched,
+                    "score": score(None if searched else bt, fw, n, s), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                               "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))
@@ -224,6 +243,7 @@ def render(rows: list, limit: int = 40) -> str:
     def p(v):
         return "     —" if v is None else f"{v:+.2%}"
     L = ["", "  RANKING — expected net return per trade; backtest first, paper evidence takes over",
+         "  search strategies (found by the evolutionary search) score on paper only: no backtest head start",
          "  backtest = with synthetic dead companies (*) where computed, else survivors only; worst = every death a total loss",
          f"  {'#':>3} {'strategy':<30} {'score':>7} {'backtest':>10} {'worst':>7} {'paper':>7} {'trades':>6} "
          f"{'net $':>7}  gate"]

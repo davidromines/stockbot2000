@@ -73,6 +73,14 @@ def main():
                   (k,))
     got = sorted(k for k, _, _ in ranking.pool(c))
     check("a factory fund registered twice (paper:<run_id>) is ranked once", got == ["a", "b", "fx_x"], got)
+    c.execute("CREATE TABLE paper_runs (run_id TEXT, name TEXT)")
+    c.executemany("INSERT INTO paper_runs VALUES (?,?)", [("s1", "lab_1234abcd"), ("s2", "survivor_ab"), ("s3", "fx_y v1")])
+    check("lab_* / survivor_* funds are search strategies",
+          ranking.from_search(c, "paper:s1") and ranking.from_search(c, "paper:s2")
+          and not ranking.from_search(c, "paper:s3") and not ranking.from_search(c, "fx_y"))
+    s_ = ranking.settings({})
+    check("a search strategy with no paper trades scores the neutral start, not its backtest",
+          ranking.score(None, None, 0, s_) == float(s_["no_backtest_prior"]))
 
     # --- pair funds: one family per index ----------------------------------
     import leagues
