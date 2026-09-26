@@ -95,6 +95,9 @@ CHAINS = {
     "tax":           ["IncomeTaxExpenseBenefit"],
     "ocf":           ["NetCashProvidedByUsedInOperatingActivities",
                       "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"],
+    # Capital expenditure, reported as a positive outflow (statements.py uses the same tags).
+    "capex":         ["PaymentsToAcquirePropertyPlantAndEquipment",
+                      "PaymentsToAcquireProductiveAssets"],
     "dep_amort":     ["DepreciationDepletionAndAmortization",
                       "DepreciationAmortizationAndAccretionNet",
                       "DepreciationAndAmortization", "Depreciation"],
@@ -108,7 +111,7 @@ CHAINS = {
 # in step with the code automatically.
 METRICS = [
     # valuation (need market cap)
-    "book_to_market", "earnings_yield", "sales_to_price", "fcf_yield",
+    "book_to_market", "earnings_yield", "sales_to_price", "fcf_yield", "fcf_to_price",
     "ebit_to_ev", "ev_to_ebitda", "ev_to_sales",
     # profitability
     "roa", "roe", "roic", "gross_profitability", "gross_margin",
@@ -203,6 +206,7 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
     ni, ocf = g("net_income", {1, 4}), g("ocf", {1, 4})
     interest, tax = g("interest", {1, 4}), g("tax", {1, 4})
     da = g("dep_amort", {1, 4})
+    capex = g("capex", {1, 4})
     shares = g("shares", {0, 1, 4})
 
     # Gross profit is frequently absent even when both its inputs are present.
@@ -293,7 +297,16 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
         m["earnings_yield"] = _safe(ni_a, market_cap)
         m["sales_to_price"] = _safe(rev_a, market_cap)
         if ocf_a is not None:
+            # NB: historically named fcf_yield but it is operating cash flow / market
+            # cap (JKP ocf_me) — kept unchanged so nothing built on it moves.
             m["fcf_yield"] = _safe(ocf_a, market_cap)
+        capex_a = ann("capex", capex)
+        if ocf_a is not None and capex_a is not None:
+            # FREE cash flow to price (JKP fcf_me; Lakonishok, Shleifer & Vishny 1994):
+            # capex SUBTRACTED (it is reported positive; adding it turns the most
+            # capital-hungry firms into the best cash generators — see statements.py).
+            # Missing capex leaves it None, never zero: absence is not zero capex.
+            m["fcf_to_price"] = _safe(ocf_a - abs(capex_a), market_cap)
         ev = market_cap + (lt_debt or 0) - (cash or 0)
         m["ebit_to_ev"] = _safe(op_a, ev)                 # Greenblatt earnings yield
         m["ev_to_ebitda"] = _safe(ev, ebitda_a)
