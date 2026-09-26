@@ -193,6 +193,9 @@ bounded() {
 }
 run "[9c/10] Research library sync" $PY library_bridge.py --sync
 run "[9d/10] Factory templates" $PY strategy_factory.py --generate
+# Owner, 2026-09-26: every strategy idea is paper-tracked from the day it exists,
+# judged or not, so no forward record is lost (paper_all.py; no lifecycle change).
+run "[9d2/10] Paper-track every idea" $PY paper_all.py
 run "[9e/10] Discovery plan" $PY discovery.py --plan
 run "[9f/10] Factory pipeline" bounded $PY factory_pipeline.py --run --budget 12
 # Owner, 2026-09-24: backtests include the synthetic dead companies. Every
