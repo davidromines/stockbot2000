@@ -60,3 +60,8 @@ data/external/
 
 # Stage O source cache (knowledge_library.py): third-party text read for translation, never committed.
 data/knowledge/
+
+# Open Source Asset Pricing downloads (Stage L1); large, regenerable.
+data/osap/
+# JKP Global Factor Data downloads (Stage L1)
+data/jkp/
