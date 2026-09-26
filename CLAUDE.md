@@ -94,7 +94,8 @@ survivorship and rank on survivors-only numbers. Snapshots: `data/universe/ranki
    `lag(sma_200,3) > 6.08`: 2,971 of 3,056 names). The fix treats an exit on a name the
    same strategy's entry rule still fires on as a hold. Auto mode blocked Claude from
    merging live-trading code. **Unmerged, Monday repeats: every slot sells at the first run.**
-2. **Stage K wiring — merge `stage-k/ranking`**: crypto trend funds rank on their
+2. ~~Stage K wiring — merge `stage-k/ranking`~~ **MERGED 2026-09-26 by the owner; crypto
+   cron line installed (41 * * * *), verified inert while allow_crypto is false.** Was: crypto trend funds rank on their
    backtest, get slot rules from their ATR stop, are blocked from slots while
    `allow_crypto` is false; equity trader skips crypto slots; hourly crypto cron line
    (`services.sh --install` after the merge).
