@@ -87,6 +87,8 @@ GROUPS = {
         "value_fund", "value_fund_equity", "value_fund_positions", "value_fund_trades",
         "crypto_fund", "crypto_fund_equity", "crypto_fund_open", "crypto_fund_trades",
         "crypto_spreads",           # Stage K1: measured Robinhood spreads, not recomputable
+        "crypto_slot_trades",       # Stage K5: the crypto slot trade log (append-only)
+        "trader_runs",              # N1: one heartbeat per slot_trader run
         # append-only decision logs: identity, lifecycle, every §37 decision,
         # the authoritative accounting and the pre-registered experiments.
         # A lifecycle state is DERIVED from league_state, so losing that log
