@@ -83,7 +83,26 @@ DEFAULTS = {
     },
     "spac": {"price": 10.0, "daily_sd": 0.001, "annual_drift": 0.02},
     "include_form25_edgar_only": True,
+    # Twin test 2026-09-25 (twin_test.py): with market-neutral donor residuals
+    # re-laid on the twin's own dates, a 2008-09 donor's decline softened in a
+    # bull year and synthetic failures earned +1.00%/trade against -0.45% real.
+    # True copies the donor's REAL total returns over its whole segment.
+    "donor_total_returns": False,
+    # Which distress episodes a synthetic FAILURE may copy up to its distress
+    # point. "all" (v5): 1,057 survivors + 70 real failures, so ~94% of synthetic
+    # failures followed a company that recovered — twin test: +0.93%/trade vs
+    # -0.45% real. "died": only real failures (leave-one-out twin: -0.12%, PASS),
+    # but the realism gate then FAILS (AUC 0.756 vs 0.557) — its reference is
+    # held-out distress episodes, ~94% survivors. Chosen after seeing the twin
+    # test on the same 70 companies, so not independent evidence. Production
+    # stays "all" (v5) until the owner decides; validation_v5b.json has the run.
+    "failure_donors": "all",
 }
+
+
+def failure_donor_pool(dd: list, s: dict) -> list:
+    """The distress episodes a synthetic failure may copy (setting `failure_donors`)."""
+    return [d for d in dd if d["died"]] if s.get("failure_donors") == "died" else list(dd)
 EVIDENCE_TO_KIND = {"acquired": "merger", "going_private": "other", "voluntary": "other",
                     "performance": "performance", "bankruptcy": "performance", "spac": "spac"}
 
@@ -141,18 +160,25 @@ def failure(company: dict, spy: pd.Series, v4donors: list, dd: list, post_pool: 
     d = dd[rng.choice(len(dd), p=w / w.sum())]
     resid = np.asarray(d["resid"], dtype=float)
     flat_src = np.abs(np.asarray(d["ret"], dtype=float)) < 1e-6   # the donor's own no-change days
+    raw_src = np.asarray(d["ret"], dtype=float)
     if d["died"]:
-        seg, fseg = resid, flat_src                    # its own road to the end
+        seg, fseg, rseg = resid, flat_src, raw_src     # its own road to the end
     else:
         # A survivor's path stops at its distress point; the slide from there to
         # delisting is a real dead donor's post-distress residuals (and its no-change days).
-        pe, pf = post_pool[rng.integers(len(post_pool))]
+        post = post_pool[rng.integers(len(post_pool))]
+        pe, pf = post[0], post[1]
+        pr = post[2] if len(post) > 2 else None
         seg = np.concatenate([resid[: d["t_offset"] + 1], pe])
         fseg = np.concatenate([flat_src[: d["t_offset"] + 1], pf])
+        rseg = np.concatenate([raw_src[: d["t_offset"] + 1], pr]) if pr is not None else None
     a_pos = d["a_offset"]                              # the last $5 close, inside seg
+    seg_start = 0                                      # where the donor segment begins in the path
     if len(seg) >= n:
         cut = len(seg) - n
         e, flat, a_idx = seg[cut:], fseg[cut:], max(0, a_pos - cut)
+        if rseg is not None:
+            rseg = rseg[cut:]
     else:
         # Normal life before the donor segment, v4's way: 20-session blocks of real
         # dead-company residuals, scaled to the donor's own pre-collapse volatility.
@@ -166,8 +192,13 @@ def failure(company: dict, spy: pd.Series, v4donors: list, dd: list, post_pool: 
                 pre.extend(src[i:i + 20])
         e, a_idx = np.concatenate([np.asarray(pre[:k]) * vol, seg]), k + a_pos
         flat = np.concatenate([rng.random(k) < float(fseg.mean()), fseg])
+        seg_start = k
     beta = float(np.clip(d["beta"], -0.5, 3.0))
     r = np.clip(beta * m + e, -0.95, 3.0)
+    if s.get("donor_total_returns") and rseg is not None and len(rseg) == n - seg_start:
+        # The donor's REAL path over its segment, market included: a real failure's
+        # decline is not re-timed onto a different market (twin test, 2026-09-25).
+        r[seg_start:] = np.clip(np.nan_to_num(rseg, nan=0.0), -0.95, 3.0)
     r[flat], e = 0.0, np.where(flat, 0.0, e)
     # Keep the real event where it happened: over (A, T] the synthetic fall is set to the
     # donor's own real fall, by a constant daily adjustment on traded days. Without it the
@@ -255,8 +286,10 @@ def build(conn, cfg: dict, out: Path | None = None, donor_parity: int | None = N
            "t_offset": int(r.t_offset), "resid": json.loads(r.resid), "ret": json.loads(r.ret),
            "price_a": float(r.price_a), "fall": float(r.fall_a_to_t), "ticker": r.ticker}
           for i, r in enumerate(ddf.itertuples()) if donor_parity is None or i % 2 == donor_parity]
+    fail_pool = failure_donor_pool(dd, s)
     post_pool = [(np.asarray(x["resid"][x["t_offset"] + 1:], dtype=float),
-                  np.abs(np.asarray(x["ret"][x["t_offset"] + 1:], dtype=float)) < 1e-6) for x in dd
+                  np.abs(np.asarray(x["ret"][x["t_offset"] + 1:], dtype=float)) < 1e-6,
+                  np.asarray(x["ret"][x["t_offset"] + 1:], dtype=float)) for x in dd
                  if x["died"] and len(x["resid"]) - x["t_offset"] > 20]
     spac_donors = spac_library(conn, donor_parity)
     starts = np.array([c for (c,) in conn.execute(
@@ -316,7 +349,7 @@ def build(conn, cfg: dict, out: Path | None = None, donor_parity: int | None = N
                 final_kind = "spac_trust"
                 event = None
             else:
-                r, e, a_idx, dn = failure(c, spy, v4donors, dd, post_pool, s, rng, dates, died)
+                r, e, a_idx, dn = failure(c, spy, v4donors, fail_pool, post_pool, s, rng, dates, died)
                 # The donor's own real price at its last tradeable close (typically just over
                 # $5): a level drawn from $5-8 made synthetic failures take twice as long to
                 # reach distress as real ones (101 vs 51 sessions).
