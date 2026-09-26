@@ -66,6 +66,13 @@ def main():
                       (k, st))
     got = sorted(k for k, _, _ in ranking.pool(c))
     check("DEMOTED stays in the pool (it can climb back); REJECTED does not", got == ["a", "b"], got)
+    c.execute("CREATE TABLE factory_paper_link (strategy_key TEXT, version INT, run_id TEXT, linked_on TEXT)")
+    c.execute("INSERT INTO factory_paper_link VALUES ('fx_x', 1, 'r1', 'd')")
+    for k in ("fx_x", "paper:r1"):
+        c.execute("INSERT INTO league_state (strategy_key, version, at, to_state, reason) VALUES (?,1,'t','PAPER','t')",
+                  (k,))
+    got = sorted(k for k, _, _ in ranking.pool(c))
+    check("a factory fund registered twice (paper:<run_id>) is ranked once", got == ["a", "b", "fx_x"], got)
 
     # --- pair funds: one family per index ----------------------------------
     import leagues

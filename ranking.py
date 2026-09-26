@@ -164,7 +164,13 @@ def pool(conn) -> list:
         SELECT s.strategy_key, s.version, s.to_state FROM league_state s
         JOIN (SELECT strategy_key, version, MAX(id) mid FROM league_state
               GROUP BY strategy_key, version) m ON m.mid = s.id""").fetchall()
-    return [(k, v, st) for k, v, st in rows if st not in OUT_STATES]
+    # paper:<run_id> for a fund that belongs to a factory strategy is the same
+    # strategy registered twice (migrate_league before 2026-09-26); rank it once.
+    try:
+        linked = {f"paper:{r[0]}" for r in conn.execute("SELECT run_id FROM factory_paper_link")}
+    except sqlite3.Error:
+        linked = set()
+    return [(k, v, st) for k, v, st in rows if st not in OUT_STATES and k not in linked]
 
 
 def rank(conn, cfg: dict) -> list:
