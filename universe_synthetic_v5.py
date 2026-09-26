@@ -64,7 +64,7 @@ import universe_synthetic as v4
 
 log = logging.getLogger("universe_synthetic_v5")
 OUT = Path("data/universe/synthetic_v5.parquet")
-METHOD = "evidence_distress_v5"
+METHOD = "evidence_distress_v5c"   # v5c: failures copy real failures (total returns), owner 2026-09-26
 COLS = ["company_id", "ticker", "date", "open", "high", "low", "close", "volume", "is_delisting_bar", "is_synthetic",
         "data_source", "cohort_id", "generation_method", "synthetic_reason", "final_year", "delisting_return",
         "synthetic_seed", "event_date", "template"]
@@ -92,11 +92,19 @@ DEFAULTS = {
     # point. "all" (v5): 1,057 survivors + 70 real failures, so ~94% of synthetic
     # failures followed a company that recovered — twin test: +0.93%/trade vs
     # -0.45% real. "died": only real failures (leave-one-out twin: -0.12%, PASS),
-    # but the realism gate then FAILS (AUC 0.756 vs 0.557) — its reference is
-    # held-out distress episodes, ~94% survivors. Chosen after seeing the twin
-    # test on the same 70 companies, so not independent evidence. Production
-    # stays "all" (v5) until the owner decides; validation_v5b.json has the run.
-    "failure_donors": "all",
+    # but the realism gate FAILED (AUC 0.756) while its reference was held-out
+    # distress episodes, ~94% survivors. Owner, 2026-09-26: "use real failures as
+    # the reference" — adopted with the gate's failure reference changed to
+    # held-out real failures (validate_v5.failures). Chosen after seeing the twin
+    # test on the same 70 companies, so that test is not independent evidence.
+    "failure_donors": "died",
+    # The years BEFORE the copied distress segment. v5 filled them with drift-free
+    # life, but real failures were already sliding: 1-4 years before their last $5
+    # close, 50 real failures in our prices ran a median -0.516/yr excess LOG return
+    # vs SPY (IQR -1.00..-0.22; measured 2026-09-26). Twin test located the gap
+    # there (real -2.49%/trade 2-4 years out, twins +1.76%). Annual log units,
+    # applied to the 756 filler sessions right before the segment only.
+    "pre_excess_drift": -0.516,
     # Stage M2b: rescale a company's path onto its own filed 10-K quarterly prices
     # (item5_anchors). Twin test 2026-09-26 (pre-registered, twin_test_anchors):
     # levels become right (buyout twins $8.40 -> $33.92 vs $35.34 real) but per-
@@ -234,7 +242,11 @@ def failure(company: dict, spy: pd.Series, v4donors: list, dd: list, post_pool: 
             if len(src) > 20:
                 i = rng.integers(len(src) - 20)
                 pre.extend(src[i:i + 20])
-        e, a_idx = np.concatenate([np.asarray(pre[:k]) * vol, seg]), k + a_pos
+        # The measured drift covers the 3 years (756 sessions) right before the segment;
+        # earlier life stays drift-free, as nothing was measured there.
+        drift = np.zeros(k)
+        drift[max(0, k - 756):] = float(s.get("pre_excess_drift") or 0.0) / 252.0
+        e, a_idx = np.concatenate([np.asarray(pre[:k]) * vol + drift, seg]), k + a_pos
         flat = np.concatenate([rng.random(k) < float(fseg.mean()), fseg])
         seg_start = k
     beta = float(np.clip(d["beta"], -0.5, 3.0))

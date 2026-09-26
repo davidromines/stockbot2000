@@ -83,13 +83,36 @@ def _distress_window(close: pd.Series) -> pd.Series | None:
     return c.iloc[hit[0] - WIN + 1: hit[0] + 1]
 
 
-def failures(conn, spy_r, syn: pd.DataFrame) -> dict:
+def _real_close(conn, fconn, ticker: str, source: str, until: str) -> pd.Series:
+    if source == "finsaber" and fconn is not None:
+        px = pd.read_sql_query("SELECT date, adj_close AS close FROM finsaber_prices WHERE symbol=? ORDER BY date",
+                               fconn, params=(ticker,))
+        px["date"] = px["date"].astype(str).str[:10]
+        return px[px["date"] <= until].drop_duplicates("date").set_index("date")["close"]
+    return pd.read_sql_query("SELECT date, close FROM prices WHERE ticker=? AND date<=? ORDER BY date", conn,
+                             params=(ticker, until)).set_index("date")["close"]
+
+
+def failures(conn, spy_r, syn: pd.DataFrame, cfg: dict | None = None) -> dict:
+    """
+    The reference is the kind of company a synthetic failure copies (owner, 2026-09-26:
+    "use real failures as the reference"). With failure_donors='died' it is the
+    held-out REAL FAILURES; with 'all' it was every held-out distress episode, ~94%
+    of which recovered — a test a realistic failure is built to fail.
+    """
+    import os
+    import universe_synthetic_v5 as v5
+    s = v5.settings(cfg or {})
     dd = pd.read_parquet("data/universe/distress_donors.parquet")
+    if "source" not in dd.columns:
+        dd["source"] = "primary"
     test = dd.iloc[0::2]                               # parity 0 — never used by the validation build
+    if s.get("failure_donors") == "died":
+        test = test[test["died"]]
+    fconn = sqlite3.connect("file:data/finsaber.db?mode=ro", uri=True) if os.path.exists("data/finsaber.db") else None
     R = []
     for r in test.itertuples():
-        px = pd.read_sql_query("SELECT date, close FROM prices WHERE ticker=? AND date<=? ORDER BY date", conn,
-                               params=(r.ticker, r.trigger)).set_index("date")["close"]
+        px = _real_close(conn, fconn, r.ticker, r.source, r.trigger)
         w = px.tail(WIN)
         f = uv.path_features(w, spy_r) if len(w) >= WIN else None
         if f:
@@ -100,7 +123,11 @@ def failures(conn, spy_r, syn: pd.DataFrame) -> dict:
         f = uv.path_features(w, spy_r) if w is not None else None
         if f:
             S.append(f)
-    return _auc(R, S)
+    if fconn:
+        fconn.close()
+    out = _auc(R, S)
+    out["reference"] = "held-out real failures" if s.get("failure_donors") == "died" else "held-out distress episodes"
+    return out
 
 
 def buyouts(conn, spy_r, syn: pd.DataFrame) -> dict:
@@ -163,7 +190,7 @@ def run(conn, cfg) -> dict:
                                               "synthetic_reason", "delisting_return", "template"])
     syn["cohort_id"] = syn["cohort_id"].astype(str)
     syn["synthetic_reason"] = syn["synthetic_reason"].astype(str)
-    out = {"failures_vs_heldout_real_distress": failures(conn, spy_r, syn),
+    out = {"failures_vs_heldout_real_distress": failures(conn, spy_r, syn, cfg),
            "buyouts_vs_real_dead_sample": buyouts(conn, spy_r, syn),
            "spacs_vs_real_spacs": spacs(conn, spy_r, syn),
            "failure_delisting_moments": moments(syn), "max_auc": MAX_AUC}

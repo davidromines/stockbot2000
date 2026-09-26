@@ -70,29 +70,41 @@ def build(conn) -> pd.DataFrame:
                                params=(e.ticker,)).set_index("date")["close"]
         if px.empty or e.trigger not in px.index:
             continue
-        ti = px.index.get_loc(e.trigger)
+        died = e.ticker in dead or last_all[e.ticker] < newest[:8] + "01"
+        rec = record(px, e.trigger, died, e.ticker, exch.get(e.ticker), spy)
+        if rec:
+            rows.append({**rec, "source": "primary"})
+    df = pd.DataFrame(rows)
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(OUT, index=False)
+    return df
+
+
+def record(px: pd.Series, trigger: str, died: bool, ticker: str, exchange, spy: pd.Series) -> dict | None:
+    """One donor episode from a close series (date-indexed), its trigger date and fate."""
+    if True:
+        ti = px.index.get_loc(trigger)
         lo = max(0, ti - 252 * LOOKBACK_YEARS)
         window = px.iloc[lo:ti]
         above = window[window >= TRADEABLE]
         if above.empty:
-            continue                                  # never tradeable at the $5 floor before the collapse
+            return None                               # never tradeable at the $5 floor before the collapse
         a_date = above.index[-1]
         ai = px.index.get_loc(a_date)
-        died = e.ticker in dead or last_all[e.ticker] < newest[:8] + "01"
         end = len(px) - 1 if died else ti
         seg = px.iloc[max(0, ai - PRE): end + 1]
         r = seg.pct_change().dropna()
         j = pd.concat([r.rename("r"), spy.rename("m")], axis=1, join="inner").dropna()
         if len(j) < 60:
-            continue
+            return None
         m, y = j["m"].to_numpy(), j["r"].to_numpy()
         beta = float(np.cov(y, m)[0, 1] / np.var(m)) if np.var(m) > 0 else 1.0
         beta = float(np.clip(beta, -1.0, 4.0))
         resid = np.clip(y - beta * m, -0.9, 3.0)
         pre = px.iloc[max(0, ti - 60): ti + 1].pct_change().dropna().to_numpy()
-        rows.append({
-            "ticker": e.ticker, "trigger": e.trigger, "last_tradeable": a_date,
-            "year": int(e.trigger[:4]), "exchange": exch.get(e.ticker), "died": bool(died),
+        return {
+            "ticker": ticker, "trigger": trigger, "last_tradeable": a_date,
+            "year": int(trigger[:4]), "exchange": exchange, "died": bool(died),
             "sessions_decline": int(ti - ai), "fall_a_to_t": float(px.iloc[ti] / px.iloc[ai] - 1),
             "price_a": float(px.iloc[ai]),               # the real last close at the tradeable level
             "vol_pre60": float(np.std(pre) * np.sqrt(252)) if len(pre) > 5 else None,
@@ -102,10 +114,47 @@ def build(conn) -> pd.DataFrame:
             "t_offset": int(min(PRE, ai) + (ti - ai)),  # index of T inside the stored series
             "dates": json.dumps(list(j.index)), "resid": json.dumps([round(float(x), 6) for x in resid]),
             "ret": json.dumps([round(float(x), 6) for x in y]),
-        })
-    df = pd.DataFrame(rows)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(OUT, index=False)
+        }
+
+
+# Real S&P 500 failures in the FINSABER archive (delisted members), hand-checked
+# 2026-09-26 against the public record: each is the company whose equity was
+# wiped out or delisted after distress on these dates. Excluded after checking:
+# MYL, PGN, XL (a later company or bad data under an old ticker), and BGEN /
+# PDG (not confirmed). Sources: bankruptcy and delisting news of the period.
+FINSABER_FAILURES = ("KM", "FTR", "JCP", "FRC", "ENDP", "DF", "MDR", "BGG", "GAPTQ", "DALRQ", "PRD")
+
+
+def add_finsaber(conn, symbols=FINSABER_FAILURES) -> pd.DataFrame:
+    """Append FINSABER failures to the donor library (same trigger rule, same record)."""
+    spy = pd.read_sql_query("SELECT date, close FROM prices WHERE ticker='SPY' ORDER BY date", conn
+                            ).set_index("date")["close"].pct_change()
+    f = sqlite3.connect("file:data/finsaber.db?mode=ro", uri=True)
+    df = pd.read_parquet(OUT)
+    if "source" not in df.columns:
+        df["source"] = "primary"
+    have = set(df["ticker"])
+    rows = []
+    for sym in symbols:
+        if sym in have:
+            continue
+        px = pd.read_sql_query("SELECT date, adj_close AS close FROM finsaber_prices WHERE symbol=? ORDER BY date",
+                               f, params=(sym,))
+        px["date"] = px["date"].astype(str).str[:10]
+        px = px.dropna().query("close > 0").drop_duplicates("date").set_index("date")["close"]
+        hi = px.rolling(252, min_periods=20).max()
+        trig = px[(px < TRIGGER_PRICE) & (px < TRIGGER_FRAC * hi)]
+        if trig.empty:
+            log.warning(f"{sym}: no distress trigger in FINSABER prices")
+            continue
+        rec = record(px, trig.index[0], True, sym, None, spy)
+        if rec:
+            rows.append({**rec, "source": "finsaber"})
+    f.close()
+    if rows:
+        df = pd.concat([df, pd.DataFrame(rows)], ignore_index=True)
+        df.to_parquet(OUT, index=False)
+    log.info(f"added {len(rows)} FINSABER failures: {[r['ticker'] for r in rows]}")
     return df
 
 
@@ -129,12 +178,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Real distress paths for synthetic failures (Stage M3).")
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--add-finsaber", action="store_true", help="append the hand-checked FINSABER failures")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     from universe import load_config
     cfg = load_config()
     conn = sqlite3.connect(f"file:{cfg['database']['market_data_path']}?mode=ro", uri=True, timeout=60)
     df = build(conn) if a.build else pd.read_parquet(OUT)
+    if a.add_finsaber:
+        df = add_finsaber(conn)
     print(report(df))
     return 0
 
