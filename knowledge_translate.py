@@ -82,8 +82,38 @@ def ensure_columns(conn) -> None:
     conn.commit()
 
 
+# Stage O3 decisions for the 20 entries the patterns left as NEEDS_TEMPLATE (2026-09-26):
+# an existing family that already encodes the idea, or a stated reason it is not testable here.
+EXPLICIT_EXISTING = {"pwb_coded:a18d64fa9774": "quality_roa",            # ROA effect within stocks
+                     "qc_library:6ddb05a0f335": "value_quality_momentum"}  # fundamental factor selection
+EXPLICIT_NO_DATA = {
+    "qc_library:b99bca793f29": "pairs/relative value needs a two-leg position; slots hold one long name",
+    "pwb_coded:5801da49c205": "pairs/relative value needs a two-leg position; slots hold one long name",
+    "qc_library:6a29f79d5de3": "paired switching is already run as the pair funds (pair_funds.py), not a template",
+    "qc_library:9b3a7006a4dd": "a machine-learning model, not a rule template (the Lab's domain)",
+    "qc_library:fcf6ff10d5c2": "a machine-learning model, not a rule template (the Lab's domain)",
+    "qc_library:40e081a36d85": "an index page, not a strategy",
+}
+
+
+def _explicit() -> dict:
+    """entry_id -> factory family, from Stage O's own family module."""
+    try:
+        import factory_families_o as ffo
+    except Exception:                                            # noqa: BLE001
+        return dict(EXPLICIT_EXISTING)
+    out = {eid: fam for fam, ids in ffo.KNOWLEDGE.items() for eid in ids}
+    return {**out, **EXPLICIT_EXISTING}
+
+
 def run(conn) -> dict:
     conn.row_factory = sqlite3.Row
+    explicit = _explicit()
+    try:
+        import strategy_factory as sf
+        unavailable = {n: f.get("missing") for n, f in sf.F.items() if not f.get("data_available", True)}
+    except Exception:                                            # noqa: BLE001
+        unavailable = {}
     ensure_columns(conn)
     rows = conn.execute("SELECT * FROM knowledge_entries WHERE source IN ('pwb_coded','qc_library')").fetchall()
     fam_keys = {}
@@ -95,8 +125,10 @@ def run(conn) -> dict:
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for e in rows:
         t = _text(conn, e).lower()
-        reason = next((r for r, pat in NO_DATA if re.search(pat, t)), None)
-        fam = next((f for f, pat in FAMILY_MAP if re.search(pat, t)), None)
+        reason = EXPLICIT_NO_DATA.get(e["entry_id"]) or next((r for r, pat in NO_DATA if re.search(pat, t)), None)
+        fam = explicit.get(e["entry_id"]) or next((f for f, pat in FAMILY_MAP if re.search(pat, t)), None)
+        if fam in unavailable and not reason:
+            reason = f"family {fam} specified; {unavailable[fam]}"
         if reason:
             conn.execute("UPDATE knowledge_entries SET data_available='NO', data_reason=?, translation_state="
                          "'DATA_UNAVAILABLE', translation_notes=? WHERE entry_id=?",

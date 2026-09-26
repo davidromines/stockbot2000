@@ -268,6 +268,15 @@ for nm, why, need in (("quality_low_volatility", "Profitable, stable firms: two 
            missing=f"{need} is not on the daily panel", combo=True)
 
 
+# Stage O (Addendum E): families translated from the Knowledge Library live in their
+# own module and register into F on import. Same freeze boundary as everything above.
+# Run as a script this module is __main__: alias it, or the import below would load a
+# second copy of strategy_factory and register the families into that copy's F.
+import sys as _sys  # noqa: E402
+_sys.modules.setdefault("strategy_factory", _sys.modules[__name__])
+import factory_families_o  # noqa: E402,F401
+
+
 # --- generation -------------------------------------------------------------
 def grid_points(fam: dict, limit: int) -> list:
     keys = sorted(fam["grid"])
