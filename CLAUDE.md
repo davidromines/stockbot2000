@@ -50,6 +50,11 @@ robinhood_live.LiveBroker (review -> place -> confirm, ref_id idempotency)
 token at ~/.config/stockbot2000/robinhood_oauth.json, mode 600).
 
 **Controls the owner has:**
+- **From the phone (Telegram, since 2026-09-26):** `/status`, `/positions`, `/health`,
+  `/report`, and `/kill` then `/kill confirm` (within 2 min) to trip the kill switch;
+  `/resume` then `/resume confirm` to clear it. `telegram_bot.py`, cron every minute;
+  answers only the owner's user id in the owner's chat, ignores commands older than 10
+  minutes, has no order commands, and never executes message text.
 - Stop everything and flatten slot positions: `touch data/KILL_SWITCH`
   (delete it to resume). Stop new trades but keep positions:
   `execution_mode: SIMULATION`.
