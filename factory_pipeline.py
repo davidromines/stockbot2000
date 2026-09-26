@@ -198,14 +198,19 @@ def enroll(conn, cfg, key: str, ver: int, m: dict, g: dict) -> str:
     have = conn.execute("SELECT run_id FROM factory_paper_link WHERE strategy_key=? AND version=?",
                         (key, ver)).fetchone()
     if have:
-        return have[0]
-    paper_trading.init(conn)
-    run_id = paper_trading.start(conn, cfg, name=f"{key} v{ver}", strategy=json.dumps(g, sort_keys=True))
-    conn.execute("UPDATE paper_runs SET label=?, family=? WHERE run_id=?",
-                 (m.get("family", key)[:40] + f" v{ver}", m.get("family"), run_id))
-    conn.execute("INSERT INTO factory_paper_link VALUES (?,?,?,?)",
-                 (key, ver, run_id, dt.date.today().isoformat()))
-    conn.commit()
+        # Already paper-tracked (paper_all.py tracks every idea before it is
+        # judged): keep that fund and its record; the promotion is still recorded.
+        run_id = have[0]
+        if league.canonical(league.state(conn, key, ver)) == league.PAPER:
+            return run_id
+    else:
+        paper_trading.init(conn)
+        run_id = paper_trading.start(conn, cfg, name=f"{key} v{ver}", strategy=json.dumps(g, sort_keys=True))
+        conn.execute("UPDATE paper_runs SET label=?, family=? WHERE run_id=?",
+                     (m.get("family", key)[:40] + f" v{ver}", m.get("family"), run_id))
+        conn.execute("INSERT INTO factory_paper_link VALUES (?,?,?,?)",
+                     (key, ver, run_id, dt.date.today().isoformat()))
+        conn.commit()
     so.decide(conn, key, ver, "PROMOTE", f"enrolled in paper trading as run {run_id}",
               to_state=league.PAPER)
     return run_id
