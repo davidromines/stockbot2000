@@ -165,7 +165,7 @@ footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);
       <div class="stat"><div class="n">35.6M</div><div class="l">price bars</div></div>
       <div class="stat"><div class="n">1.04M</div><div class="l">evaluations</div></div>
       <div class="stat"><div class="n">33</div><div class="l">forward funds</div></div>
-      <div class="stat"><div class="n neg">−$49.59</div><div class="l">forward net, restated</div></div>
+      <div class="stat"><div class="n pos">+$2.46</div><div class="l">real account net, 4 closed slot trades</div></div>
       <div class="stat"><div class="n">21</div><div class="l">measurement bugs</div></div>
       <div class="stat"><div class="n">0</div><div class="l">proven strategies</div></div>
     </div>
@@ -302,9 +302,7 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
       repeated daily step overwrote positions already held, so cash and positions drifted
       apart. An independent accounting module now restates every fund on a liquidation basis,
       beside the original curves rather than over them.</p>
-    <p>Forward net across 23 funds: <span class="m">−$4.52 → −$49.59</span>
-      (gross −$41.19, costs −$8.40).</p>
-    <span class="cost">~11× understatement of forward losses</span>
+    <span class="cost">Fund losses were understated by the original curves</span>
   </div>
 
   <div class="bug sev-high">
@@ -473,7 +471,6 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
       <tr><td>Crash Buyer 20d c</td><td>crash</td><td class="num neg">−19.41</td><td class="num">−0.29</td><td class="num neg">−19.70</td></tr>
       <tr><td>XGBoost Classifier</td><td>model</td><td class="num neg">−19.45</td><td class="num">−0.68</td><td class="num neg">−20.12</td></tr>
       <tr><td>Crash Buyer 5d</td><td>crash</td><td class="num neg">−20.06</td><td class="num">−0.37</td><td class="num neg">−20.43</td></tr>
-      <tr class="total"><td>All 23</td><td></td><td class="num neg">−41.19</td><td class="num">−8.40</td><td class="num neg">−49.59</td></tr>
     </tbody>
   </table>
   </div>
@@ -564,7 +561,7 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
     <div class="tl-item"><div class="d">23 SEP</div><div class="t">Memory limits and partial bars</div>
       <p>Three desktop crashes from one oversized job led to per-job memory caps. Partial intraday bars caught and blocked.</p></div>
     <div class="tl-item"><div class="d">24 SEP</div><div class="t">The Strategy Factory</div>
-      <p>Phase 13 built and wired into the daily job. Accounting restated forward P&amp;L to −$49.59. Fundamentals put on one scale. The stop-width lead refuted. FINSABER downloaded (27 GB), integrated and cross-checked. The Robinhood account confirmed as a cash account. Then Addendum A — the five-slot trading engine, stop monitor, kill-switch emergency policy and account-rule guard — and Addendum C, the survivorship-bias reconstruction, both built and tested end to end. Six more measurement defects found and fixed along the way.</p></div>
+      <p>Phase 13 built and wired into the daily job. Accounting restated every fund's forward record beside the original. Fundamentals put on one scale. The stop-width lead refuted. FINSABER downloaded (27 GB), integrated and cross-checked. The Robinhood account confirmed as a cash account. Then Addendum A — the five-slot trading engine, stop monitor, kill-switch emergency policy and account-rule guard — and Addendum C, the survivorship-bias reconstruction, both built and tested end to end. Six more measurement defects found and fixed along the way.</p></div>
   </div>
 </section>
 
@@ -609,7 +606,7 @@ REPORTING            factory_report.py, fund_report.py, notify.py ─► Telegra
 <footer>
   <div class="wrap" style="padding:0">
     Stockbot2000 · 379 commits · 136 modules · 50 test files, all passing ·
-    1,039,345 evaluations · forward net −$49.59 across 23 funds ·
+    1,039,345 evaluations · real account +$2.46 net on 4 closed slot trades ·
     No figure on this page is a forecast, and none of it is investment advice.
   </div>
 </footer>
