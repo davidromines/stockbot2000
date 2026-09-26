@@ -103,6 +103,16 @@ N10, Stage L1 built.**
   xs_momentum +0.45%/mo, value_book +0.41, earnings_yield +0.40, quality_piotroski +0.34;
   **liquidity_premium -0.05 (t -0.3) and small_cap -0.01 are gone after publication**;
   profitability +0.08 ew (t 0.5) / +0.21 vw (t 2.1). Not yet used by the ranking (L4 = owner).
+- **Stage L2** `published_library.py`: all 153 JKP factors (paper, year, in-sample period via
+  JKP factor_details) -> 142 Research Library HYPOTHESIS entries; 10 adoption candidates at
+  post-publication t > 3 (fcf_me 4.43, f_score, sale_bev, niq_su, ret_9_1, ni_me, ni_inc8q,
+  ret_12_1, eqnetis_at, ppeinv_gr1a). **Stage L3** `factory_families_l.py`: momentum_12_1 /
+  momentum_9_1 (the published formation, unlike xs_momentum's 10-day roc) + fcf_to_price and
+  earnings_surprise specified as data-missing; 14 library entries linked to families.
+  Backtests: momentum_9_1 (4) -> PAPER, with dead companies +0.65..+0.94%/trade; momentum_12_1
+  (4) REJECTED (validation window -$630..-$780 over 5,000 trades). **Found:** value_metrics'
+  `fcf_yield` is operating cash flow / market cap (no capex) — JKP ocf_me, not free cash flow;
+  fcf_to_price (the strongest published survivor) needs capex projected to the daily panel.
 
 **Waiting on the owner (nothing below is live until these happen):**
 1. ~~Exit fix — merge `fix/strategy-exit-rebuy`~~ **MERGED 2026-09-26 by the owner.** (`git merge --no-ff fix/strategy-exit-rebuy`,
