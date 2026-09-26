@@ -82,7 +82,7 @@ in a new session for anything touching orders.
 reassesses slots 1-3 (Profitability hold=60 q=0.8, Value Book q=0.9, Value Book q=0.8).
 Built since the entries below: Telegram phone bot (`telegram_bot.py`, cron every minute);
 roadmap page / tracker v22 and `docs/ROADMAP_INTEGRATION.md` updated (K, L1-L3, M v5c, N2
-N5 N6 N10, O templates + O9); an independent-reviewer report (`docs/artifacts/review_report.html`).
+N5 N6 N10, O templates + O9); an independent-reviewer report (`docs/artifacts/review_report.html`, https://claude.ai/artifact/3YFiMwNxvpXk3ycNVi2PKt). Politician trades added to Stage O as a low-priority hypothesis (owner). **`git push` was blocked for Claude by auto mode — the owner pushes.**
 Still open: owner merge `n6/decision-quote`; L4; crypto slot cap then K7; N3/N4/N7/N9; O5-O13;
 Phase 6 report; FINSABER pickle import.
 
@@ -337,7 +337,7 @@ Planned only: Stage K (crypto slot; Robinhood crypto spread ~1.9% round trip),
 Stage L (published signals: Open Source Asset Pricing + Global Factor Data),
 Stage M (generator v5 from real failures: LoPucki bankruptcy DB, Q tickers,
 FINSABER pickle; literature targets -30%/-55% delisting, ~-28% post-filing
-drift). Roadmap page v16: https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo
+drift). Roadmap page (tracker) v22: https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo
 (source `docs/artifacts/roadmap_page.html`).
 
 **Owner decisions still open:** Stage L4 (published return as ranking prior),
