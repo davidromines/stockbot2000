@@ -204,6 +204,9 @@ run "[9h/10] Factory report" $PY factory_report.py
 # day, after every strategy's evidence is updated. SIMULATION: it records
 # assignments and releases; the intraday trader (services.sh) acts on them.
 run "[9i/10] Slot reassessment" $PY slots.py --apply --mode SIMULATION --leaderboard
+# Addendum D §12 (N5): HEALTHY / WATCH / DEGRADING / FAILED per strategy from its
+# paper record; appended only when a state changes. Observability — nothing trades on it.
+run "[9j/10] Strategy health" $PY strategy_health.py --run
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().
