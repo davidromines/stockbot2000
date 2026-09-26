@@ -130,60 +130,51 @@ def _evidence_row(r, years):
 
 
 def published_view(conn):
-    """Published survivorship-free evidence, split into families/candidates."""
+    """
+    Published survivorship-free evidence (Stage L), one row per family: long-leg excess
+    over the market after publication, equal- and value-weighted, beside the in-sample
+    ('pre') figure. published_evidence holds one row per (family, signal, weighting,
+    period); this pivots them. Families named "jkp:<signal>" are the full JKP catalogue
+    (candidates when post-publication t > 3); the rest are our own families.
+    """
     if not _table_exists(conn, "published_evidence"):
         return {"families": [], "candidates": []}
-
     years = _jkp_years(conn)
-    rows = _rows(
-        conn,
-        """
-        SELECT family, signal, mean_long, mean_mkt, mean_excess, tstat_excess,
-               mean_ls, computed_at
-        FROM published_evidence
-        """,
-    )
+    meta = {}
+    if _table_exists(conn, "published_signals"):
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(published_signals)")}
+        cl = "cluster" if "cluster" in cols else "NULL"
+        for r in _rows(conn, f"SELECT signal, description, {cl} AS cluster FROM published_signals "
+                             "WHERE source='jkp'"):
+            meta[_get(r, "signal")] = (_get(r, "description"), _get(r, "cluster"))
+    piv = {}
+    for r in _rows(conn, "SELECT family, signal, weighting, period, mean_excess, tstat_excess "
+                         "FROM published_evidence"):
+        fam = _get(r, "family") or ""
+        d = piv.setdefault(fam, {"family": fam, "signal": _get(r, "signal"),
+                                 "year": years.get(_get(r, "signal")),
+                                 "post_ew_excess": None, "post_ew_t": None, "post_vw_excess": None,
+                                 "post_vw_t": None, "pre_ew_excess": None})
+        w, per = _get(r, "weighting"), _get(r, "period")
+        if per == "post" and w == "ew":
+            d["post_ew_excess"], d["post_ew_t"] = _get(r, "mean_excess"), _get(r, "tstat_excess")
+        elif per == "post" and w == "vw_cap":
+            d["post_vw_excess"], d["post_vw_t"] = _get(r, "mean_excess"), _get(r, "tstat_excess")
+        elif per == "pre" and w == "ew":
+            d["pre_ew_excess"] = _get(r, "mean_excess")
 
-    families = []
-    candidates = []
-    for r in rows:
-        family = _get(r, "family") or ""
-        if family.startswith("jkp:"):
-            ew_t = _get(r, "tstat_excess")
-            vw_t = _get(r, "tstat_excess")
-            if not ((ew_t is not None and ew_t > _T_CUTOFF)
-                    or (vw_t is not None and vw_t > _T_CUTOFF)):
-                continue
-            entry = _evidence_row(r, years)
-            entry["name"] = None
-            entry["cluster"] = None
-            candidates.append(entry)
-        else:
-            families.append(_evidence_row(r, years))
-
-    families.sort(key=lambda d: (d["post_ew_t"] is None, -(d["post_ew_t"] or 0.0)))
-
-    def _best_t(d):
+    def best_t(d):
         return max(d["post_ew_t"] or 0.0, d["post_vw_t"] or 0.0)
 
-    candidates.sort(key=_best_t, reverse=True)
-    candidates = candidates[:_MAX_CANDIDATES]
-
-    # Enrich candidates with the catalogue description/cluster where present.
-    if candidates and _table_exists(conn, "published_signals"):
-        meta = {}
-        for r in _rows(
-            conn,
-            "SELECT signal, description, cluster FROM published_signals",
-        ):
-            meta[_get(r, "signal")] = (_get(r, "description"), _get(r, "cluster"))
-        for c in candidates:
-            desc, cluster = meta.get(c["signal"], (None, None))
-            c["name"] = desc
-            c["cluster"] = cluster
-
-    return {"families": families, "candidates": candidates}
-
+    families = sorted((d for f, d in piv.items() if not f.startswith("jkp:")),
+                      key=lambda d: (d["post_ew_t"] is None, -(d["post_ew_t"] or 0.0)))
+    candidates = []
+    for f, d in piv.items():
+        if f.startswith("jkp:") and best_t(d) > _T_CUTOFF:
+            name, cluster = meta.get(d["signal"], (None, None))
+            candidates.append({**d, "name": name, "cluster": cluster})
+    candidates.sort(key=best_t, reverse=True)
+    return {"families": families, "candidates": candidates[:_MAX_CANDIDATES]}
 
 def knowledge_view(conn):
     """Knowledge Factory translation state, links and library status."""

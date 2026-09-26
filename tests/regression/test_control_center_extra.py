@@ -100,13 +100,13 @@ def _published_db():
         "VALUES ('jkp', 'mom', 1993, 'Momentum', 'price')")
     conn.execute(
         "INSERT INTO published_evidence VALUES "
-        "('value_book', 'bm', 'ew', '1963-1990', 336, 0.5, 0.1, 0.4, 4.2, 0.3, 'now')")
+        "('value_book', 'bm', 'ew', 'post', 336, 0.5, 0.1, 0.4, 4.2, 0.3, 'now')")
     conn.execute(
         "INSERT INTO published_evidence VALUES "
-        "('jkp:mom', 'mom', 'ew', '1963-1990', 336, 0.6, 0.1, 0.5, 3.5, 0.4, 'now')")
+        "('jkp:mom', 'mom', 'ew', 'post', 336, 0.6, 0.1, 0.5, 3.5, 0.4, 'now')")
     conn.execute(
         "INSERT INTO published_evidence VALUES "
-        "('jkp:weak', 'weak', 'ew', '1963-1990', 336, 0.1, 0.1, 0.0, 1.2, 0.0, 'now')")
+        "('jkp:weak', 'weak', 'ew', 'post', 336, 0.1, 0.1, 0.0, 1.2, 0.0, 'now')")
     conn.commit()
     return conn
 
@@ -114,6 +114,9 @@ def _published_db():
 def test_published():
     conn = _published_db()
     view = cce.published_view(conn)
+    vb = [f for f in view["families"] if f["family"] == "value_book"]
+    check("published: post-publication t used, not the all-period row",
+          len(vb) == 1 and abs(vb[0]["post_ew_t"] - 4.2) < 1e-9, vb)
     fams = view["families"]
     cands = view["candidates"]
     check("published: jkp rows excluded from families",

@@ -500,6 +500,16 @@ def health(c, cfg, plan_error):
 
 # --- the snapshot -----------------------------------------------------------------------------
 
+def _extra(c) -> dict:
+    """Strategy health (N5), published evidence (Stage L), Knowledge Factory (O9). Never
+    breaks the page: a failure here shows as an empty panel with the error."""
+    try:
+        import control_center_extra
+        return control_center_extra.all_views(c)
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 def snapshot(cfg=None) -> dict:
     from universe import load_config
     cfg = cfg or load_config()
@@ -516,6 +526,7 @@ def snapshot(cfg=None) -> dict:
             "paper": paper_book(c, plan), "research": research_book(c, plan),
             "slots": slot_rows, "leaderboard": board, "replacements": replacements(c, plan, board),
             "replacement_history": replacement_history(c), "feed": feed(c), "health": health(c, cfg, plan_error),
+            "extra": _extra(c),
         }
     finally:
         c.close()

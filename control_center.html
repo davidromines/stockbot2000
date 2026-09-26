@@ -127,6 +127,20 @@
 
 <h2>Research activity</h2>
 <div class="card scroll" id="res"></div>
+
+<div class="grid two">
+  <div>
+    <h2>Strategy health — paper record vs its own backtest</h2>
+    <div class="card scroll" id="shealth"></div>
+  </div>
+  <div>
+    <h2>Knowledge Factory</h2>
+    <div class="card" id="know"></div>
+  </div>
+</div>
+
+<h2>Published evidence — survivorship-free (JKP, dead companies included), after publication</h2>
+<div class="card scroll" id="pub"></div>
 </div>
 
 <script>
@@ -262,6 +276,40 @@ function render(s) {
     "<table><tr><th>When</th><th>Strategy</th><th>Decision</th><th>To state</th><th>Reason</th></tr>" +
     r.recent_decisions.map(d => `<tr><td class="mono">${t(d.at)}</td><td>${esc(d.strategy_key)} v${d.version}</td>
       <td>${esc(d.decision)}</td><td>${esc(d.to_state)}</td><td class="muted">${esc((d.reason || "").slice(0, 160))}</td></tr>`).join("") + "</table>";
+  renderExtra(s.extra || {});
+}
+
+function renderExtra(x) {
+  if (x.error) { ["shealth", "know", "pub"].forEach(id => $(id).innerHTML = `<p class="meta">${esc(x.error)}</p>`); return; }
+  const hv = x.health || {counts: {}, flagged: []}, sc = hv.counts || {};
+  const stc = st => st === "FAILED" ? "neg" : st === "DEGRADING" ? "neg" : st === "WATCH" ? "warn" : "pos";
+  $("shealth").innerHTML = kv(["HEALTHY", "WATCH", "DEGRADING", "FAILED"].map(k => [k, sc[k] || 0, stc(k)])) +
+    (hv.flagged.length ? "<table><tr><th>State</th><th>Strategy</th><th>Why</th><th>Since</th></tr>" +
+      hv.flagged.map(f => `<tr><td class="${stc(f.state)}">${esc(f.state)}</td><td>${esc(f.name)}</td>
+        <td class="muted">${esc(f.reason)}</td><td class="mono">${t(f.since)}</td></tr>`).join("") + "</table>"
+      : '<p class="meta">every measured strategy within expectations</p>');
+  const kn = x.knowledge || {}, st = kn.by_state || {}, lib = kn.library || {};
+  $("know").innerHTML = kv([["Library entries (documented strategies)", kn.entries ?? "—"],
+    ["Linked to a strategy family", kn.linked ?? "—"],
+    ["Not testable on our data", st.DATA_UNAVAILABLE ?? 0],
+    ["Source-derived variants", st.SOURCE_DERIVED_VARIANT ?? 0],
+    ["Needs a template", st.NEEDS_TEMPLATE ?? 0],
+    ["Untranslated (titles only)", st.UNTRANSLATED ?? 0],
+    ["Research library: hypotheses", lib.HYPOTHESIS ?? 0],
+    ["Research library: refuted", lib.REFUTED ?? 0, "neg"],
+    ["Research library: supported", lib.SUPPORTED ?? 0, "pos"],
+    ["Published factors in the library", kn.published_entries ?? 0]]);
+  const pv = x.published || {families: [], candidates: []};
+  const tc = v => v == null ? "" : v > 3 ? "pos" : v > 2 ? "" : "neg";
+  const row = (a, b, f) => `<tr><td>${a}</td><td class="muted">${esc(b)}</td><td>${f.year ?? "—"}</td>
+    <td class="n mono ${cls(f.post_ew_excess)}">${pct(f.post_ew_excess)}</td><td class="n mono ${tc(f.post_ew_t)}">${f.post_ew_t == null ? "—" : f.post_ew_t.toFixed(2)}</td>
+    <td class="n mono ${cls(f.post_vw_excess)}">${pct(f.post_vw_excess)}</td><td class="n mono ${tc(f.post_vw_t)}">${f.post_vw_t == null ? "—" : f.post_vw_t.toFixed(2)}</td>
+    <td class="n mono muted">${pct(f.pre_ew_excess)}</td></tr>`;
+  const head = "<tr><th>Family</th><th>Signal</th><th>Published</th><th>EW / month</th><th>t</th><th>VW / month</th><th>t</th><th>In-sample EW</th></tr>";
+  $("pub").innerHTML = "<table>" + head + pv.families.map(f => row(esc(f.family), f.signal, f)).join("") + "</table>" +
+    '<h3 style="margin-top:14px">Published factors that survived publication (t &gt; 3) — candidates</h3><table>' + head +
+    pv.candidates.map(f => row(esc(f.name || f.signal), f.cluster || "", f)).join("") + "</table>" +
+    '<p class="meta">Long tercile minus the market, per month, before costs. Portfolio evidence, not a forecast for a single $20 position.</p>';
 }
 
 document.querySelectorAll(".tabs button").forEach(b => {
