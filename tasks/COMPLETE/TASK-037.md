@@ -2,7 +2,7 @@
 
 - component: reporting
 - priority: high
-- state: TODO
+- state: COMPLETE
 - branch: ado/task-037
 - created: 2026-09-26T05:10:00+00:00
 - dependencies: none
