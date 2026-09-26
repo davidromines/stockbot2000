@@ -44,12 +44,15 @@ while true; do
     # Phase 6 section 1. A frozen search is a deliberate research decision, not
     # a fault, so this exits cleanly rather than looping on a sleep — and the
     # watchdog is written to leave a cleanly-exited frozen loop alone.
-    MODE=$($PY -c "from universe import load_config; print((load_config().get('search') or {}).get('mode','ACTIVE'))" 2>/dev/null || echo ACTIVE)
-    if [ "$MODE" = "FROZEN" ]; then
-        echo "=== $(date '+%F %T') : search.mode=FROZEN, not starting a new search ==="
-        echo "    Set search.mode: ACTIVE in config.yaml to resume."
-        break
-    fi
+    # Owner, 2026-09-26: FROZEN stops the loop; otherwise search_gate.py decides
+    # whether a run may start now (daily budget, never in or into the daily job or
+    # market hours). The watchdog leaves a cleanly stopped loop alone.
+    GATE=$($PY search_gate.py 2>/dev/null || echo "WAIT gate error")
+    case "$GATE" in
+        STOP*) echo "=== $(date '+%F %T') : $GATE ==="; break ;;
+        WAIT*) sleep 600; continue ;;
+    esac
+    read -r _ GENS POP NPAPER <<< "$GATE"
     i=$((i+1))
     SEED=$(( (RANDOM << 15 | RANDOM) % 900000 + 1000 ))
     STAMP=$(date '+%F %T')
@@ -59,7 +62,8 @@ while true; do
     # is the one that must not be missed - it is the only record of delistings.
     while pgrep -f "[d]aily.sh" >/dev/null; do sleep 120; done
 
-    if ! $PY evolve.py --seeds --generations 50 --population 300 --seed "$SEED" \
+    # Seed-free (owner, 2026-09-26): no hand-written strategies in the population.
+    if ! $PY evolve.py --generations "$GENS" --population "$POP" --seed "$SEED" \
             >> logs/lab_loop_evolve.log 2>&1; then
         echo "  evolve failed, continuing"; sleep 60; continue
     fi
@@ -73,6 +77,8 @@ print(c.execute('SELECT run_id FROM lab_runs ORDER BY started_at DESC LIMIT 1').
 
     $PY promote.py --shortlist "$RID" >> logs/lab_loop_ladder.log 2>&1
     $PY promote.py --validate  "$RID" >> logs/lab_loop_ladder.log 2>&1
+    # Winners go to paper only; ranking.py scores them on their paper record alone.
+    $PY paper_trading.py --promote --run-id "$RID" --limit "$NPAPER" >> logs/lab_loop_ladder.log 2>&1
 
     # One line per iteration: what it found, and the cumulative trial count that
     # any deflated-Sharpe claim has to be measured against.
