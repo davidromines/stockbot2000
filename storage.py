@@ -707,7 +707,7 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
 FUNDAMENTAL_PANEL_COLS = ("piotroski_f", "book_to_market", "gross_profitability",
                           "chs_distress", "asset_growth", "accruals", "roa",
                           "earnings_yield", "net_share_issuance", "debt_to_equity",
-                          "cash_to_assets", "altman_z")
+                          "cash_to_assets", "altman_z", "fcf_to_price")
 
 
 def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",

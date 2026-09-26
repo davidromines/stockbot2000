@@ -65,6 +65,7 @@ FUNDAMENTAL_COLS = [
     "debt_to_equity",
     "cash_to_assets",
     "altman_z",             # 83%. Famous; kept for comparison with CHS.
+    "fcf_to_price",         # Free cash flow to price (JKP fcf_me); None where capex is untagged.
 ]
 
 
