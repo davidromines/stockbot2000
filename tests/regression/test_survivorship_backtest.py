@@ -92,12 +92,23 @@ def main():
     conn.execute("CREATE TABLE symbols (ticker TEXT, security_type TEXT, data_quality TEXT)")
     conn.execute("INSERT INTO symbols VALUES ('REAL','common_stock',NULL)")
 
+    import synthetic_volume as svol
+    svol._CACHE["p"] = None                     # no volume model: volume stays unknown
     rows, exits = sb.synthetic_frames(conn, CFG, WINDOW, "as_is")
     tick = set(rows["ticker"])
     check("synthetic rows trade as SYN:<company_id>, never a real ticker", tick == {"SYN:C1", "SYN:C2"}, tick)
     check("volume indicators unknown (NaN), liquidity at the floor",
           rows[list(sb.VOLUME_COLS)].isna().all().all() and (rows["dollar_volume_20"] == 1e6).all())
     check("indicators computed (sma_200, rsi_14 present)", rows[["sma_200", "rsi_14"]].notna().all().all())
+    # With a volume model (synthetic_volume.py) volume is modelled and the liquidity floor applies.
+    m = {"c0": 7.0, "c1": 0.0, "sd_u": 0.0, "u": [0.0], "b": 0.5, "phi": 0.5, "innov": 0.05}
+    svol._CACHE["p"] = {"failure": m, "other": m}
+    vrows, _ = sb.synthetic_frames(conn, CFG, WINDOW, "as_is")
+    check("with a volume model: volume indicators and liquidity are measured",
+          len(vrows) and vrows[["vol_ratio", "log_dollar_volume"]].notna().all().all(), len(vrows))
+    check("with a volume model: every synthetic row clears the liquidity floor",
+          len(vrows) and (vrows["dollar_volume_20"] >= 1e6).all())
+    svol._CACHE["p"] = None
     check("only in-window rows above the price floor",
           rows["date"].min() >= pd.Timestamp(WINDOW[0]) and (rows["close"] >= 5.0).all())
     _, zex = sb.synthetic_frames(conn, CFG, WINDOW, "zero")

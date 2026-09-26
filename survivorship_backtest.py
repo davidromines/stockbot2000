@@ -96,12 +96,31 @@ def init(conn) -> None:
     conn.commit()
 
 
-def generator() -> str | None:
-    """Which synthetic build a result used: file name and size, so a rebuild recomputes."""
+def synth_id() -> str | None:
+    """The synthetic price build: file name and size."""
     import universe_loader as ul
     if not os.path.exists(ul.SYNTH):
         return None
     return f"{os.path.basename(ul.SYNTH)}:{os.path.getsize(ul.SYNTH)}"
+
+
+def generator() -> str | None:
+    """
+    Which synthetic data a result used — prices, plus the dead companies' fundamentals
+    and volume model where built — so rebuilding any of them recomputes.
+    """
+    sid = synth_id()
+    if sid is None:
+        return None
+    import hashlib
+    import synthetic_fundamentals as sfund
+    import synthetic_volume as svol
+    extra = ""
+    if sfund.OUT.exists():
+        extra += f"|fund:{os.path.getsize(sfund.OUT)}"
+    if svol.PARAMS.exists():
+        extra += "|vol:" + hashlib.sha1(svol.PARAMS.read_bytes()).hexdigest()[:8]
+    return sid + extra
 
 
 def window_of(cfg) -> tuple:
@@ -110,7 +129,7 @@ def window_of(cfg) -> tuple:
 
 # --- the synthetic panel ------------------------------------------------------------
 
-def synthetic_frames(conn, cfg, window, mode: str) -> tuple:
+def synthetic_frames(conn, cfg, window, mode: str, fundamentals: bool = False) -> tuple:
     """
     (panel rows, exit prices) for the synthetic companies in `window` under `mode`,
     shaped like storage.load_training_frame(include_liquidity, include_open).
@@ -127,8 +146,18 @@ def synthetic_frames(conn, cfg, window, mode: str) -> tuple:
     syn = syn.assign(ticker=PREFIX + syn["company_id"].astype(str),
                      date=pd.to_datetime(syn["date"]))
     floor = float(cfg["risk"].get("min_dollar_volume") or 1e6)
+    import synthetic_volume as svol
+    vp = svol.params()
     parts = []
     for _, g in syn.groupby("ticker", sort=False):
+        g = g.copy()
+        if vp:
+            # Volume from the model fitted on real dead companies (synthetic_volume.py),
+            # deterministic per company: liquidity rules and volume indicators can now
+            # meet dead companies, and the $1M/day floor applies to them as to real ones.
+            cid = str(g["company_id"].iloc[0])
+            g["volume"] = svol.volume(g["close"].to_numpy(), vp[svol.kind_of(g["cohort_id"].iloc[0])],
+                                      svol._seed(cid))
         f = features.compute_features_for_ticker(g[["ticker", "date", "open", "high", "low", "close", "volume"]]
                                                  .copy(), min_rows=MIN_SYNTH_ROWS)
         if not f.empty:
@@ -136,22 +165,39 @@ def synthetic_frames(conn, cfg, window, mode: str) -> tuple:
     if not parts:
         return pd.DataFrame(), pd.DataFrame()
     f = pd.concat(parts, ignore_index=True)
-    for c in VOLUME_COLS:
-        f[c] = np.nan                              # volume is unknown, not zero
-    f["dollar_volume_20"] = floor                  # stated assumption: at the floor
-    # Volume is unknown, so liquidity is unknown too. A constant here tied every
-    # synthetic company at the bottom of the liquidity rank (avg rank ~0.2): a
-    # "least liquid 10%" rule could never buy one and a "20%" rule bought only them
-    # (Stage O liquidity_premium, 2026-09-26). NaN keeps liquidity rules off
-    # synthetic rows; dollar_volume_20 stays at the floor for the cost model.
-    f["log_dollar_volume"] = np.nan
+    if not vp:
+        # No volume model: volume and liquidity stay unknown. A constant liquidity tied
+        # every synthetic company at the bottom of the liquidity rank (Stage O, 09-26),
+        # so liquidity is NaN; dollar_volume_20 stays at the floor for the cost model.
+        for c in VOLUME_COLS:
+            f[c] = np.nan
+        f["dollar_volume_20"] = floor
+        f["log_dollar_volume"] = np.nan
     exits = f[["ticker", "date", "close", "open"]].copy()
     inwin = (f["date"] >= pd.Timestamp(window[0])) & (f["date"] <= pd.Timestamp(window[1]))
     min_price = float(cfg["risk"].get("min_price") or 0)
-    need = [c for c in FEATURE_COLS if c not in VOLUME_COLS and c != "log_dollar_volume"]
+    need = ([c for c in FEATURE_COLS] if vp else
+            [c for c in FEATURE_COLS if c not in VOLUME_COLS and c != "log_dollar_volume"])
     rows = f[inwin & (f["close"] >= min_price)].dropna(subset=need)
+    if vp:
+        rows = rows[rows["dollar_volume_20"] >= floor]          # the real panel's liquidity floor
     keep = ["ticker", "date", "close", "open", *FEATURE_COLS, "dollar_volume_20"]
     rows = rows[keep].copy()
+    if fundamentals:
+        # The dead companies' own filings, priced point-in-time (synthetic_fundamentals.py).
+        # Without them no fundamental screen could ever buy a synthetic company.
+        import storage
+        import synthetic_fundamentals as sfund
+        fd = sfund.load(synth_id())
+        cols = list(storage.FUNDAMENTAL_PANEL_COLS)
+        if fd is not None and not fd.empty:
+            fd = fd[["company_id", "date", *cols]].copy()
+            fd["ticker"] = PREFIX + fd["company_id"].astype(str)
+            fd["date"] = pd.to_datetime(fd["date"])
+            rows = rows.merge(fd.drop(columns="company_id"), on=["ticker", "date"], how="left")
+        else:
+            for c in cols:
+                rows[c] = np.nan
     for c in FEATURE_COLS + ["close", "open"]:
         rows[c] = rows[c].astype("float32")
     return rows, exits
@@ -242,7 +288,7 @@ def run(conn, cfg, only: list | None = None) -> dict:
             if mode == "exclude":
                 df, ex = real, real_ex
             else:
-                srows, sex = synthetic_frames(conn, cfg, window, mode)
+                srows, sex = synthetic_frames(conn, cfg, window, mode, fundamentals=fund)
                 df, ex = _combine(real, srows), _combine(real_ex, sex)
             panel = simulator.Panel(df, exit_prices=ex)
             dd = bias.drawdown_column(panel.df)
