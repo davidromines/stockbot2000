@@ -1073,6 +1073,7 @@ is frozen and cannot unfreeze itself. O12 is therefore built on the governed
 | O3/O4 first pass | done | of 144 with rule descriptions: 69 not testable on our data, 55 linked to existing families as SOURCE_DERIVED_VARIANT (457 links), 20 need new templates |
 | templates | done 2026-09-26 | `factory_families_o.py` — 10 families (calendar via `trading_calendar.py`, exact to SPY's 8,237 sessions; size; 12-month cycle; R&D; ROA; short interest; liquidity; pairs); explicit mappings leave 0 NEEDS_TEMPLATE |
 | O9 | done 2026-09-26 | Knowledge Factory panel in the Control Center (`control_center_extra.py`) |
+| O-pol | planned, LOW priority (owner, 2026-09-26) | Politician trades (Quiver-style congressional disclosures) as a knowledge hypothesis: source = Robinhood MCP `get_politician_trades`; point-in-time on the DISCLOSURE date, never the trade date (up to 45 days later under the STOCK Act); published evidence is weak since the 2012 STOCK Act, so it enters as HYPOTHESIS and must pass the same backtest -> paper -> ranking path. First check how much history the tool returns |
 | next | — | rule extraction for the 3,803 titles; O5-O8, O10-O13 |
 
 Source statistics worth keeping (Papers With Backtest's own replication record,
