@@ -104,6 +104,16 @@ survivorship and rank on survivors-only numbers. Snapshots: `data/universe/ranki
    of five slots. Options: score by excess over the null, per holding day, or cap crypto
    at one slot.
 4. ~~Synthetic failures (Stage M)~~ **decided 2026-09-26: real failures are the reference (v5c).**
+6. **Stage O (09-26):** 10 Knowledge-Library families added (factory_families_o.py,
+   trading_calendar.py — matches SPY's 8,237 sessions exactly; genome reads cal_* columns);
+   0 library entries still need a template. 28 new objects backtested: calendar effects
+   (turn of month, pre-holiday, payday, 12-month seasonality) all REJECTED (net per trade
+   -0.03%..+0.21%); **january_illiquid (4) and liquidity_premium (8) reached PAPER** at
+   +1.1..+2.4%/trade SURVIVORS ONLY. Their dead-company test is NOT MEASURABLE: synthetic
+   companies have no volume (log_dollar_volume now NaN on synthetic rows; it used to be a
+   tied constant that produced artifact results, since fixed). The ranking now labels such
+   strategies "survivors only (dead companies not measurable)". They trade the least liquid
+   names, where survivorship bias is worst — same open decision as item 5.
 5. **Fundamental screens are untested against survivorship** (see the update above): decide
    whether they get a haircut (e.g. the measured +4.0 pp/yr residual gap to CRSP) before they
    hold slots on Monday.

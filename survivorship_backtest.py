@@ -139,11 +139,16 @@ def synthetic_frames(conn, cfg, window, mode: str) -> tuple:
     for c in VOLUME_COLS:
         f[c] = np.nan                              # volume is unknown, not zero
     f["dollar_volume_20"] = floor                  # stated assumption: at the floor
-    f["log_dollar_volume"] = np.log10(floor)
+    # Volume is unknown, so liquidity is unknown too. A constant here tied every
+    # synthetic company at the bottom of the liquidity rank (avg rank ~0.2): a
+    # "least liquid 10%" rule could never buy one and a "20%" rule bought only them
+    # (Stage O liquidity_premium, 2026-09-26). NaN keeps liquidity rules off
+    # synthetic rows; dollar_volume_20 stays at the floor for the cost model.
+    f["log_dollar_volume"] = np.nan
     exits = f[["ticker", "date", "close", "open"]].copy()
     inwin = (f["date"] >= pd.Timestamp(window[0])) & (f["date"] <= pd.Timestamp(window[1]))
     min_price = float(cfg["risk"].get("min_price") or 0)
-    need = [c for c in FEATURE_COLS if c not in VOLUME_COLS]
+    need = [c for c in FEATURE_COLS if c not in VOLUME_COLS and c != "log_dollar_volume"]
     rows = f[inwin & (f["close"] >= min_price)].dropna(subset=need)
     keep = ["ticker", "date", "close", "open", *FEATURE_COLS, "dollar_volume_20"]
     rows = rows[keep].copy()

@@ -202,7 +202,9 @@ def rank(conn, cfg: dict) -> list:
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,
                     "family": leagues.family_of(conn, key, ver), "league": leagues.league_of(conn, cfg, key, ver),
                     "backtest": bt, "forward": fw, "forward_trades": n,
-                    "backtest_source": "with dead companies" if sv else ("survivors only" if bt is not None else None),
+                    "backtest_source": (("with dead companies" if sv.get("synthetic_trades") else
+                                         "survivors only (dead companies not measurable)") if sv
+                                        else ("survivors only" if bt is not None else None)),
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
                     "synthetic_trades": sv.get("synthetic_trades"),
                     "score": score(bt, fw, n, s), "passes_gate": ok, "gate": why,
