@@ -86,6 +86,24 @@ name — synthetic companies have no fundamentals, so their backtests are untest
 survivorship and rank on survivors-only numbers. Snapshots: `data/universe/ranking_before_v5c.json`,
 `ranking_after_v5c.json`. Revert = restore the backup parquet and set the three v5 settings back.
 
+**UPDATE 2026-09-26 ~06:00 UTC — dead companies now have fundamentals and volume; N2, N5,
+N10, Stage L1 built.**
+- `synthetic_fundamentals.py` (dead companies' own SEC filings through value_metrics, 4,093
+  companies) and `synthetic_volume.py` (volume model fitted on 228 real dead companies,
+  held-out within ~2x): all 72 fundamental/liquidity strategies now meet dead companies.
+  Value Book +3.58 -> +2.69%/trade, Profitability +3.43 -> +2.79, Earnings Yield +3.08 ->
+  +2.36; 13 volume-momentum strategies OUT. Monday's slots 1-3: Profitability, Value Book
+  q=0.9, Value Book q=0.8. Residual: dead companies' book-to-market still reads low (0.348 vs
+  0.417 real) where no filed price exists.
+- N2 `tests/regression/test_live_paths.py`; N5 `strategy_health.py` (daily.sh [9j]; slot 4
+  and slot 5 holders on WATCH); N10 `eod_report.py` (cron 21:10 UTC weekdays, --send).
+- **Stage L1** `published_signals.py`: JKP Global Factor Data (US, 153 factors, CRSP, dead
+  included) + OSAP SignalDoc (OSAP's Google Drive is quota-blocked for this VM; SignalDoc came
+  from its GitHub). Post-publication long-leg excess, equal-weighted: survive at t > 3 —
+  xs_momentum +0.45%/mo, value_book +0.41, earnings_yield +0.40, quality_piotroski +0.34;
+  **liquidity_premium -0.05 (t -0.3) and small_cap -0.01 are gone after publication**;
+  profitability +0.08 ew (t 0.5) / +0.21 vw (t 2.1). Not yet used by the ranking (L4 = owner).
+
 **Waiting on the owner (nothing below is live until these happen):**
 1. ~~Exit fix — merge `fix/strategy-exit-rebuy`~~ **MERGED 2026-09-26 by the owner.** (`git merge --no-ff fix/strategy-exit-rebuy`,
    outside market hours). 09-25 13:34 UTC the first LIVE run sold all four slots on
