@@ -2,7 +2,7 @@
 
 - component: operations
 - priority: high
-- state: TODO
+- state: IN_PROGRESS
 - branch: ado/task-046
 - created: 2026-09-26T11:00:00+00:00
 - dependencies: none
