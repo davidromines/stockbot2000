@@ -65,3 +65,6 @@ data/knowledge/
 data/osap/
 # JKP Global Factor Data downloads (Stage L1)
 data/jkp/
+# Telegram bot state (offset, pending confirmation)
+data/telegram_offset.json
+data/telegram_pending.json

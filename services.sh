@@ -44,11 +44,14 @@ LINE_SPREAD="17 * * * * cd $DIR && ./venv/bin/python crypto_costs.py --log >> $D
 LINE_CRYPTO="41 * * * * cd $DIR && ./venv/bin/python crypto_slot_trader.py --auto --mode LIVE >> $DIR/logs/crypto_slot_trader.log 2>&1"
 # Addendum D §16 (N10): the end-of-day report to the owner's alert channels, after the close.
 LINE_EOD="10 21 * * 1-5 cd $DIR && ./venv/bin/python eod_report.py --mode LIVE --send >> $DIR/logs/eod_report.log 2>&1"
+# Owner-only Telegram commands (telegram_bot.py): a 55 s long-poll pass every minute,
+# flock so only one runs. Read-only status plus a confirmed /kill and /resume.
+LINE_TG="* * * * * cd $DIR && flock -n /tmp/stockbot2000_telegram.lock ./venv/bin/python telegram_bot.py --poll --seconds 55 >> $DIR/logs/telegram_bot.log 2>&1"
 TAG="slot_trader.py --auto"
 TAG_CC="monitor.py --serve"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD" "$LINE_TG"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;
