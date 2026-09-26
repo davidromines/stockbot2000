@@ -2,7 +2,7 @@
 
 - component: tests
 - priority: high
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-036
 - created: 2026-09-26T04:30:00+00:00
 - dependencies: none
