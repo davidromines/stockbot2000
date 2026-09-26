@@ -113,6 +113,16 @@ N10, Stage L1 built.**
   (4) REJECTED (validation window -$630..-$780 over 5,000 trades). **Found:** value_metrics'
   `fcf_yield` is operating cash flow / market cap (no capex) — JKP ocf_me, not free cash flow;
   fcf_to_price (the strongest published survivor) needs capex projected to the daily panel.
+  **Done 09-26:** value_metrics.fcf_to_price = (OCF - capex) / mcap (fcf_yield left as is),
+  on the daily panel and in the dead companies' fundamentals (full rebuild). 9 variants to
+  PAPER: survivors +1.1..+2.3%/trade, **with dead companies +1.3..+2.2%, worst case still
+  +0.6..+1.35%** (the only family positive in the worst case). Ranks just below Monday's picks.
+- **N6** `live_feedback.py` (expected vs actual per live trade). **Branch `n6/decision-quote`
+  (owner merge):** execution.py stores the decision-time quote on each order
+  (orders.quote_price / quote_at) so buys get real slippage; without it, a buy has no quote.
+- Control Center data views `control_center_extra.py` (health, published, knowledge) built,
+  NOT yet wired into the page; its published view returns all-period rows (t ~7.7) — filter
+  to period 'post' when wiring.
 
 **Waiting on the owner (nothing below is live until these happen):**
 1. ~~Exit fix — merge `fix/strategy-exit-rebuy`~~ **MERGED 2026-09-26 by the owner.** (`git merge --no-ff fix/strategy-exit-rebuy`,
