@@ -298,6 +298,18 @@ search:
     1.03M trials have created a severe multiple-testing burden. Additional
     search on the same data currently adds less information than independent
     forward observation and data-quality improvement.
+  # Owner, 2026-09-26: restart the search under three rules — seed-free (lab_loop
+  # no longer passes --seeds; seed_mode above stays NONE), winners go to paper
+  # only and score on paper alone (ranking.from_search), and a small budget run
+  # only outside the daily job and market hours (search_gate.py). mode stays
+  # FROZEN until the owner sets ACTIVE.
+  schedule:
+    runs_per_day: 1          # ~15,000 trials a run at 50 x 300
+    generations: 50
+    population: 300
+    paper_per_run: 3         # distinct winners per run opened as paper funds
+    run_hours: 4.0           # start only if a run can finish before the next block
+    blocked_utc: [["06:45", "08:45"], ["12:30", "21:30"]]   # weekdays: daily job, market
 
 # Phase 6 section 8. A run whose data is staler than this FAILS rather than
 # reporting success. One session is the correct limit for a pre-market job: it
