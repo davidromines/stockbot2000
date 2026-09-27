@@ -101,12 +101,16 @@ def main():
 
     sc = C.composite_scores(df, ranks, w)
     check("composite_scores columns", list(sc.columns) == ["ticker", "date", "composite", "n_signals"])
-    thin = ranks.copy()
-    for c in list(C.SIGNALS)[2:]:
-        thin[c] = np.nan
-    sc2 = C.composite_scores(df, thin, w)
-    check("NaN composite when fewer than MIN_SIGNALS",
-          sc2["composite"].isna().all() and (sc2["n_signals"] < C.MIN_SIGNALS).all())
+    wmass = w.copy()
+    wmass.loc[:, :] = np.where(w.notna(), 0.0, np.nan)
+    wmass["book_to_market"] = np.where(w["book_to_market"].notna(), 0.4, np.nan)
+    wmass["sue"] = np.where(w["sue"].notna(), 0.6, np.nan)
+    only_bm = ranks.copy()
+    only_bm["sue"] = np.nan
+    sc2 = C.composite_scores(df, only_bm, wmass)
+    check("NaN composite when present signals carry < half the weight", sc2["composite"].isna().all())
+    both = C.composite_scores(df, ranks, wmass)
+    check("composite present when they carry >= half", both["composite"].notna().any())
 
     late = sc[sc["date"] >= sorted(sc["date"].unique())[len(sc["date"].unique()) // 2]].copy()
     late = late.merge(df[["ticker", "date", "fwd_ret"]], on=["ticker", "date"], how="left")

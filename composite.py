@@ -32,6 +32,11 @@ SIGNALS = {
 HORIZON = 20
 LOOKBACK = 252
 MIN_SIGNALS = 3
+# A composite needs signals carrying at least this share of the day's weight. A count
+# of signals is the wrong test: when only three signals have positive weight and
+# one of them is earnings surprise (present ~63 days after a filing), almost no
+# stock has all three and the composite goes blank (found on the first build).
+MIN_WEIGHT_SHARE = 0.5
 RIDGE = 0.5
 
 # An IC needs enough cross-sectional observations to mean anything; below this
@@ -114,7 +119,7 @@ def weights(ic, horizon=HORIZON, lookback=LOOKBACK, ridge=RIDGE):
             continue
         lo = max(0, hi - lookback + 1)
         block = vals[lo:hi + 1]
-        if block.shape[0] < MIN_WEIGHT_ROWS:
+        if np.isfinite(block).any(axis=1).sum() < MIN_WEIGHT_ROWS:
             continue
         mu = np.nanmean(block, axis=0)
         S = pd.DataFrame(block).cov(min_periods=20).to_numpy(dtype=float)
@@ -154,7 +159,7 @@ def composite_scores(df, ranks, w):
     wsum = np.where(use, wv, 0.0).sum(axis=1)
     num = np.where(use, wv * np.nan_to_num(rv), 0.0).sum(axis=1)
     with np.errstate(invalid="ignore", divide="ignore"):
-        comp = np.where((nsig >= MIN_SIGNALS) & (wsum > 0), num / wsum, np.nan)
+        comp = np.where(wsum >= MIN_WEIGHT_SHARE, num / wsum, np.nan)
     return pd.DataFrame({"ticker": df["ticker"].to_numpy(), "date": df["date"].to_numpy(),
                          "composite": comp, "n_signals": nsig.astype(int)})
 
@@ -183,7 +188,11 @@ def _load(conn, cfg, start, end, feature_cols, forward):
         min_price=cfg["risk"]["min_price"],
         min_dollar_volume=cfg["risk"]["min_dollar_volume"],
     )
+    if df.empty:
+        return df
     df = storage.attach_fundamentals(conn, df)
+    # The loader returns Timestamps; every table here keys on ISO date strings.
+    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
     df = add_momentum(df)
     if forward:
         df = add_forward(df)
@@ -228,10 +237,21 @@ def _store_ic(conn, ic, lo, hi):
 
 
 def _read_ic(conn):
+    """Stored ICs on the full session calendar (SPY's dates) through the newest price.
+
+    The newest `horizon` sessions have no IC yet (their forward return is still
+    open) but still need weights, or today's composite would be blank. Laying the
+    ICs on the session calendar keeps weights() counting sessions, not IC rows.
+    """
     df = pd.read_sql_query("SELECT date, signal, ic FROM composite_ic", conn)
     if df.empty:
         return pd.DataFrame(columns=list(SIGNALS))
-    return df.pivot(index="date", columns="signal", values="ic").sort_index()
+    ic = df.pivot(index="date", columns="signal", values="ic").sort_index()
+    cal = [r[0] for r in conn.execute(
+        "SELECT date FROM prices WHERE ticker='SPY' AND date >= ? ORDER BY date", (ic.index[0],))]
+    if cal:
+        ic = ic.reindex(sorted(set(cal) | set(ic.index)))
+    return ic.reindex(columns=list(SIGNALS))
 
 
 def _store_weights(conn, w):
