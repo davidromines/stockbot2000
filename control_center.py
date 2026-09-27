@@ -457,7 +457,8 @@ def health(c, cfg, plan_error):
     add("data: newest SPY bar", bool(bar), str(bar))
     add("ranking engine", plan_error is None, plan_error or f"recomputed every {PLAN_TTL}s")
     daily = _tail(ROOT / "logs/daily.log", r"Daily capture complete|WITH FAILURES|FAILED")
-    add("daily job (07:00 UTC)", "complete" in daily and "FAIL" not in daily, daily[:120] or "no run found")
+    import timefmt
+    add(f"daily job ({timefmt.pt_time(datetime.now(timezone.utc).replace(hour=7, minute=0, second=0, microsecond=0))})", "complete" in daily and "FAIL" not in daily, daily[:120] or "no run found")
     tok = Path.home() / ".config/stockbot2000/robinhood_oauth.json"
     add("Robinhood sign-in token", tok.exists(), "present" if tok.exists() else "missing — run robinhood_mcp.py --login")
     kill = (ROOT / "data/KILL_SWITCH").exists() or os.environ.get("TRADING_ENABLED", "true").lower() == "false"

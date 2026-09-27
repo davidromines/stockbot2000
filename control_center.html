@@ -149,9 +149,13 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;
 const usd = (v, sign) => v == null ? "—" : (sign && v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toFixed(2);
 const pct = v => v == null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(2) + "%";
 const cls = v => v == null ? "" : v > 0 ? "pos" : v < 0 ? "neg" : "";
-const t = iso => { if (!iso) return "—"; const d = new Date(iso);
-  return d.toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}); };
-const ago = iso => { if (!iso) return "never"; const m = (Date.now() - new Date(iso)) / 60000;
+// Owner, 2026-09-26: times read in Pacific (PDT/PST); stored times are UTC, and one
+// without a zone suffix is UTC too.
+const utc = iso => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : String(iso).replace(" ", "T") + "Z");
+const t = iso => { if (!iso) return "—"; const d = utc(iso);
+  return d.toLocaleString("en-US", {timeZone:"America/Los_Angeles", month:"short", day:"numeric",
+                                    hour:"2-digit", minute:"2-digit", timeZoneName:"short"}); };
+const ago = iso => { if (!iso) return "never"; const m = (Date.now() - utc(iso)) / 60000;
   return m < 1 ? "just now" : m < 60 ? Math.round(m) + " min ago" : m < 2880 ? (m/60).toFixed(1) + " h ago" : Math.round(m/1440) + " d ago"; };
 const kv = rows => '<div class="kv">' + rows.map(([k, v, c]) =>
   `<span>${esc(k)}</span><span class="mono ${c || ""}">${v}</span>`).join("") + "</div>";
@@ -167,7 +171,7 @@ function render(s) {
   $("market").className = "pill " + (h.market_open ? "ok" : "info");
   $("status").textContent = h.failures ? h.failures + " FAILING" : "ALL SYSTEMS OK";
   $("status").className = "pill " + (h.failures ? "fail" : "ok");
-  $("gen").textContent = "updated " + new Date(s.generated_at).toLocaleTimeString();
+  $("gen").textContent = "updated " + utc(s.generated_at).toLocaleTimeString("en-US", {timeZone:"America/Los_Angeles", timeZoneName:"short"});
 
   $("broker").innerHTML = `<h3 style="color:var(--live)">Broker account · Robinhood Agentic</h3>
     <div class="big mono">${usd(b.equity)}</div>` + kv([
