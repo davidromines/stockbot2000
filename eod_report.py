@@ -16,6 +16,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 from universe import load_config
+import timefmt
 
 SLOTS = (1, 2, 3, 4, 5)
 STALE_MINUTES = 30
@@ -515,7 +516,7 @@ def render(report):
         _emit(
             lines,
             "%s s%s %s %s %s @ %s"
-            % (t["time"], t["slot"], t["action"], t["symbol"], t["quantity"], _fmt(t["price"])),
+            % (timefmt.pt(t["time"]), t["slot"], t["action"], t["symbol"], t["quantity"], _fmt(t["price"])),
         )
         _emit(lines, "  %s" % t["reason"])
 
@@ -564,7 +565,7 @@ def render(report):
     for r in report["replacements"]:
         _emit(
             lines,
-            "%s s%s %s %s v%s" % (r["time"], r["slot"], r["action"], r["strategy_key"], r["version"]),
+            "%s s%s %s %s v%s" % (timefmt.pt(r["time"]), r["slot"], r["action"], r["strategy_key"], r["version"]),
         )
         _emit(lines, "  %s" % r["reason"])
 
@@ -578,18 +579,18 @@ def render(report):
     if not report["new_candidates"]:
         _emit(lines, "no data")
     for c in report["new_candidates"]:
-        _emit(lines, "%s %s v%s -> PAPER" % (c["time"], c["strategy_key"], c["version"]))
+        _emit(lines, "%s %s v%s -> PAPER" % (timefmt.pt(c["time"]), c["strategy_key"], c["version"]))
 
     head("failures", "FAILURES")
     f = report["failures"]
     if not (f["risk_rejections"] or f["system_events"] or f["bad_runs"]):
         _emit(lines, "no data")
     for r in f["risk_rejections"]:
-        _emit(lines, "risk %s %s %s" % (r["time"], r["symbol"], r["decision"]))
+        _emit(lines, "risk %s %s %s" % (timefmt.pt(r["time"]), r["symbol"], r["decision"]))
     for e in f["system_events"]:
-        _emit(lines, "%s %s %s" % (e["severity"], e["kind"], e["time"]))
+        _emit(lines, "%s %s %s" % (e["severity"], e["kind"], timefmt.pt(e["time"])))
     for b in f["bad_runs"]:
-        _emit(lines, "run %s %s" % (b["time"], b["outcome"]))
+        _emit(lines, "run %s %s" % (timefmt.pt(b["time"]), b["outcome"]))
 
     head("system_health", "SYSTEM HEALTH")
     if not report["system_health"]:
@@ -598,7 +599,7 @@ def render(report):
         _emit(
             lines,
             "%s %s %s recon %s stale %s"
-            % (mode, h["at"], h["outcome"], h["reconciled"], h["stale"]),
+            % (mode, timefmt.pt(h["at"]), h["outcome"], h["reconciled"], h["stale"]),
         )
 
     head("next_actions", "NEXT ACTIONS")

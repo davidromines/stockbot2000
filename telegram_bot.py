@@ -34,6 +34,7 @@ import killswitch
 import notify
 import slot_trader
 from universe import load_config
+import timefmt
 
 OFFSET_FILE = Path("data/telegram_offset.json")
 PENDING_FILE = Path("data/telegram_pending.json")
@@ -152,7 +153,7 @@ def _status(conn):
     else:
         lines.append(
             "last LIVE run %s outcome=%s positions=%s cash=%s"
-            % (row["at"], row["outcome"], row["positions"], row["cash"])
+            % (timefmt.pt(row["at"]), row["outcome"], row["positions"], row["cash"])
         )
     lines.extend(_positions(conn))
     return "\n".join(lines)
@@ -172,7 +173,7 @@ def _health(conn):
             age = (_utcnow() - datetime.fromisoformat(row["at"])).total_seconds() / 60.0
             lines.append("newest trader run %.1f minutes old" % age)
         except ValueError:
-            lines.append("newest trader run at %s" % row["at"])
+            lines.append("newest trader run at %s" % timefmt.pt(row["at"]))
     return "\n".join(lines)
 
 
