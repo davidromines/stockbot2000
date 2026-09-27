@@ -93,14 +93,19 @@ def survivorship(conn, key: str, version: int) -> dict:
     """The dead-companies-included backtest, the worst case and the exposure, where computed."""
     try:
         import survivorship_backtest as sb
-        s, w = sb.result(conn, key, version, sb.SCORE_MODE), sb.result(conn, key, version, sb.WORST_MODE)
+        s = sb.result(conn, key, version, sb.SCORE_MODE, stale_ok=True)
+        w = sb.result(conn, key, version, sb.WORST_MODE, stale_ok=True)
     except Exception as e:                                       # noqa: BLE001
         log.warning(f"survivorship backtest unavailable for {key}: {type(e).__name__}: {e}")
         return {}
     if not s or not s.get("trades"):
         return {}
+    if s.get("stale"):
+        log.warning(f"{key} v{version}: dead-company backtest is from an earlier synthetic build — "
+                    "used until survivorship_backtest.py recomputes it")
     return {"backtest": s["per_trade"], "worst_case": (w or {}).get("per_trade"),
-            "share_deep": s.get("share_deep"), "synthetic_trades": s.get("synthetic_trades")}
+            "share_deep": s.get("share_deep"), "synthetic_trades": s.get("synthetic_trades"),
+            "stale": bool(s.get("stale"))}
 
 
 # --- evidence ------------------------------------------------------------------
@@ -239,7 +244,8 @@ def rank(conn, cfg: dict) -> list:
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,
                     "family": leagues.family_of(conn, key, ver), "league": leagues.league_of(conn, cfg, key, ver),
                     "backtest": bt, "forward": fw, "forward_trades": n,
-                    "backtest_source": (("with dead companies" if sv.get("synthetic_trades") else
+                    "backtest_source": ((("with dead companies" + (" (earlier build)" if sv.get("stale") else ""))
+                                          if sv.get("synthetic_trades") else
                                          "survivors only (dead companies not measurable)") if sv
                                         else ("survivors only" if bt is not None else None)),
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),

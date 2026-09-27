@@ -133,6 +133,13 @@ def main():
           sv["backtest"] == r["as_is"]["per_trade"] and sv["worst_case"] == r["zero"]["per_trade"], sv)
     check("a strategy never run that way: no survivorship result (old backtest is the fallback)",
           ranking.survivorship(conn, "fx_other", 1) == {})
+    real_gen = sb.generator
+    sb.generator = lambda: "a-newer-synthetic-build"
+    check("after a synthetic rebuild: no current result", sb.result(conn, "fx_all", 1, "as_is") is None)
+    st = ranking.survivorship(conn, "fx_all", 1)
+    check("the ranking keeps the last dead-company backtest, marked stale — never a silent survivors-only",
+          st.get("backtest") == r["as_is"]["per_trade"] and st.get("stale") is True, st)
+    sb.generator = real_gen
     ok, why = ranking.gate(0.01, 0.50, 0.35)
     check("exposure gate: >= limit of entries in deep drawdowns is out", not ok and "200-day high" in why, why)
     check("under the limit and profitable passes", ranking.gate(0.01, 0.10, 0.35)[0])

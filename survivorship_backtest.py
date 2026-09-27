@@ -325,8 +325,11 @@ def run(conn, cfg, only: list | None = None) -> dict:
 
 # --- read side, for ranking.py ------------------------------------------------------
 
-def result(conn, key: str, version: int, mode: str) -> dict | None:
-    """The newest result for (strategy, mode) under the current generator, or None."""
+def result(conn, key: str, version: int, mode: str, stale_ok: bool = False) -> dict | None:
+    """The newest result for (strategy, mode) under the current generator, or None.
+    With stale_ok, fall back to the newest result under any earlier build, marked
+    stale=True: rebuilding the synthetic data must not silently turn a dead-company
+    backtest into a survivors-only one until the next run (found 2026-09-27)."""
     if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='survivorship_backtests'").fetchone():
         return None
     gen = generator()
@@ -335,7 +338,14 @@ def result(conn, key: str, version: int, mode: str) -> dict | None:
     cur = conn.execute("SELECT * FROM survivorship_backtests WHERE strategy_key=? AND version=? AND mode=? "
                        "AND generator=? ORDER BY computed_at DESC LIMIT 1", (key, version, mode, gen))
     r = cur.fetchone()
-    return dict(zip([c[0] for c in cur.description], r)) if r else None
+    if r:
+        return {**dict(zip([c[0] for c in cur.description], r)), "stale": False}
+    if not stale_ok:
+        return None
+    cur = conn.execute("SELECT * FROM survivorship_backtests WHERE strategy_key=? AND version=? AND mode=? "
+                       "ORDER BY computed_at DESC LIMIT 1", (key, version, mode))
+    r = cur.fetchone()
+    return {**dict(zip([c[0] for c in cur.description], r)), "stale": True} if r else None
 
 
 def render(conn) -> str:
