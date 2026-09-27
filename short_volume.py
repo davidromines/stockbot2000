@@ -56,7 +56,9 @@ def _get(name: str) -> str | None:
     """A file's text, or None when FINRA has no such file (403/404)."""
     for i in range(4):
         try:
-            with urllib.request.urlopen(BASE + name, timeout=60) as r:
+            # FINRA's CDN refuses Python's default user agent (403 for every file).
+            req = urllib.request.Request(BASE + name, headers={"User-Agent": "stockbot2000 research (python)"})
+            with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
             if e.code in (403, 404):
