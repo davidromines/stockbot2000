@@ -276,6 +276,7 @@ import sys as _sys  # noqa: E402
 _sys.modules.setdefault("strategy_factory", _sys.modules[__name__])
 import factory_families_o  # noqa: E402,F401
 import factory_families_l  # noqa: E402,F401  — Stage L3: rebuilt from published signals
+import factory_families_q  # noqa: E402,F401  — Stage Q: short-term strategies (1-5 session holds)
 
 
 # --- generation -------------------------------------------------------------
@@ -322,6 +323,9 @@ def generate(conn, cfg, only: str | None = None, dry_run: bool = False) -> dict:
         made["families"] += 1
         for obj in build_objects(name, per_family):
             if dry_run:
+                continue
+            if so.defined_before(conn, obj) is not None:
+                made["existing"] += 1       # this exact template exists (maybe under a recycled newer version)
                 continue
             r = so.register(conn, obj)
             made["new" if r["new"] else "existing"] += 1

@@ -108,6 +108,28 @@ def key_for(family: str, params: dict, prefix: str = "fx") -> str:
     return f"{prefix}_{family}_{h}"
 
 
+def spec_of(obj: dict) -> dict:
+    """The material definition league.register hashes for a strategy object."""
+    g = obj.get("genome") or {}
+    return {"family": obj["family"], "universe": obj.get("universe"),
+            "entry_rule": g.get("entry"), "exit_rule": g.get("exit"),
+            "position_sizing": obj.get("position_sizing"),
+            "holding_period": (g.get("risk") or {}).get("max_hold_days", obj.get("holding_period")),
+            "parameters": {"params": obj.get("parameters"), "risk": g.get("risk")},
+            "required_data": obj.get("data_requirements")}
+
+
+def defined_before(conn, obj: dict) -> int | None:
+    """The version of obj's key that already carries exactly this definition, if any.
+    A recycled variant (discovery.py) is a newer version of the same key, so the
+    template's own definition must be matched against EVERY version, not only the
+    latest — otherwise the daily template run re-mints the original as a duplicate."""
+    h = league.definition_hash(spec_of(obj))
+    r = conn.execute("SELECT MIN(version) FROM league_strategies WHERE strategy_key=? AND definition_hash=?",
+                     (obj["strategy_key"], h)).fetchone()
+    return r[0] if r and r[0] is not None else None
+
+
 def register(conn, obj: dict, author: str = "strategy_factory") -> dict:
     """
     Register a strategy object; idempotent. Returns {strategy_key, version, new}.
@@ -118,12 +140,7 @@ def register(conn, obj: dict, author: str = "strategy_factory") -> dict:
     """
     init(conn)
     g = obj.get("genome") or {}
-    spec = {"family": obj["family"], "universe": obj.get("universe"),
-            "entry_rule": g.get("entry"), "exit_rule": g.get("exit"),
-            "position_sizing": obj.get("position_sizing"),
-            "holding_period": (g.get("risk") or {}).get("max_hold_days", obj.get("holding_period")),
-            "parameters": {"params": obj.get("parameters"), "risk": g.get("risk")},
-            "required_data": obj.get("data_requirements")}
+    spec = spec_of(obj)
     before = league.versions(conn, obj["strategy_key"])
     row = league.register(conn, obj["strategy_key"], obj["name"], spec, author=author,
                           source_kind=obj.get("source"), source_ref=obj.get("source_ref"),
