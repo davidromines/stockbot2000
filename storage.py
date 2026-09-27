@@ -711,6 +711,20 @@ FUNDAMENTAL_PANEL_COLS = ("piotroski_f", "book_to_market", "gross_profitability"
 # Earnings surprise (sue_features.py): its own point-in-time table, joined beside the
 # fundamentals. sue_age is calendar days since the filing (rows only up to 63 days).
 SUE_COLS = ("sue", "sue_age")
+# Columns attach_fundamentals adds beyond the two tables above. One list, read by
+# every loader that decides whether a rule needs the attached panel: a rule reading
+# a column its loader never attached evaluates to NaN and silently never trades
+# (survivorship_backtest missed alpha / short volume / analog until 2026-09-27).
+ATTACHED_COLS = ("alpha_252", "short_volume_ratio_20", "analog_p_up", "analog_mean", "analog_q10",
+                 "composite")
+PANEL_COLS = FUNDAMENTAL_PANEL_COLS + SUE_COLS + ATTACHED_COLS
+
+
+def needs_panel(genome) -> bool:
+    """True when a genome's rules read any column attach_fundamentals provides."""
+    import json
+    text = genome if isinstance(genome, str) else json.dumps(genome)
+    return any(f'"{c}"' in text for c in PANEL_COLS)
 
 
 def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
@@ -763,6 +777,8 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
     out = short_volume.attach(conn, out, lo, hi, tickers)   # FINRA short-sale volume, 20 sessions
     import analog
     out = analog.attach(out, lo, hi, tickers)                # Stage P: what similar past setups did next
+    import composite
+    out = composite.attach(conn, out)                        # Stage S: IC-weighted multi-signal score
     return out.drop(columns=["_t", "_d"])
 
 

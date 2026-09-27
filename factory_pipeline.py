@@ -76,7 +76,6 @@ def panel(conn, cfg, window, fundamentals: bool):
     return _PANELS[key]
 
 
-ATTACHED_COLS = ("alpha_252", "short_volume_ratio_20", "analog_p_up", "analog_mean", "analog_q10")
 
 
 def _needs_fund(m: dict, g: dict | None = None) -> bool:
@@ -89,10 +88,8 @@ def _needs_fund(m: dict, g: dict | None = None) -> bool:
         return True
     if g is None:
         return False
-    import json
     import storage
-    text = json.dumps(g)
-    return any(f'"{c}"' in text for c in (*storage.FUNDAMENTAL_PANEL_COLS, *storage.SUE_COLS, *ATTACHED_COLS))
+    return storage.needs_panel(g)
 
 
 def _metrics(r: dict) -> dict:

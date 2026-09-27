@@ -218,8 +218,7 @@ def strategies(conn) -> list:
             continue
         if not g or not g.get("entry"):
             continue
-        text = json.dumps(g)
-        out.append((key, ver, g, any(c in text for c in storage.FUNDAMENTAL_PANEL_COLS + storage.SUE_COLS)))
+        out.append((key, ver, g, storage.needs_panel(g)))
     return out
 
 
