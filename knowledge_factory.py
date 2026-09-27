@@ -312,6 +312,9 @@ def backfill(conn) -> int:
     anc = {}
     if _has(conn, "strategy_ancestry"):
         anc = dict(conn.execute("SELECT strategy_id, seed_origin FROM strategy_ancestry"))
+    # Backfilled rows are re-derived every cycle (the rules may improve); rows this
+    # module wrote when it registered a strategy are never touched.
+    conn.execute("DELETE FROM strategy_provenance WHERE generated_by='backfill'")
     rows = conn.execute("""SELECT s.strategy_key, s.version, s.source_kind, s.source_ref, s.parent_key, s.family
         FROM league_strategies s LEFT JOIN strategy_provenance p
         ON p.strategy_key=s.strategy_key AND p.version=s.version WHERE p.strategy_key IS NULL""").fetchall()
@@ -337,7 +340,27 @@ def backfill(conn) -> int:
                         parent, None, "exit", {"source": ref}, "backfill")
         elif kind in ("knowledge_reproduction", "knowledge_variant"):
             continue                                            # written when registered
-        elif kind in ("pair_funds", "crypto_fund", "value_fund", "paper_runs"):
+        elif kind == "paper_runs":
+            # A migrated paper fund is whatever its strategy is: a search genome (lab_ /
+            # survivor_ funds), the classifier ('model'), a conviction screen, or other.
+            import ranking
+            raw = (conn.execute("SELECT strategy FROM paper_runs WHERE run_id=?", (ref,)).fetchone() or [""])[0]
+            if ranking.from_search(conn, key):
+                # Seeded (a hand-written rule's descendant) is a HYBRID; found by the search alone
+                # is MACHINE_GENERATED. The Lab strategy behind the fund, by genome text.
+                import degradation
+                sid, _ = degradation._link(conn, ref)
+                seeded = anc.get(sid) == "SEED_LITERAL"
+                st_, kd = ("HYBRID", "HYBRID") if seeded else ("MACHINE_GENERATED", "MACHINE_GENERATED")
+            elif raw == "model":
+                st_, kd = "MACHINE_GENERATED", "MACHINE_GENERATED"
+            elif '"conviction"' in raw:
+                st_, kd = "KNOWN_FACTOR", "TEMPLATE"
+            else:
+                st_, kd = "TRADING_SYSTEM", "FUND"
+            _provenance(conn, key, ver, st_, kd, None, f"PAPER:{fam or 'fund'}", None, None, None, None,
+                        "backfill")
+        elif kind in ("pair_funds", "crypto_fund", "value_fund"):
             _provenance(conn, key, ver, "TRADING_SYSTEM" if kind != "value_fund" else "KNOWN_FACTOR",
                         "FUND", None, f"FUND:{kind}", None, None, None, None, "backfill")
         else:                                                   # factory templates and anything else
