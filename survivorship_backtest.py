@@ -188,7 +188,9 @@ def synthetic_frames(conn, cfg, window, mode: str, fundamentals: bool = False) -
         # Without them no fundamental screen could ever buy a synthetic company.
         import storage
         import synthetic_fundamentals as sfund
-        cols = list(storage.FUNDAMENTAL_PANEL_COLS)
+        # Fundamentals and earnings surprise (a build from before 2026-09-27 has no SUE:
+        # load() returns NaN for it, never zero).
+        cols = list(storage.FUNDAMENTAL_PANEL_COLS) + list(storage.SUE_COLS)
         fd = sfund.load(synth_id(), window[0], window[1], cols)
         if fd is not None and not fd.empty:
             fd["ticker"] = PREFIX + fd["company_id"].astype(str)

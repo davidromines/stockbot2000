@@ -160,6 +160,13 @@ def build(conn, synth: str | None = None) -> dict:
             if not lst or lst[-1][0] != pe:
                 lst.append((pe, float(hi), float(lo)))
     n_real = 0
+    # Earnings surprise from each dead company's own filings (the same rule as the live
+    # companies' daily_sue): earnings-surprise strategies can then buy dead companies, so
+    # their survivorship test is measurable instead of "survivors only".
+    import sue_features as sfe
+    sue_all = sfe.compute_sue(sfe.quarterly_eps_by_cik(conn, sorted(syn["cik"].unique())))
+    sue_by = {int(c): g for c, g in sue_all.groupby("ticker")} if not sue_all.empty else {}
+    n_sue = 0
     parts, n_co, n_fil = [], 0, 0
     for cid, g in syn.groupby("company_id", sort=False):
         cik = int(g["cik"].iloc[0])
@@ -177,6 +184,9 @@ def build(conn, synth: str | None = None) -> dict:
         daily = project(px.index, f)
         if daily.empty:
             continue
+        su = sfe.project_dates(sue_by.get(cik), daily["date"])
+        daily["sue"], daily["sue_age"] = su["sue"].to_numpy(), su["sue_age"].to_numpy()
+        n_sue += int(su["sue"].notna().sum())
         daily.insert(0, "company_id", cid)
         parts.append(daily)
         n_co += 1
@@ -187,6 +197,7 @@ def build(conn, synth: str | None = None) -> dict:
     out.to_parquet(OUT, index=False)
     stamp = {"generator": f"{os.path.basename(synth)}:{os.path.getsize(synth)}", "companies": n_co,
              "filings": n_fil, "filings_priced_at_filed_level": n_real, "daily_rows": int(len(out)),
+             "daily_rows_with_sue": n_sue,
              "synthetic_companies": int(syn["company_id"].nunique())}
     STAMP.write_text(json.dumps(stamp, indent=1))
     return stamp

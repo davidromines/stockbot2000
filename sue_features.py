@@ -56,6 +56,52 @@ def quarterly_eps(conn, tickers=None):
     return out.reset_index(drop=True)
 
 
+def quarterly_eps_by_cik(conn, ciks):
+    """quarterly_eps keyed by CIK instead of ticker (column `ticker` holds the CIK as text).
+    For companies with no ticker in our prices — the dead companies behind the synthetic
+    paths (synthetic_fundamentals.py) — whose filings are still in sec_filings."""
+    parts = []
+    ciks = [int(c) for c in ciks]
+    for i in range(0, len(ciks), BATCH):
+        chunk = ciks[i:i + BATCH]
+        sql = """
+            SELECT CAST(f.cik AS TEXT) AS ticker, f.period, f.filed, f.adsh, x.ddate, x.value
+              FROM sec_filings f JOIN sec_facts x ON x.adsh = f.adsh
+             WHERE x.tag = 'EarningsPerShareBasic' AND x.qtrs = 1
+               AND f.form IN ({}) AND f.cik IN ({})
+        """.format(",".join("?" * len(QUARTERLY_FORMS)), ",".join("?" * len(chunk)))
+        parts.append(pd.read_sql_query(sql, conn, params=[*QUARTERLY_FORMS, *chunk]))
+    df = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+    if df.empty:
+        return pd.DataFrame(columns=["ticker", "period", "filed", "eps"])
+    df = df.sort_values(["ticker", "period", "filed", "ddate"])
+    df = df.drop_duplicates(["ticker", "period", "filed", "adsh"], keep="last")
+    df = df.sort_values(["ticker", "period", "filed"]).drop_duplicates(["ticker", "period"], keep="last")
+    return df[["ticker", "period", "filed", "value"]].rename(columns={"value": "eps"}).reset_index(drop=True)
+
+
+def project_dates(sue_rows, dates):
+    """(sue, sue_age) for each ISO date in `dates` from one company's surprises — the same rule
+    as project(): usable LAG_DAYS after the filing, newest wins, stale after MAX_AGE_DAYS."""
+    out = pd.DataFrame({"date": list(dates)})
+    out["sue"], out["sue_age"] = np.nan, np.nan
+    if sue_rows is None or len(sue_rows) == 0 or out.empty:
+        return out
+    s = sue_rows.copy()
+    s["filed_d"] = pd.to_datetime(s["filed"].map(lambda x: _d(x).isoformat()))
+    s["avail"] = s["filed_d"] + pd.Timedelta(days=ff.LAG_DAYS)
+    d = out[["date"]].copy()
+    d["dt"] = pd.to_datetime(d["date"])
+    d["_i"] = np.arange(len(d))
+    m = pd.merge_asof(d.sort_values("dt"), s.sort_values("avail")[["avail", "filed_d", "sue"]],
+                      left_on="dt", right_on="avail", direction="backward").sort_values("_i")
+    age = (m["dt"] - m["filed_d"]).dt.days
+    fresh = m["sue"].notna() & (age <= MAX_AGE_DAYS)
+    out["sue"] = np.where(fresh, m["sue"], np.nan)
+    out["sue_age"] = np.where(fresh, age, np.nan)
+    return out
+
+
 def compute_sue(eps_df):
     cols = ["ticker", "period", "filed", "eps", "delta", "sue"]
     if eps_df is None or eps_df.empty:
