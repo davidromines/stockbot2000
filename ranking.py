@@ -130,6 +130,13 @@ def backtest_per_trade(conn, cfg: dict, key: str, version: int) -> float | None:
             if row and row.get("trades") and row.get("net_per_trade") is not None:
                 return float(row["net_per_trade"])
         return None
+    if key.startswith("option:"):
+        # Stage R: an option strategy's backtest is its mean return per trade on the
+        # premium, from real historical option prices (options_lab.py).
+        r = conn.execute("SELECT mean_ret, trades FROM option_backtests WHERE strategy=?",
+                         (key.split(":", 1)[1],)).fetchone() \
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='option_backtests'").fetchone() else None
+        return float(r[0]) if r and r[1] and r[0] is not None else None
     if key.startswith("paper:"):
         import degradation
         sid, _ = degradation._link(conn, key.split(":", 1)[1])
@@ -206,6 +213,12 @@ def rank(conn, cfg: dict) -> list:
             # Its positions are its capital split across its holdings, not $20.
             if ev.get("capital_usd") and ev["open_positions"]:
                 ev["position_usd"] = float(ev["capital_usd"]) / ev["open_positions"]
+        elif ev.get("fund_kind") == "option":
+            import options_lab
+            r = conn.execute("SELECT COUNT(*) FROM option_trades WHERE mode='PAPER' AND strategy=? AND "
+                             "closed IS NULL", (ev["fund_id"],)).fetchone()
+            ev["open_positions"] = int(r[0]) if r else 0
+            ev["position_usd"] = options_lab.settings(cfg)["stake_usd"]
         elif ev.get("fund_kind") == "crypto":
             # A crypto fund splits its capital evenly across its pairs.
             r = conn.execute("SELECT symbols FROM crypto_fund WHERE name=?", (ev["fund_id"],)).fetchone()
