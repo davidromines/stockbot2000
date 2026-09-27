@@ -73,7 +73,48 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-09-26/27 (START HERE; the blocks below are background)
+### SESSION HANDOFF — 2026-09-27 evening (START HERE; the blocks below are background)
+
+**Owner's direction (09-27):** "finish building the system as currently defined before we say
+it's not working"; complete every roadmap item; DeepSeek as much as possible; paper-track all
+search survivors. Specs entered: `docs/ADDENDUM_E_REVISION_2.md`, `docs/STAGE_T_DIAGNOSTIC_FUNNEL.md`.
+
+**Stage T finding (`docs/STAGE_T_FINDINGS_2026-09-27.md`, daily `funnel.py` [9k]):** validation is
+NOT too strict (94% of search trials and 79% of ranked strategies are net positive in backtests
+with costs). The gaps were (1) 953 search strategies passed 2020-22 out-of-sample validation and
+were never paper-traded or ranked — now all enrolled (`lab_survivors.py`, [9d3], `lab_` funds score
+on paper only), and (2) forward evidence: <=10 sessions, 190 paper trades; ~635 trades are needed to
+show +1%/trade at t=2.
+
+**Built 09-27 evening (all on main; each with a regression test):**
+- Stage S `composite.py` (TASK-048): IC-weighted, covariance-corrected composite of 8 signals, point in
+  time, 2008-2026, daily [3j]; family `multi_signal`. Weights sit on book-to-market / SUE / short volume.
+- Stage O rev 2: `knowledge_extract.py` (TASK-050; DeepSeek at runtime + a verification pass that
+  caught a reversed book-to-market rule), `knowledge_factory.py` (provenance for every strategy,
+  lineage + independence, reproductions, declared variants after a passed reproduction, multiple-testing
+  ledger, source-type report; daily [9c2]). **Fixed: discovery never queued knowledge strategies.**
+- O-ins `insider.py` (TASK-049, SEC quarterly Form 3/4/5 2006-2026q2) + `edgar_form4.py` (TASK-052,
+  daily EDGAR feed, [3d4b]); family `insider_buying`. O-pol: data-limited (~8 months via Tip Ranks).
+- R6 option momentum (`opt_momentum_straddle`); P4 analog stops (`risk.stop_pct_col`, simulator + paper;
+  kept OUT of live slots by ranking.py until stop_plans carries it); P5 analog view in the Control Center.
+- Q3 `minute_bars.py` (TASK-051, daily [3d5]; history accrues from 2026-09-17 — backed up).
+- Dead companies' EPS: synthetic companies now carry SUE (1.04M days) -> earnings-surprise strategies get
+  a real survivorship test. N7: discovery boosts near-miss families and a weakening slot holder's league.
+- Bug fixed: survivorship backtests never loaded alpha / short-volume / analog columns (0 trades);
+  one list now (`storage.needs_panel`). Addendum D criterion 12: live slot trades pooled into ranking.
+
+**Running at hand-off:** `sb-pipeline-kf` (factory pipeline, 60 queued incl. 37 knowledge
+reproductions; ends ~02:00 UTC), `sb-optmom-bt` (R6 backtest; -5.3%/trade through 2024-02),
+`sb-kextract2` (400 paper titles), `sb-form4-backfill` (Jul-Sep EDGAR). `systemctl --user list-units 'sb-*'`.
+
+**Monday first-run checks:** `tail -120 logs/daily.log` for [3d4b][3d5][3j][9c2][9d3][9k]; 950 `lab_`
+funds + 447 funds get their first paper step; `data/funnel.txt`, `data/knowledge_factory.txt`.
+
+**Owner steps still open:** `git push origin main`; R7 options (level + `allow_options` + manual-approval
+session); `search.mode: ACTIVE` if wanted; crypto cap then K7; L4; M7; Ollama (optional);
+live stop plan support for `stop_pct_col` (live code — manual-approval session).
+
+### SESSION HANDOFF — 2026-09-26/27 (background)
 
 **Live at 2026-09-27 16:00 UTC (Sunday):** 1 slot open (slot 1 SNDK 0.010690 @ 1801.60),
 cash $70.92, reconciled OK. Real account since LIVE: 4 closed trades +$2.46 net
