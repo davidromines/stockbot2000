@@ -68,6 +68,35 @@ def main():
           and abs(t[3] - 100 * t[2]) < 1e-9, t)
     r = ol.summarize(c, "t_call")
     check("summary", r["trades"] == 1 and r["win_rate"] == 1.0, r)
+
+    # --- implied-vol shape: IV spread and smirk ---------------------------------
+    c2 = sqlite3.connect(":memory:")
+    ol.init(c2)
+    d = "2024-03-04"
+    def q2(sym, k, cp, iv, delta):
+        c2.execute("INSERT INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, delta) "
+                   "VALUES (?,?,?,?,?,1,1.1,?,?)", (d, sym, "2024-04-05", k, cp, iv, delta))
+        c2.execute("INSERT OR IGNORE INTO option_fetch_log VALUES ('chain',?,?,1,'t')", (sym, d))
+    for sym, call_iv, put_iv, otm_iv in (("AAA", 0.30, 0.25, 0.45), ("BBB", 0.30, 0.35, 0.33)):
+        q2(sym, 100, "C", call_iv, 0.5)
+        q2(sym, 100, "P", put_iv, -0.5)
+        q2(sym, 90, "P", otm_iv, -0.26)
+    m = ol.chain_metrics(c2, "AAA", d)
+    check("IV spread = ATM call IV - same-strike put IV", abs(m["ivspread"] - 0.05) < 1e-9, m)
+    check("smirk = OTM (-0.25 delta) put IV - ATM call IV", abs(m["smirk"] - 0.15) < 1e-9, m)
+    real_liquid = ol.liquid
+    ol.liquid = lambda conn, date, n: ["AAA", "BBB"]
+    s2 = ol.settings(CFG)
+    hi = ol.sig_chain(c2, d, {"rule": "ivspread_high", "top": 1}, s2, {})
+    lo = ol.sig_chain(c2, d, {"rule": "ivspread_low", "top": 1}, s2, {})
+    sm = ol.sig_chain(c2, d, {"rule": "smirk", "top": 1}, s2, {})
+    check("expensive calls -> AAA; expensive puts -> BBB; steepest smirk -> AAA",
+          hi[0][0] == "AAA" and lo[0][0] == "BBB" and sm[0][0] == "AAA", (hi, lo, sm))
+    st = {}
+    ol.sig_chain(c2, d, {"rule": "smirk", "top": 1}, s2, st)
+    check("weekly: a second date in the same week signals nothing",
+          ol.sig_chain(c2, "2024-03-06", {"rule": "smirk", "top": 1}, s2, st) == [])
+    ol.liquid = real_liquid
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

@@ -18,6 +18,11 @@ The strategies (each one a tournament entry, `option:<name>` in the league):
     opt_iv_rise_call       weekly: calls on the stocks whose implied vol rose most
                            over the month (An, Ang, Bali & Cakici 2014, JF: ~1%/month
                            in the stock)
+    opt_smirk_put          weekly: puts on the steepest implied-vol smirk (Xing, Zhang &
+                           Zhao 2010, JFQA: -10.9%/year for the steepest)
+    opt_ivspread_call      weekly: calls where calls are priced above same-strike puts
+    opt_ivspread_put       weekly: puts where puts are priced above same-strike calls
+                           (Cremers & Weinbaum 2010, JFQA: 51 bp/week between the two)
     opt_earnings_straddle  straddle bought 2-6 days before an earnings release (8-K
                            item 2.02), sold at the first price after it (Gao, Xing &
                            Zhang 2018, JFQA: +3.34% per straddle, 3 days to the event)
@@ -60,6 +65,18 @@ STRATEGIES = {
     "opt_earnings_straddle": {"rule": "earnings", "legs": "S", "dte": (7, 45, 20), "hold": 10,
                               "name": "Earnings straddle",
                               "why": "Gao, Xing & Zhang (2018): straddles bought just before earnings earn +3.3% on average."},
+    "opt_smirk_put": {"rule": "smirk", "legs": "P", "dte": (21, 60, 35), "hold": 14, "top": 3,
+                      "name": "Steep-smirk put",
+                      "why": "Xing, Zhang & Zhao (2010): stocks whose out-of-the-money puts are priced "
+                             "steepest above at-the-money calls underperform (10.9%/year) — bought as puts."},
+    "opt_ivspread_call": {"rule": "ivspread_high", "legs": "C", "dte": (21, 60, 35), "hold": 7, "top": 3,
+                          "name": "Expensive-call call",
+                          "why": "Cremers & Weinbaum (2010): calls priced above same-strike puts foretell "
+                                 "outperformance (51 bp/week) — bought as calls."},
+    "opt_ivspread_put": {"rule": "ivspread_low", "legs": "P", "dte": (21, 60, 35), "hold": 7, "top": 3,
+                         "name": "Expensive-put put",
+                         "why": "Cremers & Weinbaum (2010): puts priced above same-strike calls foretell "
+                                "underperformance — bought as puts (the bearish side)."},
 }
 
 
@@ -201,6 +218,50 @@ def sig_earnings(conn, date: str, p: dict, s: dict, state: dict) -> list:
     return out
 
 
+def chain_metrics(conn, symbol: str, date: str) -> dict | None:
+    """Implied-vol shape of one chain, from the expiry nearest 30 days (14-60):
+    ivspread = at-the-money call IV minus the put IV at the same strike (Cremers &
+    Weinbaum's call-put implied volatility spread); smirk = the out-of-the-money put
+    nearest delta -0.25, IV minus the at-the-money call IV (Xing, Zhang & Zhao)."""
+    rows = [r for r in od.chain(conn, symbol, date) if r["iv"] is not None and r["delta"] is not None]
+    exps = sorted({r["expiration"] for r in rows if 14 <= _days(date, r["expiration"]) <= 60},
+                  key=lambda e: abs(_days(date, e) - 30))
+    if not exps:
+        return None
+    e = exps[0]
+    calls = [r for r in rows if r["expiration"] == e and r["cp"] == "C"]
+    puts = [r for r in rows if r["expiration"] == e and r["cp"] == "P"]
+    if not calls or not puts:
+        return None
+    atm = min(calls, key=lambda r: abs(r["delta"] - 0.5))
+    same = next((r for r in puts if r["strike"] == atm["strike"]), None)
+    otm = min(puts, key=lambda r: abs(r["delta"] + 0.25))
+    if abs(otm["delta"] + 0.25) > 0.15:
+        otm = None
+    return {"ivspread": None if same is None else atm["iv"] - same["iv"],
+            "smirk": None if otm is None else otm["iv"] - atm["iv"]}
+
+
+def sig_chain(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """First option date of each week, over the most traded optionable stocks: rank by the
+    chain's implied-vol shape (chain_metrics) — shared by the smirk and IV-spread rules."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    cache = state.setdefault("metrics", {})
+    if date not in cache:
+        cache.clear()
+        cache[date] = {sym: m for sym in liquid(conn, date, s["liquid_universe"])
+                       if (m := chain_metrics(conn, sym, date))}
+    ms = cache[date]
+    key, desc = {"smirk": ("smirk", True), "ivspread_high": ("ivspread", True),
+                 "ivspread_low": ("ivspread", False)}[p["rule"]]
+    ranked = sorted(((sym, m[key]) for sym, m in ms.items() if m.get(key) is not None),
+                    key=lambda x: -x[1] if desc else x[1])
+    return [(sym, f"{key} {v:+.3f}") for sym, v in ranked[:p["top"]]]
+
+
 def stock_signals(conn, cfg: dict, start: str, end: str, top: int = 5) -> dict:
     """date -> [(symbol, strategy name)] from the top-ranked stock strategies' entry rules,
     most liquid first. Search, crypto and option strategies are excluded."""
@@ -233,7 +294,8 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
     p = STRATEGIES[name]
     state = {}
     opened = 0
-    fn = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings}.get(p["rule"])
+    fn = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
+          "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain}.get(p["rule"])
     for d in dates:
         # exits: holding limit, a week before expiration, or the day after an earnings release
         for t in conn.execute("SELECT id, symbol, legs, opened, cost, signal FROM option_trades WHERE mode=? AND "
