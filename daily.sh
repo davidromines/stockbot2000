@@ -140,6 +140,9 @@ if [ "$(date -u +%u)" = "1" ]; then
     run "[3h/10] Analog scores (weekly)" bounded $PY analog.py --scores --start "$(date -u -d '60 days ago' +%F)"
 fi
 run "[3i/10] Analog scores (today)" bounded $PY analog.py --daily
+# Stage S: the IC-weighted multi-signal composite (composite.py), after every input
+# (fundamentals, SUE, short volume, analog) is current and before paper trading reads it.
+run "[3j/10] Multi-signal composite" bounded $PY composite.py --update
 # N9: the capital books must add up before anything sizes a trade.
 run "[4b/10] Capital books" $PY books.py
 run "[5/10] Paper trading step" $PY paper_trading.py --step
