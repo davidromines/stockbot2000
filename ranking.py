@@ -65,7 +65,10 @@ DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0,
             # companies included): t >= 3 keeps it whole, t <= 0 zeroes it, linear between. A
             # family published evidence says is gone after publication (liquidity, size) then
             # cannot lead on its backtest alone. Off until the owner turns it on.
-            "published_prior": False}
+            "published_prior": False,
+            # The unseen-window test (holdout.py, 2023 -> today, one look per version): a loss
+            # there fails the gate, and that result replaces the 2016-19 backtest as the prior.
+            "use_holdout": True}
 
 
 def published_factor(conn, family: str | None) -> tuple:
@@ -294,6 +297,14 @@ def rank(conn, cfg: dict) -> list:
             n += m
         limit = float((cfg.get("survivorship") or {}).get("max_drawdown_exposure", 0.35))
         ok, why = gate(bt, sv.get("share_deep"), limit)
+        ho, prior_bt = None, bt
+        if s["use_holdout"] and not searched:
+            import holdout
+            ho = holdout.result(conn, key, ver)
+            if ho and ho.get("trades"):
+                if ok and (ho["per_trade"] or 0) <= 0:
+                    ok, why = False, f"loses on unseen 2023-today data ({ho['per_trade']:+.3%} per trade)"
+                prior_bt = ho["per_trade"]
         name = (conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?",
                              (key, ver)).fetchone() or [key])[0]
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,
@@ -306,8 +317,9 @@ def rank(conn, cfg: dict) -> list:
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
                     "synthetic_trades": sv.get("synthetic_trades"),
                     "from_search": searched,
-                    "score": score(None if searched else (bt * pf if bt is not None else None), fw, n, s),
-                    "published_t": pt, "passes_gate": ok, "gate": why,
+                    "score": score(None if searched else (prior_bt * pf if prior_bt is not None else None), fw, n, s),
+                    "published_t": pt, "holdout": (ho or {}).get("per_trade"),
+                    "holdout_trades": (ho or {}).get("trades"), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                               "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))

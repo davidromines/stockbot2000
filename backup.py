@@ -113,6 +113,7 @@ GROUPS = {
         "knowledge_translations", "knowledge_lineage", "knowledge_reproductions",
         "strategy_provenance", "knowledge_lineage_stats",
         "strategy_failures",        # Stage T: why each strategy failed, day by day
+        "holdout_results",          # one look per strategy at 2023 -> today: the record IS the rule
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,

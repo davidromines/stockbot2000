@@ -243,6 +243,9 @@ run "[9f/10] Factory pipeline" bounded $PY factory_pipeline.py --run --budget 12
 # (zero); ranking.py scores on as_is. Resumable: only new strategies or a new
 # synthetic build are computed.
 run "[9f2/10] Survivorship backtests" bounded $PY survivorship_backtest.py --run
+# The unseen window (2023 -> today): one look per strategy version that has passed
+# validation; the ranking gates and scores on it (holdout.py).
+run "[9f3/10] Unseen-window test" bounded $PY holdout.py --run
 run "[9g/10] League standings" $PY leagues.py --standings --record
 run "[9h/10] Factory report" $PY factory_report.py
 # Addendum A §26 / I10: the formal five-slot reassessment, once per trading
