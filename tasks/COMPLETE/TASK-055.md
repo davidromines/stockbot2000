@@ -2,7 +2,7 @@
 
 - component: reporting
 - priority: medium
-- state: TODO
+- state: COMPLETE
 - branch: ado/task-055
 - created: 2026-09-27T22:30:00+00:00
 - dependencies: none
@@ -24,7 +24,6 @@ The owner reads on a phone, prefers brief structured text, Pacific time, and the
 ## Relevant files
 - `digest.py`
 - `tests/regression/test_digest.py`
-
 ## Requirements
 1. collect(conn, now=None, root=".") -> dict with sections: "live" {closed, net_usd, wins} (this week), "pipeline" {entered_paper, rejected, qualified}, "knowledge" (the json's keys), "funnel" {unseen, checks, near_misses (count of failures with near_miss)}, "slots" [changes: slot_id, action, strategy name or key, reason], "top" [5 of (name, score)]. `now` is a UTC datetime (default now); `root` is where data/ lives. A missing file or table leaves that section None.
 2. render(d) -> str: plain text for a phone, at most ~40 lines, sections in this order with short headings: "Real account this week" (closed trades, net $, wins; or "no closed trades"), "Research this week" (entered paper / rejected / qualified), "Knowledge Factory" (translated, reproductions, variants), "Unseen 2023→today" (above random of tested) and "Bear-market check" (pass/fail), "Near misses", "Slot changes", "Top of the ranking". Money as $x.xx with a sign; scores as +x.xx%. Never print the words fee, fees, spread, cost or costs. End with the line "Evidence, not advice."
