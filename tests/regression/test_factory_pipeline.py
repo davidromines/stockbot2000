@@ -208,6 +208,12 @@ def main():
     test_demotion(conn)
     test_live_candidates(conn)
     test_no_broker_import()
+    g_alpha = {"entry": {"op": "gt", "args": [{"op": "rank", "args": [{"col": "alpha_252"}]}, {"const": 0.8}]}}
+    check("rules reading an attached column load the attached panel",
+          fp._needs_fund({"data_requirements": ["features"]}, g_alpha)
+          and fp._needs_fund({"data_requirements": ["features"]}, {"entry": {"col": "short_volume_ratio_20"}}))
+    check("price-only rules do not", not fp._needs_fund({"data_requirements": ["features"]}, {"entry": {"col": "close"}}))
+    check("the family label still works", fp._needs_fund({"data_requirements": ["daily_fundamentals"]}))
     conn.close()
     if FAILED:
         print(f"\n  {len(FAILED)} FAILED")

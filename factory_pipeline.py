@@ -76,8 +76,23 @@ def panel(conn, cfg, window, fundamentals: bool):
     return _PANELS[key]
 
 
-def _needs_fund(m: dict) -> bool:
-    return "daily_fundamentals" in (m.get("data_requirements") or [])
+ATTACHED_COLS = ("alpha_252", "short_volume_ratio_20", "analog_p_up", "analog_mean", "analog_q10")
+
+
+def _needs_fund(m: dict, g: dict | None = None) -> bool:
+    """Load the attached panel (storage.attach_fundamentals: fundamentals, earnings surprise,
+    CAPM alpha, short volume, analog scores) when the family says so OR its rules read any
+    attached column. Found 2026-09-27: capm_alpha and short_interest read alpha / short
+    volume, were not labelled 'daily_fundamentals', saw an empty column and were rejected
+    with 0 trades."""
+    if "daily_fundamentals" in (m.get("data_requirements") or []):
+        return True
+    if g is None:
+        return False
+    import json
+    import storage
+    text = json.dumps(g)
+    return any(f'"{c}"' in text for c in (*storage.FUNDAMENTAL_PANEL_COLS, *storage.SUE_COLS, *ATTACHED_COLS))
 
 
 def _metrics(r: dict) -> dict:
@@ -133,7 +148,7 @@ def process(conn, cfg, key: str, ver: int) -> str:
     cm = costs_mod.CostModel(cfg)
     cap = int(fcfg.get("max_entries_per_backtest", 5000))
     bw, vw = tuple(fcfg["backtest_window"]), tuple(fcfg["validation_window"])
-    need = _needs_fund(m)
+    need = _needs_fund(m, g)
 
     p = panel(conn, cfg, bw, need)
     if p is None:
