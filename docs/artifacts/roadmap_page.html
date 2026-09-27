@@ -187,7 +187,7 @@
     <h1>Stockbot2000</h1>
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
-      <span>UPDATED 2026-09-26</span>
+      <span>UPDATED 2026-09-27</span>
       <span>13 PHASES + ADDENDA A–E + STAGES K–O</span>
       <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K, L, M BUILT · N1–N6, N10 · O TEMPLATES · TELEGRAM BOT</span>
     </div>
@@ -981,6 +981,10 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Options backtested on real prices (09-27).</b> All seven option strategies lost money over 2020–2026 (from −1% to −27% a trade) — consistent with the research on buying options. They keep paper-trading; none can reach real money on this evidence.</li>
+      <li><b>Analog forecaster built (09-27).</b> 1.9 million past setups; out-of-sample it barely predicts (AUC 0.52, weaker than the existing classifier). Kept as a paper-tested strategy family, not a trusted signal.</li>
+      <li><b>Every idea paper-tracked; journal, movement, capital books (09-27).</b> 341+ paper funds; a searchable journal per strategy; stock and options books checked daily; times in Pacific.</li>
+      <li><b>New data (09-27).</b> Option prices and implied volatility since 2020, FINRA short volume since 2010, CAPM alpha, R&amp;D intensity, market cap on the daily panel.</li>
       <li><b>Telegram phone controls (09-26).</b> Owner-only bot: /status /positions /health /report, and /kill and /resume behind a confirmation. It cannot place orders.</li>
       <li><b>Control Center panels (09-26).</b> Strategy health, Knowledge Factory and published-signal evidence added; an end-of-day report goes to Telegram at 21:10 UTC.</li>
       <li><b>Free cash flow and earnings surprise (09-26).</b> Capex is subtracted into a new FCF-to-price metric (the only family still positive in the worst survivorship case); point-in-time earnings surprise built. 16 new paper funds.</li>
