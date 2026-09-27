@@ -130,6 +130,8 @@ entry and bear-market entries vs random entry, PASS/FAIL/NA per strategy, shown 
 Bear-market rule for the slots (`regime_filter.py`, SHADOW): no new entries below SPY's 200-day average.
 The evidence says NO — entries in that regime did better 2006-2026 (+3.4% vs +0.8% per 20 sessions). Do not switch it ON
 without new evidence; the bear check in market_checks.py is the per-strategy view.
+Five different bets (`strategy_diversity.py`, [9f5], ON): slots skip a candidate whose weekly-return correlation
+(2023 -> today) with a held/chosen strategy is above 0.7; first computed in Monday's daily run.
 
 **Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
 real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
