@@ -133,6 +133,8 @@ run "[4/10] Freshness gate" $PY freshness.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement
 #    in the project with no survivorship bias, and it accrues only in real time.
+# N9: the capital books must add up before anything sizes a trade.
+run "[4b/10] Capital books" $PY books.py
 run "[5/10] Paper trading step" $PY paper_trading.py --step
 # Stage R (owner, 2026-09-27): public option prices for the newest sessions, then
 # the option paper funds walk them (bought at the ask, sold at the bid).
