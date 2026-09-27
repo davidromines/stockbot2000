@@ -1160,6 +1160,18 @@ hardcodes paths, thresholds or model parameters.
 | `knowledge_library.py` | Stage O1-O2: the Knowledge Strategy Library and its importers. |
 | `knowledge_translate.py` | Stage O3/O4: data feasibility and family mapping for documented strategies. |
 
+### Built 2026-09-27 (Stages S, T, O rev 2, O-ins, P4-P5, Q3, R6)
+| File | Role |
+|---|---|
+| `lab_survivors.py` | Paper-tracks every Lab validation survivor (`lab_` funds, paper-only score). |
+| `funnel.py` | Stage T: funnels, bottlenecks, `strategy_failures` reasons, near misses (daily). |
+| `composite.py` | Stage S: IC-weighted, covariance-corrected multi-signal composite (`daily_composite`). |
+| `knowledge_extract.py` | Source rules -> explicit fields + a labelled genome, via DeepSeek, with a verification pass. |
+| `knowledge_factory.py` | Provenance, lineage, reproductions, controlled variants, multiple-testing ledger, the cycle. |
+| `insider.py` / `edgar_form4.py` | SEC Form 4 insider trades: quarterly data sets 2006+ and a daily EDGAR feed. |
+| `minute_bars.py` | 1-minute bars for the same-day universe, collected daily (free history is ~7 days). |
+| `factory_families_s.py` | `multi_signal`, `insider_buying` families. |
+
 ### The daily loop and reporting
 | File | Role |
 |---|---|
