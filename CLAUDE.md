@@ -141,6 +141,9 @@ Also 09-27 night: ETF rotation (`rotation.py` TASK-054 + `rotation_funds.py`; 12
 one slot per rotation universe via `slots.family_caps`; NOTE per-trade returns of monthly holds look larger than
 20-60 day stock trades — the ranking does not normalise by holding period); weekly digest (`digest.py` TASK-055, Sundays
 10 AM PT); diversity check also over bear windows (stricter of the two).
+Ranking unit changed 09-27: scores are per 20 SESSIONS HELD (`ranking.normalize_hold_days`, `hold_period.py`),
+not per trade. Hold = own paper trades (30+) > measured simulation > rule's max hold (an upper bound: under-credits)
+> 60-day default; holds under 5 sessions scale as 5. Most strategies still use the rule until [9f5]/[9f3] measure them.
 
 **Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
 real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
