@@ -759,6 +759,8 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
             sf[c] = pd.to_numeric(sf[c], errors="coerce").astype("float32")
         out = out.merge(sf, on=["_t", "_d"], how="left")
     out = _attach_alpha(conn, out, tickers, lo, hi)
+    import short_volume
+    out = short_volume.attach(conn, out, lo, hi, tickers)   # FINRA short-sale volume, 20 sessions
     return out.drop(columns=["_t", "_d"])
 
 
