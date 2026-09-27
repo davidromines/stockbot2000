@@ -42,10 +42,13 @@ def main():
     reg(conn, "fx_new")
     reg(conn, "fx_bad")
     so.decide(conn, "fx_bad", 1, "REJECT", "test", to_state=league.REJECTED)
+    reg(conn, "fx_gone")
+    so.decide(conn, "fx_gone", 1, "RETIRE", "duplicate", to_state=league.RETIRED)
     s0 = {k: league.state(conn, k, 1) for k in ("fx_new", "fx_bad")}
     r = paper_all.run(conn, CFG)
     check("both untracked strategies enrolled", r["untracked"] == 2 and sum(r["enrolled_by_state"].values()) == 2, r)
     check("each has a linked fund", all(leagues.fund_ref(conn, k, 1) for k in ("fx_new", "fx_bad")))
+    check("a RETIRED strategy gets no fund", leagues.fund_ref(conn, "fx_gone", 1) is None)
     check("no lifecycle change", {k: league.state(conn, k, 1) for k in s0} == s0)
     lab = conn.execute("SELECT label FROM paper_runs p JOIN factory_paper_link l ON l.run_id=p.run_id "
                        "WHERE l.strategy_key='fx_new'").fetchone()[0]

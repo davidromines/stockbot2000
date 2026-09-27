@@ -39,6 +39,10 @@ def untracked(conn) -> list:
               GROUP BY strategy_key, version) m ON m.mid = s.id""").fetchall()
     out = []
     for key, ver, state in rows:
+        # RETIRED is a deliberate removal (a duplicate, or a withdrawn idea), not an
+        # untested one: it keeps any record it has but gets no new fund.
+        if state == "RETIRED":
+            continue
         if leagues.fund_ref(conn, key, ver) is not None:
             continue
         name = (conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?",
