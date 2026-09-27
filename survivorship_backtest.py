@@ -244,7 +244,7 @@ def _trim(df, keep: set):
     return df[[c for c in df.columns if c in keep]]
 
 
-def _real(conn, cfg, window, fundamentals: bool, extras=None) -> tuple:
+def _real(conn, cfg, window, fundamentals: bool, extras=None, keep=None) -> tuple:
     import storage
     from train_model import FEATURE_COLS
     df = storage.load_training_frame(
@@ -252,6 +252,10 @@ def _real(conn, cfg, window, fundamentals: bool, extras=None) -> tuple:
         start_date=window[0], end_date=window[1],
         min_price=cfg["risk"].get("min_price"), min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True, include_open=True)
+    if keep is not None:
+        # Trimmed BEFORE attaching, so the attach's temporary copies are small too. Rows were
+        # already filtered on every indicator by the loader, so results are unchanged.
+        df = _trim(df, keep)
     if fundamentals and not df.empty:
         df = storage.attach_fundamentals(conn, df, extras=extras)
     end = (dt.date.fromisoformat(window[1]) + dt.timedelta(days=EXIT_MARGIN_DAYS)).isoformat()
@@ -294,11 +298,10 @@ def run(conn, cfg, only: list | None = None) -> dict:
         import storage
         # Only the attached columns this group's rules read (OOM at 6 GB with all of them).
         need_cols = storage.columns_read([g for _, _, g, _ in group]) if fund else None
-        real, real_ex = _real(conn, cfg, window, fund, need_cols)
         # ...and only the columns the simulator needs plus what the group's rules read: the
         # panel carried every indicator and attached column (~55) for rules reading a few.
         keep = SIM_COLS | storage.columns_read([g for _, _, g, _ in group])
-        real = _trim(real, keep)
+        real, real_ex = _real(conn, cfg, window, fund, need_cols, keep)
         if real.empty:
             log.warning(f"empty real panel for {window}")
             continue

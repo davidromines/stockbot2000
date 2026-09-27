@@ -116,7 +116,7 @@ def main():
     check("zero mode: the delisting bar is a total loss", last["close"] == 0.0, last["close"])
 
     real = real_frames()
-    sb._real = lambda c, cfg, w, fund, extras=None: real
+    sb._real = lambda c, cfg, w, fund, extras=None, keep=None: real
     sb.strategies = lambda c: [("fx_all", 1, GENOME, False)]
     out = sb.run(conn, CFG)
     check("three modes written", out["rows_written"] == 3, out)
