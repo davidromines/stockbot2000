@@ -73,7 +73,86 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-09-25/26 overnight session (start here)
+### SESSION HANDOFF — 2026-09-26/27 (START HERE; the blocks below are background)
+
+**Live at 2026-09-27 16:00 UTC (Sunday):** 1 slot open (slot 1 SNDK 0.010690 @ 1801.60),
+cash $70.92, reconciled OK. Real account since LIVE: 4 closed trades +$2.46 net
+(`live_pnl.py`). Monday's 07:00 UTC run reassesses slots 1-3 -> Profitability hold=60 q=0.8,
+Value Book q=0.9, Value Book q=0.8 (the Rising 200 holders lose money with dead companies).
+**Check Monday:** `tail -80 logs/daily.log` (new stages [3d2][3d3][3g-3i][4b][5b][5c][9d2][9i2]
+all ran for the first time), the slot rotation, first option/short-term/same-day paper steps.
+
+**Owner preferences learned (also in memory):** headline money = the real account's LIVE slot
+trades only (never a sum of paper funds); don't talk about fees/spread; show times in Pacific;
+use DeepSeek (ADO) where possible; every idea must be paper-tracked.
+
+**Built 09-26/27 (all on main, 106 test files pass):**
+- Money view: `live_pnl.py` (real account, EOD report + roadmap page); summed paper P&L removed everywhere.
+- Paper-track everything: `paper_all.py` (+ daily [9d2]); 58 duplicate re-minted templates retired
+  (`strategy_objects.defined_before`); migrate_league/ranking no longer double-count factory funds.
+- Evolutionary search restart rules (still FROZEN — owner flips `search.mode: ACTIVE`):
+  seed-free `lab_loop.sh`, `search_gate.py` (1 run/day, never in the daily job or market hours),
+  search strategies score on paper only (`ranking.from_search`).
+- Stage Q short-term: `factory_families_q.py` (36 strategies, 1-5 day holds); same-day SHADOW
+  trade book in `intraday.py` + `intraday_set.py` (6 strategies, 20 names, flat by 15:50 ET).
+- Stage R options (paper only): `options_data.py` (DoltHub public chains + IV/HV 2020 on, daily
+  [5b]), `options_lab.py` (7 strategies; buy ask / sell bid; expiry valued at the UNADJUSTED spot
+  from put-call parity — our prices are split/dividend-adjusted), league kind `option:`.
+  **Backtest 2020-26: all 7 lose** (per trade: signal call -1.0%, ivspread call -5.1%, ivspread put
+  -9.3%, earnings straddle -11.3%, cheap-IV straddle -11.7%, rising-IV call -14.2%, smirk put
+  -26.9%; many exits modelled, counted in the report). The losing-backtest gate keeps them out.
+  Account 403446024 has NO options level (owner applies:
+  https://applink.robinhood.com/upgrade_options?account_number=403446024).
+- Real-money options trader: DRAFT ONLY, uncommitted, worktree `~/sb2k-options` (branch
+  options/live, `options_live.py`). Auto mode blocked writing it; finishing needs the owner to put
+  the session in manual approval. Gates: allow_options, option level >= 2, kill switch, 20+ closed
+  paper trades net > 0, book limits, reconcile.
+- N9 `books.py` (stock $100 / options $1,000 books checked daily [4b]); N3/N4 `journal.py`
+  (ranking_history daily [9i2], movement + searchable journal in the Control Center, /api/journal);
+  N11 Pacific time (`timefmt.py`); Control Center + EOD panels for options, short-term, same-day.
+- Data for 4 families: market cap + rd_to_assets on the daily panel, CAPM alpha
+  (risk_metrics.alpha, weekly [3d2]), FINRA short volume (`short_volume.py`, 2010-2026-09-24,
+  daily [3d3]). capm_alpha / short_interest were first rejected with 0 trades because the loader
+  skipped their columns — fixed (`factory_pipeline._needs_fund` reads the rules); retests queued.
+- Stage P analog forecaster: `analog.py` (library 1.9M stock-days, daily + weekly scores attached as
+  analog_p_up/mean/q10), `analog_eval.py` (DeepSeek TASK-047), `analog_top` family.
+  **Walk-forward 2010-26: AUC 0.523, top-decile spread +0.08%/20 days — weak; on matched rows
+  XGBoost 0.626 vs analog 0.444.** It stays a paper-tested family, not a trusted signal.
+- Plan additions: Stage S multi-signal composite (next DeepSeek job), O-ins insider buying from
+  SEC Form 4, O-pol politician trades, R6 option momentum. Tracker v30:
+  https://claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo ; reviewer dossier:
+  https://claude.ai/artifact/3YFiMwNxvpXk3ycNVi2PKt
+
+**Running when this was written:** `stockbot-pipeline-loop.service` (systemd --user) clearing ~88
+DISCOVERED strategies in rounds; stops before Monday 06:00 UTC. `systemctl --user status
+stockbot-pipeline-loop`; log `logs/factory_backlog_loop_2026-09-27.log`.
+
+**Stale until Monday's [9f2]:** survivorship backtests (the dead companies' fundamentals were
+rebuilt, which changes the generator key). The ranking now uses the last result marked
+"(earlier build)" instead of silently falling back to survivors-only — that silent fallback was
+found and fixed 09-27.
+
+**Waiting on the owner:** `git push origin main` (200+ commits; auto mode blocks Claude's push);
+merge `n6/decision-quote`; options access + `allow_options` + manual-approval session for R7;
+`search.mode: ACTIVE` if wanted; crypto one-slot cap then K7; L4.
+
+**Next to build (owner's order of interest):** Stage S composite (DeepSeek); R6 option momentum;
+N7 discovery aimed at weak spots; dead companies' EPS (earnings-surprise survivorship);
+O-ins insider Form 4; Q3 minute history; Phase 6 report.
+
+**Gotchas from this session:**
+- Background jobs started with nohup died when the session ended. Long jobs that must outlive the
+  session: `systemd-run --user --unit NAME --collect -p MemoryMax=7G bash -c "..."`.
+- `pgrep -f "pattern"` matches the waiting shell's own command line — use `[p]attern`.
+- `daily.sh`: `bounded()` must be defined before any stage uses it (moved to the top 09-27).
+- Our `prices` are split/dividend-ADJUSTED: never compare them with raw option strikes or any
+  other unadjusted number.
+- FINRA's CDN returns 403 to Python's default user agent.
+- `strategy_factory --generate` used to re-mint a template after discovery recycled it; fixed,
+  but any new registration path must check `so.defined_before`.
+- Auto mode blocks: git push, merging live-trading code, and writing real-money order code.
+
+### SESSION HANDOFF — 2026-09-25/26 overnight session
 
 **Read this first; the 09-25 VM block below is still valid background.**
 
