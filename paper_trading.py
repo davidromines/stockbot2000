@@ -524,6 +524,11 @@ def step(conn, cfg: dict) -> None:
                 stop = px - float(mult) * float(atr)
             else:
                 stop = calculate_stop_loss(px, atr, cfg)
+            # Stage P4: a per-trade stop from a column (simulator's stop_pct_col), tightest wins.
+            pcol = (genome or {}).get("risk", {}).get("stop_pct_col")
+            pv = row.get(pcol) if pcol else None
+            if pv is not None and pv == pv:
+                stop = max(stop, px * (1 + min(max(float(pv), -0.5), -0.01)))
             # Plain INSERT, and skip on conflict. INSERT OR REPLACE let a
             # repeated step overwrite a held position: the old shares vanished
             # with no trade record while the new buy still left cash, which is

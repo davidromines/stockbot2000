@@ -270,6 +270,15 @@ def simulate(genome: dict, panel: Panel, cost_model, position_size_usd: float,
     stop_px = np.where(np.isfinite(atr) & (atr > 0),
                        entry_px - stop_mult * atr,
                        entry_px * 0.92)                        # fallback: 8% stop
+    # Optional per-trade stop from a column (`stop_pct_col`, Stage P4): the stop sits at
+    # entry x (1 + value at the signal bar), e.g. the 10th-percentile outcome of the
+    # analog forecaster's matches. Tightest of the two wins, as in stop_plans. Values are
+    # clipped to -50%..-1% so a stray positive value can never place a stop above entry.
+    pcol = risk.get("stop_pct_col")
+    if pcol and pcol in panel.df.columns:
+        v = pd.to_numeric(panel.df[pcol], errors="coerce").to_numpy(dtype="float64")[idx]
+        pstop = entry_px * (1 + np.clip(v, -0.5, -0.01))
+        stop_px = np.where(np.isfinite(pstop), np.fmax(stop_px, pstop), stop_px)
     hit_stop = fwd <= stop_px[:, None]
 
     # Optional trailing stop (`trailing_atr_multiple`): the highest close since
