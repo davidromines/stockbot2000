@@ -468,3 +468,12 @@ universe_reconstruction:
     clone_dir: data/external/FinanceDatabase
     equities_glob: "database/equities*"
     out: data/universe/financedatabase.parquet
+
+# Stage R options (owner, 2026-09-27). Paper only: config/risk.yaml allow_options
+# stays false and the Agentic account has no options level yet. The owner's plan:
+# $1,000 for options once a strategy has a proven record — ten $100 positions.
+options:
+  stake_usd: 100.0
+  max_spread_frac: 0.5      # skip contracts whose bid-ask is wider than half the mid
+  min_ask: 0.05
+  liquid_universe: 50       # earnings straddles: the 50 most traded optionable stocks
