@@ -113,9 +113,7 @@ def _register():
         "Size premium: small-capitalisation stocks outperform (Banz 1981).",
         {"q": [0.2]},
         lambda p: sf.G(sf.lt(sf.rank(sf.col("market_cap")), sf.k(p["q"])), None, 3.0, 60),
-        data=("features", "daily_fundamentals", "market_cap"), available=False,
-        missing="market_cap is not projected into daily_fundamentals; "
-                "log_dollar_volume ranks liquidity, not size")
+        data=("features", "daily_fundamentals", "market_cap"))   # projected 2026-09-27 (filing-date cap)
 
     sf.family(
         "rd_intensity", "fundamental",
@@ -123,9 +121,7 @@ def _register():
         "(Chan, Lakonishok & Sougiannis 2001).",
         {"q": [0.8]},
         lambda p: sf.G(sf.gt(sf.rank(sf.col("rd_to_assets")), sf.k(p["q"])), None, 3.0, 60),
-        data=("features", "daily_fundamentals", "R&D expense"), available=False,
-        missing="R&D expense is not tagged in sec_facts / statements.py and not "
-                "on the daily panel")
+        data=("features", "daily_fundamentals", "R&D expense"))   # rd_to_assets, 2026-09-27
 
     sf.family(
         "short_interest", "fundamental",
@@ -142,9 +138,7 @@ def _register():
         "(Jensen 1968).",
         {"q": [0.8]},
         lambda p: sf.G(sf.gt(sf.rank(sf.col("alpha_252")), sf.k(p["q"])), None, 3.0, 20),
-        data=("features", "risk_metrics"), available=False,
-        missing="risk_metrics holds monthly beta/idiosyncratic volatility but no "
-                "alpha on the daily panel")
+        data=("features", "risk_metrics"))   # alpha_252 from risk_metrics.alpha, 2026-09-27
 
 
 _register()
