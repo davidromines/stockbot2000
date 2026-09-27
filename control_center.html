@@ -139,6 +139,9 @@
   </div>
 </div>
 
+<h2>What happened to stocks that looked like these (analog forecaster)</h2>
+<div class="card scroll" id="analog"></div>
+
 <div class="grid two">
   <div>
     <h2>Leaderboard movement</h2>
@@ -350,6 +353,14 @@ function renderExtra(x) {
       hv.flagged.map(f => `<tr><td class="${stc(f.state)}">${esc(f.state)}</td><td>${esc(f.name)}</td>
         <td class="muted">${esc(f.reason)}</td><td class="mono">${t(f.since)}</td></tr>`).join("") + "</table>"
       : '<p class="meta">every measured strategy within expectations</p>');
+  const an = x.analog || {held: [], top: []};
+  const arow = (a, tag) => `<tr><td>${tag}</td><td class="mono">${esc(a.ticker)}</td><td class="n mono">${(a.p_up * 100).toFixed(0)}%</td>
+    <td class="n mono ${cls(a.mean)}">${pct(a.mean)}</td><td class="n mono ${cls(a.q10)}">${pct(a.q10)}</td><td class="n mono">${a.n}</td><td class="mono muted">${esc(a.date)}</td></tr>`;
+  $("analog").innerHTML = (an.held.length || an.top.length) ?
+    "<table><tr><th></th><th>Stock</th><th>Past matches that rose</th><th>Their mean move (20 sessions)</th><th>1-in-10 worst</th><th>Matches</th><th>As of</th></tr>" +
+    an.held.map(a => arow(a, "held")).join("") + an.top.map(a => arow(a, "top today")).join("") + "</table>" +
+    '<p class="meta">Out of sample this forecaster barely predicts (AUC 0.52). Context for a position, not a signal to trade on.</p>'
+    : '<p class="meta">no analog scores yet</p>';
   const kn = x.knowledge || {}, st = kn.by_state || {}, lib = kn.library || {};
   $("know").innerHTML = kv([["Library entries (documented strategies)", kn.entries ?? "—"],
     ["Linked to a strategy family", kn.linked ?? "—"],

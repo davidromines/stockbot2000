@@ -191,7 +191,7 @@ def test_empty():
           and {"factory", "by_source_type", "funnel"} <= set(k), str(k))
     a = cce.all_views(conn)
     check("empty: all_views composes",
-          set(a) == {"movement", "health", "published", "knowledge", "options", "intraday", "short_term"}, str(a))
+          set(a) == {"movement", "health", "published", "knowledge", "options", "intraday", "short_term", "analog"}, str(a))
     check("empty: options lists every strategy with no numbers yet",
           a["options"]["strategies"] and all(o["bt_mean"] is None and o["closed"] == 0 for o in a["options"]["strategies"]))
     check("empty: same-day and short-term books are empty, not errors",

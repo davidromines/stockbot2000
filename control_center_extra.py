@@ -305,6 +305,42 @@ def movement_view(conn):
         return {"date": None, "previous": None, "top": [], "new": [], "gone": []}
 
 
+def analog_view(conn, top=10):
+    """P5: what happened to stocks that looked like this one — the analog forecaster's newest
+    read (share of the closest past setups that rose over 20 sessions, their mean move, their
+    10th-percentile outcome) for each open LIVE slot position and the day's top-scored names.
+    Read from data/analog/scores.parquet; never recomputed here."""
+    try:
+        import pandas as pd
+        from pathlib import Path
+        path = Path("data/analog/scores.parquet")
+        if not path.exists():
+            return {"as_of": None, "held": [], "top": []}
+        held = []
+        if _table_exists(conn, "slot_trades"):
+            opens = {}
+            for r in _rows(conn, "SELECT slot_id, symbol, action FROM slot_trades WHERE mode='LIVE' ORDER BY id"):
+                if _get(r, "action") == "OPEN":
+                    opens[_get(r, "slot_id")] = _get(r, "symbol")
+                else:
+                    opens.pop(_get(r, "slot_id"), None)
+            held = sorted(set(opens.values()))
+        s = pd.read_parquet(path)
+        day = s["date"].max()
+        s = s[s["date"] >= (pd.Timestamp(day) - pd.Timedelta(days=10)).strftime("%Y-%m-%d")]
+        last = s.sort_values("date").groupby("ticker").tail(1).set_index("ticker")
+
+        def row(t):
+            r = last.loc[t]
+            return {"ticker": t, "date": r["date"], "p_up": float(r["analog_p_up"]), "mean": float(r["analog_mean"]),
+                    "q10": float(r["analog_q10"]), "n": int(r["analog_n"])}
+        today = last[last["date"] == day].sort_values("analog_p_up", ascending=False)
+        return {"as_of": day, "held": [row(t) for t in held if t in last.index],
+                "top": [row(t) for t in today.index[:top]]}
+    except Exception:                                        # noqa: BLE001 — a view never raises
+        return {"as_of": None, "held": [], "top": []}
+
+
 def all_views(conn):
     return {
         "movement": movement_view(conn),
@@ -314,4 +350,5 @@ def all_views(conn):
         "options": options_view(conn),
         "intraday": intraday_view(conn),
         "short_term": short_term_view(conn),
+        "analog": analog_view(conn),
     }
