@@ -234,7 +234,17 @@ def _done(conn, gen, window) -> set:
         (gen, json.dumps(list(window))))}
 
 
-def _real(conn, cfg, window, fundamentals: bool) -> tuple:
+SIM_COLS = {"ticker", "date", "close", "open", "atr_14", "dollar_volume_20", "returns"}
+
+
+def _trim(df, keep: set):
+    """Drop columns nothing in this run reads (memory: OOM at 6 GB with all of them)."""
+    if df is None or df.empty:
+        return df
+    return df[[c for c in df.columns if c in keep]]
+
+
+def _real(conn, cfg, window, fundamentals: bool, extras=None) -> tuple:
     import storage
     from train_model import FEATURE_COLS
     df = storage.load_training_frame(
@@ -243,7 +253,7 @@ def _real(conn, cfg, window, fundamentals: bool) -> tuple:
         min_price=cfg["risk"].get("min_price"), min_dollar_volume=cfg["risk"].get("min_dollar_volume"),
         include_liquidity=True, include_open=True)
     if fundamentals and not df.empty:
-        df = storage.attach_fundamentals(conn, df)
+        df = storage.attach_fundamentals(conn, df, extras=extras)
     end = (dt.date.fromisoformat(window[1]) + dt.timedelta(days=EXIT_MARGIN_DAYS)).isoformat()
     ex = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(), window[0], end) if not df.empty \
         else pd.DataFrame(columns=["ticker", "date", "close", "open"])
@@ -281,7 +291,14 @@ def run(conn, cfg, only: list | None = None) -> dict:
         group = [s for s in todo if s[3] == fund]
         if not any((k, v, m) not in done for k, v, _, _ in group for m in MODES):
             continue
-        real, real_ex = _real(conn, cfg, window, fund)
+        import storage
+        # Only the attached columns this group's rules read (OOM at 6 GB with all of them).
+        need_cols = storage.columns_read([g for _, _, g, _ in group]) if fund else None
+        real, real_ex = _real(conn, cfg, window, fund, need_cols)
+        # ...and only the columns the simulator needs plus what the group's rules read: the
+        # panel carried every indicator and attached column (~55) for rules reading a few.
+        keep = SIM_COLS | storage.columns_read([g for _, _, g, _ in group])
+        real = _trim(real, keep)
         if real.empty:
             log.warning(f"empty real panel for {window}")
             continue
@@ -293,6 +310,7 @@ def run(conn, cfg, only: list | None = None) -> dict:
                 df, ex = real, real_ex
             else:
                 srows, sex = synthetic_frames(conn, cfg, window, mode, fundamentals=fund)
+                srows = _trim(srows, keep)
                 df, ex = _combine(real, srows), _combine(real_ex, sex)
             panel = simulator.Panel(df, exit_prices=ex)
             dd = bias.drawdown_column(panel.df)

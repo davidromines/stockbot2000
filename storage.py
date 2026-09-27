@@ -728,8 +728,18 @@ def needs_panel(genome) -> bool:
     return any(f'"{c}"' in text for c in PANEL_COLS)
 
 
+def columns_read(genomes) -> set:
+    """Every column name a set of genomes' rules read ({"col": NAME} nodes)."""
+    import json
+    import re
+    out = set()
+    for g in genomes:
+        out |= set(re.findall(r'"col":\s*"([^"]+)"', g if isinstance(g, str) else json.dumps(g)))
+    return out
+
+
 def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
-                        cols=FUNDAMENTAL_PANEL_COLS) -> "pd.DataFrame":
+                        cols=FUNDAMENTAL_PANEL_COLS, extras=None) -> "pd.DataFrame":
     """
     Join point-in-time fundamentals onto a (ticker, date) frame.
 
@@ -744,10 +754,22 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
     import pandas as pd
     if df.empty:
         return df
+    # `extras`: the attached columns wanted (None = all, the default for callers that do
+    # not know). Each attached group is ~3M float32 values on a 4-year panel, and
+    # attaching every group for every run took the survivorship backtest past its 6 GB
+    # cap (OOM, 09-27 rehearsal) — so a caller that knows its strategies' columns asks for
+    # those only. Fundamentals are limited the same way through `cols`.
+    want = None if extras is None else set(extras)
+
+    def wanted(*names):
+        return want is None or any(n in want for n in names)
+
+    if want is not None:
+        cols = [c for c in cols if c in want]
     lo, hi = str(df["date"].min())[:10], str(df["date"].max())[:10]
     tickers = df["ticker"].astype(str).unique().tolist()
     parts = []
-    for i in range(0, len(tickers), 900):
+    for i in (range(0, len(tickers), 900) if cols else ()):   # no fundamentals wanted: no query
         chunk = tickers[i:i + 900]
         ph = ",".join("?" * len(chunk))
         parts.append(pd.read_sql_query(
@@ -761,7 +783,7 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
     left["_t"] = left["ticker"].astype(str)
     f = f.rename(columns={"date": "_d", "ticker": "_t"})
     out = left.merge(f, on=["_t", "_d"], how="left")
-    if conn.execute("SELECT 1 FROM sqlite_master WHERE name='daily_sue'").fetchone():
+    if wanted(*SUE_COLS) and conn.execute("SELECT 1 FROM sqlite_master WHERE name='daily_sue'").fetchone():
         sparts = []
         for i in range(0, len(tickers), 900):
             chunk = tickers[i:i + 900]
@@ -773,17 +795,23 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
         for c in SUE_COLS:
             sf[c] = pd.to_numeric(sf[c], errors="coerce").astype("float32")
         out = out.merge(sf, on=["_t", "_d"], how="left")
-    out = _attach_alpha(conn, out, tickers, lo, hi)
-    import short_volume
-    out = short_volume.attach(conn, out, lo, hi, tickers)   # FINRA short-sale volume, 20 sessions
-    import analog
-    out = analog.attach(out, lo, hi, tickers)                # Stage P: what similar past setups did next
-    import composite
-    out = composite.attach(conn, out)                        # Stage S: IC-weighted multi-signal score
-    import insider
-    out = insider.attach(conn, out)                          # O-ins: SEC Form 4 insider buying, 90 days
-    import congress_trades
-    out = congress_trades.attach(conn, out)                  # O-pol: House members' disclosed trades, 90 days
+    if wanted("alpha_252"):
+        out = _attach_alpha(conn, out, tickers, lo, hi)
+    if wanted("short_volume_ratio_20"):
+        import short_volume
+        out = short_volume.attach(conn, out, lo, hi, tickers)   # FINRA short-sale volume, 20 sessions
+    if wanted("analog_p_up", "analog_mean", "analog_q10"):
+        import analog
+        out = analog.attach(out, lo, hi, tickers)                # Stage P: what similar past setups did next
+    if wanted("composite"):
+        import composite
+        out = composite.attach(conn, out)                        # Stage S: IC-weighted multi-signal score
+    if wanted("insider_buy_usd_90", "insider_buyers_90", "opp_buyers_90"):
+        import insider
+        out = insider.attach(conn, out)                          # O-ins: SEC Form 4 insider buying, 90 days
+    if wanted("congress_buyers_90", "congress_sellers_90"):
+        import congress_trades
+        out = congress_trades.attach(conn, out)                  # O-pol: House members' disclosed trades, 90 days
     return out.drop(columns=["_t", "_d"])
 
 
