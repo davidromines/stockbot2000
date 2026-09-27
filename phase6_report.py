@@ -206,7 +206,7 @@ def render(d: dict) -> str:
     L += [f"| {i} | {s} | {w} |" for i, s, w in cl]
     L += ["", "## REMAINING RISKS", "",
           "- **Survivorship bias** is bounded, not closed: the per-date coverage above is what a backtest can see. "
-          "Synthetic dead companies fail their realism gate and are for stress bounds only.",
+          "Synthetic dead companies (generator v5c) pass the realism test per exit type and are in the ranking's backtests; they remain modelled, not real, prices.",
           "- **Real money is trading strategies with no demonstrated edge.** Most slots hold Rising 200 variants, "
           "an entry rule the 14-year stop sweep found loses net in all 30 cells.",
           "- **Forward samples are weeks long.** Nothing clears the scoreboard's 60-mark floor; every forward "
