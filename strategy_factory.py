@@ -277,6 +277,7 @@ _sys.modules.setdefault("strategy_factory", _sys.modules[__name__])
 import factory_families_o  # noqa: E402,F401
 import factory_families_l  # noqa: E402,F401  — Stage L3: rebuilt from published signals
 import factory_families_q  # noqa: E402,F401  — Stage Q: short-term strategies (1-5 session holds)
+import factory_families_s  # noqa: E402,F401  — Stage S3: multi-signal composite
 import factory_families_p  # noqa: E402,F401  — Stage P3: the analog forecaster as a family
 
 
