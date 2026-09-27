@@ -38,6 +38,12 @@ def main():
     check("five slots filled", len(keys) == 5, keys)
     check("exactly one crypto strategy, the best one", [k for k in keys if k.startswith("crypto:")] == ["crypto:a"], keys)
     check("stocks fill the other four", sum(1 for k in keys if k.startswith("fx_")) == 4, keys)
+    ranked2 = [row(f"fx_rot{i}", "etf_rotation_assets", 0.09 - i * 0.001) for i in range(4)] + \
+              [row(f"fx_s{i}", f"fam{i}", 0.02) for i in range(4)]
+    slots.assess = lambda conn, cfg: ranked2
+    k2 = [a[1]["strategy_key"] for a in slots.plan(c, {"slots": {"max_per_family": 4}})["assign"]]
+    check("one slot per ETF rotation universe, whatever the family cap",
+          sum(1 for k in k2 if k.startswith("fx_rot")) == 1 and len(k2) == 5, k2)
     check("the cap is a setting", slots.settings({"slots": {"max_crypto_slots": 2}})["max_crypto_slots"] == 2)
     print()
     if FAILED:

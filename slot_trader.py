@@ -241,6 +241,15 @@ def _value_signals(conn, g: dict) -> tuple:
     return pd.DataFrame({"ticker": held}), _NotHeldBy(held)
 
 
+def _rotation_signals(conn, g: dict) -> tuple:
+    """An ETF rotation slot (rotation.py): candidates are the fund's current holdings, best
+    first; the strategy exit fires when the fund no longer holds the slot's ETF."""
+    import pandas as pd
+    import rotation
+    held = rotation.current(conn, g["rotation"])["holdings"]
+    return pd.DataFrame({"ticker": held}), _NotHeldBy(held)
+
+
 def _record_trade(conn, mode, slot, holder, symbol, action, res, reason, plan=None, atr=None):
     o = res.get("order")
     if res.get("status") not in ("filled", "partially_filled") or not o or not o.filled_quantity:
@@ -472,9 +481,11 @@ def trade(conn, cfg, mode: str, provider) -> list:
             cands, exits = _pair_signals(conn, cfg, g)
         elif g.get("value"):
             cands, exits = _value_signals(conn, g)
+        elif g.get("rotation"):
+            cands, exits = _rotation_signals(conn, g)
         else:
             cands, exits = pt._genome_signals(conn, cfg, g)
-        if not (g.get("pair") or g.get("value")):
+        if not (g.get("pair") or g.get("value") or g.get("rotation")):
             exits = net_exits(exits, cands, slot)
         exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
 

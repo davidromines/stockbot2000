@@ -295,6 +295,70 @@ def _stale_marks(conn, tickers, prices: dict, today: str) -> dict:
     return out
 
 
+def _rotation_of(run: dict):
+    try:
+        g = json.loads(run.get("strategy") or "")
+    except (ValueError, TypeError):
+        return None
+    return g.get("rotation") if isinstance(g, dict) else None
+
+
+def _rotation_step(conn, cfg, run, today, cost_model) -> bool:
+    """
+    Advance one ETF rotation fund (rotation.py): once a month — or when it holds nothing —
+    move to the fund's current holdings (top K by trailing return, SHY when momentum is not
+    positive); every day, mark the book. No stop and no time exit: the monthly ranking is
+    the exit, as in the backtest. ETF closes are read from `prices` directly (the stock
+    universe the other runs trade does not include ETFs).
+    """
+    import rotation
+    params = _rotation_of(run)
+    size = cfg["risk"]["position_size_usd"]
+
+    def close(t):
+        r = conn.execute("SELECT close FROM prices WHERE ticker=? AND date=?", (t, today)).fetchone()
+        return float(r[0]) if r and r[0] else None
+
+    open_pos = [dict(r) for r in conn.execute("SELECT * FROM paper_positions WHERE run_id=?", (run["run_id"],))]
+    cash = run["cash_usd"]
+    last = run.get("last_review") or ""
+    if not open_pos or last[:7] != today[:7]:
+        target = rotation.current(conn, params, as_of=today)["holdings"]
+        for pos in list(open_pos):
+            if pos["ticker"] in target:
+                continue
+            px = close(pos["ticker"])
+            if px is None:
+                continue
+            gross = pos["shares"] * (px - pos["entry_price"])
+            cost = float(cost_model.round_trip(pos["shares"] * pos["entry_price"], 1e9, pos["shares"]))
+            conn.execute("""INSERT OR REPLACE INTO paper_trades (run_id,ticker,entry_date,exit_date,entry_price,
+                exit_price,shares,gross_pnl_usd,costs_usd,net_pnl_usd,pnl_pct,exit_reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (run["run_id"], pos["ticker"], pos["entry_date"], today, pos["entry_price"], px, pos["shares"],
+                 gross, cost, gross - cost, (px / pos["entry_price"] - 1) * 100, "rotated_out"))
+            conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (run["run_id"], pos["ticker"]))
+            cash += pos["shares"] * px - cost
+            open_pos.remove(pos)
+        held = {p["ticker"] for p in open_pos}
+        for t in target:
+            px = close(t)
+            if t in held or px is None or cash < size:
+                continue
+            shares = size / px
+            conn.execute("""INSERT OR REPLACE INTO paper_positions (run_id,ticker,entry_date,entry_price,shares,
+                stop_price,days_held) VALUES (?,?,?,?,?,NULL,0)""", (run["run_id"], t, today, px, shares))
+            cash -= size
+            open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
+        conn.execute("UPDATE paper_runs SET last_review=? WHERE run_id=?", (today, run["run_id"]))
+    pv = sum(p["shares"] * (close(p["ticker"]) or p["entry_price"]) for p in open_pos)
+    conn.execute("""INSERT OR REPLACE INTO paper_equity (run_id,date,cash_usd,positions_usd,equity_usd,open_positions)
+        VALUES (?,?,?,?,?,?)""", (run["run_id"], today, cash, pv, cash + pv, len(open_pos)))
+    conn.execute("UPDATE paper_runs SET cash_usd=?, last_step_on=? WHERE run_id=?", (cash, today, run["run_id"]))
+    conn.commit()
+    return True
+
+
 def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
     """
     Advance one conviction run. Reviews weekly; does nothing on other days.
@@ -448,6 +512,10 @@ def step(conn, cfg: dict) -> None:
         # if paper trading closes it at 5.
         # Conviction runs are portfolio-level and weekly; they do not use the
         # per-trade stop/hold machinery below.
+        if _rotation_of(run):
+            if run["last_step_on"] != today:
+                _rotation_step(conn, cfg, run, today, cost_model)
+            continue
         if _conviction_of(run):
             if _conviction_step(conn, cfg, run, today, prices, dv, cost_model):
                 continue

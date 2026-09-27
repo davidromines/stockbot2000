@@ -75,6 +75,10 @@ DEFAULTS = {
     # measured correlation (weekly returns, 2023 -> today) with a held or chosen strategy is
     # above this does not take a slot. Unmeasured pairs fall back to the family cap.
     "max_correlation": 0.7,
+    # Per-family overrides of max_per_family. ETF rotation variants of one universe hold
+    # the same few ETFs and cannot be measured by strategy_diversity (no stock rule), so
+    # one slot per rotation universe.
+    "family_caps": {"etf_rotation_sectors": 1, "etf_rotation_assets": 1},
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -295,6 +299,7 @@ def plan(conn, cfg: dict) -> dict:
     from collections import Counter
     held_fams = Counter(h["row"]["family"] for h in keep.values())
     is_crypto = lambda k: str(k).startswith("crypto:")                      # noqa: E731
+    fam_cap = lambda f: int((s.get("family_caps") or {}).get(f, s["max_per_family"]))  # noqa: E731
     held_crypto = sum(1 for h in keep.values() if is_crypto(h["strategy_key"]))
     challengers = [r for r in eligible if (r["strategy_key"], r["version"]) not in held_keys]
 
@@ -315,7 +320,7 @@ def plan(conn, cfg: dict) -> dict:
     for r in challengers:
         if not free:
             break
-        if held_fams[r["family"]] >= s["max_per_family"]:
+        if held_fams[r["family"]] >= fam_cap(r["family"]):
             continue
         sim = too_similar(r, [h for h in keep.values()] + [a[1] for a in assigns])
         if sim:
@@ -350,7 +355,7 @@ def plan(conn, cfg: dict) -> dict:
         if sim:
             skipped_corr.append((r["strategy_key"], sim[0], sim[1]))
             continue
-        family_clash = others[r["family"]] >= s["max_per_family"] or (
+        family_clash = others[r["family"]] >= fam_cap(r["family"]) or (
             is_crypto(r["strategy_key"]) and not is_crypto(w["strategy_key"])
             and sum(1 for sl, h in keep.items() if sl != weakest_slot and is_crypto(h["strategy_key"]))
             >= s["max_crypto_slots"])
