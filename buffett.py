@@ -80,6 +80,10 @@ def init(conn) -> None:
         ) STRICT, WITHOUT ROWID
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_risk_date ON risk_metrics(date)")
+    # Jensen's alpha from the same one-year regression (added 2026-09-27 for the
+    # capm_alpha family): the mean residual, annualised. Log returns, no risk-free.
+    if "alpha" not in [r[1] for r in conn.execute("PRAGMA table_info(risk_metrics)")]:
+        conn.execute("ALTER TABLE risk_metrics ADD COLUMN alpha REAL")
     conn.commit()
 
 
@@ -135,18 +139,19 @@ def build_risk(conn, start="2009-01-01", limit=None, stride=21) -> None:
             beta = float(np.cov(y, x)[0, 1] / vx)
             resid = y - beta * x
             ivol = float(resid.std() * np.sqrt(252))
+            alpha = float(resid.mean() * 252)
             if np.isfinite(beta) and np.isfinite(ivol):
-                out.append((t, str(dates[b - 1]), beta, ivol))
+                out.append((t, str(dates[b - 1]), beta, ivol, alpha if np.isfinite(alpha) else None))
         n += 1
         if len(out) >= 50000:
             conn.executemany("INSERT OR REPLACE INTO risk_metrics "
-                             "(ticker,date,beta,ivol) VALUES (?,?,?,?)", out)
+                             "(ticker,date,beta,ivol,alpha) VALUES (?,?,?,?,?)", out)
             conn.commit(); out = []
         if n % 400 == 0:
             log.info(f"  {n:,}/{len(tickers):,} tickers")
     if out:
         conn.executemany("INSERT OR REPLACE INTO risk_metrics "
-                         "(ticker,date,beta,ivol) VALUES (?,?,?,?)", out)
+                         "(ticker,date,beta,ivol,alpha) VALUES (?,?,?,?,?)", out)
     conn.commit()
     tot = conn.execute("SELECT COUNT(*) FROM risk_metrics").fetchone()[0]
     log.info(f"risk_metrics: {tot:,} rows across {n:,} tickers")
@@ -194,3 +199,15 @@ def quality_score(d: pd.DataFrame) -> pd.Series:
     if not legs:
         return pd.Series(np.nan, index=d.index)
     return _z(pd.concat(legs, axis=1).mean(axis=1))
+
+
+if __name__ == "__main__":
+    import argparse
+    import sqlite3
+    from universe import load_config
+    ap = argparse.ArgumentParser(description="Beta, idiosyncratic vol and CAPM alpha per ticker (risk_metrics).")
+    ap.add_argument("--build-risk", action="store_true")
+    a = ap.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if a.build_risk:
+        build_risk(sqlite3.connect(load_config()["database"]["market_data_path"], timeout=120))

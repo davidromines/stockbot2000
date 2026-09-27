@@ -707,7 +707,7 @@ def load_training_frame(conn: sqlite3.Connection, feature_cols: list[str],
 FUNDAMENTAL_PANEL_COLS = ("piotroski_f", "book_to_market", "gross_profitability",
                           "chs_distress", "asset_growth", "accruals", "roa",
                           "earnings_yield", "net_share_issuance", "debt_to_equity",
-                          "cash_to_assets", "altman_z", "fcf_to_price")
+                          "cash_to_assets", "altman_z", "fcf_to_price", "rd_to_assets", "market_cap")
 # Earnings surprise (sue_features.py): its own point-in-time table, joined beside the
 # fundamentals. sue_age is calendar days since the filing (rows only up to 63 days).
 SUE_COLS = ("sue", "sue_age")
@@ -758,7 +758,38 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
         for c in SUE_COLS:
             sf[c] = pd.to_numeric(sf[c], errors="coerce").astype("float32")
         out = out.merge(sf, on=["_t", "_d"], how="left")
+    out = _attach_alpha(conn, out, tickers, lo, hi)
     return out.drop(columns=["_t", "_d"])
+
+
+def _attach_alpha(conn, out, tickers, lo, hi):
+    """alpha_252: the newest one-year CAPM alpha (risk_metrics, sampled every 21
+    sessions) at or before each date — point-in-time by construction."""
+    import pandas as pd
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(risk_metrics)")]
+    if "alpha" not in cols:
+        out["alpha_252"] = float("nan")
+        return out
+    start = (pd.Timestamp(lo) - pd.Timedelta(days=45)).strftime("%Y-%m-%d")
+    parts = []
+    for i in range(0, len(tickers), 900):
+        chunk = tickers[i:i + 900]
+        ph = ",".join("?" * len(chunk))
+        parts.append(pd.read_sql_query(
+            f"SELECT ticker AS _t, date AS _rd, alpha AS alpha_252 FROM risk_metrics "
+            f"WHERE date BETWEEN ? AND ? AND alpha IS NOT NULL AND ticker IN ({ph})",
+            conn, params=(start, hi, *chunk)))
+    r = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+    if r.empty:
+        out["alpha_252"] = float("nan")
+        return out
+    r["_k"] = pd.to_datetime(r["_rd"])
+    r["alpha_252"] = r["alpha_252"].astype("float32")
+    out["_k"] = pd.to_datetime(out["_d"])
+    out["_i"] = range(len(out))
+    m = pd.merge_asof(out.sort_values("_k"), r.sort_values("_k")[["_t", "_k", "alpha_252"]],
+                      on="_k", by="_t", direction="backward")
+    return m.sort_values("_i").drop(columns=["_k", "_i"]).reset_index(drop=True)
 
 
 def load_exit_prices(conn: sqlite3.Connection, tickers, start_date: str,

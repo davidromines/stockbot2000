@@ -111,7 +111,7 @@ def company_metrics(conn, cik: int, px: pd.Series, spy: pd.Series, filings: list
         m = vm.compute(cur, prev, mcap, mkt)
         prev = cur
         rows.append({"filed": str(filed), "price_source": "filed" if rp else "synthetic",
-                     **{c: m.get(c) for c in ff.FUNDAMENTAL_COLS}})
+                     **{c: m.get(c) for c in ff.FUNDAMENTAL_COLS}, "market_cap": mcap})
     return pd.DataFrame(rows)
 
 
@@ -210,8 +210,15 @@ def load(generator: str | None, start: str | None = None, end: str | None = None
         filters.append(("date", ">=", start))
     if end:
         filters.append(("date", "<=", end))
-    cols = None if columns is None else ["company_id", "date", *columns]
+    have = None
+    if columns is not None:
+        import pyarrow.parquet as pq
+        have = set(pq.read_schema(OUT).names)
+    cols = None if columns is None else ["company_id", "date", *[c for c in columns if c in have]]
     df = pd.read_parquet(OUT, columns=cols, filters=filters or None)
+    for c in (columns or []):
+        if c not in df.columns:
+            df[c] = float("nan")     # a column added after this build: unknown, never zero
     for c in df.columns:
         if c not in ("company_id", "date"):
             df[c] = df[c].astype("float32")

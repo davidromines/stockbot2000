@@ -105,6 +105,7 @@ CHAINS = {
                       "WeightedAverageNumberOfSharesOutstandingBasic",
                       "CommonStockSharesIssued"],
     "eps":           ["EarningsPerShareBasic"],
+    "rd":            ["ResearchAndDevelopmentExpense"],
 }
 
 # Every metric this module produces, so the schema and the coverage report stay
@@ -115,7 +116,7 @@ METRICS = [
     "ebit_to_ev", "ev_to_ebitda", "ev_to_sales",
     # profitability
     "roa", "roe", "roic", "gross_profitability", "gross_margin",
-    "operating_margin", "net_margin", "cash_roa",
+    "operating_margin", "net_margin", "cash_roa", "rd_to_assets",
     # earnings quality
     "accruals", "net_operating_assets", "earnings_quality",
     # investment and growth
@@ -247,6 +248,9 @@ def compute(cur, prev, market_cap=None, mkt: dict | None = None) -> dict:
 
     # -- profitability -----------------------------------------------------
     m["roa"] = _safe(ni_a, assets)
+    # R&D intensity (Chan, Lakonishok & Sougiannis 2001), annualised like every flow
+    # against a balance. A filer that reports no R&D is unknown, not zero: None.
+    m["rd_to_assets"] = _safe(ann("rd", g("rd", {1, 4})), assets)
     m["roe"] = _safe(ni_a, equity)
     m["gross_profitability"] = _safe(gp_a, assets)        # Novy-Marx (2013)
     m["gross_margin"] = _safe(gp, rev)

@@ -66,6 +66,8 @@ FUNDAMENTAL_COLS = [
     "cash_to_assets",
     "altman_z",             # 83%. Famous; kept for comparison with CHS.
     "fcf_to_price",         # Free cash flow to price (JKP fcf_me); None where capex is untagged.
+    "rd_to_assets",         # R&D / assets (Chan, Lakonishok & Sougiannis 2001); None where R&D is untagged.
+    "market_cap",           # at the filing: filing shares x filing-date price (size; Banz 1981).
 ]
 
 
