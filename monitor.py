@@ -324,6 +324,19 @@ def serve(port: int = 8787) -> None:
             try:
                 if path == "/api/control":
                     body, ctype = json.dumps(cc.snapshot(), default=str).encode(), "application/json"
+                elif path == "/api/journal":
+                    # One strategy's timeline (?key=) or a name search (?q=). Read-only.
+                    from urllib.parse import parse_qs, urlparse
+                    import sqlite3 as _sq
+                    import journal
+                    from universe import load_config as _lc
+                    qs = parse_qs(urlparse(self.path).query)
+                    jc = _sq.connect(f"file:{_lc()['database']['market_data_path']}?mode=ro", uri=True, timeout=30)
+                    if qs.get("key"):
+                        data = journal.timeline(jc, qs["key"][0])
+                    else:
+                        data = {"results": journal.search(jc, (qs.get("q") or [""])[0])}
+                    body, ctype = json.dumps(data, default=str).encode(), "application/json"
                 elif path == "/lab":
                     body, ctype = html(snapshot()).encode(), "text/html; charset=utf-8"
                 elif path in ("/", "/index.html"):

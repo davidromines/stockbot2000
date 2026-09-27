@@ -139,6 +139,19 @@
   </div>
 </div>
 
+<div class="grid two">
+  <div>
+    <h2>Leaderboard movement</h2>
+    <div class="card scroll" id="move"></div>
+  </div>
+  <div>
+    <h2>Strategy journal</h2>
+    <div class="card scroll"><input id="jq" placeholder="search a strategy (name, family or key)"
+      style="width:100%;padding:6px;background:transparent;color:inherit;border:1px solid #444;border-radius:6px">
+      <div id="jr"></div></div>
+  </div>
+</div>
+
 <h2>Options — real option prices, paper only</h2>
 <div class="card scroll" id="opts"></div>
 
@@ -299,6 +312,13 @@ function render(s) {
 
 function renderExtra(x) {
   if (x.error) { ["shealth", "know", "pub", "opts", "stterm", "intra"].forEach(id => $(id).innerHTML = `<p class="meta">${esc(x.error)}</p>`); return; }
+  const mv = x.movement || {top: []};
+  $("move").innerHTML = mv.date ? `<p class="meta">${esc(mv.date)}${mv.previous ? " vs " + esc(mv.previous) : " (first snapshot — movement shows from the next one)"}</p>` +
+    "<table><tr><th>#</th><th>Move</th><th>Strategy</th><th>Score</th></tr>" + mv.top.map(r => `<tr><td class="n mono">${r.rank}</td>
+      <td class="n mono ${r.change > 0 ? "pos" : r.change < 0 ? "neg" : ""}">${r.change == null ? "new" : r.change > 0 ? "▲" + r.change : r.change < 0 ? "▼" + (-r.change) : "="}</td>
+      <td><a href="#" data-k="${esc(r.strategy_key)}" class="jl">${esc(r.name)}</a></td><td class="n mono ${cls(r.score)}">${pct(r.score)}</td></tr>`).join("") + "</table>"
+    : '<p class="meta">no ranking snapshot yet — recorded by the daily run</p>';
+  document.querySelectorAll("a.jl").forEach(a => a.onclick = e => { e.preventDefault(); journalShow(a.dataset.k); });
   const ov = x.options || {strategies: [], recent: []};
   $("opts").innerHTML = "<table><tr><th>Strategy</th><th>Backtest trades</th><th>Avg / trade</th><th>Won</th><th>Avg $ per $" +
     (ov.stake || 100) + "</th><th>Paper since</th><th>Paper trades</th><th>Paper $</th><th>Open</th></tr>" +
@@ -353,6 +373,21 @@ function renderExtra(x) {
     pv.candidates.map(f => row(esc(f.name || f.signal), f.cluster || "", f)).join("") + "</table>" +
     '<p class="meta">Long tercile minus the market, per month, before costs. Portfolio evidence, not a forecast for a single $20 position.</p>';
 }
+
+async function journalShow(key) {
+  const r = await fetch("api/journal?key=" + encodeURIComponent(key), {cache: "no-store"}); const j = await r.json();
+  const p = j.paper ? `<p class="meta">paper: ${j.paper.closed_trades ?? 0} closed trades, ${usd(j.paper.net_usd, true)} over ${j.paper.sessions ?? 0} sessions</p>` : "";
+  const rk = j.ranks && j.ranks.length ? `<p class="meta">rank: ${j.ranks.slice(-8).map(x => esc(x.date) + " #" + x.rank).join(", ")}</p>` : "";
+  $("jr").innerHTML = `<h3>${esc(j.name)}</h3>` + p + rk + "<table><tr><th>When</th><th>What</th><th>Detail</th></tr>" +
+    j.events.slice().reverse().map(e => `<tr><td class="mono">${t(e.at)}</td><td>${esc(e.kind)} v${e.version}</td><td class="muted">${esc(e.text)}</td></tr>`).join("") + "</table>";
+}
+let jt;
+document.addEventListener("input", e => { if (e.target.id !== "jq") return; clearTimeout(jt); jt = setTimeout(async () => {
+  const q = e.target.value.trim(); if (q.length < 2) { $("jr").innerHTML = ""; return; }
+  const r = await fetch("api/journal?q=" + encodeURIComponent(q), {cache: "no-store"}); const j = await r.json();
+  $("jr").innerHTML = "<table>" + j.results.map(x => `<tr><td><a href="#" class="jl2" data-k="${esc(x.strategy_key)}">${esc(x.name)}</a></td><td class="muted">${esc(x.family || "")} v${x.version}</td></tr>`).join("") + "</table>";
+  document.querySelectorAll("a.jl2").forEach(a => a.onclick = ev => { ev.preventDefault(); journalShow(a.dataset.k); });
+}, 300); });
 
 document.querySelectorAll(".tabs button").forEach(b => {
   if (b.dataset.f === filter) { document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on")); b.classList.add("on"); }

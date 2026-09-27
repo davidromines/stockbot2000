@@ -273,8 +273,18 @@ def short_term_view(conn):
     return {"families": [{"family": r[0], "strategies": r[1], "closed": r[2] or 0, "net_usd": r[3]} for r in rows]}
 
 
+def movement_view(conn):
+    """Leaderboard movement since the previous daily ranking snapshot (journal.py)."""
+    try:
+        import journal
+        return journal.movement(conn, top=20)
+    except Exception:                                        # noqa: BLE001 — a view never raises
+        return {"date": None, "previous": None, "top": [], "new": [], "gone": []}
+
+
 def all_views(conn):
     return {
+        "movement": movement_view(conn),
         "health": health_view(conn),
         "published": published_view(conn),
         "knowledge": knowledge_view(conn),
