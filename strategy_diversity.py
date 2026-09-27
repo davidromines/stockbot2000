@@ -38,6 +38,7 @@ import pandas as pd
 log = logging.getLogger("strategy_diversity")
 START = "2023-01-01"
 MIN_WEEKS = 26
+MIN_WEEKS_BEAR = 15      # the five bear windows hold ~75 entry weeks in all
 
 
 def init(conn) -> None:
@@ -49,6 +50,10 @@ def init(conn) -> None:
         key_a TEXT NOT NULL, ver_a INTEGER NOT NULL, key_b TEXT NOT NULL, ver_b INTEGER NOT NULL,
         corr REAL, weeks INTEGER NOT NULL, computed_at TEXT NOT NULL,
         PRIMARY KEY (key_a, ver_a, key_b, ver_b))""")
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(strategy_correlation)")}
+    for c, t in (("corr_recent", "REAL"), ("corr_bear", "REAL"), ("weeks_bear", "INTEGER")):
+        if c not in cols:
+            conn.execute(f"ALTER TABLE strategy_correlation ADD COLUMN {c} {t}")
     conn.commit()
 
 
@@ -62,11 +67,12 @@ def weekly(result: dict, dates) -> pd.Series:
     return pd.Series(ret).groupby(wk.to_numpy()).mean()
 
 
-def corr(a: pd.Series, b: pd.Series) -> tuple:
-    """(correlation, shared weeks). None below MIN_WEEKS — a thin overlap is not a measurement."""
+def corr(a: pd.Series, b: pd.Series, min_weeks: int = None) -> tuple:
+    """(correlation, shared weeks). None below the minimum — a thin overlap is not a measurement."""
+    min_weeks = MIN_WEEKS if min_weeks is None else min_weeks
     j = pd.concat([a, b], axis=1, join="inner").dropna()
     n = len(j)
-    if n < MIN_WEEKS or j.iloc[:, 0].std() == 0 or j.iloc[:, 1].std() == 0:
+    if n < min_weeks or j.iloc[:, 0].std() == 0 or j.iloc[:, 1].std() == 0:
         return None, n
     return float(j.iloc[:, 0].corr(j.iloc[:, 1])), n
 
@@ -133,15 +139,51 @@ def run(conn, cfg, top: int = 40) -> dict:
                              [(key, ver, wk, float(v), 0, now) for wk, v in w.items()])
             conn.commit()
         fp._PANELS.clear()
+    bear = bear_series(conn, cfg, todo, cm, size, cap)
     keys = sorted(series)
     pairs = 0
     for i, a in enumerate(keys):
         for b in keys[i + 1:]:
             c, n = corr(series[a], series[b])
-            conn.execute("INSERT OR REPLACE INTO strategy_correlation VALUES (?,?,?,?,?,?,?)", (*a, *b, c, n, now))
+            cb, nb = corr(bear.get(a, pd.Series(dtype=float)), bear.get(b, pd.Series(dtype=float)), MIN_WEEKS_BEAR)
+            # The stricter of the two: strategies that differ in a rising market but move
+            # together in a fall are one bet when it matters most.
+            both = [x for x in (c, cb) if x is not None]
+            conn.execute("INSERT OR REPLACE INTO strategy_correlation (key_a, ver_a, key_b, ver_b, corr, weeks, "
+                         "computed_at, corr_recent, corr_bear, weeks_bear) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         (*a, *b, max(both) if both else None, n, now, c, cb, nb))
             pairs += 1
     conn.commit()
-    return {"strategies": len(keys), "pairs": pairs, "window": [START, end]}
+    return {"strategies": len(keys), "pairs": pairs, "window": [START, end],
+            "bear_measured": len(bear)}
+
+
+def bear_series(conn, cfg, todo, cm, size, cap) -> dict:
+    """(key, version) -> weekly series of trades ENTERED in the bear windows
+    (market_checks.BEAR_WINDOWS, with warm-up), all windows concatenated."""
+    import factory_pipeline as fp
+    import market_checks as mc
+    import simulator
+    import storage
+    parts = {}
+    for name, start, end in mc.BEAR_WINDOWS:
+        for need in (False, True):
+            group = [(k, v, g) for k, v, g in todo if storage.needs_panel(g) == need]
+            if not group:
+                continue
+            p = mc._panel(conn, cfg, name, start, end, need)
+            if p is None:
+                continue
+            for key, ver, g in group:
+                try:
+                    r = simulator.simulate(mc._in_window(g), p, cm, size, max_entries=cap)
+                except Exception:                            # noqa: BLE001
+                    continue
+                w = weekly(r, p.dates)
+                if len(w):
+                    parts.setdefault((key, ver), []).append(w)
+            fp._PANELS.clear()
+    return {k: pd.concat(v) for k, v in parts.items()}
 
 
 def report(conn, cfg) -> str:

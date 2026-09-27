@@ -42,6 +42,8 @@ def main():
     c, n = sd.corr(a, a * 2 + rng.normal(scale=0.1, size=40))
     check("near-identical strategies correlate near 1", c > 0.95 and n == 40, (c, n))
     check("fewer than MIN_WEEKS shared weeks is no measurement", sd.corr(a[:10], a[:10])[0] is None)
+    check("the bear windows use their own (lower) minimum", sd.corr(a[:16], a[:16], sd.MIN_WEEKS_BEAR)[0] is not None
+          and sd.corr(a[:16], a[:16])[0] is None)
 
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE prices (ticker TEXT, date TEXT)")
@@ -53,7 +55,8 @@ def main():
     corr_rows = [("fx_es1", "fx_es2", 0.93), ("fx_es1", "fx_es3", 0.88), ("fx_es2", "fx_es3", 0.9),
                  ("fx_es1", "fx_fcf", 0.35), ("fx_es1", "fx_mom", 0.2), ("fx_fcf", "fx_mom", 0.1),
                  ("fx_es1", "fx_val", 0.3), ("fx_fcf", "fx_val", 0.75), ("fx_mom", "fx_val", 0.1)]
-    conn.executemany("INSERT INTO strategy_correlation VALUES (?,1,?,1,?,52,'t')", corr_rows)
+    conn.executemany("INSERT INTO strategy_correlation (key_a, ver_a, key_b, ver_b, corr, weeks, computed_at) "
+                     "VALUES (?,1,?,1,?,52,'t')", corr_rows)
     check("lookup works in either order", sd.lookup(conn, ("fx_es2", 1), ("fx_es1", 1)) == 0.93)
     slots.assess = lambda c, cfg: ranked
     p = slots.plan(conn, {"slots": {"max_per_family": 4}})
