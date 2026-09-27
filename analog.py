@@ -194,6 +194,10 @@ def scores(conn, cfg, start: str = "2006-06-01", lib_sample: int = 400_000, seed
             out.append(f[["ticker", "date", "p_up", "mean", "q10", "n"]])
     s = pd.concat(out, ignore_index=True).rename(columns={"p_up": "analog_p_up", "mean": "analog_mean",
                                                           "q10": "analog_q10", "n": "analog_n"})
+    if SCORES.exists():
+        # Incremental: rows from `start` on are replaced; earlier history is kept.
+        old = pd.read_parquet(SCORES)
+        s = pd.concat([old[old["date"] < start], s], ignore_index=True)
     s.to_parquet(SCORES, index=False)
     return {"rows": int(len(s)), "dates": int(s["date"].nunique()), "from": s["date"].min(), "to": s["date"].max()}
 

@@ -133,6 +133,13 @@ run "[4/10] Freshness gate" $PY freshness.py
 
 # 4. Advance every open paper-trading run one day. This is the only measurement
 #    in the project with no survivorship bias, and it accrues only in real time.
+# Stage P: the analog forecaster. Mondays: rebuild the library (new outcomes are
+# known) and re-score the last 60 days; every day: score today's stocks.
+if [ "$(date -u +%u)" = "1" ]; then
+    run "[3g/10] Analog library (weekly)" bounded $PY analog.py --build
+    run "[3h/10] Analog scores (weekly)" bounded $PY analog.py --scores --start "$(date -u -d '60 days ago' +%F)"
+fi
+run "[3i/10] Analog scores (today)" bounded $PY analog.py --daily
 # N9: the capital books must add up before anything sizes a trade.
 run "[4b/10] Capital books" $PY books.py
 run "[5/10] Paper trading step" $PY paper_trading.py --step
