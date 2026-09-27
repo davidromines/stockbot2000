@@ -395,6 +395,12 @@ league_families:           # legacy fund families -> league
 # instruction to fill all five slots — only two strategy families currently
 # have tradeable, profitable rules, so several slots may hold variants of one
 # entry rule.
+# The stock book (N9): the $100 account mandate. slots.count x capital_per_slot
+# must fit inside it, and each slot inside risk.yaml's per-order limit — books.py
+# checks the whole set; scaling is an edit to these numbers, nothing else.
+capital:
+  stocks_usd: 100.0
+
 slots:
   count: 5
   capital_per_slot: 20.0
@@ -473,7 +479,16 @@ universe_reconstruction:
 # stays false and the Agentic account has no options level yet. The owner's plan:
 # $1,000 for options once a strategy has a proven record — ten $100 positions.
 options:
-  stake_usd: 100.0
+  stake_usd: 100.0          # paper trade size — keep equal to live.per_trade_usd (books.py checks)
   max_spread_frac: 0.5      # skip contracts whose bid-ask is wider than half the mid
   min_ask: 0.05
   liquid_universe: 50       # earnings straddles: the 50 most traded optionable stocks
+  # The real-money options book (N9). Nothing trades until config/risk.yaml
+  # allow_options is true AND the account has options access (owner's steps).
+  live:
+    capital_usd: 1000.0
+    per_trade_usd: 100.0
+    max_open: 10
+    max_daily_loss_usd: 150.0
+    max_drawdown_pct: 35.0
+    min_paper_trades: 20      # "proven": closed paper trades with a positive total first
