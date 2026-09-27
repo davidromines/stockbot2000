@@ -213,6 +213,10 @@ def strategies(conn) -> list:
     import storage
     out = []
     for key, ver, _ in ranking.pool(conn):
+        # Search strategies score on paper only (ranking.from_search): their backtest is never
+        # read, and the 950 Lab survivors would add hours to the nightly run (09-27 rehearsal).
+        if ranking.from_search(conn, key):
+            continue
         try:
             g = slots.genome_for(conn, key, ver)
         except Exception as e:                                  # noqa: BLE001

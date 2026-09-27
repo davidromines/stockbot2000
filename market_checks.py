@@ -259,6 +259,7 @@ def main(argv=None) -> int:
     from universe import load_config
     cfg = load_config()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=120)
+    conn.row_factory = sqlite3.Row      # benchmark.null_surface reads rows by name (crashed 09-27 rehearsal)
     init(conn)
     if a.run:
         print(json.dumps(run(conn, cfg, a.limit), indent=2))
