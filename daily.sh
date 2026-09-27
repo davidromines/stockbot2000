@@ -54,6 +54,23 @@ run() {
     $PY compute_priority.py --record "$stage" "$elapsed" >/dev/null 2>&1 || true
 }
 
+# Memory-capped launcher for heavy stages.
+# The pipeline stage peaks ~4.3 GB and ran 20 min at budget 12 (2026-09-24).
+# From a Claude session it must run in its own memory-capped scope, or an OOM
+# takes the desktop with it. Under cron there is no user bus for systemd-run
+# (Linger=no) — and a cron job is not in the desktop's scope — so it runs
+# plain there rather than failing.
+bounded() {
+    if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -S "/run/user/$(id -u)/bus" ]; then
+        export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    fi
+    if [ -S "${XDG_RUNTIME_DIR:-/nonexistent}/bus" ]; then
+        ./run_bounded.sh "$@"
+    else
+        "$@"
+    fi
+}
+
 say "Daily capture starting"
 
 # 1. Point-in-time universe. THE survivorship-critical step: this is what stamps
@@ -89,6 +106,9 @@ run "[3c/10] Market-cap fallback" $PY market_caps.py --backfill
 
 # Rates series for the Phase 6 §21 rate regimes (FRED, ^IRX fallback).
 run "[3d/10] Rates series" $PY regimes.py --load-rates
+# Beta, idiosyncratic vol and CAPM alpha (risk_metrics), sampled every 21 sessions:
+# refreshed weekly on Mondays (capm_alpha family, quality screens).
+if [ "$(date -u +%u)" = "1" ]; then run "[3d2/10] Risk metrics (weekly)" bounded $PY buffett.py --build-risk; fi
 
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.
@@ -180,21 +200,7 @@ run "[9b/10] Accounting" $PY accounting.py --restate --snapshot data/accounting.
 # Templates, not search: the frozen evolutionary search is untouched (B16).
 # Backtests admit a strategy to PAPER; only forward evidence qualifies it.
 #
-# The pipeline stage peaks ~4.3 GB and ran 20 min at budget 12 (2026-09-24).
-# From a Claude session it must run in its own memory-capped scope, or an OOM
-# takes the desktop with it. Under cron there is no user bus for systemd-run
-# (Linger=no) — and a cron job is not in the desktop's scope — so it runs
-# plain there rather than failing.
-bounded() {
-    if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -S "/run/user/$(id -u)/bus" ]; then
-        export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-    fi
-    if [ -S "${XDG_RUNTIME_DIR:-/nonexistent}/bus" ]; then
-        ./run_bounded.sh "$@"
-    else
-        "$@"
-    fi
-}
+# (bounded() is defined near the top: stages before the factory use it too.)
 run "[9c/10] Research library sync" $PY library_bridge.py --sync
 run "[9d/10] Factory templates" $PY strategy_factory.py --generate
 # Owner, 2026-09-26: every strategy idea is paper-tracked from the day it exists,
