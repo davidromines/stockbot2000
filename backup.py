@@ -112,6 +112,7 @@ GROUPS = {
         # independence rulings among them), reproductions, provenance, the ledger.
         "knowledge_translations", "knowledge_lineage", "knowledge_reproductions",
         "strategy_provenance", "knowledge_lineage_stats",
+        "strategy_failures",        # Stage T: why each strategy failed, day by day
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
