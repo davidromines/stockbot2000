@@ -249,6 +249,8 @@ run "[9i2/10] Ranking snapshot" bounded $PY journal.py --snapshot
 # Addendum D §12 (N5): HEALTHY / WATCH / DEGRADING / FAILED per strategy from its
 # paper record; appended only when a state changes. Observability — nothing trades on it.
 run "[9j/10] Strategy health" $PY strategy_health.py --run
+# Stage T: the strategy funnel, failure reasons and near misses (data/funnel.txt).
+run "[9k/10] Strategy funnel" bounded $PY funnel.py
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().
