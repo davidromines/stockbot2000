@@ -71,6 +71,10 @@ DEFAULTS = {
     # armed it would take most slots on backtests carried by 2017 and 2020. At most this many
     # crypto slots, whatever the scores (the cap recommended before K7, built 2026-09-27).
     "max_crypto_slots": 1,
+    # Five different bets, not five copies of one (strategy_diversity.py): a candidate whose
+    # measured correlation (weekly returns, 2023 -> today) with a held or chosen strategy is
+    # above this does not take a slot. Unmeasured pairs fall back to the family cap.
+    "max_correlation": 0.7,
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -295,12 +299,27 @@ def plan(conn, cfg: dict) -> dict:
     challengers = [r for r in eligible if (r["strategy_key"], r["version"]) not in held_keys]
 
     assigns = []
+    skipped_corr = []
+
+    def too_similar(r, others):
+        """(correlation, key) of the first chosen strategy r is too correlated with, or None."""
+        import strategy_diversity as sd
+        for o in others:
+            c = sd.lookup(conn, (r["strategy_key"], r["version"]), (o["strategy_key"], o["version"]))
+            if c is not None and c > s["max_correlation"]:
+                return c, o["strategy_key"]
+        return None
+
     # Fill empty slots first, best first, one per family.
     free = [slot for slot in held if slot not in keep]
     for r in challengers:
         if not free:
             break
         if held_fams[r["family"]] >= s["max_per_family"]:
+            continue
+        sim = too_similar(r, [h for h in keep.values()] + [a[1] for a in assigns])
+        if sim:
+            skipped_corr.append((r["strategy_key"], sim[0], sim[1]))
             continue
         if is_crypto(r["strategy_key"]) and held_crypto >= s["max_crypto_slots"]:
             continue
@@ -327,6 +346,10 @@ def plan(conn, cfg: dict) -> dict:
         adv = _rank_value(r) - _rank_value(w["row"])
         need = s["min_advantage_score"] if scored else s["min_advantage_usd"]
         others = Counter(h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot)
+        sim = too_similar(r, [h for sl, h in keep.items() if sl != weakest_slot] + [a[1] for a in assigns])
+        if sim:
+            skipped_corr.append((r["strategy_key"], sim[0], sim[1]))
+            continue
         family_clash = others[r["family"]] >= s["max_per_family"] or (
             is_crypto(r["strategy_key"]) and not is_crypto(w["strategy_key"])
             and sum(1 for sl, h in keep.items() if sl != weakest_slot and is_crypto(h["strategy_key"]))
@@ -351,7 +374,7 @@ def plan(conn, cfg: dict) -> dict:
         releases = [x for x in releases if not x[2].startswith("replaced by")]
     cash = [slot for slot in held if slot not in keep and slot not in {a[0] for a in assigns}]
     return {"held": held, "keep": {k: {kk: vv for kk, vv in v.items() if kk != "row"} for k, v in keep.items()},
-            "release": releases, "assign": assigns, "cash_slots": cash,
+            "release": releases, "assign": assigns, "cash_slots": cash, "skipped_correlated": skipped_corr,
             "eligible": len(eligible), "assessed": len(ranked), "ranked": ranked,
             "settings": s}
 
