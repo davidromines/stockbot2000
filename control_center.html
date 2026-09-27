@@ -373,9 +373,9 @@ function renderExtra(x) {
          <td class="n mono">${b.paper}</td><td class="n mono">${b.forward_evidence}</td>
          <td class="n mono">${b.ranked_passing}</td><td class="n mono">${b.live}</td></tr>`).join("") + "</table>" +
       '<h3 style="margin-top:14px">Strategy funnel (Stage T' + (fu.as_of ? ", " + esc(fu.as_of) : "") + ')</h3>' +
-      kv([...(fu.bottlenecks || []).map(b => [esc(b[0]), `${Number(b[1]).toLocaleString()} → ${Number(b[2]).toLocaleString()}`]),
+      kv([...(fu.bottlenecks || []).map(b => [b[0], `${Number(b[1]).toLocaleString()} → ${Number(b[2]).toLocaleString()}`]),
           ["Near misses (failed by a small margin)", fu.near_misses ?? 0],
-          ...Object.entries(fu.reasons || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => [esc(k), v, "neg"])]); })();
+          ...Object.entries(fu.reasons || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v, "neg"])]); })();
   const pv = x.published || {families: [], candidates: []};
   const tc = v => v == null ? "" : v > 3 ? "pos" : v > 2 ? "" : "neg";
   const row = (a, b, f) => `<tr><td>${a}</td><td class="muted">${esc(b)}</td><td>${f.year ?? "—"}</td>
