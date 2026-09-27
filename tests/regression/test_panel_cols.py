@@ -28,7 +28,8 @@ def g(c):
 
 
 def main():
-    for c in ("alpha_252", "short_volume_ratio_20", "analog_p_up", "composite", "book_to_market", "sue"):
+    for c in ("alpha_252", "short_volume_ratio_20", "analog_p_up", "composite", "book_to_market", "sue",
+              "opp_buyers_90"):
         check(f"needs_panel sees {c}", storage.needs_panel(g(c)))
     check("a price-only rule does not need the panel", not storage.needs_panel(g("rsi_14")))
     check("factory_pipeline uses the same rule", fp._needs_fund({}, g("composite")) and not fp._needs_fund({}, g("rsi_14")))
@@ -39,6 +40,9 @@ def main():
     if fam:
         g0 = fam["build"]({"q": 0.9, "hold": 20, "stop": 3.0})
         check("multi_signal ranks the composite column", storage.needs_panel(g0) and '"composite"' in str(g0).replace("'", '"'))
+    fam = sf.F.get("insider_buying")
+    check("insider_buying family registered and reads opp_buyers_90",
+          fam is not None and storage.needs_panel(fam["build"]({"buyers": 1, "hold": 20, "stop": 3.0})))
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

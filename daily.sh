@@ -111,6 +111,8 @@ run "[3d/10] Rates series" $PY regimes.py --load-rates
 if [ "$(date -u +%u)" = "1" ]; then run "[3d2/10] Risk metrics (weekly)" bounded $PY buffett.py --build-risk; fi
 # FINRA daily short-sale volume (published each evening) for the short_interest family.
 run "[3d3/10] Short volume" $PY short_volume.py --daily
+# O-ins: SEC Form 4 insider transactions (the newest two quarterly files re-fetched).
+run "[3d4/10] Insider transactions" $PY insider.py --daily
 
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.

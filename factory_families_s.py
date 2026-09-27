@@ -10,7 +10,7 @@ other family, so the freeze boundary applies unchanged.
 import runtime  # noqa: F401  — must precede numpy/pandas
 import strategy_factory as sf
 
-NEW_FAMILIES = ("multi_signal",)
+NEW_FAMILIES = ("multi_signal", "insider_buying")
 
 
 def _register():
@@ -24,6 +24,17 @@ def _register():
         {"q": [0.9, 0.95], "hold": [20, 60], "stop": [3.0, 4.0]},
         lambda p: sf.G(sf.gt(sf.rank(sf.col("composite")), sf.k(p["q"])), None, p["stop"], p["hold"]),
         data=("features", "daily_fundamentals", "daily_composite"))
+
+    # O-ins (owner, 2026-09-27): insider buying from SEC Form 4, the free EDGAR data.
+    sf.family(
+        "insider_buying", "fundamental",
+        "Insider purchases: open-market buys by officers and directors predict returns, "
+        "and 'opportunistic' buyers (not trading in the same month every year) carry "
+        "the signal (Cohen, Malloy & Pomorski 2012; Lakonishok & Lee 2001). Usable "
+        "from the first session after the filing date.",
+        {"buyers": [1, 2], "hold": [20, 60], "stop": [3.0, 4.0]},
+        lambda p: sf.G(sf.gt(sf.col("opp_buyers_90"), sf.k(p["buyers"] - 0.5)), None, p["stop"], p["hold"]),
+        data=("features", "SEC Form 4 insider transactions"))
 
 
 _register()

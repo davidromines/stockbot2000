@@ -716,7 +716,7 @@ SUE_COLS = ("sue", "sue_age")
 # a column its loader never attached evaluates to NaN and silently never trades
 # (survivorship_backtest missed alpha / short volume / analog until 2026-09-27).
 ATTACHED_COLS = ("alpha_252", "short_volume_ratio_20", "analog_p_up", "analog_mean", "analog_q10",
-                 "composite")
+                 "composite", "insider_buy_usd_90", "insider_buyers_90", "opp_buyers_90")
 PANEL_COLS = FUNDAMENTAL_PANEL_COLS + SUE_COLS + ATTACHED_COLS
 
 
@@ -779,6 +779,8 @@ def attach_fundamentals(conn: sqlite3.Connection, df: "pd.DataFrame",
     out = analog.attach(out, lo, hi, tickers)                # Stage P: what similar past setups did next
     import composite
     out = composite.attach(conn, out)                        # Stage S: IC-weighted multi-signal score
+    import insider
+    out = insider.attach(conn, out)                          # O-ins: SEC Form 4 insider buying, 90 days
     return out.drop(columns=["_t", "_d"])
 
 
