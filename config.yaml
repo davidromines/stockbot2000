@@ -467,6 +467,13 @@ baselines:
 regime_filter:
   mode: SHADOW
 
+# Paper research mode (2026-09-27): paper funds hold up to this many $20 positions ($400),
+# 4x the trades per day of the live 5-position cap, so forward evidence accrues faster.
+# The live account is untouched (risk.max_open_positions). A strategy's own evolved cap
+# still applies below this; funds that had already stepped keep their $100.
+paper:
+  positions: 20
+
 ranking:
   prior_trades: 10
   no_backtest_prior: 0.0

@@ -108,8 +108,29 @@ def init(conn) -> None:
     conn.commit()
 
 
+def research_positions(cfg: dict) -> int:
+    """Positions a paper fund may hold: `paper.positions` (research mode, 2026-09-27), else the
+    live cap. Paper is measurement, not the $100 account: more positions at the same $20 size
+    means more trades per day of forward time — the evidence the ranking waits for — and the
+    per-trade return, the quantity ranked, is unchanged."""
+    return int(((cfg.get("paper") or {}).get("positions")) or cfg["risk"]["max_open_positions"])
+
+
+def recapitalize(conn, cfg: dict) -> int:
+    """Give research-mode capital to every open fund that has not yet taken a step (no mark,
+    no position, no trade) — nothing it has recorded changes. Funds with a record keep theirs."""
+    capital = cfg["risk"]["position_size_usd"] * research_positions(cfg)
+    cur = conn.execute("""UPDATE paper_runs SET capital_usd=?, cash_usd=? WHERE status='open' AND capital_usd < ?
+        AND NOT EXISTS (SELECT 1 FROM paper_equity e WHERE e.run_id=paper_runs.run_id)
+        AND NOT EXISTS (SELECT 1 FROM paper_positions p WHERE p.run_id=paper_runs.run_id)
+        AND NOT EXISTS (SELECT 1 FROM paper_trades t WHERE t.run_id=paper_runs.run_id)""",
+                       (capital, capital, capital))
+    conn.commit()
+    return cur.rowcount
+
+
 def start(conn, cfg: dict, name: str, strategy: str = "model") -> str:
-    capital = cfg["risk"]["position_size_usd"] * cfg["risk"]["max_open_positions"]
+    capital = cfg["risk"]["position_size_usd"] * research_positions(cfg)
     today = conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
     run_id = uuid.uuid4().hex[:12]
     conn.execute("""
@@ -400,7 +421,7 @@ def step(conn, cfg: dict) -> None:
 
     cost_model = costs_mod.CostModel(cfg)
     size = cfg["risk"]["position_size_usd"]
-    cap = cfg["risk"]["max_open_positions"]
+    cap = research_positions(cfg)
     horizon = cfg["labeling"]["horizon_days"]
 
     # Trading days elapsed, measured against the calendar rather than counted by
