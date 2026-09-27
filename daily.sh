@@ -112,6 +112,10 @@ run "[4/10] Freshness gate" $PY freshness.py
 # 4. Advance every open paper-trading run one day. This is the only measurement
 #    in the project with no survivorship bias, and it accrues only in real time.
 run "[5/10] Paper trading step" $PY paper_trading.py --step
+# Stage R (owner, 2026-09-27): public option prices for the newest sessions, then
+# the option paper funds walk them (bought at the ask, sold at the bid).
+run "[5b/10] Options data" $PY options_data.py --daily
+run "[5c/10] Options paper" bounded $PY options_lab.py --step
 
 # 5. The daily book: best candidate from every system, sell signals on open
 #    picks, and both recorded so the forward record builds itself.
