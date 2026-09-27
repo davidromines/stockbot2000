@@ -207,9 +207,9 @@ def reproduce(conn) -> list:
         obj = _obj(r, r, g, key, f"{r['strategy_name']} · reproduction", "knowledge_reproduction", None, hyp)
         # Two sources that translate to the identical rule are one strategy, tested once:
         # the later entry points at the existing reproduction instead of minting a twin.
-        h = league.definition_hash(so.spec_of(obj))
-        twin = conn.execute("SELECT strategy_key, version FROM league_strategies WHERE definition_hash=? AND "
-                            "source_kind='knowledge_reproduction'", (h,)).fetchone()
+        twin = next(((k, v) for k, v in conn.execute(
+            "SELECT DISTINCT strategy_key, version FROM knowledge_reproductions").fetchall()
+            if so.genome(conn, k, v) == g and (so.meta(conn, k, v) or {}).get("family") == obj["family"]), None)
         if twin:
             reg, key, new = {"version": twin[1]}, twin[0], False
         else:
