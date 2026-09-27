@@ -109,6 +109,8 @@ run "[3d/10] Rates series" $PY regimes.py --load-rates
 # Beta, idiosyncratic vol and CAPM alpha (risk_metrics), sampled every 21 sessions:
 # refreshed weekly on Mondays (capm_alpha family, quality screens).
 if [ "$(date -u +%u)" = "1" ]; then run "[3d2/10] Risk metrics (weekly)" bounded $PY buffett.py --build-risk; fi
+# FINRA daily short-sale volume (published each evening) for the short_interest family.
+run "[3d3/10] Short volume" $PY short_volume.py --daily
 
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.
