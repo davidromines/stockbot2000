@@ -235,6 +235,9 @@ def fetch_day(conn, day_iso, get=None):
                           :trans_date, :filing_date, :code, :shares, :price,
                           :value_usd, :relationship)""", row)
             rows += max(conn.execute("SELECT changes()").fetchone()[0], 0)
+        # Commit per filing: an open write transaction held across a day of network
+        # fetches locked out every other writer (three jobs died "database is locked").
+        conn.commit()
     note = "" if not failed else "%d filing(s) failed" % failed
     conn.execute(
         "INSERT OR REPLACE INTO form4_daily_log(day, filings, rows, fetched_at, note)"

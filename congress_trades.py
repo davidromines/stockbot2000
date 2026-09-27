@@ -135,6 +135,7 @@ def fetch_year(conn, year, get=None):
         filings = parse_index(_index_xml(content))
     except Exception:
         stats["errors"] += 1
+        conn.commit()   # per report: never hold the write lock across downloads
         return stats
 
     done = {r[0] for r in conn.execute(
@@ -153,6 +154,7 @@ def fetch_year(conn, year, get=None):
                 (doc_id, year, f["member"], f["state_dst"], f["filed_date"],
                  "skipped", 0, now))
             stats["skipped"] += 1
+            conn.commit()   # per report: never hold the write lock across downloads
             continue
         try:
             status, content = get(PDF_URL.format(year=year, doc_id=doc_id))
@@ -165,6 +167,7 @@ def fetch_year(conn, year, get=None):
                 (doc_id, year, f["member"], f["state_dst"], f["filed_date"],
                  "error", 0, now))
             stats["errors"] += 1
+            conn.commit()   # per report: never hold the write lock across downloads
             continue
         for t in trades:
             conn.execute(
@@ -177,6 +180,7 @@ def fetch_year(conn, year, get=None):
             (doc_id, year, f["member"], f["state_dst"], f["filed_date"],
              "ok", len(trades), now))
         stats["ok"] += 1
+        conn.commit()   # per report: never hold the write lock across downloads
         stats["trades"] += len(trades)
     conn.commit()
     return stats
