@@ -316,7 +316,6 @@ def run(conn, cfg, only: list | None = None) -> dict:
                 srows = _trim(srows, keep)
                 df, ex = _combine(real, srows), _combine(real_ex, sex)
                 del srows, sex                          # the combined copy is all that is needed now
-                import gc
                 gc.collect()
             panel = simulator.Panel(df, exit_prices=ex)
             del df, ex                                  # the panel holds its own sorted copy
@@ -344,9 +343,7 @@ def run(conn, cfg, only: list | None = None) -> dict:
             # Release this mode's combined frames BEFORE the next mode builds its own:
             # holding both (real + synthetic, twice) exceeded the 6 GB cap (exit 137,
             # 2026-09-25). `real` stays; everything derived from it goes.
-            del panel, dd, is_syn
-            if mode != "exclude":
-                del srows, sex
+            del panel, dd, is_syn                       # the synthetic frames went when the panel was built
             gc.collect()
         del real, real_ex
         gc.collect()
