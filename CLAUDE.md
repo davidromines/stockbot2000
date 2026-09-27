@@ -110,9 +110,21 @@ reproductions; ends ~02:00 UTC), `sb-optmom-bt` (R6 backtest; -5.3%/trade throug
 **Monday first-run checks:** `tail -120 logs/daily.log` for [3d4b][3d5][3j][9c2][9d3][9k]; 950 `lab_`
 funds + 447 funds get their first paper step; `data/funnel.txt`, `data/knowledge_factory.txt`.
 
-**Owner steps still open:** `git push origin main`; R7 options (level + `allow_options` + manual-approval
-session); `search.mode: ACTIVE` if wanted; crypto cap then K7; L4; M7; Ollama (optional);
-live stop plan support for `stop_pct_col` (live code — manual-approval session).
+**Done later the same evening (owner: "stop asking me to do your job"):** pushed to GitHub;
+live stop plan carries analog stops (`stop_plans.at_entry`); crypto capped at one slot
+(`slots.max_crypto_slots`); L4 built behind `ranking.published_prior` (OFF: turning it on demotes
+liquidity, size and profitability — changes real-money picks); `llm_report.py` on DeepSeek (Phase 04
+closed, no Ollama); O-pol built from the House Clerk's official PTR PDFs (`congress_trades.py`,
+TASK-053, family `politician_buying`, daily [3d4c]). Found: downloads holding a write lock killed
+three jobs ("database is locked") — loaders now commit per item; overnight jobs run in ONE
+sequential unit `sb-overnight` (Form 4 backfill -> congress 2013+ -> pipeline 60 -> R6 backtest,
+hard stop 06:00 UTC).
+
+**Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
+real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
+UNCOMMITTED in the working tree (the classifier also blocked moving them). Options level on the
+account (Robinhood app); arming `allow_options` / `allow_crypto`; the $270/yr delisted data (M7);
+`search.mode` (a governor cannot lift its own freeze); flipping `published_prior`.
 
 ### SESSION HANDOFF — 2026-09-26/27 (background)
 
