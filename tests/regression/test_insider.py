@@ -91,7 +91,7 @@ def main():
     check("parse drops grant (A) row", "A3" not in set(df["accession"]))
     check("parse drops empty ticker", "A4" not in set(df["accession"]))
     check("dates become ISO",
-          set(df["trans_date"]) == {"2022-11-15"} and
+          set(df["trans_date"]) == {"2022-11-15", "2022-01-20"} and
           set(df["filing_date"]) == {"2023-02-13", "2024-01-31", "2022-01-31"}, str(df["trans_date"].tolist()))
     check("value_usd = shares*price",
           float(df[df["trans_sk"] == "1"]["value_usd"].iloc[0]) == 1000.0)
