@@ -67,6 +67,13 @@ def init(conn) -> None:
             note            TEXT
         ) STRICT
     """)
+    # The quote the risk engine sized on (Addendum D §11, N6): what the decision
+    # expected, so live_feedback.py can measure slippage against it. Added columns,
+    # nothing else changes; an order saved before this has NULL here.
+    have = {r[1] for r in conn.execute("PRAGMA table_info(orders)")}
+    for col, typ in (("quote_price", "REAL"), ("quote_at", "TEXT")):
+        if col not in have:
+            conn.execute(f"ALTER TABLE orders ADD COLUMN {col} {typ}")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS fills (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,6 +286,11 @@ class ExecutionEngine:
                          quantity=rr.sized_quantity if side == "SELL" else None)
         order.to(bk.VALIDATING); order.to(bk.APPROVED)
         _save_order(self.conn, order, self.session, self.mode)
+        if quote and quote.get("price"):
+            self.conn.execute("UPDATE orders SET quote_price=?, quote_at=? WHERE client_order_id=?",
+                              (float(quote["price"]), str(quote.get("as_of") or datetime.now(timezone.utc).isoformat()),
+                               order.client_order_id))
+            self.conn.commit()
 
         # SHADOW stops here: real data, real risk, no order.
         if self.mode == "SHADOW":

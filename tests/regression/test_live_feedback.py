@@ -103,6 +103,13 @@ def main():
     check("delay measured from the same mode's order", abs(t2["delay_s"] - 4.0) < 1e-6, t2["delay_s"])
     check("stale or other-mode mark is not the expected price", t2["expected"] is None, t2["expected"])
 
+    # The engine's recorded decision-time quote wins over any mark.
+    c2.execute("ALTER TABLE orders ADD COLUMN quote_price REAL")
+    c2.execute("ALTER TABLE orders ADD COLUMN quote_at TEXT")
+    c2.execute("UPDATE orders SET quote_price=9.9 WHERE mode='LIVE'")
+    t3 = lf.trades(c2, "LIVE")[0]
+    check("recorded decision quote is the expected price", t3["expected"] == 9.9, t3["expected"])
+
     bs = lf.by_strategy(conn, "LIVE")
     check("by_strategy covers every strategy", set(bs) == {"S1", "S2", "S3"}, sorted(bs))
     # S1 has two fills, both with marks: mean of +100.00 and +101.01.
