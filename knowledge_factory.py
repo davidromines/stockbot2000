@@ -204,8 +204,16 @@ def reproduce(conn) -> list:
         hyp = (f"ORIGINAL REPRODUCTION of '{r.get('source_title') or r['strategy_name']}' — a hypothesis "
                f"from a documented source, not evidence. Source claim: {claim or 'none stated'}. "
                f"Translation {r['machine_translatable']}, confidence {r['translation_confidence']:.2f}.")
-        reg = so.register(conn, _obj(r, r, g, key, f"{r['strategy_name']} · reproduction",
-                                     "knowledge_reproduction", None, hyp), author=ACTOR)
+        obj = _obj(r, r, g, key, f"{r['strategy_name']} · reproduction", "knowledge_reproduction", None, hyp)
+        # Two sources that translate to the identical rule are one strategy, tested once:
+        # the later entry points at the existing reproduction instead of minting a twin.
+        h = league.definition_hash(so.spec_of(obj))
+        twin = conn.execute("SELECT strategy_key, version FROM league_strategies WHERE definition_hash=? AND "
+                            "source_kind='knowledge_reproduction'", (h,)).fetchone()
+        if twin:
+            reg, key, new = {"version": twin[1]}, twin[0], False
+        else:
+            reg, new = so.register(conn, obj, author=ACTOR), True
         src_v = hashlib.sha256((r.get("original_definition") or "").encode()).hexdigest()[:16]
         conn.execute("INSERT OR REPLACE INTO knowledge_reproductions VALUES (?,?,?,?,?,?,?,?,?)",
                      (r["entry_id"], key, reg["version"], src_v, head, data_v,
@@ -213,10 +221,12 @@ def reproduce(conn) -> list:
                       r.get("assumptions"), _now()))
         conn.execute("INSERT OR IGNORE INTO knowledge_links VALUES (?,?,?,?,?)",
                      (r["entry_id"], key, reg["version"], "SOURCE_REPRODUCTION", _now()))
-        lid = conn.execute("SELECT lineage_id FROM knowledge_lineage WHERE entry_id=?", (r["entry_id"],)).fetchone()
-        _provenance(conn, key, reg["version"], r.get("stype"), "ORIGINAL_REPRODUCTION", r["entry_id"],
-                    lid[0] if lid else None, None, None, None, None)
-        out.append(key)
+        if new:
+            lid = conn.execute("SELECT lineage_id FROM knowledge_lineage WHERE entry_id=?",
+                               (r["entry_id"],)).fetchone()
+            _provenance(conn, key, reg["version"], r.get("stype"), "ORIGINAL_REPRODUCTION", r["entry_id"],
+                        lid[0] if lid else None, None, None, None, None)
+            out.append(key)
     conn.commit()
     return out
 

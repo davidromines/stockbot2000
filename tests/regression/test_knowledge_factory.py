@@ -70,7 +70,9 @@ def main():
     check("a re-run assigns nothing twice", kf.assign_lineage(conn) == 0)
 
     keys = kf.reproduce(conn)
-    check("one reproduction per translatable entry (untranslatable skipped)", len(keys) == 3, keys)
+    check("identical rules from two sources are one strategy (untranslatable skipped)", len(keys) == 2, keys)
+    check("every translatable entry still records its reproduction",
+          conn.execute("SELECT COUNT(*), COUNT(DISTINCT strategy_key) FROM knowledge_reproductions").fetchone()[:] == (3, 2))
     k1 = conn.execute("SELECT strategy_key, version FROM knowledge_reproductions WHERE entry_id='e1'").fetchone()
     check("a reproduction enters the pipeline at DISCOVERED",
           league.canonical(league.state(conn, k1[0], k1[1])) == league.DISCOVERED)
@@ -111,13 +113,14 @@ def main():
     check("a template is TEMPLATE, a search survivor MACHINE_GENERATED",
           kinds == {"fx_value_book_x": "TEMPLATE", "paper:abc": "MACHINE_GENERATED"}, kinds)
 
-    k2 = conn.execute("SELECT strategy_key, version FROM knowledge_reproductions WHERE entry_id='e2'").fetchone()
+    k2 = conn.execute("SELECT strategy_key, version FROM strategy_provenance WHERE origin_kind='CONTROLLED_VARIANT'"
+                      " LIMIT 1").fetchone()
     so.decide(conn, k2[0], k2[1], "REJECT", "test", to_state=league.REJECTED)
     stats = {s["lineage_id"]: s for s in kf.lineage_stats(conn)}
     v = stats["VALUE:book_to_market"]
     check("ledger: two hypotheses, one independent source", v["hypothesis_count"] == 2
           and v["independent_sources"] == 1, v)
-    check("ledger: variants counted and the rejected reproduction counted as a failure",
+    check("ledger: variants counted and a rejected variant counted as a failure",
           v["variant_count"] == len(vs) and v["failed_variants"] >= 1, v)
     check("ledger snapshot recorded", conn.execute("SELECT COUNT(*) FROM knowledge_lineage_stats").fetchone()[0] > 0)
     kf.mark_independent(conn, "e2", True, "separate dataset (owner review)")
