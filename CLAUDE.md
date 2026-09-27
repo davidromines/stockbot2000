@@ -1667,7 +1667,8 @@ which resolves their open decisions — see the table at the end of
 | B | Final build directive | `docs/ADDENDUM_B_FINAL_BUILD_DIRECTIVE.md` |
 | C | Survivorship-bias-free universe reconstruction (revision 2) — PLANNED; build only after the user confirms the staged plan and answers the questions in Stage J | `docs/ADDENDUM_C_SYNTHETIC_DELISTING.md` |
 | D | Live Growth & Continuous Improvement — entered 2026-09-25; N1 Control Center built 09-25, N2-N9 open (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
-| E | Knowledge Strategy Factory — entered 2026-09-25, not yet started; the spec says "Stage N", tracked as Stage O (O1–O13) | `docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md`, Stage O |
+| E | Knowledge Strategy Factory — entered 2026-09-25, O1-O4 + templates + O9 built; revision 2 entered 2026-09-27, recorded not built (`docs/ADDENDUM_E_REVISION_2.md`); the spec says "Stage N", tracked as Stage O (O1–O13) | `docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md`, Stage O |
+| T | Diagnostic: why no durable edge? — entered 2026-09-27, recorded not built; the strategy funnel, distinct hypotheses, near misses | `docs/STAGE_T_DIAGNOSTIC_FUNNEL.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.
