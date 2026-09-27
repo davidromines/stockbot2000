@@ -213,6 +213,15 @@ def live_per_trade(conn, key: str, ver: int) -> tuple:
     return (sum(rets) / len(rets), len(rets)) if rets else (None, 0)
 
 
+def _market_checks(conn, key: str, ver: int) -> dict:
+    """{'unseen_vs_random': 'PASS'|'FAIL'|'NA', 'bear_vs_random': ...} — informational only."""
+    try:
+        import market_checks
+        return {c: d["verdict"] for c, d in market_checks.checks(conn, key, ver).items()}
+    except Exception:                                        # noqa: BLE001 — a check never blocks ranking
+        return {}
+
+
 def pool(conn) -> list:
     """(key, version, state) for every strategy not REJECTED or RETIRED — DEMOTED included."""
     rows = conn.execute("""
@@ -319,7 +328,9 @@ def rank(conn, cfg: dict) -> list:
                     "from_search": searched,
                     "score": score(None if searched else (prior_bt * pf if prior_bt is not None else None), fw, n, s),
                     "published_t": pt, "holdout": (ho or {}).get("per_trade"),
-                    "holdout_trades": (ho or {}).get("trades"), "passes_gate": ok, "gate": why,
+                    "holdout_trades": (ho or {}).get("trades"),
+                    # Bull-market checks (market_checks.py): recorded and shown, never a gate.
+                    "checks": _market_checks(conn, key, ver), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                               "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))

@@ -246,6 +246,9 @@ run "[9f2/10] Survivorship backtests" bounded $PY survivorship_backtest.py --run
 # The unseen window (2023 -> today): one look per strategy version that has passed
 # validation; the ranking gates and scores on it (holdout.py).
 run "[9f3/10] Unseen-window test" bounded $PY holdout.py --run
+# Bull-market checks (recorded, never a gate): unseen window vs random entry; trades
+# entered in the 2008 / 2011 / 2018 / 2020 / 2022 falls vs random entry (market_checks.py).
+run "[9f4/10] Bull-market checks" bounded $PY market_checks.py --run
 run "[9g/10] League standings" $PY leagues.py --standings --record
 run "[9h/10] Factory report" $PY factory_report.py
 # Addendum A §26 / I10: the formal five-slot reassessment, once per trading

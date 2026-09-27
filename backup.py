@@ -114,6 +114,7 @@ GROUPS = {
         "strategy_provenance", "knowledge_lineage_stats",
         "strategy_failures",        # Stage T: why each strategy failed, day by day
         "holdout_results",          # one look per strategy at 2023 -> today: the record IS the rule
+        "market_checks",            # bull-market checks per strategy (recomputable, kept for history)
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,

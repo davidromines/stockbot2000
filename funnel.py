@@ -228,6 +228,15 @@ def render(r: dict) -> str:
         L += ["", "  Survivorship (ranked strategies, latest generator)"] + [
             f"    {m:<8} positive {sv[m]['positive']:>4} of {sv[m]['strategies']:<4} mean {100 * (sv[m]['mean_per_trade'] or 0):+.2f}%/trade"
             for m in ("exclude", "as_is", "zero")]
+    mk = r.get("market") or {}
+    if mk.get("unseen"):
+        u = mk["unseen"]
+        L += ["", "  Unseen window 2023 -> today (one look each)",
+              f"    tested {u['tested']}, net positive {u['net_positive']}, above random entry {u['above_random']}"]
+    if mk.get("checks"):
+        L += ["", "  Bull-market checks (recorded, never a gate)"] + [
+            f"    {c:<18} PASS {d.get('PASS', 0):>4}  FAIL {d.get('FAIL', 0):>4}  NA {d.get('NA', 0):>4}"
+            for c, d in sorted(mk["checks"].items())]
     L += ["", "  Forward", f"    open funds {fw['funds']}, with marks {fw['funds_with_marks']}, longest record "
           f"{fw['longest_record_sessions']} sessions, closed paper trades {fw['closed_paper_trades']}",
           "    trades needed to show an edge at t=2: " + ", ".join(f"{k}/trade ~{v}" for k, v in fw["trades_needed_t2"].items())]
@@ -247,12 +256,26 @@ def render(r: dict) -> str:
     return "\n".join(L)
 
 
+def market(conn) -> dict:
+    """The bull-market checks (market_checks.py) and the unseen window (holdout.py): counts only."""
+    out = {}
+    try:
+        import market_checks
+        out["checks"] = market_checks.summary(conn)
+    except Exception:                                        # noqa: BLE001
+        out["checks"] = {}
+    if _has(conn, "holdout_results"):
+        r = conn.execute("SELECT COUNT(*), SUM(net_usd > 0), SUM(excess_vs_null_usd > 0) FROM holdout_results").fetchone()
+        out["unseen"] = {"tested": r[0], "net_positive": r[1] or 0, "above_random": r[2] or 0}
+    return out
+
+
 def build(conn) -> dict:
     init(conn)
     as_of = datetime.now(timezone.utc).date().isoformat()
     lab_, fac, sv = lab(conn), factory(conn), survivorship(conn)
     return {"as_of": as_of, "lab": lab_, "factory": fac, "survivorship": sv, "forward": forward(conn),
-            "bottlenecks": bottlenecks(lab_, fac, sv), "failures": failures(conn, as_of)}
+            "market": market(conn), "bottlenecks": bottlenecks(lab_, fac, sv), "failures": failures(conn, as_of)}
 
 
 def main(argv=None) -> int:

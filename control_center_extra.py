@@ -236,7 +236,7 @@ def knowledge_view(conn):
                                            "not_translatable", "reproductions", "variants", "lineages")},
         "by_source_type": kf.get("by_source_type") or {},
         "funnel": {"as_of": fn.get("as_of"), "bottlenecks": (fn.get("bottlenecks") or [])[:3],
-                   "near_misses": near, "reasons": reasons},
+                   "near_misses": near, "reasons": reasons, "market": fn.get("market") or {}},
     }
 
 
