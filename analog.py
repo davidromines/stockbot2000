@@ -198,12 +198,60 @@ def scores(conn, cfg, start: str = "2006-06-01", lib_sample: int = 400_000, seed
     return {"rows": int(len(s)), "dates": int(s["date"].nunique()), "from": s["date"].min(), "to": s["date"].max()}
 
 
+def daily(conn, cfg) -> dict:
+    """Score every tradeable stock on the newest session and append to the scores file."""
+    q = today(conn, cfg)
+    if q.empty or not LIB.exists():
+        return {"rows": 0}
+    d = q["date"].max()
+    f = forecast(load_library(), q, d)
+    new = f[["ticker", "date", "p_up", "mean", "q10", "n"]].rename(
+        columns={"p_up": "analog_p_up", "mean": "analog_mean", "q10": "analog_q10", "n": "analog_n"})
+    if SCORES.exists():
+        old = pd.read_parquet(SCORES)
+        new = pd.concat([old[old["date"] != d], new], ignore_index=True)
+    new.to_parquet(SCORES, index=False)
+    return {"date": d, "scored": int(len(f))}
+
+
+SCORE_COLS = ("analog_p_up", "analog_mean", "analog_q10")
+
+
+def attach(df: pd.DataFrame, lo: str, hi: str, tickers: list) -> pd.DataFrame:
+    """analog_p_up / analog_mean / analog_q10 on a (_t, _d) frame: the newest score at or
+    before each date, at most 10 days old (scores are weekly in history, daily forward).
+    Point in time: each score used only analogs whose outcome was known at its own date."""
+    if not SCORES.exists():
+        for c in SCORE_COLS:
+            df[c] = np.float32(np.nan)
+        return df
+    start = (pd.Timestamp(lo) - pd.Timedelta(days=12)).strftime("%Y-%m-%d")
+    s = pd.read_parquet(SCORES, columns=["ticker", "date", *SCORE_COLS],
+                        filters=[("date", ">=", start), ("date", "<=", hi)])
+    s = s[s["ticker"].isin(set(tickers))]
+    if s.empty:
+        for c in SCORE_COLS:
+            df[c] = np.float32(np.nan)
+        return df
+    s = s.rename(columns={"ticker": "_t"})
+    s["_k"] = pd.to_datetime(s["date"])
+    for c in SCORE_COLS:
+        s[c] = s[c].astype("float32")
+    out = df.copy()
+    out["_k"] = pd.to_datetime(out["_d"])
+    out["_i"] = np.arange(len(out))
+    m = pd.merge_asof(out.sort_values("_k"), s.sort_values("_k")[["_t", "_k", *SCORE_COLS]], on="_k", by="_t",
+                      direction="backward", tolerance=pd.Timedelta(days=10))
+    return m.sort_values("_i").drop(columns=["_k", "_i"]).reset_index(drop=True)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--start", default=None)
     ap.add_argument("--forecast", nargs="*", metavar="TICKER")
     ap.add_argument("--scores", action="store_true")
+    ap.add_argument("--daily", action="store_true", help="score the newest session (appends)")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     runtime.be_nice()
@@ -214,6 +262,8 @@ def main(argv=None) -> int:
         print(json.dumps(build(conn, cfg, a.start or "2006-01-01"), default=str))
     if a.scores:
         print(json.dumps(scores(conn, cfg, a.start or "2006-06-01"), default=str))
+    if a.daily:
+        print(json.dumps(daily(conn, cfg), default=str))
     if a.forecast is not None:
         q = today(conn, cfg)
         if a.forecast:
