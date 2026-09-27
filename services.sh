@@ -51,12 +51,14 @@ LINE_TG="* * * * * cd $DIR && flock -n /tmp/stockbot2000_telegram.lock ./venv/bi
 # the daily job's budget of 12 would take months to clear ~900 queued ideas. 22:30 UTC every
 # night, hard-stopped after 7 hours (before the 07:00 daily job), one at a time (flock), and
 # skipped when another pipeline run is already going (two would need ~9 GB).
+# Weekly research digest to Telegram (digest.py): Sundays 17:00 UTC = 10 AM Pacific.
+LINE_DIGEST="0 17 * * 0 cd $DIR && ./venv/bin/python digest.py --send >> $DIR/logs/digest.log 2>&1"
 LINE_NIGHT="30 22 * * * cd $DIR && ! pgrep -f '[f]actory_pipeline.py --run' >/dev/null && flock -n /tmp/stockbot2000_night.lock timeout 7h ./venv/bin/python factory_pipeline.py --run --budget 70 >> $DIR/logs/factory_night.log 2>&1"
 TAG="slot_trader.py --auto"
 TAG_CC="monitor.py --serve"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD" "$LINE_TG" "$LINE_NIGHT"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD" "$LINE_TG" "$LINE_NIGHT" "$LINE_DIGEST"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;
