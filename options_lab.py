@@ -77,6 +77,10 @@ STRATEGIES = {
                          "name": "Expensive-put put",
                          "why": "Cremers & Weinbaum (2010): puts priced above same-strike calls foretell "
                                 "underperformance — bought as puts (the bearish side)."},
+    "opt_momentum_straddle": {"rule": "opt_momentum", "legs": "S", "dte": (21, 50, 35), "hold": 20, "top": 5,
+                              "name": "Option momentum straddle",
+                              "why": "Heston, Jones, Khorram, Li & Mo (2023): at-the-money straddles whose own "
+                                     "returns were high over the past 2-12 months keep outperforming (R6)."},
 }
 
 
@@ -294,6 +298,55 @@ def chain_metrics(conn, symbol: str, date: str) -> dict | None:
             "smirk": None if otm is None else otm["iv"] - atm["iv"]}
 
 
+# Option momentum (R6). Formation: the stock's own one-month at-the-money straddle
+# return, bought at the first option date of a month and sold (real bid, else the
+# model price) at the first option date of the next. Cached across calls: a
+# formation return never changes once both dates are past.
+_FORMATION: dict = {}
+MOM_UNIVERSE = 100
+MOM_MIN_MONTHS = 4
+
+
+def _month_firsts(conn, upto: str) -> list:
+    return [r[0] for r in conn.execute("SELECT MIN(date) FROM option_vol WHERE date <= ? "
+                                       "GROUP BY substr(date, 1, 7) ORDER BY 1", (upto,))]
+
+
+def straddle_return(conn, sym: str, d0: str, d1: str, s: dict) -> float | None:
+    key = (sym, d0, d1)
+    if key not in _FORMATION:
+        legs = pick(conn, sym, d0, "S", (21, 50, 35), s)
+        r = None
+        if legs:
+            v, _ = value(conn, sym, legs, d1, allow_model=True)
+            cost = sum(leg["ask"] for leg in legs)
+            r = (v / cost - 1) if v is not None and cost > 0 else None
+        _FORMATION[key] = r
+    return _FORMATION[key]
+
+
+def sig_opt_momentum(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """First option date of each month: highest mean straddle return over months t-12..t-2
+    (the most recent month is skipped: one-month option returns reverse). At least
+    MOM_MIN_MONTHS formation months, or the stock is not ranked."""
+    month = date[:7]
+    if state.get("month") == month:
+        return []
+    state["month"] = month
+    firsts = _month_firsts(conn, date)
+    if not firsts or firsts[-1][:7] != month:
+        return []
+    cur = len(firsts) - 1
+    windows = [(firsts[m], firsts[m + 1]) for m in range(max(0, cur - 12), cur - 1)]
+    ranked = []
+    for sym in liquid(conn, date, MOM_UNIVERSE):
+        rets = [r for d0, d1 in windows if (r := straddle_return(conn, sym, d0, d1, s)) is not None]
+        if len(rets) >= MOM_MIN_MONTHS:
+            ranked.append((sym, sum(rets) / len(rets), len(rets)))
+    ranked.sort(key=lambda x: -x[1])
+    return [(sym, f"straddle momentum {m:+.0%}/month over {n} months") for sym, m, n in ranked[:p["top"]]]
+
+
 def sig_chain(conn, date: str, p: dict, s: dict, state: dict) -> list:
     """First option date of each week, over the most traded optionable stocks: rank by the
     chain's implied-vol shape (chain_metrics) — shared by the smirk and IV-spread rules."""
@@ -347,7 +400,8 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
     state = {}
     opened = 0
     fn = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
-          "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain}.get(p["rule"])
+          "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
+          "opt_momentum": sig_opt_momentum}.get(p["rule"])
     for d in dates:
         # exits: holding limit, a week before expiration, or the day after an earnings release
         for t in conn.execute("SELECT id, symbol, legs, opened, cost, signal FROM option_trades WHERE mode=? AND "
