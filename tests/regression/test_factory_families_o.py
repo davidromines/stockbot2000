@@ -57,10 +57,19 @@ def main():
     check("seasonality_pct", inner.get("op") == "pct_change" and inner.get("n") == 21,
           json.dumps(inner))
 
-    for name in ("small_cap", "rd_intensity", "short_interest", "capm_alpha"):
+    # These four lacked data until 2026-09-27; each now reads a column the shared loader
+    # attaches (storage.attach_fundamentals), so each must be available and read it.
+    import inspect
+    import storage
+    attached = set(storage.FUNDAMENTAL_PANEL_COLS) | {"alpha_252", "short_volume_ratio_20"}
+    for name, col in (("small_cap", "market_cap"), ("rd_intensity", "rd_to_assets"),
+                      ("short_interest", "short_volume_ratio_20"), ("capm_alpha", "alpha_252")):
         f = sf.F[name]
-        check(f"unavailable:{name}", f["data_available"] is False, str(f["data_available"]))
-        check(f"missing_reason:{name}", bool(f["missing"]), "empty missing reason")
+        check(f"available:{name}", f["data_available"] is True, str(f["data_available"]))
+        g = f["build"]({k: v[0] for k, v in f["grid"].items()})
+        check(f"reads {col}:{name}", col in json.dumps(g["entry"]) and col in attached, json.dumps(g["entry"]))
+    src = inspect.getsource(storage.attach_fundamentals)
+    check("the loader attaches short volume and alpha", "short_volume.attach" in src and "_attach_alpha" in src)
 
     for name in ("turn_of_month", "pre_holiday", "payday", "january_illiquid",
                  "seasonality_12m", "liquidity_premium"):

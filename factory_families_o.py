@@ -125,12 +125,13 @@ def _register():
 
     sf.family(
         "short_interest", "fundamental",
-        "Short-interest effect: heavily shorted stocks underperform "
-        "(Asquith, Pathak & Ritter 2005).",
-        {"q": [0.2]},
-        lambda p: sf.G(sf.lt(sf.rank(sf.col("short_interest_ratio")), sf.k(p["q"])), None, 3.0, 20),
-        data=("features", "short interest"), available=False,
-        missing="no short-interest data source in this project")
+        "Short selling: heavily shorted stocks underperform, lightly shorted ones do not "
+        "(Boehmer, Jones & Zhang 2008; Asquith, Pathak & Ritter 2005). Measured with FINRA's "
+        "daily short-sale volume over 20 sessions (short_volume.py) — short selling "
+        "activity, the free daily proxy for short interest.",
+        {"q": [0.1, 0.2]},
+        lambda p: sf.G(sf.lt(sf.rank(sf.col("short_volume_ratio_20")), sf.k(p["q"])), None, 3.0, 20),
+        data=("features", "FINRA Reg SHO daily short volume"))
 
     sf.family(
         "capm_alpha", "momentum",
