@@ -116,6 +116,8 @@ run "[3d4/10] Insider transactions" $PY insider.py --daily
 # ...and the days since the last quarterly file, straight from EDGAR (edgar_form4.py);
 # the official quarterly rows replace these when their quarter is published.
 run "[3d4b/10] Insider transactions (daily EDGAR)" $PY edgar_form4.py --daily --days 7
+# O-pol: House members' periodic transaction reports (new filings this year and last).
+run "[3d4c/10] Congressional trades" $PY congress_trades.py --daily
 # Stage Q3: 1-minute bars for the same-day universe (free history is ~7 days deep).
 run "[3d5/10] Minute bars" $PY minute_bars.py --collect
 

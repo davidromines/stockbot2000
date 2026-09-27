@@ -7,3 +7,4 @@ requests>=2.31.0
 pyarrow>=15.0.0
 lxml>=5.0.0
 mcp>=2.2
+pypdf>=6.0          # congress_trades.py: House transaction-report PDFs
