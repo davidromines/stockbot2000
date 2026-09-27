@@ -315,7 +315,11 @@ def run(conn, cfg, only: list | None = None) -> dict:
                 srows, sex = synthetic_frames(conn, cfg, window, mode, fundamentals=fund)
                 srows = _trim(srows, keep)
                 df, ex = _combine(real, srows), _combine(real_ex, sex)
+                del srows, sex                          # the combined copy is all that is needed now
+                import gc
+                gc.collect()
             panel = simulator.Panel(df, exit_prices=ex)
+            del df, ex                                  # the panel holds its own sorted copy
             dd = bias.drawdown_column(panel.df)
             is_syn = panel.df["ticker"].astype(str).str.startswith(PREFIX).to_numpy()
             for key, ver, g, _ in pending:
@@ -340,7 +344,7 @@ def run(conn, cfg, only: list | None = None) -> dict:
             # Release this mode's combined frames BEFORE the next mode builds its own:
             # holding both (real + synthetic, twice) exceeded the 6 GB cap (exit 137,
             # 2026-09-25). `real` stays; everything derived from it goes.
-            del panel, dd, is_syn, df, ex
+            del panel, dd, is_syn
             if mode != "exclude":
                 del srows, sex
             gc.collect()
