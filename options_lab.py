@@ -119,14 +119,21 @@ def _ok(q: dict, s: dict) -> bool:
     return (a - b) / mid <= s["max_spread_frac"]
 
 
+def _monthly(e: str) -> bool:
+    d = dt.date.fromisoformat(e)
+    return d.weekday() == 4 and 15 <= d.day <= 21
+
+
 def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list | None:
     """Contracts to buy: legs 'C' (call), 'P' (put) or 'S' (straddle: call + put, same strike).
     The expiry nearest the target days-to-expiry within [min, max]; the strike whose call
     delta is nearest 0.5 (at the money). None when the chain cannot fill it."""
     rows = [r for r in od.chain(conn, symbol, date) if r["delta"] is not None]
     lo, hi, tgt = dte
+    # Monthly expiries (the third Friday) first: the public chains keep listing them for
+    # weeks, so the exit finds a real quote; a weekly contract drops out within days.
     exps = sorted({r["expiration"] for r in rows if lo <= _days(date, r["expiration"]) <= hi},
-                  key=lambda e: abs(_days(date, e) - tgt))
+                  key=lambda e: (not _monthly(e), abs(_days(date, e) - tgt)))
     for exp in exps:
         calls = [r for r in rows if r["expiration"] == exp and r["cp"] == "C"]
         puts = {r["strike"]: r for r in rows if r["expiration"] == exp and r["cp"] == "P"}
@@ -359,7 +366,13 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 due = "expired"
             if not due:
                 continue
-            v, modelled = value(conn, sym, legs, d, allow_model=True)
+            # A real quote first: up to a week past the due date, unless expiry is near.
+            overdue = _days(op, d) - p["hold"] * 7 // 5
+            v, modelled = value(conn, sym, legs, d, allow_model=False)
+            if v is None:
+                if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
+                    continue
+                v, modelled = value(conn, sym, legs, d, allow_model=True)
             if v is None:
                 continue                          # cannot be valued today: try the next date
             ret = v / cost - 1
