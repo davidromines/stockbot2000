@@ -204,6 +204,23 @@ def main():
     check("run translated the others", counts["translated"] == 2, counts)
     check("run counted YES", counts["yes"] == 2, counts)
 
+    # --- verification pass --------------------------------------------
+    import copy
+    wrong = copy.deepcopy(VALID)
+    wrong["entry"]["op"] = "lt"
+    wrong["entry"]["args"][1]["const"] = 0.1
+    fixed = {"ok": False, "problems": ["direction reversed: the source buys the top decile"], "genome": VALID}
+    conn3 = make_db()
+    e = ke.pending(conn3, limit=1)[0]
+    out = ke.translate(conn3, FakeProvider([fenced(good_payload(genome=wrong)), fenced(fixed)]), e)
+    check("verification corrects a reversed condition", out["genome"] == VALID, out["genome"])
+    check("the correction is recorded as an ambiguity and the first version kept",
+          any(a.startswith("verification:") for a in out["ambiguities"])
+          and any("first version" in a for a in out["assumptions"]))
+    bad_fix = {"ok": False, "problems": ["x"], "genome": {"entry": {"col": "nope"}}}
+    out2 = ke.translate(conn3, FakeProvider([fenced(good_payload()), fenced(bad_fix)]), e)
+    check("an invalid verified genome is not adopted", out2["genome"] == VALID, out2["genome"])
+
     if FAILED:
         print("\n%d FAILED" % len(FAILED))
         sys.exit(1)

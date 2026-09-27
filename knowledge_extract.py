@@ -43,7 +43,7 @@ ALLOWED_COLS = (
     "cal_month", "cal_dom", "cal_tdom", "cal_tdom_rev", "cal_pre_holiday",
     "cal_post_holiday",
 )
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "4"   # 4: column glossary, long leg of long-short; 2: cached source text in the prompt; 3: verification pass
 
 # The source's own words, in the order they should be read. Title first.
 SOURCE_COLS = (
@@ -144,13 +144,48 @@ stop_atr_multiple must be in 0.5..10; max_hold_days must be in 1..504.
 ALLOWED COLUMN NAMES
 %s
 
+COLUMN MEANINGS (use the inverse when the source ranks on the reciprocal)
+book_to_market = book equity / market cap (the inverse of P/B: "low P/B" = high book_to_market);
+earnings_yield = earnings / price (inverse of P/E); fcf_to_price = (operating cash flow - capex) / market cap;
+gross_profitability = gross profit / assets; roa = net income / assets; market_cap in dollars (size);
+asset_growth, accruals, net_share_issuance, debt_to_equity, piotroski_f (0-9), altman_z, chs_distress (higher = more distress);
+sue = standardised unexpected earnings (earnings surprise); returns = one-day return; roc_10 = 10-day rate of change ONLY;
+a return over N months is {"op":"pct_change","args":[{"col":"close"}],"n":21*N} (12-1 momentum: lag that by 21);
+volatility has no column: use atr_14 relative to close, or zscore; rsi_14, bb_pct, stoch_k, willr_14, cci_20 are the usual oscillators;
+pct_of_52w_high = close / 52-week high; drawdown_200 = distance below the 200-day high.
+LONG-SHORT SOURCES: encode the LONG leg only and say so in assumptions — that is a valid translation, not a reason for data_available NO.
+
 DATA WE HOLD
 US stocks and ETFs, daily bars from 1962, SEC fundamentals. We do NOT hold forex, futures, commodities, crypto (for this factory), options, intraday bars, analyst estimates or news.
 """ % (", ".join(FIELDS), ", ".join(FAMILIES), ", ".join(ALLOWED_COLS))
 
 
+CACHE_CHARS = 12000
+
+
+def _cached_source(entry):
+    """The locally cached source text (code or description), for the prompt only.
+
+    Its licence is often unstated, so it is never copied into the database; the
+    stored record names the file and its hash instead (knowledge_library's rule)."""
+    import hashlib
+    from pathlib import Path
+    try:
+        path = entry["raw_cache"]
+    except (KeyError, IndexError):
+        return None, None
+    if not path or not Path(path).is_file():
+        return None, None
+    raw = Path(path).read_bytes()
+    return raw.decode("utf-8", "replace")[:CACHE_CHARS], f"{path} sha256:{hashlib.sha256(raw).hexdigest()[:16]}"
+
+
 def build_prompt(entry):
-    return _system_prompt(), original_definition(entry)
+    user = original_definition(entry)
+    text, ref = _cached_source(entry)
+    if text:
+        user += f"\n\nCACHED SOURCE TEXT ({ref}; the source's own code or description):\n{text}"
+    return _system_prompt(), user
 
 
 def _validate_node(node, path, errors):
@@ -299,17 +334,60 @@ def parse_response(text):
             "machine_translatable": machine}
 
 
+VERIFY_SYSTEM = """You check a translation of a documented trading strategy into a genome.
+For EVERY condition in the genome check, against the source text and the stated assumptions:
+the direction (gt vs lt; a high-value leg is rank > q, a low-value leg is rank < q), the column
+(does it measure what the source ranks on?), the threshold and the holding period.
+Answer with ONE JSON object in a ```json fenced block: {"ok": true|false, "problems": [strings],
+"genome": the corrected genome (or the same genome when ok)}. Change only what is wrong; never add
+conditions the source does not state."""
+
+
+def verify(provider, entry, parsed):
+    """Second pass: the genome checked against the source and its own assumptions (a first
+    trial translated 'buy high book-to-market' as rank(book_to_market) < 0.2). Returns
+    (genome, problems, response)."""
+    if parsed.get("genome") is None:
+        return None, [], None
+    _, user = build_prompt(entry)
+    user += ("\n\nPROPOSED GENOME:\n" + json.dumps(parsed["genome"]) +
+             "\n\nSTATED ASSUMPTIONS:\n" + json.dumps(parsed.get("assumptions") or []))
+    resp = provider.complete(VERIFY_SYSTEM, user, max_tokens=1500, temperature=0.0)
+    raw = _extract_json_block(getattr(resp, "text", ""))
+    try:
+        v = json.loads(raw)
+    except (ValueError, TypeError):
+        return parsed["genome"], ["verification unparseable"], resp
+    if not isinstance(v, dict):
+        return parsed["genome"], ["verification unparseable"], resp
+    probs = [str(x) for x in (v.get("problems") or [])]
+    g = v.get("genome") if isinstance(v.get("genome"), dict) else parsed["genome"]
+    if validate_genome(g):
+        return parsed["genome"], probs + ["verified genome invalid; first genome kept"], resp
+    return g, probs, resp
+
+
 def translate(conn, provider, entry, rates=None):
     system, user = build_prompt(entry)
     resp = provider.complete(system, user, max_tokens=2000, temperature=0.0)
     parsed = parse_response(getattr(resp, "text", ""))
+    vresp = None
+    if parsed.get("genome") is not None and not parsed.get("errors"):
+        g, probs, vresp = verify(provider, entry, parsed)
+        if probs:
+            parsed["ambiguities"] = list(parsed["ambiguities"]) + [f"verification: {p}" for p in probs]
+        if g != parsed["genome"]:
+            parsed["assumptions"] = list(parsed["assumptions"]) + [
+                "genome corrected by the verification pass; first version: " + json.dumps(parsed["genome"])]
+            parsed["genome"] = g
     entry_id = entry["entry_id"]
     model = getattr(resp, "model", None)
     conn.execute(
         "INSERT OR REPLACE INTO knowledge_translations VALUES "
         "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (entry_id, datetime.now(timezone.utc).isoformat(), model,
-         PROMPT_VERSION, original_definition(entry),
+         PROMPT_VERSION, original_definition(entry) + (
+             f"\ncached source: {_cached_source(entry)[1]}" if _cached_source(entry)[1] else ""),
          json.dumps(parsed["fields"]),
          json.dumps(parsed["genome"]) if parsed["genome"] is not None else None,
          json.dumps(parsed["assumptions"]),
@@ -323,6 +401,8 @@ def translate(conn, provider, entry, rates=None):
         # Fake providers in tests have no real model; recording is best-effort.
         try:
             prov.record(conn, resp, "knowledge_extract", entry_id, rates)
+            if vresp is not None:
+                prov.record(conn, vresp, "knowledge_verify", entry_id, rates)
         except Exception:
             pass
     return parsed
