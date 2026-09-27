@@ -2,7 +2,7 @@
 
 - component: reporting
 - priority: medium
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-055
 - created: 2026-09-27T22:30:00+00:00
 - dependencies: none
