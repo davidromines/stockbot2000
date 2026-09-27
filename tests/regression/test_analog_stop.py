@@ -57,10 +57,18 @@ def main():
     fam = sf.F.get("analog_stop")
     check("analog_stop family carries stop_pct_col = analog_q10",
           fam is not None and fam["build"]({"q": 0.9, "hold": 20, "stop": 3.0})["risk"]["stop_pct_col"] == "analog_q10")
-    import ranking
-    src = open(ranking.__file__).read()
-    check("the ranking keeps per-trade column stops out of the live slots", "stop_pct_col" in src and
-          "not supported by the live stop plan" in src)
+    import stop_plans
+    g = fam["build"]({"q": 0.9, "hold": 20, "stop": 3.0})
+    p = stop_plans.at_entry(g, {"analog_q10": -0.07})
+    fx = [r for r in p if r["type"] == "fixed_pct"]
+    check("live plan: the analog value becomes a fixed 7% stop, resolved at entry",
+          len(fx) == 1 and abs(fx[0]["pct"] - 7.0) < 1e-9 and stop_plans.validate(p)[0], p)
+    check("live plan: tightest wins (7% fixed vs 3 x ATR on a $100 stock with ATR 5)",
+          abs(stop_plans.stop_price(p, 100.0, atr=5.0) - 93.0) < 1e-9)
+    check("live plan: a positive value is clipped to a 1% stop, like the simulator",
+          [r["pct"] for r in stop_plans.at_entry(g, {"analog_q10": 0.3}) if r["type"] == "fixed_pct"] == [1.0])
+    check("live plan: a missing value leaves the genome's own stops",
+          not any(r["type"] == "fixed_pct" for r in stop_plans.at_entry(g, {"analog_q10": None})))
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

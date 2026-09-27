@@ -272,15 +272,6 @@ def rank(conn, cfg: dict) -> list:
             n += m
         limit = float((cfg.get("survivorship") or {}).get("max_drawdown_exposure", 0.35))
         ok, why = gate(bt, sv.get("share_deep"), limit)
-        # A per-trade stop read from a column (stop_pct_col, Stage P4) is backtested and
-        # paper-traded but NOT carried by the live stop plan (stop_plans.from_genome): a slot
-        # would trade a different strategy than the one tested. Fail closed until it is.
-        try:
-            g_ = so_genome(conn, key, ver)
-        except Exception:                                   # noqa: BLE001
-            g_ = None
-        if ok and g_ and (g_.get("risk") or {}).get("stop_pct_col"):
-            ok, why = False, "per-trade analog stop is not supported by the live stop plan yet"
         name = (conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?",
                              (key, ver)).fetchone() or [key])[0]
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,

@@ -293,12 +293,30 @@ def resolve_pending(conn, cfg, broker, mode: str) -> list:
                                 "LIMIT 1", (key,)).fetchone() or [1])[0]
             o = bk.Order(signal_id=cid, symbol=symbol, side=side)
             o.filled_quantity, o.avg_fill_price = rec["filled_quantity"], rec["avg_fill_price"]
-            plan = stop_plans.from_genome(slots.genome_for(conn, key, ver)) if side == "BUY" else None
+            plan = _entry_plan(conn, slots.genome_for(conn, key, ver), symbol) if side == "BUY" else None
             _record_trade(conn, mode, slot, {"strategy_key": key, "version": ver}, symbol,
                           "OPEN" if side == "BUY" else "CLOSE", {"status": "filled", "order": o, "signal_id": cid},
                           "resolved after submission", plan=plan, atr=_atr(conn, symbol) if side == "BUY" else None)
             done.append((cid, symbol, side))
     return done
+
+
+def _entry_plan(conn, g, symbol: str, row: dict | None = None) -> list:
+    """stop_plans.at_entry with the stock's values at entry. `row` is the candidate row the
+    entry rule fired on; an order resolved later (no row) reads the column from the newest
+    panel row for the symbol — the same attach the backtest and paper engine use."""
+    col = ((g or {}).get("risk") or {}).get("stop_pct_col")
+    if col and (row is None or col not in row):
+        try:
+            import pandas as pd
+            import storage
+            d = conn.execute("SELECT MAX(date) FROM prices WHERE ticker=?", (symbol,)).fetchone()[0]
+            one = storage.attach_fundamentals(conn, pd.DataFrame({"ticker": [symbol], "date": [d]}))
+            row = {col: one[col].iloc[0]} if col in one.columns else None
+        except Exception as e:                               # noqa: BLE001 — genome stops still apply
+            log.warning(f"{symbol}: {col} unavailable at entry ({type(e).__name__}); genome stops only")
+            row = None
+    return stop_plans.at_entry(g, row)
 
 
 def _exit(conn, engine, mode, slot, pos, reason, reconciled, results):
@@ -473,7 +491,6 @@ def trade(conn, cfg, mode: str, provider) -> list:
         if h is None or slot in positions or slot not in cands_by_slot:
             continue
         cands, g = cands_by_slot[slot]
-        plan = stop_plans.from_genome(g)
         picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []
         if not picks:
             results.append({"slot": slot, "action": "NONE", "reason": "entry rule fired on nothing new",
@@ -493,6 +510,8 @@ def trade(conn, cfg, mode: str, provider) -> list:
             res = engine.execute(sig, reconciled=ok)
             results.append({"slot": slot, "action": "BUY", "symbol": pick, "reason": sig.reason,
                             "status": res["status"], "why": res.get("reasons")})
+            row = cands[cands["ticker"].astype(str) == pick].iloc[0].to_dict() if len(cands) else None
+            plan = _entry_plan(conn, g, pick, row)
             if _record_trade(conn, mode, slot, h, pick, "OPEN", res, sig.reason, plan=plan,
                              atr=_atr(conn, pick)):
                 taken.add(pick)

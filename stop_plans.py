@@ -74,6 +74,26 @@ def from_genome(g: dict | None) -> list:
     return plan
 
 
+def at_entry(g: dict | None, values: dict | None = None) -> list:
+    """The plan for one entry: from_genome plus, when the genome carries
+    `risk.stop_pct_col` (Stage P4), a fixed stop at entry x (1 + that column's value
+    for this stock at entry) — resolved ONCE, stored with the position, so the live
+    monitor needs nothing new. Same clip as simulator.py and paper_trading.py
+    (-50%..-1%). A missing value leaves the genome's own stops alone, as in the
+    backtest."""
+    plan = from_genome(g)
+    col = ((g or {}).get("risk") or {}).get("stop_pct_col")
+    v = (values or {}).get(col) if col else None
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        v = float("nan")
+    if col and not math.isnan(v):
+        plan.insert(0, {"type": "fixed_pct", "pct": round(-min(max(v, -0.5), -0.01) * 100, 4),
+                        "source": col})
+    return plan
+
+
 def validate(plan) -> tuple:
     """(ok, reasons). Fails closed: anything unrecognised makes the plan invalid."""
     reasons = []
