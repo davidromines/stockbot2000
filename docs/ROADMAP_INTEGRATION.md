@@ -1007,7 +1007,7 @@ component is improved, never duplicated.
 | 9 | See why a strategy was promoted or replaced | **done** — assignment reason + evidence at the time; per-strategy journal (N4, 09-27) |
 | 10 | See research activity occurring in the background | **done 09-27** — factory decisions, pipeline states, Knowledge Factory activity by source type, the Stage T funnel with failure reasons and near misses |
 | 11 | New strategies move through the pipeline without manual intervention | **done 09-27** — templates, recycles, knowledge reproductions and variants queued by discovery.py and tested by the factory pipeline daily (budget 12/day); Lab survivors and every idea paper-tracked daily |
-| 12 | Live performance feeds back into strategy evaluation | partly — `ranking.py` shifts to paper/forward evidence per trade |
+| 12 | Live performance feeds back into strategy evaluation | **done 09-27** — `ranking.py` pools each strategy's closed LIVE slot trades with its paper record per trade (`live_per_trade`); `live_feedback.py` (N6) records expected vs actual per fill |
 | 13 | Strategy degradation detected automatically | **done** — `strategy_health.py` daily [9j] (N5): HEALTHY / WATCH / DEGRADING / FAILED against each strategy's own backtest; weakening slot holders now also steer discovery (N7) |
 | 14 | Qualified strategies automatically replace weaker live ones | partly — `slots.py` controlled replacement |
 | 15 | Restart and reconcile safely | **done** — ledger recovery + per-run reconciliation; the five §14 live paths pinned by `tests/regression/test_live_paths.py` (N2) |

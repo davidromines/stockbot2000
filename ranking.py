@@ -170,6 +170,25 @@ def forward_per_trade(ev: dict) -> tuple:
     return float(net) / (per_trade_capital * n), n
 
 
+def live_per_trade(conn, key: str, ver: int) -> tuple:
+    """(mean return per dollar per closed LIVE slot trade, count) for one strategy version,
+    from the append-only slot_trades log (OPEN then CLOSE per slot)."""
+    try:
+        rows = conn.execute("SELECT slot_id, action, quantity, price, strategy_key, version FROM slot_trades "
+                            "WHERE mode='LIVE' ORDER BY id").fetchall()
+    except sqlite3.Error:
+        return None, 0
+    opens, rets = {}, []
+    for slot, action, q, px, k, v in rows:
+        if action == "OPEN":
+            opens[slot] = (k, v, float(px))
+        else:
+            o = opens.pop(slot, None)
+            if o and o[0] == key and int(o[1]) == int(ver) and o[2] > 0 and px:
+                rets.append(float(px) / o[2] - 1)
+    return (sum(rets) / len(rets), len(rets)) if rets else (None, 0)
+
+
 def pool(conn) -> list:
     """(key, version, state) for every strategy not REJECTED or RETIRED — DEMOTED included."""
     rows = conn.execute("""
@@ -245,6 +264,12 @@ def rank(conn, cfg: dict) -> list:
         sv = survivorship(conn, key, ver)
         bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)
+        # Addendum D criterion 12: the strategy's own closed LIVE slot trades are forward
+        # evidence too, pooled per trade with its paper record (fills are real, spread included).
+        lv, m = live_per_trade(conn, key, ver)
+        if m:
+            fw = ((fw or 0.0) * n + lv * m) / (n + m)
+            n += m
         limit = float((cfg.get("survivorship") or {}).get("max_drawdown_exposure", 0.35))
         ok, why = gate(bt, sv.get("share_deep"), limit)
         # A per-trade stop read from a column (stop_pct_col, Stage P4) is backtested and
