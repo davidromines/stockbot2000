@@ -89,6 +89,9 @@ GROUPS = {
         "crypto_spreads",           # Stage K1: measured Robinhood spreads, not recomputable
         "crypto_slot_trades",       # Stage K5: the crypto slot trade log (append-only)
         "trader_runs",              # N1: one heartbeat per slot_trader run
+        "option_funds", "option_fund_equity", "option_trades",   # Stage R: option paper funds (+ backtests)
+        "intraday_trades",          # Stage Q2: same-day SHADOW trade book
+        "ranking_history",          # N3: daily ranking snapshots (leaderboard movement)
         # append-only decision logs: identity, lifecycle, every §37 decision,
         # the authoritative accounting and the pre-registered experiments.
         # A lifecycle state is DERIVED from league_state, so losing that log
