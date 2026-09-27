@@ -1004,16 +1004,16 @@ component is improved, never duplicated.
 | 6 | See the live event stream | **done** — signals, orders, fills, risk rejections, slot changes, monitor, halts |
 | 7 | See the complete strategy leaderboard | **done** |
 | 8 | See potential replacement strategies | **done** — with what blocks each |
-| 9 | See why a strategy was promoted or replaced | **done** — assignment reason + evidence at the time; per-strategy journal (N4) open |
-| 10 | See research activity occurring in the background | partly — recent factory decisions and pipeline states; live discovery progress open |
-| 11 | New strategies move through the pipeline without manual intervention | partly — factory pipeline in `daily.sh` |
+| 9 | See why a strategy was promoted or replaced | **done** — assignment reason + evidence at the time; per-strategy journal (N4, 09-27) |
+| 10 | See research activity occurring in the background | **done 09-27** — factory decisions, pipeline states, Knowledge Factory activity by source type, the Stage T funnel with failure reasons and near misses |
+| 11 | New strategies move through the pipeline without manual intervention | **done 09-27** — templates, recycles, knowledge reproductions and variants queued by discovery.py and tested by the factory pipeline daily (budget 12/day); Lab survivors and every idea paper-tracked daily |
 | 12 | Live performance feeds back into strategy evaluation | partly — `ranking.py` shifts to paper/forward evidence per trade |
-| 13 | Strategy degradation detected automatically | open |
+| 13 | Strategy degradation detected automatically | **done** — `strategy_health.py` daily [9j] (N5): HEALTHY / WATCH / DEGRADING / FAILED against each strategy's own backtest; weakening slot holders now also steer discovery (N7) |
 | 14 | Qualified strategies automatically replace weaker live ones | partly — `slots.py` controlled replacement |
-| 15 | Restart and reconcile safely | partly — ledger recovery + per-run reconciliation; §14 verification (N2) open |
-| 16 | Live trading isolated from research code | partly — freeze-boundary and eligibility import tests |
-| 17 | K, L and M continue progressing | partly — M1 done 09-25: generator v4 passes the realism gate (AUC 0.593) |
-| 18 | Operates without manually starting each research/trading cycle | partly — cron; research steps still started by hand |
+| 15 | Restart and reconcile safely | **done** — ledger recovery + per-run reconciliation; the five §14 live paths pinned by `tests/regression/test_live_paths.py` (N2) |
+| 16 | Live trading isolated from research code | **done** — freeze-boundary and eligibility import tests; research registers strategies only, the slot path alone trades |
+| 17 | K, L and M continue progressing | **done** — K1-K6, L1-L3, M (v5c) built; K7, L4, M7 are owner decisions |
+| 18 | Operates without manually starting each research/trading cycle | **done 09-27** — cron runs trading, the daily research job (factory, knowledge cycle, composite, insider, minute bars, funnel) and the Control Center; only the frozen evolutionary search waits for the owner, by design |
 
 **End-of-session report format (§24)**: IMPLEMENTED, FILES/MODULES CHANGED,
 DATABASE/SCHEMA CHANGES, LIVE COMPONENTS AFFECTED, TESTS RUN, LIVE TESTS RUN,
