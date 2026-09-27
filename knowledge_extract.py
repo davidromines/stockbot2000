@@ -43,7 +43,7 @@ ALLOWED_COLS = (
     "cal_month", "cal_dom", "cal_tdom", "cal_tdom_rev", "cal_pre_holiday",
     "cal_post_holiday",
 )
-PROMPT_VERSION = "4"   # 4: column glossary, long leg of long-short; 2: cached source text in the prompt; 3: verification pass
+PROMPT_VERSION = "5"   # 5: paper pages for title-only entries; 4: column glossary, long leg of long-short; 2: cached source text in the prompt; 3: verification pass
 
 # The source's own words, in the order they should be read. Title first.
 SOURCE_COLS = (
@@ -367,7 +367,9 @@ def verify(provider, entry, parsed):
     return g, probs, resp
 
 
-def translate(conn, provider, entry, rates=None):
+def compute(provider, entry):
+    """The model work for one entry — prompt, answer, parse, verification — with no database
+    access, so several can run in parallel threads. Returns (parsed, resp, vresp)."""
     system, user = build_prompt(entry)
     resp = provider.complete(system, user, max_tokens=2000, temperature=0.0)
     parsed = parse_response(getattr(resp, "text", ""))
@@ -380,6 +382,10 @@ def translate(conn, provider, entry, rates=None):
             parsed["assumptions"] = list(parsed["assumptions"]) + [
                 "genome corrected by the verification pass; first version: " + json.dumps(parsed["genome"])]
             parsed["genome"] = g
+    return parsed, resp, vresp
+
+
+def store(conn, entry, parsed, resp, vresp=None, rates=None):
     entry_id = entry["entry_id"]
     model = getattr(resp, "model", None)
     conn.execute(
@@ -408,6 +414,11 @@ def translate(conn, provider, entry, rates=None):
     return parsed
 
 
+def translate(conn, provider, entry, rates=None):
+    parsed, resp, vresp = compute(provider, entry)
+    return store(conn, entry, parsed, resp, vresp, rates)
+
+
 def pending(conn, limit=50, sources=None):
     sql = ("SELECT e.* FROM knowledge_entries e "
            "LEFT JOIN knowledge_translations t ON t.entry_id = e.entry_id "
@@ -424,19 +435,37 @@ def pending(conn, limit=50, sources=None):
     return [dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
-def run(conn, provider, limit=50, sources=None, rates=None):
+def run(conn, provider, limit=50, sources=None, rates=None, workers=1):
+    """Translate pending entries. With workers > 1 the model calls run in parallel threads;
+    every database write stays on this thread (sqlite writers must not overlap)."""
     counts = {"translated": 0, "yes": 0, "partial": 0, "no": 0, "errors": 0}
-    for entry in pending(conn, limit=limit, sources=sources):
-        try:
-            parsed = translate(conn, provider, entry, rates=rates)
-        except Exception as exc:
-            counts["errors"] += 1
-            print("  error %s: %s" % (entry["entry_id"], exc), file=sys.stderr)
-            continue
+    todo = pending(conn, limit=limit, sources=sources)
+
+    def done(entry, parsed, resp, vresp):
+        store(conn, entry, parsed, resp, vresp, rates)
         counts["translated"] += 1
         key = parsed["machine_translatable"].lower()
         if key in ("yes", "partial", "no"):
             counts[key] += 1
+
+    if workers <= 1:
+        for entry in todo:
+            try:
+                done(entry, *compute(provider, entry))
+            except Exception as exc:
+                counts["errors"] += 1
+                print("  error %s: %s" % (entry["entry_id"], exc), file=sys.stderr)
+        return counts
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {ex.submit(compute, provider, e): e for e in todo}
+        for f in as_completed(futs):
+            entry = futs[f]
+            try:
+                done(entry, *f.result())
+            except Exception as exc:
+                counts["errors"] += 1
+                print("  error %s: %s" % (entry["entry_id"], exc), file=sys.stderr)
     return counts
 
 
@@ -463,6 +492,7 @@ def main(argv=None):
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--source", action="append", default=None)
+    ap.add_argument("--workers", type=int, default=1)
     args = ap.parse_args(argv)
 
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=60)
@@ -474,7 +504,7 @@ def main(argv=None):
         if args.run:
             provider = get_provider(cfg)
             counts = run(conn, provider, limit=args.limit,
-                         sources=args.source, rates=cfg["ado"]["rates"])
+                         sources=args.source, rates=cfg["ado"]["rates"], workers=args.workers)
             print(counts)
     finally:
         conn.close()
