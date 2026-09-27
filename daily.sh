@@ -113,6 +113,8 @@ if [ "$(date -u +%u)" = "1" ]; then run "[3d2/10] Risk metrics (weekly)" bounded
 run "[3d3/10] Short volume" $PY short_volume.py --daily
 # O-ins: SEC Form 4 insider transactions (the newest two quarterly files re-fetched).
 run "[3d4/10] Insider transactions" $PY insider.py --daily
+# Stage Q3: 1-minute bars for the same-day universe (free history is ~7 days deep).
+run "[3d5/10] Minute bars" $PY minute_bars.py --collect
 
 # Crypto tops up into its own table and refreshes listing status, so a pair
 # that delists leaves a dated final observation rather than just stopping.

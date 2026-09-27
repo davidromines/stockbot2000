@@ -105,6 +105,13 @@ GROUPS = {
         # slot trade (LIVE included: real money since 2026-09-24), the stop
         # marks behind each exit, and the live account's equity snapshots.
         "slot_assignments", "slot_reviews", "slot_trades", "slot_marks", "live_equity",
+        # Stage Q3: free minute history reaches back only ~7 days, so every collected
+        # bar is irreplaceable once it ages out of the source.
+        "minute_bars", "minute_bars_log",
+        # Stage O rev 2: model translations (paid calls), lineage rulings (a person's
+        # independence rulings among them), reproductions, provenance, the ledger.
+        "knowledge_translations", "knowledge_lineage", "knowledge_reproductions",
+        "strategy_provenance", "knowledge_lineage_stats",
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
