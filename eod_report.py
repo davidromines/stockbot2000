@@ -30,6 +30,9 @@ HEADINGS = [
     ("pnl", "P&L"),
     ("trades", "TRADES"),
     ("positions", "POSITIONS"),
+    ("options", "OPTIONS (PAPER)"),
+    ("same_day", "SAME-DAY (RECORDED)"),
+    ("short_term", "SHORT-TERM (PAPER)"),
     ("strategy_performance", "STRATEGY PERFORMANCE"),
     ("ranking", "RANKING"),
     ("replacements", "REPLACEMENTS"),
@@ -434,6 +437,34 @@ def _section_real_account(conn, mode):
         return []
 
 
+def _section_research_books(conn):
+    """Options, same-day and short-term books (control_center_extra views), as short lines."""
+    try:
+        import control_center_extra as x
+        rf = conn.row_factory
+        conn.row_factory = sqlite3.Row
+        try:
+            ov, iv, sv = x.options_view(conn), x.intraday_view(conn), x.short_term_view(conn)
+        finally:
+            conn.row_factory = rf
+    except Exception:                                     # noqa: BLE001 — a report never raises
+        return {"options": [], "same_day": [], "short_term": []}
+    opts = []
+    for o in ov.get("strategies", []):
+        bt = "no backtest yet" if o["bt_mean"] is None else "bt %+.1f%%/trade, %d%% won" % (100 * o["bt_mean"], round(100 * (o["bt_win"] or 0)))
+        paper = "paper %d closed %s" % (o["closed"], "" if o["paper_usd"] is None else "%+.2f$" % o["paper_usd"])
+        opts.append("%s: %s; %s; %s open" % (o["name"], bt, paper.strip(), o["open"] or 0))
+    same = ["%s: %d trades, %s won, %s$" % (r["strategy"].replace("intraday:", ""), r["trades"], r.get("won") or 0,
+                                             "%+.2f" % r["usd"] if r.get("usd") is not None else "0.00")
+            for r in iv.get("strategies", []) if r.get("trades")]
+    if not same:
+        same = ["no same-day trades recorded yet (%d strategies watching)" % len(iv.get("strategies", []))]
+    short = [("%s: %d closed %s" % (f["family"].replace("st_", ""), f["closed"],
+                                    "" if f["net_usd"] is None else "%+.2f$" % f["net_usd"])).rstrip()
+             for f in sv.get("families", [])]
+    return {"options": opts, "same_day": same, "short_term": short}
+
+
 def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     """Assemble the twelve sections. Read-only; never raises on missing tables."""
     if now is None:
@@ -443,7 +474,9 @@ def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     positions = _section_positions(conn, mode)
     failures = _section_failures(conn, day, mode)
     system_health = _section_system_health(conn, now)
+    books = _section_research_books(conn)
     return {
+        **books,
         "account": account,
         "real_account": _section_real_account(conn, mode),
         "pnl": _section_pnl(conn, day, mode, account, positions),
@@ -530,6 +563,14 @@ def render(report):
             % (pos["slot"], pos["symbol"], pos["quantity"], _fmt(pos["entry_price"]), _fmt(pos["mark"])),
         )
         _emit(lines, "  stop %s  unreal %s%%" % (_fmt(pos["stop"]), _fmt(pos["unrealized_pct"])))
+
+    for key, title in (("options", "OPTIONS (PAPER)"), ("same_day", "SAME-DAY (RECORDED)"),
+                       ("short_term", "SHORT-TERM (PAPER)")):
+        head(key, title)
+        if not report.get(key):
+            _emit(lines, "no data")
+        for line in report.get(key) or []:
+            _emit(lines, line)
 
     head("strategy_performance", "STRATEGY PERFORMANCE")
     if not report["strategy_performance"]:
