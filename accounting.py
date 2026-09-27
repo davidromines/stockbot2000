@@ -286,10 +286,33 @@ def crypto_fund(conn) -> list:
     return out
 
 
+def option_fund(conn) -> list:
+    """Stage R option paper funds. Trades are priced at the real ask (buy) and bid
+    (sell), so their dollars are already net: no further costs are modelled."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='option_funds'").fetchone():
+        return []
+    out = []
+    for f in conn.execute("SELECT * FROM option_funds"):
+        t = conn.execute("SELECT COUNT(*) n FROM option_trades WHERE mode='PAPER' AND strategy=? AND ret IS NOT NULL",
+                         (f["name"],)).fetchone()
+        e = conn.execute("SELECT * FROM option_fund_equity WHERE name=? ORDER BY date DESC LIMIT 1",
+                         (f["name"],)).fetchone()
+        if not e:
+            continue
+        gross = float(e["equity_usd"]) - float(f["capital_usd"])
+        out.append(_row(
+            as_of=e["date"], fund_kind="option", fund_id=f["name"], label=f["name"],
+            capital_usd=float(f["capital_usd"]), gross_usd=gross, costs_realized=0.0, costs_open=0.0,
+            equity_original=float(e["equity_usd"]), open_positions=int(e["open_positions"]),
+            closed_trades=int(t["n"]), cost_basis="fills", note="bought at ask, sold at bid"))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 def statement(conn, cfg) -> list:
     cm = costs_mod.CostModel(cfg)
-    rows = paper_funds(conn, cm) + pair_funds(conn, cm) + value_fund(conn, cm) + crypto_fund(conn)
+    rows = (paper_funds(conn, cm) + pair_funds(conn, cm) + value_fund(conn, cm) + crypto_fund(conn)
+            + option_fund(conn))
     return rows
 
 

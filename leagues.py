@@ -70,6 +70,8 @@ def fund_ref(conn, key: str, version: int = 1):
         return "value", key.split(":", 1)[1]
     if key.startswith("crypto:"):
         return "crypto", key.split(":", 1)[1]
+    if key.startswith("option:"):
+        return "option", key.split(":", 1)[1]
     r = conn.execute("SELECT run_id FROM factory_paper_link WHERE strategy_key=? AND version=?",
                      (key, version)).fetchone()
     return ("paper", r[0]) if r else None
@@ -116,7 +118,8 @@ def _max_dd(conn, kind: str, fid: str) -> float | None:
     q = {"paper": ("SELECT equity_usd FROM paper_equity WHERE run_id=? ORDER BY date"),
          "pair": ("SELECT equity_usd FROM pair_fund_equity WHERE name=? ORDER BY date"),
          "value": ("SELECT equity_usd FROM value_fund_equity WHERE name=? ORDER BY date"),
-         "crypto": ("SELECT equity_usd FROM crypto_fund_equity WHERE name=? ORDER BY date")}[kind]
+         "crypto": ("SELECT equity_usd FROM crypto_fund_equity WHERE name=? ORDER BY date"),
+         "option": ("SELECT equity_usd FROM option_fund_equity WHERE name=? ORDER BY date")}[kind]
     peak, dd = None, 0.0
     for (e,) in conn.execute(q, (fid,)):
         peak = e if peak is None else max(peak, e)
@@ -129,7 +132,8 @@ def _sessions(conn, kind: str, fid: str) -> int:
     q = {"paper": "SELECT COUNT(*) FROM paper_equity WHERE run_id=?",
          "pair": "SELECT COUNT(*) FROM pair_fund_equity WHERE name=?",
          "value": "SELECT COUNT(*) FROM value_fund_equity WHERE name=?",
-         "crypto": "SELECT COUNT(*) FROM crypto_fund_equity WHERE name=?"}[kind]
+         "crypto": "SELECT COUNT(*) FROM crypto_fund_equity WHERE name=?",
+         "option": "SELECT COUNT(*) FROM option_fund_equity WHERE name=?"}[kind]
     return int(conn.execute(q, (fid,)).fetchone()[0])
 
 
