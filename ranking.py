@@ -60,7 +60,28 @@ import sys
 
 log = logging.getLogger("ranking")
 
-DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0}
+DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0,
+            # Stage L4: shrink a backtest by its family's POST-publication evidence (JKP, dead
+            # companies included): t >= 3 keeps it whole, t <= 0 zeroes it, linear between. A
+            # family published evidence says is gone after publication (liquidity, size) then
+            # cannot lead on its backtest alone. Off until the owner turns it on.
+            "published_prior": False}
+
+
+def published_factor(conn, family: str | None) -> tuple:
+    """(shrink factor 0..1, post-publication t) for a strategy family, or (1.0, None) when
+    the family has no published evidence. Equal-weighted long-leg excess, post period."""
+    if not family:
+        return 1.0, None
+    try:
+        r = conn.execute("SELECT MAX(tstat_excess) FROM published_evidence WHERE family=? AND period='post' "
+                         "AND weighting='ew'", (family,)).fetchone()
+    except sqlite3.Error:
+        return 1.0, None
+    if not r or r[0] is None:
+        return 1.0, None
+    t = float(r[0])
+    return min(1.0, max(0.0, t / 3.0)), t
 OUT_STATES = ("REJECTED", "RETIRED")
 
 
@@ -261,6 +282,7 @@ def rank(conn, cfg: dict) -> list:
             if ev.get("capital_usd") and n_sym:
                 ev["position_usd"] = float(ev["capital_usd"]) / n_sym
         searched = from_search(conn, key)
+        pf, pt = published_factor(conn, leagues.family_of(conn, key, ver)) if s["published_prior"] else (1.0, None)
         sv = survivorship(conn, key, ver)
         bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
         fw, n = forward_per_trade(ev)
@@ -284,7 +306,8 @@ def rank(conn, cfg: dict) -> list:
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
                     "synthetic_trades": sv.get("synthetic_trades"),
                     "from_search": searched,
-                    "score": score(None if searched else bt, fw, n, s), "passes_gate": ok, "gate": why,
+                    "score": score(None if searched else (bt * pf if bt is not None else None), fw, n, s),
+                    "published_t": pt, "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                               "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))

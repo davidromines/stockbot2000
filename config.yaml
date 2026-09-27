@@ -463,6 +463,10 @@ baselines:
 ranking:
   prior_trades: 10
   no_backtest_prior: 0.0
+  # Stage L4 (owner's decision; built 2026-09-27, OFF): shrink each backtest by its family's
+  # post-publication t (t/3, capped at 1). On, it would demote liquidity, size and
+  # profitability, whose published edge is gone or weak after publication.
+  published_prior: false
 
 # Addendum C Layer A sources (defaults live in universe_layer_a.DEFAULTS).
 # FinanceDatabase, approved by the owner 2026-09-24: sector / industry /
