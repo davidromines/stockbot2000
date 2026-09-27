@@ -42,7 +42,7 @@ def _get(row, key, default=None):
     """sqlite3.Row has no .get; tolerate both Row and plain mappings."""
     try:
         return row[key]
-    except (IndexError, KeyError):
+    except (IndexError, KeyError, TypeError):   # TypeError: no row at all
         return default
 
 
@@ -217,9 +217,68 @@ def knowledge_view(conn):
     }
 
 
+def options_view(conn):
+    """Stage R: each option strategy's real-price backtest beside its paper fund."""
+    import options_lab
+    stake = options_lab.DEFAULTS["stake_usd"]
+    out = []
+    for name, p in options_lab.STRATEGIES.items():
+        if name.startswith("t_"):
+            continue
+        bt = _rows(conn, "SELECT trades, mean_ret, win_rate, start, end FROM option_backtests WHERE strategy=?", (name,))
+        fund = _rows(conn, "SELECT capital_usd, started_on FROM option_funds WHERE name=?", (name,))
+        eq = _rows(conn, "SELECT date, equity_usd, open_positions FROM option_fund_equity WHERE name=? "
+                         "ORDER BY date DESC LIMIT 1", (name,))
+        pt = _rows(conn, "SELECT COUNT(*), SUM(usd > 0), SUM(usd) FROM option_trades WHERE mode='PAPER' AND "
+                         "strategy=? AND ret IS NOT NULL", (name,))
+        b, f, e, t = (bt[0] if bt else None), (fund[0] if fund else None), (eq[0] if eq else None), pt[0] if pt else None
+        out.append({"strategy": name, "name": p.get("name", name), "why": p.get("why", ""),
+                    "bt_trades": _get(b, 0), "bt_mean": _get(b, 1), "bt_win": _get(b, 2),
+                    "bt_usd": None if _get(b, 1) is None else stake * _get(b, 1),
+                    "paper_since": _get(f, 1), "equity": _get(e, 1), "capital": _get(f, 0),
+                    "open": _get(e, 2), "closed": _get(t, 0) or 0, "won": _get(t, 1) or 0, "paper_usd": _get(t, 2)})
+    recent = [{"strategy": r[0], "symbol": r[1], "opened": r[2], "closed": r[3], "usd": r[4], "reason": r[5]}
+              for r in _rows(conn, "SELECT strategy, symbol, opened, closed, usd, reason FROM option_trades "
+                                   "WHERE mode='PAPER' ORDER BY COALESCE(closed, opened) DESC LIMIT 10")]
+    return {"strategies": out, "recent": recent, "stake": stake}
+
+
+def intraday_view(conn):
+    """Stage Q2: same-day SHADOW strategies — would-be trades and money on $20 each."""
+    if not _table_exists(conn, "intraday_trades"):
+        return {"strategies": [], "open": 0}
+    rows = _rows(conn, "SELECT strategy_key, COUNT(*), SUM(usd > 0), SUM(usd), AVG(ret_pct), COUNT(DISTINCT session) "
+                       "FROM intraday_trades GROUP BY strategy_key ORDER BY SUM(usd) DESC")
+    defs = {r[0]: r[1] for r in _rows(conn, "SELECT strategy_key, name FROM intraday_defs")} \
+        if _table_exists(conn, "intraday_defs") else {}
+    have = {r[0] for r in rows}
+    strategies = [{"strategy": r[0], "trades": r[1], "won": r[2], "usd": r[3], "avg_pct": r[4], "sessions": r[5]}
+                  for r in rows] + [{"strategy": k, "trades": 0} for k in sorted(defs) if k not in have]
+    n_open = _rows(conn, "SELECT COUNT(*) FROM intraday_open")
+    return {"strategies": strategies, "open": n_open[0][0] if n_open else 0}
+
+
+def short_term_view(conn):
+    """Stage Q1: the 1-5 session strategies (st_* families) — state and paper record."""
+    if not _table_exists(conn, "factory_paper_link"):
+        return {"families": []}
+    rows = _rows(conn, """
+        SELECT s.family, COUNT(DISTINCT s.strategy_key || s.version),
+               SUM(a.closed_trades), SUM(a.net_usd)
+        FROM league_strategies s
+        LEFT JOIN factory_paper_link l ON l.strategy_key = s.strategy_key AND l.version = s.version
+        LEFT JOIN (SELECT fund_id, closed_trades, net_usd, MAX(as_of) FROM fund_accounting
+                   WHERE fund_kind='paper' GROUP BY fund_id) a ON a.fund_id = l.run_id
+        WHERE s.family LIKE 'st\\_%' ESCAPE '\\' GROUP BY s.family ORDER BY s.family""")
+    return {"families": [{"family": r[0], "strategies": r[1], "closed": r[2] or 0, "net_usd": r[3]} for r in rows]}
+
+
 def all_views(conn):
     return {
         "health": health_view(conn),
         "published": published_view(conn),
         "knowledge": knowledge_view(conn),
+        "options": options_view(conn),
+        "intraday": intraday_view(conn),
+        "short_term": short_term_view(conn),
     }

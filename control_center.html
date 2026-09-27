@@ -139,6 +139,20 @@
   </div>
 </div>
 
+<h2>Options — real option prices, paper only</h2>
+<div class="card scroll" id="opts"></div>
+
+<div class="grid two">
+  <div>
+    <h2>Short-term strategies — 1 to 5 day holds</h2>
+    <div class="card scroll" id="stterm"></div>
+  </div>
+  <div>
+    <h2>Same-day strategies — recorded, not traded</h2>
+    <div class="card scroll" id="intra"></div>
+  </div>
+</div>
+
 <h2>Published evidence — survivorship-free (JKP, dead companies included), after publication</h2>
 <div class="card scroll" id="pub"></div>
 </div>
@@ -284,7 +298,31 @@ function render(s) {
 }
 
 function renderExtra(x) {
-  if (x.error) { ["shealth", "know", "pub"].forEach(id => $(id).innerHTML = `<p class="meta">${esc(x.error)}</p>`); return; }
+  if (x.error) { ["shealth", "know", "pub", "opts", "stterm", "intra"].forEach(id => $(id).innerHTML = `<p class="meta">${esc(x.error)}</p>`); return; }
+  const ov = x.options || {strategies: [], recent: []};
+  $("opts").innerHTML = "<table><tr><th>Strategy</th><th>Backtest trades</th><th>Avg / trade</th><th>Won</th><th>Avg $ per $" +
+    (ov.stake || 100) + "</th><th>Paper since</th><th>Paper trades</th><th>Paper $</th><th>Open</th></tr>" +
+    ov.strategies.map(o => `<tr><td title="${esc(o.why)}">${esc(o.name)}</td><td class="n mono">${o.bt_trades ?? "—"}</td>
+      <td class="n mono ${cls(o.bt_mean)}">${pct(o.bt_mean)}</td><td class="n mono">${o.bt_win == null ? "—" : Math.round(o.bt_win * 100) + "%"}</td>
+      <td class="n mono ${cls(o.bt_usd)}">${usd(o.bt_usd, true)}</td><td class="mono">${o.paper_since ?? "—"}</td>
+      <td class="n mono">${o.closed} (${o.won} won)</td><td class="n mono ${cls(o.paper_usd)}">${usd(o.paper_usd, true)}</td>
+      <td class="n mono">${o.open ?? 0}</td></tr>`).join("") + "</table>" +
+    (ov.recent.length ? '<h3 style="margin-top:14px">Recent paper option trades</h3><table><tr><th>Opened</th><th>Strategy</th><th>Symbol</th><th>Closed</th><th>$</th><th>Why closed</th></tr>' +
+      ov.recent.map(r => `<tr><td class="mono">${esc(r.opened)}</td><td>${esc(r.strategy)}</td><td>${esc(r.symbol)}</td>
+        <td class="mono">${esc(r.closed ?? "open")}</td><td class="n mono ${cls(r.usd)}">${usd(r.usd, true)}</td><td class="muted">${esc(r.reason ?? "")}</td></tr>`).join("") + "</table>" : "") +
+    '<p class="meta">Bought at the ask, sold at the bid, settled at intrinsic value on expiry. Real option orders need options access on the account.</p>';
+  const sv = x.short_term || {families: []};
+  $("stterm").innerHTML = "<table><tr><th>Family</th><th>Strategies</th><th>Paper trades closed</th><th>Paper $</th></tr>" +
+    sv.families.map(f => `<tr><td>${esc(f.family.replace("st_", "").replaceAll("_", " "))}</td><td class="n mono">${f.strategies}</td>
+      <td class="n mono">${f.closed}</td><td class="n mono ${cls(f.net_usd)}">${usd(f.net_usd, true)}</td></tr>`).join("") + "</table>" +
+    '<p class="meta">Each strategy is its own paper fund and ranks on its own record; the dollars are per family for a glance.</p>';
+  const iv = x.intraday || {strategies: [], open: 0};
+  $("intra").innerHTML = "<table><tr><th>Strategy</th><th>Trades</th><th>Won</th><th>$ on $20 each</th><th>Avg / trade</th><th>Days</th></tr>" +
+    iv.strategies.map(r => `<tr><td>${esc(r.strategy.replace("intraday:", "").replaceAll("_", " "))}</td><td class="n mono">${r.trades}</td>
+      <td class="n mono">${r.won ?? "—"}</td><td class="n mono ${cls(r.usd)}">${usd(r.usd, true)}</td>
+      <td class="n mono ${cls(r.avg_pct)}">${r.avg_pct == null ? "—" : (r.avg_pct > 0 ? "+" : "") + r.avg_pct.toFixed(2) + "%"}</td>
+      <td class="n mono">${r.sessions ?? 0}</td></tr>`).join("") + "</table>" +
+    `<p class="meta">${iv.open} open right now. Every 5 minutes in market hours; always flat by 3:50 PM ET. Recorded only: the account allows 3 same-day round trips per 5 sessions.</p>`;
   const hv = x.health || {counts: {}, flagged: []}, sc = hv.counts || {};
   const stc = st => st === "FAILED" ? "neg" : st === "DEGRADING" ? "neg" : st === "WATCH" ? "warn" : "pos";
   $("shealth").innerHTML = kv(["HEALTHY", "WATCH", "DEGRADING", "FAILED"].map(k => [k, sc[k] || 0, stc(k)])) +
