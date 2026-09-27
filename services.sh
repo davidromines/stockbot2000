@@ -49,8 +49,9 @@ LINE_EOD="10 21 * * 1-5 cd $DIR && ./venv/bin/python eod_report.py --mode LIVE -
 LINE_TG="* * * * * cd $DIR && flock -n /tmp/stockbot2000_telegram.lock ./venv/bin/python telegram_bot.py --poll --seconds 55 >> $DIR/logs/telegram_bot.log 2>&1"
 # The strategy backlog (Knowledge Factory reproductions, templates, recycles) tested overnight:
 # the daily job's budget of 12 would take months to clear ~900 queued ideas. 22:30 UTC every
-# night, hard-stopped after 7 hours (before the 07:00 daily job), one at a time (flock).
-LINE_NIGHT="30 22 * * * cd $DIR && flock -n /tmp/stockbot2000_night.lock timeout 7h ./venv/bin/python factory_pipeline.py --run --budget 70 >> $DIR/logs/factory_night.log 2>&1"
+# night, hard-stopped after 7 hours (before the 07:00 daily job), one at a time (flock), and
+# skipped when another pipeline run is already going (two would need ~9 GB).
+LINE_NIGHT="30 22 * * * cd $DIR && ! pgrep -f '[f]actory_pipeline.py --run' >/dev/null && flock -n /tmp/stockbot2000_night.lock timeout 7h ./venv/bin/python factory_pipeline.py --run --budget 70 >> $DIR/logs/factory_night.log 2>&1"
 TAG="slot_trader.py --auto"
 TAG_CC="monitor.py --serve"
 case "${1:---status}" in
