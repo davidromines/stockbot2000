@@ -43,6 +43,10 @@ idempotent; a failing stage does not abort the ones after it.
                               liquid names the filings miss (dated, sourced)
 [3d/10] Rates series        regimes.py --load-rates: 3-month T-bill for the
                               predefined rate regimes (Phase 6 §21)
+[3d3-5] Short volume, insider FINRA short volume; SEC Form 4 insider trades
+        trades, minute bars   (quarterly data sets + daily EDGAR feed); 1-minute
+                              bars for the same-day universe (history accrues daily)
+[3g-3j] Analog + composite    analog scores; the Stage S multi-signal composite
 [4/10]  Freshness gate        fails the run if any derived table is behind
 [5/10]  Paper trading         advance the simulated funds one day
 [6/10]  Daily book            best candidate from every system + sell signals
@@ -50,10 +54,15 @@ idempotent; a failing stage does not abort the ones after it.
 [8/10]  Fund report           one status line per fund
 [9/10]  Research integrity
 [9b/10] Accounting            authoritative gross / costs / net per fund
-[9c-9h] Strategy Factory      library sync, templates, discovery plan,
-                              pipeline (budget 12, ~20 min, ~4.3 GB),
-                              league standings, data/factory_report.txt
+[9c-9h] Strategy Factory      library sync, Knowledge Factory cycle (translate,
+                              lineage, reproductions, variants), templates,
+                              paper-track every idea and every Lab survivor,
+                              discovery plan, pipeline (budget 12, ~20 min,
+                              ~4.3 GB), survivorship backtests, league standings,
+                              data/factory_report.txt, data/knowledge_factory.txt
 [9i/10] Slot reassessment     slots.py --apply (SIMULATION): the five slots
+[9j-9k] Health + funnel       strategy_health.py; funnel.py (data/funnel.txt:
+                              where strategies fail, and why)
 [10/10] Backup
 ```
 
