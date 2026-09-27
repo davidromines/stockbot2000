@@ -2,7 +2,7 @@
 
 - component: data
 - priority: medium
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-053
 - created: 2026-09-27T21:00:00+00:00
 - dependencies: none
