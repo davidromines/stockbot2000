@@ -132,6 +132,11 @@ The evidence says NO — entries in that regime did better 2006-2026 (+3.4% vs +
 without new evidence; the bear check in market_checks.py is the per-strategy view.
 Five different bets (`strategy_diversity.py`, [9f5], ON): slots skip a candidate whose weekly-return correlation
 (2023 -> today) with a held/chosen strategy is above 0.7; first computed in Monday's daily run.
+Faster evidence (09-27 night): paper research mode (`paper.positions: 20`, $400 funds; 1,394 unstepped
+funds recapitalized, the 30 with records kept $100; live untouched); `knowledge_pages.py` fetches the
+3,803 title-only entries' public pages (titles alone translated 0 of 377; pages ~1 in 4) and
+`knowledge_extract --workers 8` translates in parallel (`sb-kpages` unit); nightly factory pipeline cron
+(22:30 UTC, 7h cap, budget 70, skipped if a pipeline is already running) to clear the backlog.
 
 **Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
 real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
