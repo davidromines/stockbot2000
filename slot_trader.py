@@ -487,8 +487,17 @@ def trade(conn, cfg, mode: str, provider) -> list:
     ok, diffs = reconcile(conn, broker, mode)
     positions = open_positions(conn, mode)
     taken = {p["symbol"] for p in positions.values()}
+    # Portfolio-level bear-market rule (regime_filter.py): in ON mode, no NEW long entries
+    # while SPY is below its 200-day average; SHADOW records what it would block. Held
+    # positions are untouched either way — their own stops and exits still apply.
+    import regime_filter
+    waiting = [s_ for s_, h_ in held.items() if h_ is not None and s_ not in positions and s_ in cands_by_slot]
+    rf = regime_filter.check(conn, cfg, slots_waiting=waiting) if waiting else {"block": False}
     for slot, h in held.items():
         if h is None or slot in positions or slot not in cands_by_slot:
+            continue
+        if rf.get("block"):
+            results.append({"slot": slot, "action": "NONE", "reason": rf["reason"], "status": "blocked"})
             continue
         cands, g = cands_by_slot[slot]
         picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []

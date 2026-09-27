@@ -460,6 +460,13 @@ baselines:
 # trade moves weight to the forward record. prior_trades is k — the forward
 # trades it takes for paper to weigh as much as the backtest. A losing
 # backtest is out; no backtest starts at no_backtest_prior.
+# Bear-market rule for the slots (regime_filter.py): no NEW long entries while SPY is below
+# its 200-day average. OFF | SHADOW | ON. SHADOW (2026-09-27): the evidence run found
+# entries made in that regime did BETTER 2006-2026 (+3.4% vs +0.8% per 20 sessions,
+# survivors-only data), so the rule records what it would block and blocks nothing.
+regime_filter:
+  mode: SHADOW
+
 ranking:
   prior_trades: 10
   no_backtest_prior: 0.0
