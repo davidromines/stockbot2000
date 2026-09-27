@@ -67,6 +67,10 @@ DEFAULTS = {
     "max_replacements_per_day": 1,   # churn bound (§9)
     "max_evidence_lag_sessions": 3,  # evidence older than this is stale data (B19)
     "max_per_family": 1,             # slots one strategy family may hold (B7); configurable
+    # Stage K: crypto scores +12..+22%/trade on 30-60 day holds against ~0.5% for stocks, so
+    # armed it would take most slots on backtests carried by 2017 and 2020. At most this many
+    # crypto slots, whatever the scores (the cap recommended before K7, built 2026-09-27).
+    "max_crypto_slots": 1,
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -286,6 +290,8 @@ def plan(conn, cfg: dict) -> dict:
     held_keys = {(h["strategy_key"], h["version"]) for h in keep.values()}
     from collections import Counter
     held_fams = Counter(h["row"]["family"] for h in keep.values())
+    is_crypto = lambda k: str(k).startswith("crypto:")                      # noqa: E731
+    held_crypto = sum(1 for h in keep.values() if is_crypto(h["strategy_key"]))
     challengers = [r for r in eligible if (r["strategy_key"], r["version"]) not in held_keys]
 
     assigns = []
@@ -296,9 +302,12 @@ def plan(conn, cfg: dict) -> dict:
             break
         if held_fams[r["family"]] >= s["max_per_family"]:
             continue
+        if is_crypto(r["strategy_key"]) and held_crypto >= s["max_crypto_slots"]:
+            continue
         slot = free.pop(0)
         assigns.append((slot, r, "eligible and a slot is open"))
         held_fams[r["family"]] += 1
+        held_crypto += is_crypto(r["strategy_key"])
     taken = {(r["strategy_key"], r["version"]) for _, r, _ in assigns}
 
     # Controlled replacement of the weakest holder (§8-9, B10-B11).
@@ -318,7 +327,10 @@ def plan(conn, cfg: dict) -> dict:
         adv = _rank_value(r) - _rank_value(w["row"])
         need = s["min_advantage_score"] if scored else s["min_advantage_usd"]
         others = Counter(h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot)
-        family_clash = others[r["family"]] >= s["max_per_family"]
+        family_clash = others[r["family"]] >= s["max_per_family"] or (
+            is_crypto(r["strategy_key"]) and not is_crypto(w["strategy_key"])
+            and sum(1 for sl, h in keep.items() if sl != weakest_slot and is_crypto(h["strategy_key"]))
+            >= s["max_crypto_slots"])
         held_for = _sessions_since(conn, w["since"])
         if adv < need or family_clash or held_for < s["min_hold_sessions"]:
             continue
