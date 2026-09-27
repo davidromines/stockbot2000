@@ -243,7 +243,7 @@ database:
   market_data_path: "data/market_data.db"   # OHLCV history + features — storage.py
 
 llm:
-  provider: "ollama"                     # ollama | openai_compatible
+  provider: "deepseek"                   # deepseek (the ado client) | ollama (not installed on this VM)
   endpoint: "http://localhost:11434/api/generate"
   model: "llama3.1:8b"                   # change to whatever you run locally
   timeout_seconds: 120

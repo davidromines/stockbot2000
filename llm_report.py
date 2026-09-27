@@ -60,6 +60,25 @@ def call_ollama(prompt: str, cfg: dict) -> str:
     return resp.json()["response"]
 
 
+def call_deepseek(prompt: str, cfg: dict) -> str:
+    """The same prompt through the project's DeepSeek client (owner: DeepSeek where
+    possible; Ollama was never installed on this VM). Returns the JSON text."""
+    from llm import get_provider
+    resp = get_provider(cfg).complete("Answer with JSON only: a list of {\"ticker\", \"reason\"} objects.",
+                                      prompt, max_tokens=2000, temperature=0.0)
+    text = resp.text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+    return text
+
+
+def call_llm(prompt: str, cfg: dict) -> str:
+    """cfg llm.provider: 'deepseek' (default) or 'ollama'."""
+    if (cfg.get("llm") or {}).get("provider", "deepseek") == "ollama":
+        return call_ollama(prompt, cfg)
+    return call_deepseek(prompt, cfg)
+
+
 def chunked(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
@@ -79,7 +98,7 @@ def main():
     for batch in chunked(top_candidates, batch_size):
         prompt = PROMPT_TEMPLATE.format(stock_block=format_stock_block(batch))
         try:
-            raw_response = call_ollama(prompt, cfg)
+            raw_response = call_llm(prompt, cfg)
             reasons = json.loads(raw_response)
             reason_map = {r["ticker"]: r["reason"] for r in reasons}
         except Exception as e:
