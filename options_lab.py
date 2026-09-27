@@ -76,9 +76,12 @@ def init(conn) -> None:
             closed TEXT, value REAL, ret REAL, usd REAL, reason TEXT, signal TEXT)""")
     conn.execute("CREATE INDEX IF NOT EXISTS option_trades_s ON option_trades (mode, strategy, closed)")
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS option_funds (
+            name TEXT PRIMARY KEY, capital_usd REAL NOT NULL, started_on TEXT NOT NULL, status TEXT NOT NULL)""")
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS option_fund_equity (
-            name TEXT NOT NULL, date TEXT NOT NULL, equity REAL NOT NULL, open_positions INTEGER NOT NULL,
-            PRIMARY KEY (name, date))""")
+            name TEXT NOT NULL, date TEXT NOT NULL, equity_usd REAL NOT NULL, realized_usd REAL NOT NULL,
+            unrealized_usd REAL NOT NULL, open_positions INTEGER NOT NULL, PRIMARY KEY (name, date))""")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS option_backtests (
             strategy TEXT PRIMARY KEY, start TEXT, end TEXT, trades INTEGER, mean_ret REAL, median_ret REAL,
@@ -315,6 +318,76 @@ def backtest(conn, cfg: dict, names: list, start: str, end: str | None = None) -
     return out
 
 
+# --- the tournament: league entries and forward paper funds -----------------------
+PREFIX = "option:"
+
+
+def open_funds(conn, cfg: dict) -> list:
+    """Register every option strategy in the league (option:<name>, PAPER) and open its
+    paper fund from the newest option date. Idempotent."""
+    import league
+    init(conn)
+    s = settings(cfg)
+    start = conn.execute("SELECT MAX(date) FROM option_vol").fetchone()[0]
+    if not start:
+        return []
+    opened = []
+    for name, p in STRATEGIES.items():
+        if name.startswith("t_"):
+            continue
+        key = PREFIX + name
+        row = league.register(conn, key, p.get("name", name),
+                              {"family": "options", "kind": "option", "entry_rule": p["rule"], "legs": p["legs"],
+                               "holding_period": p["hold"], "parameters": {"dte": list(p["dte"]),
+                                                                          "top": p.get("top"), "per_day": p.get("per_day")}},
+                              author="options_lab", source_kind="options", source_ref=name, hypothesis=p.get("why", ""))
+        if league.state(conn, key, row["version"]) is None:
+            league.transition(conn, key, league.PAPER, "options paper fund opened (Stage R)",
+                              version=row["version"], actor="options_lab")
+        if not conn.execute("SELECT 1 FROM option_funds WHERE name=?", (name,)).fetchone():
+            conn.execute("INSERT INTO option_funds VALUES (?,?,?, 'open')", (name, 10 * s["stake_usd"], start))
+            opened.append(name)
+    conn.commit()
+    return opened
+
+
+def mark(conn, cfg: dict, name: str, date: str) -> dict:
+    """Fund equity on `date`: capital + realised dollars + open positions at today's bid."""
+    s = settings(cfg)
+    cap = conn.execute("SELECT capital_usd FROM option_funds WHERE name=?", (name,)).fetchone()[0]
+    real = conn.execute("SELECT COALESCE(SUM(usd),0) FROM option_trades WHERE mode='PAPER' AND strategy=? AND "
+                        "ret IS NOT NULL", (name,)).fetchone()[0]
+    unreal, n = 0.0, 0
+    for sym, legs, cost in conn.execute("SELECT symbol, legs, cost FROM option_trades WHERE mode='PAPER' AND "
+                                        "strategy=? AND closed IS NULL", (name,)).fetchall():
+        v = value(conn, sym, json.loads(legs), date)
+        unreal += s["stake_usd"] * ((v if v is not None else cost) / cost - 1)
+        n += 1
+    eq = {"equity_usd": cap + real + unreal, "realized_usd": real, "unrealized_usd": unreal, "open_positions": n}
+    conn.execute("INSERT OR REPLACE INTO option_fund_equity VALUES (?,?,?,?,?,?)",
+                 (name, date, eq["equity_usd"], real, unreal, n))
+    conn.commit()
+    return eq
+
+
+def step(conn, cfg: dict) -> dict:
+    """Paper: walk every open option fund over the option dates it has not seen yet."""
+    open_funds(conn, cfg)
+    out = {}
+    for name, started, in conn.execute("SELECT name, started_on FROM option_funds WHERE status='open'").fetchall():
+        last = conn.execute("SELECT MAX(date) FROM option_fund_equity WHERE name=?", (name,)).fetchone()[0]
+        dates = [d for d in option_dates(conn, started) if not last or d > last]
+        if not dates:
+            continue
+        sig = None
+        if STRATEGIES[name]["rule"] == "stock_signal":
+            lookback = (dt.date.fromisoformat(dates[0]) - dt.timedelta(days=400)).isoformat()
+            sig = {d: v for d, v in stock_signals(conn, cfg, lookback, dates[-1]).items() if d in dates}
+        run(conn, cfg, name, dates, "PAPER", sig)
+        out[name] = mark(conn, cfg, name, dates[-1])
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--backtest", action="store_true")
@@ -322,6 +395,7 @@ def main(argv=None) -> int:
     ap.add_argument("--start", default="2020-03-01")
     ap.add_argument("--end", default=None)
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--step", action="store_true", help="paper: walk the option funds over new dates")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     from universe import load_config
@@ -331,6 +405,8 @@ def main(argv=None) -> int:
     names = a.strategy or list(STRATEGIES)
     if a.backtest:
         backtest(conn, cfg, names, a.start, a.end)
+    if a.step:
+        print(json.dumps(step(conn, cfg), indent=1, default=float))
     if a.report or a.backtest:
         for n in names:
             r = summarize(conn, n)
