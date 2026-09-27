@@ -2,7 +2,7 @@
 
 - component: data
 - priority: high
-- state: IN_PROGRESS
+- state: COMPLETE
 - branch: ado/task-052
 - created: 2026-09-27T19:30:00+00:00
 - dependencies: TASK-049
