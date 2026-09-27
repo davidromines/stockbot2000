@@ -89,6 +89,8 @@ def evaluate(conn, cfg, key: str, ver: int, p, end: str) -> dict:
     cap = int((cfg.get("factory") or {}).get("max_entries_per_backtest", 5000))
     r = simulator.simulate(g, p, costs_mod.CostModel(cfg), size, max_entries=cap)
     m = fp._metrics(r)
+    import hold_period
+    hold_period.record(conn, key, ver, r.get("avg_hold_days"), "unseen window")
     per = m["net_usd"] / (m["trades"] * size) if m["trades"] else None
     row = {"strategy_key": key, "version": ver, "window_start": START, "window_end": end,
            "trades": m["trades"], "gross_usd": m["gross_usd"], "costs_usd": m["costs_usd"], "net_usd": m["net_usd"],

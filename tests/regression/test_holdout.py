@@ -75,7 +75,7 @@ def main():
     leagues.family_of = lambda conn, k, v: "f"
     leagues.league_of = lambda conn, cfg, k, v: "momentum"
     ranking.survivorship = lambda conn, k, v: {"backtest": 0.01}
-    rows = {r["strategy_key"]: r for r in ranking.rank(c, {})}
+    rows = {r["strategy_key"]: r for r in ranking.rank(c, {"ranking": {"normalize_hold_days": None}})}   # per-trade view
     check("losing on the unseen window fails the gate", not rows["fx_b"]["passes_gate"]
           and "unseen" in rows["fx_b"]["gate"], rows["fx_b"])
     check("the unseen result is the prior (score) and the backtest is still shown",

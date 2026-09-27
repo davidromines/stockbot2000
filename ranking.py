@@ -68,7 +68,12 @@ DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0,
             "published_prior": False,
             # The unseen-window test (holdout.py, 2023 -> today, one look per version): a loss
             # there fails the gate, and that result replaces the 2016-19 backtest as the prior.
-            "use_holdout": True}
+            "use_holdout": True,
+            # Compare strategies per day held, not per trade (hold_period.py): every per-trade
+            # figure is scaled to this many sessions. A year-long ETF trade and a week-long
+            # stock trade are different units; per trade, long holds looked many times better.
+            # None disables.
+            "normalize_hold_days": 20, "min_hold_for_scaling": 5}
 
 
 def published_factor(conn, family: str | None) -> tuple:
@@ -213,6 +218,16 @@ def live_per_trade(conn, key: str, ver: int) -> tuple:
     return (sum(rets) / len(rets), len(rets)) if rets else (None, 0)
 
 
+def _per_hold(per_trade: float | None, hold: float | None, s: dict):
+    """A per-trade figure scaled to `normalize_hold_days` sessions of holding."""
+    n = s.get("normalize_hold_days")
+    if per_trade is None or not n or not hold:
+        return per_trade
+    # A very short measured hold would multiply a small, noisy per-trade figure many times
+    # (a 2-session hold x10); holds shorter than the floor are scaled as the floor.
+    return per_trade * float(n) / max(float(hold), float(s.get("min_hold_for_scaling", 5)))
+
+
 def _market_checks(conn, key: str, ver: int) -> dict:
     """{'unseen_vs_random': 'PASS'|'FAIL'|'NA', 'bear_vs_random': ...} — informational only."""
     try:
@@ -294,6 +309,13 @@ def rank(conn, cfg: dict) -> list:
             if ev.get("capital_usd") and n_sym:
                 ev["position_usd"] = float(ev["capital_usd"]) / n_sym
         searched = from_search(conn, key)
+        import hold_period
+        try:
+            import slots as _slots
+            g_hold = _slots.genome_for(conn, key, ver)
+        except Exception:                                    # noqa: BLE001
+            g_hold = None
+        hold, hold_src = hold_period.estimate(conn, key, ver, g_hold)
         pf, pt = published_factor(conn, leagues.family_of(conn, key, ver)) if s["published_prior"] else (1.0, None)
         sv = survivorship(conn, key, ver)
         bt = sv["backtest"] if sv else backtest_per_trade(conn, cfg, key, ver)
@@ -326,7 +348,9 @@ def rank(conn, cfg: dict) -> list:
                     "worst_case": sv.get("worst_case"), "share_deep": sv.get("share_deep"),
                     "synthetic_trades": sv.get("synthetic_trades"),
                     "from_search": searched,
-                    "score": score(None if searched else (prior_bt * pf if prior_bt is not None else None), fw, n, s),
+                    "score": _per_hold(score(None if searched else (prior_bt * pf if prior_bt is not None else None),
+                                             fw, n, s), hold, s),
+                    "hold_days": hold, "hold_source": hold_src,
                     "published_t": pt, "holdout": (ho or {}).get("per_trade"),
                     "holdout_trades": (ho or {}).get("trades"),
                     # Bull-market checks (market_checks.py): recorded and shown, never a gate.

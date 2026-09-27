@@ -63,6 +63,33 @@ def _metrics(bt: dict) -> dict:
             "return_pct": bt["cagr"] * 100, "max_drawdown_pct": bt["max_drawdown"] * 100}
 
 
+def avg_hold(bt: dict, close) -> float | None:
+    """Average holding period in sessions from a rotation backtest's trades."""
+    idx = {d: i for i, d in enumerate(close.index)}
+    spans = [idx[t["exit_date"]] - idx[t["entry_date"]] for t in bt.get("trades", [])
+             if t["entry_date"] in idx and t["exit_date"] in idx]
+    return sum(spans) / len(spans) if spans else None
+
+
+def record_holds(conn) -> int:
+    """Measured average hold for every registered rotation variant (2006 -> today)."""
+    import hold_period
+    import rotation
+    end = conn.execute("SELECT MAX(date) FROM prices WHERE ticker='SPY'").fetchone()[0]
+    tickers = sorted(set(sum(rotation.UNIVERSES.values(), [])))
+    close, open_ = rotation.load(conn, tickers, "2004-01-01", end)
+    n = 0
+    for p in variants():
+        key = so.key_for("etf_rotation", p)
+        for (ver,) in conn.execute("SELECT version FROM league_strategies WHERE strategy_key=?", (key,)).fetchall():
+            h = avg_hold(rotation.backtest(close, open_, p, "2006-01-01", end), close)
+            if h:
+                hold_period.record(conn, key, ver, h, "rotation backtest 2006-today")
+                n += 1
+    conn.commit()
+    return n
+
+
 def evaluate(conn, cfg, p: dict, close, open_, end: str) -> dict:
     """Register one variant and take it through backtest -> validation -> unseen -> paper."""
     import holdout
@@ -88,6 +115,8 @@ def evaluate(conn, cfg, p: dict, close, open_, end: str) -> dict:
                           detail={"cagr": bt["cagr"], "benchmark_cagr": bt["benchmark_cagr"]})
         res[phase] = bt
         out[phase] = bt["mean_net"]
+    import hold_period
+    hold_period.record(conn, key, ver, avg_hold(res["backtest"], close), "rotation backtest")
     so.decide(conn, key, ver, "PROMOTE", f"backtested: {res['backtest']['n_trades']} trades",
               to_state=league.BACKTESTED, evidence=_metrics(res["backtest"]))
     if res["backtest"]["mean_net"] <= 0:
@@ -139,12 +168,15 @@ def run(conn, cfg) -> list:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", action="store_true")
+    ap.add_argument("--holds", action="store_true", help="record measured average holds")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     from universe import load_config
     cfg = load_config()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=120)
     conn.row_factory = sqlite3.Row
+    if a.holds:
+        print(f"holds recorded for {record_holds(conn)} variants")
     if a.run:
         for r in run(conn, cfg):
             print(f"  {r['name']:<42} {r.get('state', ''):<10} "

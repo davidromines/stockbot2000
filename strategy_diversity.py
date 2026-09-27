@@ -134,6 +134,8 @@ def run(conn, cfg, top: int = 40) -> dict:
                 continue
             w = weekly(r, p.dates)
             series[(key, ver)] = w
+            import hold_period
+            hold_period.record(conn, key, ver, r.get("avg_hold_days"), "2023-today")
             conn.execute("DELETE FROM strategy_weekly WHERE strategy_key=? AND version=?", (key, ver))
             conn.executemany("INSERT INTO strategy_weekly VALUES (?,?,?,?,?,?)",
                              [(key, ver, wk, float(v), 0, now) for wk, v in w.items()])

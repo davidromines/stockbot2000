@@ -157,6 +157,8 @@ def process(conn, cfg, key: str, ver: int) -> str:
         _reject(conn, key, ver, "spec", f"genome failed to evaluate: {type(e).__name__}: {e}")
         return league.REJECTED
     bt = _metrics(r)
+    import hold_period
+    hold_period.record(conn, key, ver, r.get("avg_hold_days"), "factory backtest")
     # Survivorship: the primary database lacks ~7,000 delisted companies, so a
     # backtest here is SURVIVORSHIP_LIMITED until dataset_compare cross-validates
     # it on a delisted-inclusive dataset (§11).
