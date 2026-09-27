@@ -116,9 +116,52 @@ def family_record(conn) -> dict:
     return rec
 
 
-def priority(fam: str, rec: dict, cfg: dict, source: str) -> float | None:
+KNOWLEDGE_PREFIX = "kf_"          # Stage O rev 2: families of documented-source reproductions
+
+
+def weak_spots(conn) -> dict:
+    """N7 (Addendum D §9-10): families where research is aimed at a MEASURED weakness,
+    family -> reason. Two signals, both read from records other stages write:
+      - near misses (funnel.py strategy_failures): failed by a small margin, so a
+        controlled change to that family is the cheapest credible path;
+      - a live slot holder whose health (strategy_health.py) is WATCH / DEGRADING /
+        FAILED: families in the same league are its replacement candidates.
+    A boost, never a gate: nothing skips the pipeline because it is aimed well."""
+    out = {}
+    try:
+        day = conn.execute("SELECT MAX(as_of) FROM strategy_failures").fetchone()[0]
+        for key, ver in conn.execute("SELECT strategy_key, version FROM strategy_failures WHERE as_of=? AND "
+                                     "near_miss=1", (day,)).fetchall():
+            fam = (so.meta(conn, key, ver) or {}).get("family")
+            if fam:
+                out.setdefault(fam, "near misses")
+    except sqlite3.Error:
+        pass
+    try:
+        import slots
+        weak = []
+        for h in slots.current(conn).values():
+            if not h:
+                continue
+            r = conn.execute("SELECT state FROM strategy_health WHERE strategy_key=? AND version=? "
+                             "ORDER BY id DESC LIMIT 1", (h["strategy_key"], h["version"])).fetchone()
+            if r and r[0] in ("WATCH", "DEGRADING", "FAILED"):
+                weak.append((so.meta(conn, h["strategy_key"], h["version"]) or {}).get("league"))
+        for fam, f in sf.F.items():
+            if f.get("league") in weak:
+                out.setdefault(fam, "replacement for a weakening slot holder")
+    except Exception:                                           # noqa: BLE001 — a boost, never a failure
+        pass
+    return out
+
+
+def priority(fam: str, rec: dict, cfg: dict, source: str, weak: dict | None = None) -> float | None:
     """§25. None = blocked (no rationale, or the data does not exist)."""
     f = sf.F.get(fam)
+    if f is None and fam and fam.startswith(KNOWLEDGE_PREFIX):
+        # A documented source's reproduction carries its rationale in its own record
+        # (knowledge_factory.py); its data was checked when it was translated.
+        f = {"rationale": "documented source", "data_available": True, "combo": False}
     if f is None or not f.get("rationale"):
         return None
     if not f["data_available"]:
@@ -135,7 +178,8 @@ def priority(fam: str, rec: dict, cfg: dict, source: str) -> float | None:
     p += 4 if r.get("tested", 0) == 0 else 0
     p += 2 if f["combo"] else 0
     p += 1 if source == "library" else 0
-    p -= 3 if source == "recycle" else 0
+    p -= 3 if source in ("recycle", "variant") else 0
+    p += 2 if weak and fam in weak else 0
     return p
 
 
@@ -145,13 +189,17 @@ def plan(conn, cfg) -> dict:
     # Every generated object is an idea waiting; make sure each is queued once.
     for key, ver in so.in_state(conn, league.DISCOVERED):
         m = so.meta(conn, key, ver)
-        if m and m.get("source") in ("factory_template", "recycle"):
-            rq.enqueue(conn, "recycle" if m["source"] == "recycle" else "template",
-                       m["family"], family=m["family"], strategy_key=key, version=ver)
+        src = {"factory_template": "template", "recycle": "recycle",
+               "knowledge_reproduction": "library", "knowledge_variant": "variant"}.get((m or {}).get("source"))
+        if src:
+            # Knowledge reproductions were never queued before 2026-09-27 (only templates and
+            # recycles were), so a documented source could not reach a backtest.
+            rq.enqueue(conn, src, m["family"], family=m["family"], strategy_key=key, version=ver)
     rec = family_record(conn)
-    stats = {"reprioritised": 0, "blocked": 0}
+    weak = weak_spots(conn)
+    stats = {"reprioritised": 0, "blocked": 0, "weak_spots": len(weak)}
     for item in rq.pending(conn, limit=100000):
-        p = priority(item["family"], rec, cfg, item["source"])
+        p = priority(item["family"], rec, cfg, item["source"], weak)
         if p is None:
             rq.set_status(conn, item["id"], "blocked",
                           sf.F.get(item["family"], {}).get("missing") or "no rationale")
