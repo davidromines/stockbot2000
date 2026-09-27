@@ -25,6 +25,8 @@ log = logging.getLogger("insider")
 
 URL = ("https://www.sec.gov/files/structureddata/data/"
        "insider-transactions-data-sets/{quarter}_form345.zip")
+URL2 = ("https://www.sec.gov/files/datastandardsinnovation/data/"
+        "insider-transactions-data-sets/{quarter}_form345.zip")
 UA = "stockbot2000 research davidromines@gmail.com"
 DATA_DIR = Path("data/insider")
 WINDOW_DAYS = 90
@@ -77,13 +79,16 @@ def fetch(quarter, session=None, force=False):
     if dest.exists() and not force:
         return dest
     s = session or requests.Session()
-    url = URL.format(quarter=quarter)
-    try:
-        r = s.get(url, headers={"User-Agent": UA}, timeout=120)
-    finally:
-        # SEC asks for <10 req/s; a fixed pause is simpler than a token bucket
-        # and the whole history is only ~80 requests.
-        time.sleep(0.2)
+    # The SEC moved newer quarters to a second path (2026q2 is under
+    # datastandardsinnovation); try both before calling a quarter unpublished.
+    for url in (URL.format(quarter=quarter), URL2.format(quarter=quarter)):
+        try:
+            r = s.get(url, headers={"User-Agent": UA}, timeout=120)
+        finally:
+            # SEC asks for <10 req/s; a fixed pause is simpler than a token bucket.
+            time.sleep(0.2)
+        if r.status_code != 404:
+            break
     if r.status_code == 404:
         log.info("%s not published (404)", quarter)
         return None
