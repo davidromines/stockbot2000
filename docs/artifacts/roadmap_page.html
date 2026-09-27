@@ -806,6 +806,24 @@
       </div>
     </div>
     <div class="phase">
+      <div class="phase-num">T</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Stage T — Diagnostic: why no durable edge?</div><span class="pill planned">Recorded 09-27</span></div>
+        <p class="phase-desc">Before changing anything, find where apparent profits disappear. A funnel counting every strategy through each stage the system already has — backtest, before and after costs, realistic fills, dead companies, robustness, out-of-sample, holdout, paper, forward, live — with the returns at each step. Separates “too few real ideas” from “plenty of ideas, all rejected” from “survives testing, dies forward”. Changes no gate, no live trading, no search.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
+        <div class="scroll"><table class="dist steps">
+          <caption>Spec verbatim: <span class="mono">docs/STAGE_T_DIAGNOSTIC_FUNNEL.md</span></caption>
+          <thead><tr><th>Step</th><th>Item</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">T1</td><td>The funnel: how many strategies enter and pass each stage, with return, drawdown and trade-count distributions; the biggest drop named</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">T2</td><td>Distinct ideas vs parameter variants, per family — including what the 1.05 million-trial search actually tested</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">T3</td><td>Case studies: the classifier (predicts, AUC 0.63, but doesn’t make money) and the effect of dead companies</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">T4</td><td>How close failures came to passing; small-positive strategies; a near-miss list; a failure reason per strategy</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">T5</td><td>Final report: facts, inferences and unknowns kept apart; next phase chosen from the evidence</td><td class="st"><span class="pill planned">planned</span></td></tr>
+          </tbody></table></div>
+      </div>
+    </div>
+    <div class="phase">
       <div class="phase-num">Q</div>
       <div>
         <div class="phase-head"><div class="phase-title">Stage Q — Short-term trading</div><span class="pill progress">Q1–Q2 built 09-27</span></div>
@@ -878,6 +896,7 @@
             <tr><td class="mono">O12</td><td>Hybrids and mutation from successful concepts</td><td>governed <span class="mono">factory.py</span> path</td></tr>
             <tr><td class="mono">O13</td><td>Continuous ingestion</td><td><span class="mono">daily.sh</span></td></tr>
           </tbody></table></div>
+        <p class="note"><b>Revision 2 recorded 09-27, not built.</b> Adds research lineage (so 500 momentum papers don’t count as 500 independent confirmations), source independence, reproduce-the-original-first, and per-lineage counts of variants, tests and failures. Spec verbatim: <span class="mono">docs/ADDENDUM_E_REVISION_2.md</span>.</p>
         <p class="note warn"><b>One conflict, stated.</b> Mutating knowledge-derived strategies (§23) meets the frozen evolutionary search (§12: “do not bypass it”). O12 is built on the governed factory path — registered experiment, declared budget, ancestry — and running the frozen search on a knowledge seed population stays your edit to <span class="mono">search.mode</span>, as the freeze requires.</p>
       </div>
     </div>
@@ -981,6 +1000,7 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Two specs recorded, not built (09-27).</b> Stage T — a diagnostic funnel showing where apparent profits disappear before anything is changed; and revision 2 of the Knowledge Strategy Factory (Stage O), adding research lineage and multiple-testing counts.</li>
       <li><b>Options backtested on real prices (09-27).</b> All seven option strategies lost money over 2020–2026 (from −1% to −27% a trade) — consistent with the research on buying options. They keep paper-trading; none can reach real money on this evidence.</li>
       <li><b>Analog forecaster built (09-27).</b> 1.9 million past setups; out-of-sample it barely predicts (AUC 0.52, weaker than the existing classifier). Kept as a paper-tested strategy family, not a trusted signal.</li>
       <li><b>Every idea paper-tracked; journal, movement, capital books (09-27).</b> 341+ paper funds; a searchable journal per strategy; stock and options books checked daily; times in Pacific.</li>
