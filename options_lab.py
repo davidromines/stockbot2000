@@ -133,34 +133,79 @@ def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list |
         for c in sorted(calls, key=lambda r: abs(r["delta"] - 0.5)):
             want = {"C": [c], "P": [puts.get(c["strike"])], "S": [c, puts.get(c["strike"])]}[legs]
             if all(q is not None and _ok(q, s) for q in want):
-                return [{"exp": q["expiration"], "strike": q["strike"], "cp": q["cp"], "ask": q["ask"]} for q in want]
+                return [{"exp": q["expiration"], "strike": q["strike"], "cp": q["cp"], "ask": q["ask"],
+                         "hs": (q["ask"] - q["bid"]) / (q["ask"] + q["bid"])} for q in want]
             break                    # only the at-the-money strike of each expiry
     return None
 
 
-def _close_px(conn, symbol: str, date: str) -> float | None:
-    r = conn.execute("SELECT close FROM prices WHERE ticker=? AND date<=? ORDER BY date DESC LIMIT 1",
-                     (symbol, date)).fetchone()
-    return float(r[0]) if r else None
+def spot(conn, symbol: str, date: str) -> float | None:
+    """The stock's own (unadjusted) price on `date`, read from that day's option chain by
+    put-call parity at the strike where call and put mids are closest: S ~ K + C - P.
+    Never our price table: it is split- and dividend-ADJUSTED (NVDA's January 2024 close
+    reads ~$48 there against a $485 strike) and would misvalue every expiry."""
+    rows = od.chain(conn, symbol, date)
+    by = {}
+    for r in rows:
+        if r["bid"] is not None and r["ask"] is not None and r["ask"] > 0:
+            by.setdefault((r["expiration"], r["strike"]), {})[r["cp"]] = (r["bid"] + r["ask"]) / 2
+    pairs = [(k, v["C"] - v["P"]) for (e, k), v in by.items() if "C" in v and "P" in v]
+    if not pairs:
+        return None
+    k, d = min(pairs, key=lambda x: abs(x[1]))
+    return k + d
 
 
-def value(conn, symbol: str, legs: list, date: str) -> float | None:
-    """What the position sells for on `date`: each leg's bid, or its intrinsic value at
-    expiration. None if a leg has no quote that day (the caller tries a later date)."""
-    tot = 0.0
+def _spot_on_or_before(conn, symbol: str, date: str, days: int = 7) -> float | None:
+    d = dt.date.fromisoformat(date)
+    for i in range(days + 1):
+        x = spot(conn, symbol, (d - dt.timedelta(days=i)).isoformat())
+        if x:
+            return x
+    return None
+
+
+def _bs(spot_px: float, k: float, t: float, iv: float, cp: str) -> float:
+    """Black-Scholes value (no rates or dividends: weeks-long options), for exits the chain
+    does not quote — priced at that day's real implied volatility for the stock."""
+    import math
+    if t <= 0 or iv <= 0:
+        return max(spot_px - k, 0.0) if cp == "C" else max(k - spot_px, 0.0)
+    v = iv * math.sqrt(t)
+    d1 = (math.log(spot_px / k) + 0.5 * v * v) / v
+    d2 = d1 - v
+    n = lambda x: 0.5 * (1 + math.erf(x / math.sqrt(2)))   # noqa: E731
+    return spot_px * n(d1) - k * n(d2) if cp == "C" else k * n(-d2) - spot_px * n(-d1)
+
+
+def value(conn, symbol: str, legs: list, date: str, allow_model: bool = False) -> tuple:
+    """(what the position sells for on `date`, modelled?). Each leg: its real bid if the chain
+    quotes it; at or after expiration, intrinsic value against the stock's unadjusted price;
+    otherwise, with allow_model, Black-Scholes at that day's real implied vol less the half
+    spread paid at entry. (None, False) when it cannot be valued that day."""
+    tot, modelled = 0.0, False
     for leg in legs:
         if date >= leg["exp"]:
-            px = _close_px(conn, symbol, leg["exp"])
+            px = _spot_on_or_before(conn, symbol, leg["exp"])
             if px is None:
-                return None
+                return None, False
             tot += max(px - leg["strike"], 0.0) if leg["cp"] == "C" else max(leg["strike"] - px, 0.0)
             continue
         q = next((r for r in od.chain(conn, symbol, date) if r["expiration"] == leg["exp"]
                   and r["strike"] == leg["strike"] and r["cp"] == leg["cp"]), None)
-        if q is None or q["bid"] is None:
-            return None
-        tot += q["bid"]
-    return tot
+        if q is not None and q["bid"] is not None:
+            tot += q["bid"]
+            continue
+        if not allow_model:
+            return None, False
+        px = spot(conn, symbol, date)
+        iv = conn.execute("SELECT iv_current FROM option_vol WHERE symbol=? AND date=?", (symbol, date)).fetchone()
+        if px is None or not iv or not iv[0]:
+            return None, False
+        t = _days(date, leg["exp"]) / 365.0
+        tot += _bs(px, leg["strike"], t, float(iv[0]), leg["cp"]) * (1 - leg.get("hs", 0.0))
+        modelled = True
+    return tot, modelled
 
 
 # --- signals -------------------------------------------------------------------
@@ -314,13 +359,12 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 due = "expired"
             if not due:
                 continue
-            v = value(conn, sym, legs, d)
-            if v is None and d < exp:
-                continue                          # no quote today: try the next date
-            v = v if v is not None else 0.0
+            v, modelled = value(conn, sym, legs, d, allow_model=True)
+            if v is None:
+                continue                          # cannot be valued today: try the next date
             ret = v / cost - 1
             conn.execute("UPDATE option_trades SET closed=?, value=?, ret=?, usd=?, reason=? WHERE id=?",
-                         (d, v, ret, s["stake_usd"] * ret, due, tid))
+                         (d, v, ret, s["stake_usd"] * ret, due + (" (modelled price)" if modelled else ""), tid))
         # entries
         if p["rule"] == "stock_signal":
             cands = (signals or {}).get(d, [])
@@ -348,13 +392,15 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
 def summarize(conn, name: str, mode: str = "BACKTEST") -> dict:
     rows = conn.execute("SELECT opened, ret FROM option_trades WHERE mode=? AND strategy=? AND ret IS NOT NULL",
                         (mode, name)).fetchall()
+    n_model = conn.execute("SELECT COUNT(*) FROM option_trades WHERE mode=? AND strategy=? AND reason LIKE "
+                           "'%modelled%'", (mode, name)).fetchone()[0]
     if not rows:
         return {"strategy": name, "trades": 0}
     rets = sorted(r[1] for r in rows)
     by = {}
     for op, r in rows:
         by.setdefault(op[:4], []).append(r)
-    return {"strategy": name, "trades": len(rets), "mean_ret": sum(rets) / len(rets),
+    return {"strategy": name, "trades": len(rets), "modelled_exits": n_model, "mean_ret": sum(rets) / len(rets),
             "median_ret": rets[len(rets) // 2], "win_rate": sum(r > 0 for r in rets) / len(rets),
             "by_year": {y: {"n": len(v), "mean": sum(v) / len(v)} for y, v in sorted(by.items())}}
 
@@ -422,7 +468,7 @@ def mark(conn, cfg: dict, name: str, date: str) -> dict:
     unreal, n = 0.0, 0
     for sym, legs, cost in conn.execute("SELECT symbol, legs, cost FROM option_trades WHERE mode='PAPER' AND "
                                         "strategy=? AND closed IS NULL", (name,)).fetchall():
-        v = value(conn, sym, json.loads(legs), date)
+        v, _ = value(conn, sym, json.loads(legs), date, allow_model=True)
         unreal += s["stake_usd"] * ((v if v is not None else cost) / cost - 1)
         n += 1
     eq = {"equity_usd": cap + real + unreal, "realized_usd": real, "unrealized_usd": unreal, "open_positions": n}
@@ -463,6 +509,7 @@ def main(argv=None) -> int:
     from universe import load_config
     cfg = load_config()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=120)
+    conn.row_factory = sqlite3.Row          # ranking.rank (stock signals) reads rows by name
     init(conn)
     names = a.strategy or list(STRATEGIES)
     if a.backtest:
@@ -477,7 +524,7 @@ def main(argv=None) -> int:
                 continue
             print(f"  {n:<24} {r['trades']:>5} trades  mean {r['mean_ret']:+.1%}  median {r['median_ret']:+.1%}  "
                   f"won {r['win_rate']:.0%}  ${settings(cfg)['stake_usd'] * r['mean_ret']:+.2f} per "
-                  f"${settings(cfg)['stake_usd']:.0f}")
+                  f"${settings(cfg)['stake_usd']:.0f}  ({r['modelled_exits']} exits modelled)")
             for y, v in r["by_year"].items():
                 print(f"      {y}: {v['n']:>4} trades  mean {v['mean']:+.1%}")
     return 0

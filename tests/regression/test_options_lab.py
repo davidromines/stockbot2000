@@ -52,12 +52,29 @@ def main():
 
     d1 = "2024-01-22"
     quote(c, d1, exp, 100.0, "C", 3.0, 3.3, 0.6)
-    v = ol.value(c, "AAA", legs, d1)
-    check("sold at the bid", v == 3.0, v)
-    check("no quote that day -> None (try a later date)", ol.value(c, "AAA", legs, "2024-01-24") is None)
-    c.execute("INSERT INTO prices VALUES ('AAA', ?, 107.5)", (exp,))
-    v = ol.value(c, "AAA", legs, "2024-02-12")
-    check("at expiration: intrinsic value from the stock's close", abs(v - 7.5) < 1e-9, v)
+    v, m = ol.value(c, "AAA", legs, d1)
+    check("sold at the bid (a real quote, not modelled)", v == 3.0 and m is False, (v, m))
+    check("no quote that day, no model -> None (try a later date)", ol.value(c, "AAA", legs, "2024-01-24")[0] is None)
+    # On the expiry date the chain lists other expiries: spot by put-call parity at the
+    # strike where call and put are closest: 105 + (3.0 - 0.5) = 107.5.
+    for cp, bid, ask in (("C", 2.9, 3.1), ("P", 0.4, 0.6)):
+        c.execute("INSERT INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, delta) "
+                  "VALUES (?,?,?,105,?,?,?,0.3,0.5)", (exp, "AAA", "2024-03-15", cp, bid, ask))
+    c.execute("INSERT OR IGNORE INTO option_fetch_log VALUES ('chain','AAA',?,1,'t')", (exp,))
+    c.execute("INSERT INTO prices VALUES ('AAA', ?, 10.75)", (exp,))     # split-ADJUSTED: must be ignored
+    check("spot from the chain by put-call parity", abs(ol.spot(c, "AAA", exp) - 107.5) < 1e-9, ol.spot(c, "AAA", exp))
+    v, m = ol.value(c, "AAA", legs, "2024-02-12")
+    check("at expiration: intrinsic against the UNADJUSTED spot, never the adjusted price table",
+          abs(v - 7.5) < 1e-9, v)
+    c.execute("CREATE TABLE IF NOT EXISTS option_vol (date TEXT, symbol TEXT, iv_current REAL)")
+    c.execute("INSERT INTO option_vol (date, symbol, iv_current) VALUES (?, 'AAA', 0.3)", (d1,))
+    c.execute("DELETE FROM option_quotes WHERE date=? AND cp='C' AND strike=100", (d1,))
+    quote(c, d1, "2024-03-15", 102.0, "C", 5.0, 5.2, 0.55)
+    quote(c, d1, "2024-03-15", 102.0, "P", 1.0, 1.2, -0.45)
+    v, m = ol.value(c, "AAA", legs, d1, allow_model=True)
+    check("unquoted before expiry: modelled at that day's IV, and flagged", v is not None and v > 0 and m is True, (v, m))
+    c.execute("DELETE FROM option_quotes WHERE date=? AND expiration='2024-03-15'", (d1,))
+    quote(c, d1, exp, 100.0, "C", 3.0, 3.3, 0.6)
 
     ol.STRATEGIES["t_call"] = {"rule": "stock_signal", "legs": "C", "dte": (21, 60, 35), "hold": 5, "per_day": 1}
     n = ol.run(c, CFG, "t_call", [d0, d1], "BACKTEST", {d0: [("AAA", "test signal")]})
