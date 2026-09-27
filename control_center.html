@@ -360,7 +360,22 @@ function renderExtra(x) {
     ["Research library: hypotheses", lib.HYPOTHESIS ?? 0],
     ["Research library: refuted", lib.REFUTED ?? 0, "neg"],
     ["Research library: supported", lib.SUPPORTED ?? 0, "pos"],
-    ["Published factors in the library", kn.published_entries ?? 0]]);
+    ["Published factors in the library", kn.published_entries ?? 0]]) +
+    (() => { const f = kn.factory || {}, bt = kn.by_source_type || {}, fu = kn.funnel || {};
+      return kv([["Translated (rules extracted)", f.translated ?? "—"], ["… fully", f.translated_yes ?? 0, "pos"],
+        ["… needs interpretation", f.requiring_interpretation ?? 0], ["… not testable here", f.not_translatable ?? 0],
+        ["Original reproductions in the pipeline", f.reproductions ?? 0], ["Controlled variants", f.variants ?? 0],
+        ["Research lineages", f.lineages ?? 0]]) +
+      '<h3 style="margin-top:14px">Where strategies come from — outcomes by source type (research data, not a ranking)</h3>' +
+      "<table><tr><th>Source type</th><th>Ideas</th><th>Rejected</th><th>Paper+</th><th>Forward</th><th>Ranked</th><th>Live</th></tr>" +
+      Object.entries(bt).sort((a, b) => b[1].ideas - a[1].ideas).map(([k, b]) =>
+        `<tr><td>${esc(k)}</td><td class="n mono">${b.ideas}</td><td class="n mono">${b.rejected}</td>
+         <td class="n mono">${b.paper}</td><td class="n mono">${b.forward_evidence}</td>
+         <td class="n mono">${b.ranked_passing}</td><td class="n mono">${b.live}</td></tr>`).join("") + "</table>" +
+      '<h3 style="margin-top:14px">Strategy funnel (Stage T' + (fu.as_of ? ", " + esc(fu.as_of) : "") + ')</h3>' +
+      kv([...(fu.bottlenecks || []).map(b => [esc(b[0]), `${Number(b[1]).toLocaleString()} → ${Number(b[2]).toLocaleString()}`]),
+          ["Near misses (failed by a small margin)", fu.near_misses ?? 0],
+          ...Object.entries(fu.reasons || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => [esc(k), v, "neg"])]); })();
   const pv = x.published || {families: [], candidates: []};
   const tc = v => v == null ? "" : v > 3 ? "pos" : v > 2 ? "" : "neg";
   const row = (a, b, f) => `<tr><td>${a}</td><td class="muted">${esc(b)}</td><td>${f.year ?? "—"}</td>

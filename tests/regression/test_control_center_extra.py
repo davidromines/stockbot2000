@@ -186,8 +186,9 @@ def test_empty():
     check("empty: published valid",
           p == {"families": [], "candidates": []}, str(p))
     check("empty: knowledge valid",
-          k == {"entries": 0, "by_state": {}, "linked": 0,
-                "library": {}, "published_entries": 0}, str(k))
+          {x: k[x] for x in ("entries", "by_state", "linked", "library", "published_entries")}
+          == {"entries": 0, "by_state": {}, "linked": 0, "library": {}, "published_entries": 0}
+          and {"factory", "by_source_type", "funnel"} <= set(k), str(k))
     a = cce.all_views(conn)
     check("empty: all_views composes",
           set(a) == {"movement", "health", "published", "knowledge", "options", "intraday", "short_term"}, str(a))

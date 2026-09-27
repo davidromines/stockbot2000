@@ -208,12 +208,35 @@ def knowledge_view(conn):
         ).fetchone()
         published_entries = _get(row, "n", 0) or 0
 
+    # Stage O rev 2 and Stage T: the daily reports' own JSON (written by
+    # knowledge_factory.py and funnel.py), read, never recomputed here.
+    import json
+    from pathlib import Path
+
+    def _read(path):
+        try:
+            return json.loads(Path(path).read_text())
+        except Exception:                                    # noqa: BLE001 — a view never raises
+            return {}
+
+    kf = _read("data/knowledge_factory.json")
+    fn = _read("data/funnel.json")
+    near = sum(1 for f in fn.get("failures") or [] if f.get("near_miss"))
+    reasons = {}
+    for f in fn.get("failures") or []:
+        for r in f.get("reasons") or []:
+            reasons[r] = reasons.get(r, 0) + 1
     return {
         "entries": entries,
         "by_state": by_state,
         "linked": linked,
         "library": library,
         "published_entries": published_entries,
+        "factory": {k: kf.get(k) for k in ("translated", "translated_yes", "requiring_interpretation",
+                                           "not_translatable", "reproductions", "variants", "lineages")},
+        "by_source_type": kf.get("by_source_type") or {},
+        "funnel": {"as_of": fn.get("as_of"), "bottlenecks": (fn.get("bottlenecks") or [])[:3],
+                   "near_misses": near, "reasons": reasons},
     }
 
 
