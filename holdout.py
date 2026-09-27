@@ -113,6 +113,13 @@ def run(conn, cfg, limit: int | None = None) -> dict:
     end = conn.execute("SELECT MAX(date) FROM prices WHERE ticker='SPY'").fetchone()[0]
     todo = candidates(conn)[:limit] if limit else candidates(conn)
     out = {"evaluated": 0, "positive": 0, "negative": 0, "no_trades": 0, "errors": 0, "window": [START, end]}
+    # The random-entry null for this window loads its own full panel; build it (it is
+    # stored) BEFORE a strategy panel is in memory — together they passed 5 GB (OOM, 09-27).
+    if todo:
+        import benchmark as bench
+        import gc
+        bench.null_surface(conn, cfg, (START, end))
+        gc.collect()
     for need in (False, True):
         group = [(k, v) for k, v, n in todo if n == need]
         if not group:
