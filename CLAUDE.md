@@ -125,6 +125,8 @@ each at 2023 -> today: 196 net positive, 134 above random entry. Earnings surpri
 random), FCF/price, debt reduction, 9-1 momentum, earnings yield lead — matching the published
 post-publication survivors. The ranking gates on it (36 fail) and scores on it; with the family cap
 of 4, Monday's slots lean to earnings surprise. Its prior is a bull-market window — forward trades decide.
+Bull-market checks (`market_checks.py`, [9f4]; owner: "don't automatically disqualify"): unseen vs random
+entry and bear-market entries vs random entry, PASS/FAIL/NA per strategy, shown everywhere, gate nothing.
 
 **Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
 real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
