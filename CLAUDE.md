@@ -120,6 +120,12 @@ three jobs ("database is locked") — loaders now commit per item; overnight job
 sequential unit `sb-overnight` (Form 4 backfill -> congress 2013+ -> pipeline 60 -> R6 backtest,
 hard stop 06:00 UTC).
 
+**Unseen-window test (`holdout.py`, [9f3]) — built and run 09-27 late:** 236 strategies, one look
+each at 2023 -> today: 196 net positive, 134 above random entry. Earnings surprise (+2.55%/trade over
+random), FCF/price, debt reduction, 9-1 momentum, earnings yield lead — matching the published
+post-publication survivors. The ranking gates on it (36 fail) and scores on it; with the family cap
+of 4, Monday's slots lean to earnings surprise. Its prior is a bull-market window — forward trades decide.
+
 **Genuinely the owner's (cannot be done by Claude):** R7 — auto mode blocks even TESTING the
 real-money options trader; `options_live.py` + `tests/regression/test_options_live.py` sit
 UNCOMMITTED in the working tree (the classifier also blocked moving them). Options level on the
