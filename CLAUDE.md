@@ -85,6 +85,10 @@ in a new session for anything touching orders.
 - Owner wants the full Robinhood buying power on limited_margin. Claude's edit was blocked by auto mode (weakens a
   risk rule); built instead as operator switch `limited_margin_settled_funds` in config/risk.yaml (default true).
   The owner sets it false.
+- Later 09-28: day-trade count fixed to buy-then-sell only (SNDK 09-25 sell-then-buy had made it 3); entry retry
+  every 20 min; stand-ins skip names bought today; ETF rotation genome_for lost its rotation rule (fixed, 91a3d6b).
+  **All five slots filled by 17:00 UTC:** CF (s1 stand-in), HD (s2), DBC $18.38 (s3 rotation stand-in), DELL $10.92
+  (s4), MU (s5); cash $0. Owner set `limited_margin_settled_funds: false`.
 - Daily [9i] assigned slot 1 "A December Effect with Tax-Gain..." (fx_kf_seasonality_57a2feb7a8; no signal until
   December -> stand-ins) and slot 2 a Lab search strategy (paper:f9f67aa048a2, 2 sessions). Review these.
 
