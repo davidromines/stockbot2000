@@ -31,7 +31,7 @@ Rules that are load-bearing:
   - The frozen evolutionary search is not touched (§21); this module never imports
     evolve.py and the freeze-boundary test still holds.
 
-    ./venv/bin/python knowledge_factory.py --cycle [--extract 40]
+    ./venv/bin/python knowledge_factory.py --cycle [--extract N]   (N > 0 calls DeepSeek: by hand only)
     ./venv/bin/python knowledge_factory.py --report
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
@@ -482,7 +482,7 @@ def render(rep: dict, stats: list) -> str:
 
 # --- the loop (N11, §25) ------------------------------------------------------------------------
 
-def cycle(conn, cfg, extract: int = 40) -> dict:
+def cycle(conn, cfg, extract: int = 0) -> dict:
     """One pass: translate a budget of new entries, assign lineage, reproduce, vary the
     reproductions that passed, record provenance for everything, snapshot the ledger.
     The pipeline stages that follow in daily.sh test what this registers."""
@@ -508,7 +508,8 @@ def cycle(conn, cfg, extract: int = 40) -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--cycle", action="store_true")
-    ap.add_argument("--extract", type=int, default=40, help="entries to translate this cycle (0 = none)")
+    ap.add_argument("--extract", type=int, default=0,
+                    help="entries to translate via DeepSeek this cycle (0 = none; by hand only, never from cron)")
     ap.add_argument("--report", action="store_true")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

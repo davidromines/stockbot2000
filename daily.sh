@@ -225,10 +225,12 @@ run "[9b/10] Accounting" $PY accounting.py --restate --snapshot data/accounting.
 #
 # (bounded() is defined near the top: stages before the factory use it too.)
 run "[9c/10] Research library sync" $PY library_bridge.py --sync
-# Stage O rev 2: translate a budget of documented strategies, assign lineage, register
+# Stage O rev 2: assign lineage to already-translated strategies, register
 # reproductions and (after a passed reproduction) its declared variants, record
 # provenance and the multiple-testing ledger. The stages below test what it registers.
-run "[9c2/10] Knowledge Factory cycle" bounded $PY knowledge_factory.py --cycle --extract 20
+run "[9c2/10] Knowledge Factory cycle" bounded $PY knowledge_factory.py --cycle --extract 0
+# Owner, 2026-09-28: DeepSeek is for development tasks only, never a scheduled job.
+# Translating new library entries (knowledge_extract.py --run) is run by hand.
 run "[9d/10] Factory templates" $PY strategy_factory.py --generate
 # Owner, 2026-09-26: every strategy idea is paper-tracked from the day it exists,
 # judged or not, so no forward record is lost (paper_all.py; no lifecycle change).
