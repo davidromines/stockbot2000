@@ -204,7 +204,7 @@
 
   <div class="distribution">
     <h3>Where the project stands</h3>
-    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship data) were built. <b>You armed LIVE at 15:39 UTC on 24 September:</b> the slot trader now places real orders in the Agentic account every five minutes in market hours. Slots are filled from one ranking (backtest first, paper evidence takes over, a losing backtest is out), and since the evening of the 24th that ranking scores backtests that include the synthetic dead companies. On 25–26 September stages K (crypto, built but not armed), L (published signals judged after publication) and M (dead companies from real failures, with their own filings and trading volume) were built; the ranking now drops 24 strategies it used to keep, including the Rising 200 variants that held slots 1–3, and fundamental templates lead. The cost question phase 07 existed to answer has been answered, and the answer is no. The classifier loses money before costs under honest fills. Work has moved on from building the machinery to finding anything that survives it. That work is tracked in the repo under the Phase 6–12 plan.</p>
+    <p class="cap">Eleven of twelve build phases are complete, and on 24 September Phase 13 (the research engine), Addendum A (the five-slot trading engine) and Addendum C (the survivorship data) were built. <b>You armed LIVE at 15:39 UTC on 24 September:</b> the slot trader now places real orders in the Agentic account every five minutes in market hours. Slots are filled from one ranking (backtest first, paper evidence takes over, a losing backtest is out), and since the evening of the 24th that ranking scores backtests that include the synthetic dead companies. On 25–26 September stages K (crypto, built but not armed), L (published signals judged after publication) and M (dead companies from real failures, with their own filings and trading volume) were built; the ranking now drops 24 strategies it used to keep, including the Rising 200 variants that held slots 1–3, and fundamental templates lead. Work has moved on from building the machinery to finding strategies that make money forward. That work is tracked in the repo under the Phase 6–12 plan.</p>
     <div class="stackbar">
       <span style="width:92.3%; background:var(--done);"></span>
       <span style="width:7.7%; background:var(--progress);"></span>
@@ -234,94 +234,44 @@
   </div>
 
   <section class="dataset">
-    <h2>What the system has actually made</h2>
-    <p class="cap">The real Robinhood account, slot trades only, since LIVE was armed on 24 September. Paper funds and backtests are not in it, and neither are trades you placed by hand. Commission is $0 and the spread is already inside the fill prices, so costs are only the regulatory fees on sells. Source: <span class="mono">live_pnl.py</span>, also in the 21:10 UTC Telegram report.</p>
+    <h2>The five slots — what the system is doing</h2>
+    <p class="cap">Real Robinhood account (Agentic), as of Friday 25 September’s last mark. <b>Predicted</b> = the ranking’s expected net return per 20 trading days held (backtest including dead companies, shifting to the paper record as trades close). <b>Current</b> = the open position against its real fill. Updated by hand after each change until this page reads the account directly.</p>
     <div class="figures">
-      <div class="figure"><div class="v">+$2.46</div><div class="k">net on 4 closed trades (gross +$2.46, costs $0.00)</div></div>
-      <div class="figure"><div class="v">+3.60%</div><div class="k">net return on $68.45 traded</div></div>
-      <div class="figure"><div class="v">4 of 4</div><div class="k">closed trades won</div></div>
-      <div class="figure"><div class="v neg">−$0.25</div><div class="k">unrealized on the 1 open position ($19.26)</div></div>
+      <div class="figure"><div class="v">$89.86</div><div class="k">account value</div></div>
+      <div class="figure"><div class="v">$70.92</div><div class="k">cash (4 slots empty)</div></div>
+      <div class="figure"><div class="v">+$2.46</div><div class="k">realized, 4 closed trades</div></div>
+      <div class="figure"><div class="v neg">−$0.25</div><div class="k">unrealized, 1 open position</div></div>
     </div>
     <div class="scroll"><table class="dist">
-      <caption>Every live slot trade. The four sells on 25 September were the exit-rule bug (since fixed), not planned exits, so these gains came from one day’s market move rather than the strategies’ own exit rules.</caption>
-      <thead><tr><th>Slot</th><th>Symbol</th><th>Strategy</th><th class="r">Entry → exit</th><th class="r">Stake</th><th class="r">Gross</th><th class="r">Costs</th><th class="r">Net</th></tr></thead>
+      <caption>Today</caption>
+      <thead><tr><th>Slot</th><th>Strategy</th><th>Holding</th><th class="r">Entry → now</th><th class="r">Current</th><th class="r">Predicted</th><th>Monday</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5</td><td class="num">1,767.07 → 1,795.10</td><td class="num">$20.00</td><td class="num">+$0.32</td><td class="num">$0.00</td><td class="num">+$0.32</td></tr>
-        <tr><td>2</td><td>DELL</td><td>Rising 200 · Stop 3.3</td><td class="num">532.05 → 548.25</td><td class="num">$20.00</td><td class="num">+$0.61</td><td class="num">$0.00</td><td class="num">+$0.61</td></tr>
-        <tr><td>3</td><td>MRNA</td><td>Rising 200 · Stop 2.6</td><td class="num">185.31 → 196.21</td><td class="num">$20.00</td><td class="num">+$1.18</td><td class="num">$0.00</td><td class="num">+$1.18</td></tr>
-        <tr><td>4</td><td>TWST</td><td>Rising 200 · Stop 5.0 c</td><td class="num">172.62 → 180.00</td><td class="num">$8.45</td><td class="num">+$0.36</td><td class="num">$0.00</td><td class="num">+$0.36</td></tr>
-        <tr class="highlight"><td colspan="4">Closed</td><td class="num">$68.45</td><td class="num">+$2.46</td><td class="num">$0.00</td><td class="num">+$2.46</td></tr>
-        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5 (open)</td><td class="num">1,801.60 → 1,778.25 mark</td><td class="num">$19.26</td><td class="num neg">−$0.25</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td>1</td><td>Rising 200 · Stop 2.5</td><td>SNDK $19.26</td><td class="num">1,801.60 → 1,778.25</td><td class="num neg">−1.3% (−$0.25)</td><td class="num neg">−0.33%*</td><td>released; sells SNDK</td></tr>
+        <tr><td>2</td><td>Rising 200 · Stop 3.3</td><td>cash</td><td class="num">—</td><td class="num">—</td><td class="num neg">−0.07%*</td><td>released</td></tr>
+        <tr><td>3</td><td>Rising 200 · Stop 2.6</td><td>cash</td><td class="num">—</td><td class="num">—</td><td class="num neg">−0.47%*</td><td>released</td></tr>
+        <tr><td>4</td><td>Rising 200 · Stop 5.0 c</td><td>cash — waiting for its buy signal</td><td class="num">—</td><td class="num">—</td><td class="num">+1.78%</td><td>kept</td></tr>
+        <tr><td>5</td><td>MACD Pullback</td><td>cash — never filled</td><td class="num">—</td><td class="num">—</td><td class="num neg">−0.69%</td><td>kept (see note)</td></tr>
       </tbody></table></div>
-    <p class="note warn">Four trades over two days is far too few to say what the system can earn; the figure grows with every closed trade. From Monday, slots 1–3 move to Profitability and Value Book strategies.</p>
-  </section>
-
-  <section class="dataset finding">
-    <h2>Does the signal survive costs? No.</h2>
-    <p class="cap">Phase 07's deciding question, re-measured 2026-09-24 on current data. Same model, same out-of-sample window (2022-07-20 → 2026-09-11), same $20 × 5 configuration. Only the fill convention differs.</p>
-
-    <div class="figures">
-      <div class="figure">
-        <div class="v neg">−$82.54</div>
-        <div class="k">Gross P&amp;L under next-open fills: negative before any cost is charged</div>
-      </div>
-      <div class="figure">
-        <div class="v neg">−$226.11</div>
-        <div class="k">Net P&amp;L after costs and the survivorship haircut</div>
-      </div>
-      <div class="figure">
-        <div class="v">1,062</div>
-        <div class="k">Out-of-sample trades</div>
-      </div>
-      <div class="figure">
-        <div class="v neg">40.3%</div>
-        <div class="k">Win rate</div>
-      </div>
-    </div>
-
-    <div class="scroll">
-    <table class="dist">
-      <caption>The <span class="mono">--fill close</span> column reproduces the old look-ahead convention, where orders filled at the very close that produced the signal. It exists only so the gap can be measured rather than asserted.</caption>
-      <thead>
-        <tr><th></th><th class="r">Close fills (look-ahead)</th><th class="r">Next-open fills (honest)</th></tr>
-      </thead>
+    <p class="note">* Backtest per trade with dead companies included; it loses money, which is why slots 1–3 are released Monday.</p>
+    <div class="scroll" style="margin-top:14px;"><table class="dist">
+      <caption>Monday’s open (6:30 AM PT): the three strategies taking slots 1–3</caption>
+      <thead><tr><th>Slot</th><th>Strategy</th><th class="r">Predicted</th><th class="r">Backtest / trade</th><th>Paper record</th></tr></thead>
       <tbody>
-        <tr><td>Trades</td><td class="num">1,063</td><td class="num">1,062</td></tr>
-        <tr class="highlight"><td>Gross P&amp;L</td><td class="num neg">−$22.70</td><td class="num neg">−$82.54</td></tr>
-        <tr><td>Trading costs</td><td class="num">−$105.26</td><td class="num">−$105.20</td></tr>
-        <tr><td>Survivorship haircut</td><td class="num">−$38.31</td><td class="num">−$38.37</td></tr>
-        <tr class="highlight"><td>Net P&amp;L</td><td class="num neg">−$166.27</td><td class="num neg">−$226.11</td></tr>
-        <tr><td>Win rate</td><td class="num">40.8%</td><td class="num">40.3%</td></tr>
-      </tbody>
-    </table>
-    </div>
-    <p class="note warn"><b>The 0.43%/trade figure this page used to quote is superseded.</b> It came from close fills with a 10-position configuration. Under honest fills the same model is gross negative. Costs don't erase an edge here because there is none to erase. The same result was first recorded on 2026-09-15 (commit <span class="mono">1745a01</span>) and reproduces today.</p>
-    <p class="note">AUC 0.63 across 31 of 31 walk-forward folds is still true: the model ranks better than chance. But a 2026-09-23 decay test found the ranking is mostly about <em>which dates</em> score high, not <em>which stocks</em>. Within a single day, the top decile does not beat the bottom at any horizon from 1 to 20 days. Ranking skill and a tradeable edge are different things, and this is the gap between them.</p>
-  </section>
-
-  <section class="dataset">
-    <h2>Survivorship bias, measured per date</h2>
-    <p class="cap">Measured, not fixed. The delisted companies still have no prices, so backtests can buy only survivors. The measurement is now a direct per-date count of what an investor could have known about, set against what this database can actually price.</p>
-
-    <div class="figures">
-      <div class="figure">
-        <div class="v neg">22.6%</div>
-        <div class="k">Coverage of the knowable universe, mid-2008</div>
-      </div>
-      <div class="figure">
-        <div class="v">83.7%</div>
-        <div class="k">Coverage, mid-2024</div>
-      </div>
-      <div class="figure">
-        <div class="v neg">7,062</div>
-        <div class="k">Delisted common stocks we hold no prices for</div>
-      </div>
-      <div class="figure">
-        <div class="v">~$270/yr</div>
-        <div class="k">Point-in-time delisted prices would close it</div>
-      </div>
-    </div>
-    <p class="note">Coverage rising toward the present is the signature of the bias itself: companies that survived keep their price history, companies that died do not. Forward paper trading has no survivorship bias at all, which is why 21+ paper funds now run daily.</p>
+        <tr><td>1</td><td>Fundamental Price Momentum (hold 20, top 20%)</td><td class="num">+2.48%</td><td class="num">+0.54%</td><td>5 trades, +$5.33</td></tr>
+        <tr><td>2</td><td>Earnings Surprise (10 days after a beat, hold 60)</td><td class="num">+2.00%</td><td class="num">+1.52%</td><td>none yet</td></tr>
+        <tr><td>3</td><td>ETF Rotation — best asset class over 12 months</td><td class="num">+1.86%</td><td class="num">+0.98%</td><td>none yet</td></tr>
+      </tbody></table></div>
+    <p class="note warn"><b>Slot 5 holds a strategy predicted to lose.</b> MACD Pullback’s paper record (−0.99% a trade) has turned its score negative (−0.69%), but its backtest is positive, so the gate still lets it hold the slot. It has never bought anything live.</p>
+    <div class="scroll" style="margin-top:14px;"><table class="dist">
+      <caption>Every closed live trade. All four sells on 25 September came from the exit-rule bug (since fixed), not from planned exits.</caption>
+      <thead><tr><th>Slot</th><th>Symbol</th><th>Strategy</th><th class="r">Entry → exit</th><th class="r">Stake</th><th class="r">Result</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5</td><td class="num">1,767.07 → 1,795.10</td><td class="num">$20.00</td><td class="num">+$0.32</td></tr>
+        <tr><td>2</td><td>DELL</td><td>Rising 200 · Stop 3.3</td><td class="num">532.05 → 548.25</td><td class="num">$20.00</td><td class="num">+$0.61</td></tr>
+        <tr><td>3</td><td>MRNA</td><td>Rising 200 · Stop 2.6</td><td class="num">185.31 → 196.21</td><td class="num">$20.00</td><td class="num">+$1.18</td></tr>
+        <tr><td>4</td><td>TWST</td><td>Rising 200 · Stop 5.0 c</td><td class="num">172.62 → 180.00</td><td class="num">$8.45</td><td class="num">+$0.36</td></tr>
+        <tr class="highlight"><td colspan="4">Total</td><td class="num">$68.45</td><td class="num">+$2.46</td></tr>
+      </tbody></table></div>
   </section>
 
   <section class="phase-list">
@@ -976,14 +926,6 @@
 
   <div class="questions">
     <h2 style="margin-bottom:14px;">Open items for your review</h2>
-
-    <div class="q-item">
-      <div class="q-mark no">✗</div>
-      <div>
-        <div class="q-title">Does the signal survive trading costs? <span class="mono" style="color:var(--neg); font-size:12px;">— answered: no</span></div>
-        <div class="q-body">First answered 2026-09-15 and re-measured 2026-09-24. Under next-open fills the classifier strategy is −$82.54 gross before any cost, and −$226.11 net over 1,062 trades. The table above has the figures.</div>
-      </div>
-    </div>
     <div class="q-item">
       <div class="q-mark partial">◑</div>
       <div>
@@ -1009,7 +951,7 @@
       <div class="q-mark partial">◑</div>
       <div>
         <div class="q-title">Survivorship bias</div>
-        <div class="q-body">Enumerated per date: 22.6% coverage in 2008. In the ranking through synthetic dead companies (generator v5c, with their own filings and volume since 09-26). Fully fixed only by delisted prices, about $270/yr.</div>
+        <div class="q-body">Handled with synthetic data: every backtest includes 7,618 reconstructed dead companies (generator v5c, with their own filings and trading volume), and the ranking scores on that. Real delisted prices (~$270/yr) would replace the synthetic ones; optional.</div>
       </div>
     </div>
   </div>
