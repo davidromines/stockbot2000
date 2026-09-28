@@ -61,4 +61,11 @@ check("RELEASE then ASSIGN, owner named in both",
       and last[1]["strategy_key"] == "macd", [dict(x) for x in last])
 check("returns the released holder", r["released"]["strategy_key"] == "macd")
 
+# ETF rotation strategies: genome_for restores the "rotation" marker from the stored parameters
+import strategy_objects as so
+so.meta = lambda conn, k, v=None: {"source": "etf_rotation", "parameters": {"universe": "assets", "lookback": 252,
+                                                                          "top_k": 1, "abs_filter": True}}
+g = slots.genome_for(conn, "fx_etf_rotation_x", 1)
+check("rotation strategy keeps its rotation rule", isinstance(g, dict) and g.get("rotation", {}).get("universe") == "assets", g)
+
 sys.exit(1 if FAILED else 0)

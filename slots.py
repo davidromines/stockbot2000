@@ -199,6 +199,13 @@ def genome_for(conn, key: str, version: int) -> dict | None:
         return {"crypto": key.split(":", 1)[1], "risk": {"stop_atr_multiple": float(cg["stop_atr"])},
                 "exit": "sell when the fund closes the position"}
     if key.startswith("fx_"):
+        # ETF rotation strategies store their rule as parameters, not entry/exit trees;
+        # so.genome() drops the "rotation" marker, and a rotation slot or stand-in was
+        # then treated as a stock rule with no exit (TypeError, found 2026-09-28).
+        m = so.meta(conn, key, version)
+        if m and m.get("source") == "etf_rotation" and isinstance(m.get("parameters"), dict):
+            import rotation_funds
+            return rotation_funds.genome(m["parameters"])
         g = so.genome(conn, key, version)
     else:
         ref = leagues.fund_ref(conn, key, version)
@@ -408,7 +415,7 @@ def plan(conn, cfg: dict) -> dict:
         if k in held_now or str(r["strategy_key"]).startswith("crypto:") or r.get("family") in used_fams:
             continue
         g = genome_for(conn, *k) or {}
-        if g.get("pair") or g.get("value") or g.get("rotation") or g.get("crypto"):
+        if g.get("pair") or g.get("value") or g.get("crypto"):
             continue
         standins.append(list(k))
         used_fams.add(r.get("family"))

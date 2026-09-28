@@ -508,7 +508,7 @@ def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str, used: set 
         if (key, ver) in in_slots:
             continue
         g = slots.genome_for(conn, key, ver)
-        if not g or g.get("crypto") or g.get("pair") or g.get("value") or g.get("rotation"):
+        if not g or g.get("crypto") or g.get("pair") or g.get("value"):
             continue
         try:
             cands, _ = _signals(conn, cfg, g, slot)
