@@ -395,18 +395,23 @@ def plan(conn, cfg: dict) -> dict:
     # Stand-ins (owner, 2026-09-28): the best eligible strategies not in a slot, for a
     # slot whose own strategy has no buy signal. Plain stock rules only — pair, value,
     # rotation and crypto slots have their own signal and exit paths.
+    # One per family, and none from a family already in a slot: a variant of a holder
+    # whose rule has no signal usually has none either (found 09-28: all five stand-ins
+    # were earnings-surprise variants).
     held_now = held_keys | taken
+    used_fams = {h["row"]["family"] for h in keep.values()} | {r["family"] for _, r, _ in assigns}
     standins = []
     for r in eligible:
         if len(standins) >= s["standins"]:
             break
         k = (r["strategy_key"], r["version"])
-        if k in held_now or str(r["strategy_key"]).startswith("crypto:"):
+        if k in held_now or str(r["strategy_key"]).startswith("crypto:") or r.get("family") in used_fams:
             continue
         g = genome_for(conn, *k) or {}
         if g.get("pair") or g.get("value") or g.get("rotation") or g.get("crypto"):
             continue
         standins.append(list(k))
+        used_fams.add(r.get("family"))
 
     halted = killswitch.global_engaged()
     if halted:

@@ -83,4 +83,16 @@ st.trade(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c)
 pos = st.open_positions(c, "SIMULATION")
 check("one stand-in fills at most one slot", len(pos) == 1, pos)
 
+# stand-in list: one per family, none from a family already in a slot
+slots.genome_for = lambda conn, k, v: base.GENOME
+c = base.fixture()
+base.assign(c, 1, "h1")
+rows = [{"strategy_key": k, "version": 1, "eligible": True, "reasons": [], "score": sc, "family": f}
+        for k, sc, f in (("h1", 0.03, "es"), ("es2", 0.025, "es"), ("m1", 0.02, "mom"),
+                         ("m2", 0.019, "mom"), ("v1", 0.018, "val"))]
+slots.assess = lambda conn, cfg: rows
+p = slots.plan(c, {"slots": {"count": 1}})
+check("stand-ins: one per family, holder's family skipped",
+      [k for k, _ in p["standins"]] == ["m1", "v1"], p["standins"])
+
 sys.exit(1 if FAILED else 0)
