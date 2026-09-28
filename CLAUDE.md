@@ -95,7 +95,16 @@ checks, diversity pass their group's union) — holdout had peaked AT the 6 GB c
 Expected daily end ~09:00 UTC (starts 07:00; market opens 13:30).
 
 **Slot 5 replaced 09-28 03:21 UTC by the owner** (`slots.py --owner-replace`): MACD Pullback (-0.69%/20d, never filled) -> `fx_fcf_to_price_aedd20cf42` Fcf To Price hold=40 q=0.9 stop=5 (+1.77%).
-**Monday's reassessment (from `slots.py --plan`, read-only):** RELEASE slots 1-3 (Rising 200 variants:
+**Built 09-28 night (owner "do 1,2,4"):** (1) `slots.min_score` 0 — a holder or challenger the ranking
+predicts to lose is not eligible; (4) stand-ins — [9i] records the best 5 eligible non-slot plain strategies in
+`slot_reviews.summary.standins`; `slot_trader.trade` fills an idle slot whose strategy has no signal with the
+first stand-in that has one (position carries the stand-in's key, stops and exit rule); (2) EOD Telegram report
+leads with FIVE SLOTS (holding, entry -> mark, current, predicted) and drops ranking/research/paper-book sections.
+Re-planned read-only after these: release 1-3; assign Earnings Surprise age=10 hold=60 q=0.9, ETF Rotation assets,
+Earnings Surprise age=5 hold=60 q=0.8 (corr 0.65 with the first — nearly one bet); keep 4 (Rising 200 Stop 5.0 c)
+and 5 (FCF). **Fundamental Price Momentum (+2.48%, top) is blocked by correlation 0.73 with FCF in slot 5** — it
+is stand-in #1. Test fixed: test_accounting failed since 245485d (rotation step's REPLACE).
+**Superseded — Monday's reassessment as planned before slot 5 changed (from `slots.py --plan`, read-only):** RELEASE slots 1-3 (Rising 200 variants:
 backtest with dead companies loses -0.07..-0.47%/trade; slot 1 sells SNDK); ASSIGN fundamental price
 momentum, earnings surprise (age=10 hold=60 q=0.9), ETF rotation assets; keep slots 4-5. Both stock picks
 PASS unseen-vs-random and bear-vs-random. Bear check across 243: PASS 203 / FAIL 40.
