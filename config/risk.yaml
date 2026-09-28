@@ -84,3 +84,4 @@ crypto:
   min_dollar_volume: 5000000.0   # 20-day average daily USD turnover
 robinhood:
   account_number: "403446024"
+limited_margin_settled_funds: false   # owner 2026-09-28: Robinhood buying power governs
