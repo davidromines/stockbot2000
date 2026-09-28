@@ -213,7 +213,8 @@ def main():
     remaining = src.count("INSERT OR REPLACE INTO paper_positions")
     import inspect
     import paper_trading as _pt
-    conv = inspect.getsource(_pt._conviction_step)
+    # The ETF rotation step (09-27) also rebalances its whole book monthly, like conviction.
+    conv = inspect.getsource(_pt._conviction_step) + inspect.getsource(_pt._rotation_step)
     check("the genome/model step no longer replaces held positions",
           remaining == conv.count("INSERT OR REPLACE INTO paper_positions"),
           f"{remaining} occurrence(s) in the file")
