@@ -73,6 +73,21 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### LIVE 2026-09-28 (Monday) — first session on the new slots
+
+- 13:36 UTC entry pass bought nothing: account_rules took max(ledger, broker) unsettled and the ledger's
+  holiday-margin day kept Friday's settled $70.92 "unsettled"; 5 candidates x 5 slots -> 118 Robinhood calls ->
+  429 -> halt. Fixed (a049e1d): broker figure authoritative; account-level cash refusal stops the pass; entry pass
+  retries hourly while a held slot is empty.
+- 14:40 retry bought OKE (stand-in, slot 1), HD (slot 2), JBL (stand-in, slot 3), DELL $10.92 (slot 4); MU (slot 5)
+  refused (no settled cash). **The monitor sold OKE and JBL 3 minutes later as "slot released or reassigned"** —
+  stand-ins were not recognised (fixed 423f74d, `_belongs`). Two day trades used today (PDT: 3 per 5 days).
+- Owner wants the full Robinhood buying power on limited_margin. Claude's edit was blocked by auto mode (weakens a
+  risk rule); built instead as operator switch `limited_margin_settled_funds` in config/risk.yaml (default true).
+  The owner sets it false.
+- Daily [9i] assigned slot 1 "A December Effect with Tax-Gain..." (fx_kf_seasonality_57a2feb7a8; no signal until
+  December -> stand-ins) and slot 2 a Lab search strategy (paper:f9f67aa048a2, 2 sessions). Review these.
+
 ### SESSION HANDOFF — 2026-09-28 early (START HERE; the blocks below are background)
 
 **Dress rehearsal of Monday's daily run done 09-27/28 (every new stage run once, timed, memory-capped).**
