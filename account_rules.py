@@ -97,12 +97,16 @@ def annotate(conn, portfolio: dict | None, limits: dict, today: str, mode: str) 
             conn, today, mode, int(limits.get("settlement_days", 1)),
             int(limits.get("holiday_margin_days", 1)))
         if "broker_unsettled" in portfolio:
-            # A real account: sales made outside this system (a manual sell in
-            # the app) settle too. Take the larger figure; if the broker's
-            # cannot be read, leave settled cash unknown so buys are refused.
+            # A real account: the broker's own unsettled figure is authoritative
+            # (it also covers sales made outside this system). The ledger adds a
+            # holiday-margin day to every sale, so taking the larger figure held
+            # settled cash back a full day: on 2026-09-28 Friday's $70.92 had
+            # settled (Robinhood: $18.33 unsettled) and every buy was refused.
+            # If the broker's figure cannot be read, settled cash stays unknown
+            # and buys are refused.
             b = portfolio["broker_unsettled"]
             if b is not None:
-                out["unsettled_proceeds"] = max(ledger, float(b))
+                out["unsettled_proceeds"] = float(b)
         else:
             out["unsettled_proceeds"] = ledger
     else:

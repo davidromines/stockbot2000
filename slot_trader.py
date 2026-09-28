@@ -465,6 +465,12 @@ def net_exits(exits: set, cands, slot=None) -> set:
     return kept
 
 
+def _account_level(reasons) -> bool:
+    """A refusal about the account's cash, not the stock: no other candidate can pass it."""
+    text = " ".join(str(r) for r in (reasons or [])).lower()
+    return "settled" in text or "buying power" in text or "insufficient" in text
+
+
 def _signals(conn, cfg, g: dict, slot=None) -> tuple:
     """(candidates, exits) for one strategy genome, by slot kind."""
     import paper_trading as pt
@@ -478,11 +484,12 @@ def _signals(conn, cfg, g: dict, slot=None) -> tuple:
     return cands, net_exits(exits, cands, slot)
 
 
-def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str):
+def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str, used: set | None = None):
     """(buyer, candidates, genome, picks) from the first recorded stand-in (slots.standins)
     not holding a slot that has a buy signal on a name no slot holds; None if none has."""
     in_slots = {(h["strategy_key"], h["version"]) for h in held.values() if h}
     in_slots |= {(p["strategy_key"], p["version"]) for p in open_positions(conn, mode).values()}
+    in_slots |= set(used or ())
     for key, ver in slots.standins(conn):
         if (key, ver) in in_slots:
             continue
@@ -537,8 +544,13 @@ def trade(conn, cfg, mode: str, provider) -> list:
     import regime_filter
     waiting = [s_ for s_, h_ in held.items() if h_ is not None and s_ not in positions and s_ in cands_by_slot]
     rf = regime_filter.check(conn, cfg, slots_waiting=waiting) if waiting else {"block": False}
+    no_cash = False
+    used_standins = set()
     for slot, h in held.items():
         if h is None or slot in positions or slot not in cands_by_slot:
+            continue
+        if no_cash:
+            results.append({"slot": slot, "action": "NONE", "reason": "no settled cash", "status": "no_action"})
             continue
         if rf.get("block"):
             results.append({"slot": slot, "action": "NONE", "reason": rf["reason"], "status": "blocked"})
@@ -551,9 +563,10 @@ def trade(conn, cfg, mode: str, provider) -> list:
             # eligible strategy not in a slot that does fills it (the reassessment's
             # stand-in list). The position belongs to the stand-in: its stop plan and exit
             # rule apply; the holder takes over once that position closes.
-            sb = _standin(conn, cfg, held, taken, slot, mode)
+            sb = _standin(conn, cfg, held, taken, slot, mode, used_standins)
             if sb:
                 buyer, cands, g, picks = sb
+                used_standins.add((buyer["strategy_key"], buyer["version"]))
                 log.info(f"slot {slot}: {h['strategy_key']} has no signal; stand-in {buyer['strategy_key']}")
         if not picks:
             results.append({"slot": slot, "action": "NONE", "reason": "entry rule fired on nothing new",
@@ -579,6 +592,12 @@ def trade(conn, cfg, mode: str, provider) -> list:
             if _record_trade(conn, mode, slot, buyer, pick, "OPEN", res, sig.reason, plan=plan,
                              atr=_atr(conn, pick)):
                 taken.add(pick)
+                break
+            if res["status"] == "rejected" and _account_level(res.get("reasons")):
+                # Out of settled cash / buying power: every other candidate and slot
+                # would be refused the same way, and each try costs broker calls
+                # (2026-09-28: 118 calls, throttled with 429, run halted).
+                no_cash = True
                 break
             if res["status"] not in ("rejected", "duplicate"):
                 break                   # halted / failed / shadow: do not keep trying
@@ -690,7 +709,17 @@ def main(argv=None) -> int:
         # 14:40 after a 13:30 pass otherwise waited until the next session
         # (found 2026-09-24).
         changed = conn.execute("SELECT MAX(at) FROM slot_assignments").fetchone()[0]
-        if last and not (changed and changed > last):
+        # ... and retry it hourly while a slot with a strategy holds no position:
+        # a pass refused for cash or throttled otherwise left slots empty until the
+        # next session (2026-09-28).
+        retry = False
+        if last:
+            held_now = slots.current(conn, cfg)
+            open_now = open_positions(conn, args.mode)
+            idle = [s_ for s_, h_ in held_now.items() if h_ is not None and s_ not in open_now]
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 60
+            retry = bool(idle) and age >= int(slots.settings(cfg).get("entry_retry_minutes", 60))
+        if last and not (changed and changed > last) and not retry:
             args.monitor = True
         else:
             args.trade = True
