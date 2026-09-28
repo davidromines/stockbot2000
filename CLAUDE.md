@@ -94,7 +94,8 @@ checks, diversity pass their group's union) — holdout had peaked AT the 6 GB c
 | [3j] composite, [9c2] knowledge cycle, [9k] funnel, health, slot plan | 3-4 min each | small |
 Expected daily end ~09:00 UTC (starts 07:00; market opens 13:30).
 
-**Slot 5 replaced 09-28 03:21 UTC by the owner** (`slots.py --owner-replace`): MACD Pullback (-0.69%/20d, never filled) -> `fx_fcf_to_price_aedd20cf42` Fcf To Price hold=40 q=0.9 stop=5 (+1.77%).
+**Slot 5 replaced again 09-28 ~04:10 UTC by the owner: -> `fx_fundamental_price_momentum_b9cea7e645` (+2.48%; FCF blocked it at corr 0.73). Stand-ins one per family (SUE repro, FCF, momentum 9-1, debt reduction, ...). Readiness checked 04:30 UTC: night pipeline done (22 PAPER / 17 REJECTED), Robinhood probe OK and matches the slot log, no kill switch, disk 47%.**
+**Earlier:** Slot 5 replaced 09-28 03:21 UTC by the owner (`slots.py --owner-replace`): MACD Pullback (-0.69%/20d, never filled) -> `fx_fcf_to_price_aedd20cf42` Fcf To Price hold=40 q=0.9 stop=5 (+1.77%).
 **Built 09-28 night (owner "do 1,2,4"):** (1) `slots.min_score` 0 — a holder or challenger the ranking
 predicts to lose is not eligible; (4) stand-ins — [9i] records the best 5 eligible non-slot plain strategies in
 `slot_reviews.summary.standins`; `slot_trader.trade` fills an idle slot whose strategy has no signal with the
