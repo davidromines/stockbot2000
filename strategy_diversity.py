@@ -123,7 +123,7 @@ def run(conn, cfg, top: int = 40) -> dict:
         group = [(k, v, g) for k, v, g in todo if storage.needs_panel(g) == need]
         if not group:
             continue
-        p = fp.panel(conn, cfg, (START, end), need)
+        p = fp.panel(conn, cfg, (START, end), need, cols=storage.columns_read([g for _, _, g in group]))
         if p is None:
             continue
         for key, ver, g in group:
@@ -173,7 +173,7 @@ def bear_series(conn, cfg, todo, cm, size, cap) -> dict:
             group = [(k, v, g) for k, v, g in todo if storage.needs_panel(g) == need]
             if not group:
                 continue
-            p = mc._panel(conn, cfg, name, start, end, need)
+            p = mc._panel(conn, cfg, name, start, end, need, cols=storage.columns_read([g for _, _, g in group]))
             if p is None:
                 continue
             for key, ver, g in group:

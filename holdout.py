@@ -126,7 +126,9 @@ def run(conn, cfg, limit: int | None = None) -> dict:
         group = [(k, v) for k, v, n in todo if n == need]
         if not group:
             continue
-        p = fp.panel(conn, cfg, (START, end), need)
+        import storage
+        p = fp.panel(conn, cfg, (START, end), need,
+                     cols=storage.columns_read([so.genome(conn, k, v) for k, v in group]))
         if p is None:
             continue
         for key, ver in group:

@@ -107,11 +107,11 @@ def unseen_vs_random(conn, key: str, ver: int) -> str | None:
 
 # --- check 2: bear markets against random entry -----------------------------------------
 
-def _panel(conn, cfg, name, start, end, fundamentals):
+def _panel(conn, cfg, name, start, end, fundamentals, cols=None):
     """The warm-up panel for one bear window, with the entry-window flag column."""
     import factory_pipeline as fp
     lo = (dt.date.fromisoformat(start) - dt.timedelta(days=WARMUP_DAYS)).isoformat()
-    p = fp.panel(conn, cfg, (lo, end), fundamentals)
+    p = fp.panel(conn, cfg, (lo, end), fundamentals, cols=cols)
     if p is None:
         return None
     d = p.df["date"].astype(str).str[:10]
@@ -164,7 +164,8 @@ def run_bear(conn, cfg, limit: int | None = None) -> dict:
             group = [(k, v, g) for k, v, g in todo if need[(k, v)] == fund]
             if not group:
                 continue
-            p = _panel(conn, cfg, name, start, end, fund)
+            import storage
+            p = _panel(conn, cfg, name, start, end, fund, cols=storage.columns_read([g for _, _, g in group]))
             if p is None:
                 continue
             for key, ver, g in group:

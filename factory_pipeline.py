@@ -54,8 +54,16 @@ EXIT_MARGIN_DAYS = 120
 _PANELS = {}
 
 
-def panel(conn, cfg, window, fundamentals: bool):
-    key = (tuple(window), fundamentals)
+SIM_COLS = {"ticker", "date", "close", "open", "atr_14", "dollar_volume_20", "returns"}
+_COLS = None        # set by run(): the union of the batch's columns (None = every column)
+
+
+def panel(conn, cfg, window, fundamentals: bool, cols=None):
+    """The simulation panel for a window. `cols` (the columns the strategies to be run read)
+    keeps only those plus what the simulator needs, and attaches only those — every column
+    for every run put the unseen-window test at its 6 GB cap (09-27 rehearsal)."""
+    cols = cols if cols is not None else _COLS
+    key = (tuple(window), fundamentals, frozenset(cols) if cols is not None else None)
     if key in _PANELS:
         return _PANELS[key]
     _PANELS.clear()                       # one panel at a time keeps memory bounded
@@ -68,8 +76,11 @@ def panel(conn, cfg, window, fundamentals: bool):
     if df.empty:
         _PANELS[key] = None
         return None
+    if cols is not None:
+        keep = SIM_COLS | set(cols)
+        df = df[[c for c in df.columns if c in keep]]
     if fundamentals:
-        df = storage.attach_fundamentals(conn, df)
+        df = storage.attach_fundamentals(conn, df, extras=None if cols is None else set(cols))
     end = (dt.date.fromisoformat(window[1]) + dt.timedelta(days=EXIT_MARGIN_DAYS)).isoformat()
     ex = storage.load_exit_prices(conn, df["ticker"].astype(str).unique(), window[0], end)
     _PANELS[key] = simulator.Panel(df, exit_prices=ex)
@@ -290,7 +301,11 @@ def run(conn, cfg, budget: int | None = None) -> dict:
     so.init(conn)
     discovery.init(conn)
     summary = {"plan": discovery.plan(conn, cfg), "processed": {}, "recycled": []}
-    for item in discovery.take(conn, cfg, budget):
+    global _COLS
+    batch = discovery.take(conn, cfg, budget)
+    gs = [so.genome(conn, it["strategy_key"], it["version"]) for it in batch if it.get("strategy_key")]
+    _COLS = storage.columns_read([g for g in gs if g]) if gs else None
+    for item in batch:
         key, ver = item["strategy_key"], item["version"]
         try:
             end = process(conn, cfg, key, ver)
