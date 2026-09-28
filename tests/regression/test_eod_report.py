@@ -170,22 +170,29 @@ def main():
     check("ranking capped at 10", len(report["ranking"]) == 2, report["ranking"])
 
     text = eod_report.render(report)
+    # Owner, 2026-09-28: the five slots first; research sections (ranking, research, new
+    # candidates, paper books) are not in the message.
     order = [
+        "FIVE SLOTS",
         "ACCOUNT",
         "P&L",
         "TRADES",
         "POSITIONS",
-        "STRATEGY PERFORMANCE",
-        "RANKING",
         "REPLACEMENTS",
-        "RESEARCH",
-        "NEW CANDIDATES",
         "FAILURES",
         "SYSTEM HEALTH",
         "NEXT ACTIONS",
     ]
     positions = [text.find("== %s ==" % h) for h in order]
-    check("all twelve headings present", all(p >= 0 for p in positions), positions)
+    check("all headings present", all(p >= 0 for p in positions), positions)
+    check("research sections left out", all(text.find("== %s ==" % h) < 0 for h in
+                                             ("RANKING", "RESEARCH", "NEW CANDIDATES", "STRATEGY PERFORMANCE")))
+    sl = report["slots"]
+    check("five slot rows", len(sl) == 5, sl)
+    held = [r for r in sl if r["symbol"]]
+    check("open slot shows current return against its fill",
+          len(held) == 1 and held[0]["current_pct"] == 10.0 and held[0]["current_usd"] is not None, held)
+    check("slot shows its strategy's predicted score", any(r["predicted"] == 1.5 for r in sl), sl)
     check("headings in order", positions == sorted(positions), positions)
     check("no line over 60 chars", all(len(line) <= 60 for line in text.splitlines()), max(len(l) for l in text.splitlines()))
 

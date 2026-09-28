@@ -276,6 +276,37 @@ def _section_strategy_performance(conn, mode, ranking):
     return out
 
 
+def _section_slots(conn, mode, ranking):
+    """Owner, 2026-09-28: what each of the five slots holds, its current return against
+    the real fill, and its strategy's predicted return (ranking score per 20 sessions)."""
+    by_key = {r.get("strategy_key"): r for r in ranking}
+    assigned = _assigned_slots(conn, mode)
+    positions = _open_positions(conn, mode)
+    marks = _latest_marks(conn, mode)
+    out = []
+    for slot in SLOTS:
+        a = assigned.get(slot)
+        key = a["strategy_key"] if a else None
+        row = {"slot": slot, "strategy_key": key,
+               "strategy": (by_key.get(key) or {}).get("name") or key,
+               "predicted": (by_key.get(key) or {}).get("score"),
+               "symbol": None, "stand_in": None, "entry": None, "mark": None,
+               "current_pct": None, "current_usd": None}
+        pos = positions.get(slot)
+        if pos:
+            entry, qty = pos["price"], pos["quantity"]
+            m = marks.get(slot)
+            mark = m["price"] if m and m["symbol"] == pos["symbol"] else None
+            row.update(symbol=pos["symbol"], entry=_money(entry), mark=_money(mark))
+            if pos["strategy_key"] != key:
+                row["stand_in"] = (by_key.get(pos["strategy_key"]) or {}).get("name") or pos["strategy_key"]
+            if mark is not None and entry:
+                row["current_pct"] = _pct((mark - entry) / entry * 100.0)
+                row["current_usd"] = _money((mark - entry) * qty)
+        out.append(row)
+    return out
+
+
 def _section_ranking(ranking):
     out = []
     for row in ranking[:RANKING_TOP]:
@@ -477,6 +508,7 @@ def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     books = _section_research_books(conn)
     return {
         **books,
+        "slots": _section_slots(conn, mode, ranking),
         "account": account,
         "real_account": _section_real_account(conn, mode),
         "pnl": _section_pnl(conn, day, mode, account, positions),
@@ -523,6 +555,19 @@ def render(report):
         lines.append("")
         lines.append("== %s ==" % title)
 
+    head("slots", "FIVE SLOTS")
+    for r in report.get("slots") or []:
+        pred = "n/a" if r["predicted"] is None else "%+.2f%%" % (r["predicted"] * 100)
+        _emit(lines, "s%s %s" % (r["slot"], r["strategy"] or "empty"))
+        if r["symbol"]:
+            who = " (stand-in: %s)" % r["stand_in"] if r["stand_in"] else ""
+            now = "n/a" if r["current_pct"] is None else "%+.2f%% (%s$%.2f)" % (
+                r["current_pct"], "-" if r["current_usd"] < 0 else "+", abs(r["current_usd"]))
+            _emit(lines, "  %s %s -> %s  now %s%s" % (r["symbol"], _fmt(r["entry"]), _fmt(r["mark"]), now, who))
+        else:
+            _emit(lines, "  cash")
+        _emit(lines, "  predicted %s per 20 days" % pred)
+
     head("account", "ACCOUNT")
     a = report["account"]
     _emit(lines, "equity %s  bp %s" % (_fmt(a["equity"]), _fmt(a["buying_power"])))
@@ -540,7 +585,6 @@ def render(report):
     _emit(lines, "realized gross %s (%d closed)" % (_fmt(p["realized_gross"]), p["closed_trades"]))
     _emit(lines, "unrealized gross %s" % _fmt(p["unrealized_gross"]))
     _emit(lines, "net equity change %s" % _fmt(p["net_equity_change"]))
-    _emit(lines, "costs %s" % p["costs"])
 
     head("trades", "TRADES")
     if not report["trades"]:
@@ -564,42 +608,6 @@ def render(report):
         )
         _emit(lines, "  stop %s  unreal %s%%" % (_fmt(pos["stop"]), _fmt(pos["unrealized_pct"])))
 
-    for key, title in (("options", "OPTIONS (PAPER)"), ("same_day", "SAME-DAY (RECORDED)"),
-                       ("short_term", "SHORT-TERM (PAPER)")):
-        head(key, title)
-        if not report.get(key):
-            _emit(lines, "no data")
-        for line in report.get(key) or []:
-            _emit(lines, line)
-
-    head("strategy_performance", "STRATEGY PERFORMANCE")
-    if not report["strategy_performance"]:
-        _emit(lines, "no data")
-    for row in report["strategy_performance"]:
-        if row["status"] == "not ranked":
-            _emit(lines, "s%s %s not ranked" % (row["slot"], row["strategy_key"]))
-        else:
-            _emit(
-                lines,
-                "s%s %s score %s" % (row["slot"], row["strategy_key"], _fmt(row["score"])),
-            )
-            _emit(
-                lines,
-                "  bt %s fwd %s (%s)"
-                % (_fmt(row["backtest"]), _fmt(row["forward"]), _fmt(row["forward_trades"])),
-            )
-
-    head("ranking", "RANKING")
-    if not report["ranking"]:
-        _emit(lines, "no data")
-    for i, row in enumerate(report["ranking"], 1):
-        _emit(lines, "%d. %s score %s" % (i, row["name"], _fmt(row["score"])))
-        _emit(
-            lines,
-            "  bt %s fwd %s (%s) gate %s"
-            % (_fmt(row["backtest"]), _fmt(row["forward"]), _fmt(row["forward_trades"]), row["passes_gate"]),
-        )
-
     head("replacements", "REPLACEMENTS")
     if not report["replacements"]:
         _emit(lines, "no data")
@@ -609,18 +617,6 @@ def render(report):
             "%s s%s %s %s v%s" % (timefmt.pt(r["time"]), r["slot"], r["action"], r["strategy_key"], r["version"]),
         )
         _emit(lines, "  %s" % r["reason"])
-
-    head("research", "RESEARCH")
-    if not report["research"]:
-        _emit(lines, "no data")
-    for decision, count in sorted(report["research"].items()):
-        _emit(lines, "%s: %d" % (decision, count))
-
-    head("new_candidates", "NEW CANDIDATES")
-    if not report["new_candidates"]:
-        _emit(lines, "no data")
-    for c in report["new_candidates"]:
-        _emit(lines, "%s %s v%s -> PAPER" % (timefmt.pt(c["time"]), c["strategy_key"], c["version"]))
 
     head("failures", "FAILURES")
     f = report["failures"]
