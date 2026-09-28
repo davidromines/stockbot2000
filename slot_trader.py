@@ -499,6 +499,11 @@ def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str, used: set 
     in_slots = {(h["strategy_key"], h["version"]) for h in held.values() if h}
     in_slots |= {(p["strategy_key"], p["version"]) for p in open_positions(conn, mode).values()}
     in_slots |= set(used or ())
+    # Names already bought today in this mode: the same decision re-sent is suppressed as a
+    # duplicate, so a stand-in whose only candidates are those has nothing to buy (09-28: JBL).
+    bought_today = {r[0] for r in conn.execute(
+        "SELECT DISTINCT symbol FROM orders WHERE mode=? AND session=? AND side='BUY'",
+        (mode, _session(conn))).fetchall()} if _has_table(conn, "orders") else set()
     for key, ver in slots.standins(conn):
         if (key, ver) in in_slots:
             continue
@@ -510,10 +515,15 @@ def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str, used: set 
         except Exception as e:                               # noqa: BLE001 — try the next stand-in
             log.warning(f"stand-in {key}: {type(e).__name__}: {e}")
             continue
-        picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []
+        picks = [str(t) for t in cands["ticker"]
+                 if str(t) not in taken and str(t) not in bought_today][:MAX_TRIES] if len(cands) else []
         if picks:
             return {"strategy_key": key, "version": ver}, cands, g, picks
     return None
+
+
+def _has_table(conn, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
 
 
 def trade(conn, cfg, mode: str, provider) -> list:

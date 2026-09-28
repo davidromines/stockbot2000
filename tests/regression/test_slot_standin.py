@@ -98,6 +98,22 @@ c.commit()
 r = st.monitor(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c))
 check("released slot closes its stand-in position", held_slot not in st.open_positions(c, "SIMULATION"), r)
 
+# a stand-in whose only candidate was already bought today is skipped for the next (09-28: JBL)
+G["sc"] = {**base.GENOME, "tag": "sc"}
+SIG["sa"], SIG["sb"], SIG["sc"] = ([], set()), (["BBB"], set()), (["AAA"], set())
+slots.genome_for = lambda conn, k, v: G.get(k, base.GENOME)
+c = base.fixture()
+base.assign(c, 1, "sa")
+c.execute("INSERT INTO slot_reviews (at, mode, summary) VALUES ('2026-09-23T00:00:00','SIMULATION',?)",
+          (json.dumps({"standins": [["sb", 1], ["sc", 1]]}),))
+c.execute("INSERT INTO orders (client_order_id, signal_id, created_at, session, symbol, side, asset_type, state, mode) "
+          "VALUES ('x','x','2026-01-01T00:00:00', ?, 'BBB', 'BUY', 'equity', 'FILLED', 'SIMULATION')", (st._session(c),))
+c.commit()
+st.trade(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c))
+pos = st.open_positions(c, "SIMULATION")
+check("stand-in with only an already-bought name is skipped for the next",
+      pos.get(1, {}).get("strategy_key") == "sc" and pos[1]["symbol"] == "AAA", pos)
+
 # stand-in list: one per family, none from a family already in a slot
 slots.genome_for = lambda conn, k, v: base.GENOME
 c = base.fixture()
