@@ -42,6 +42,7 @@ pt._genome_signals = lambda conn, cfg, g: (pd.DataFrame({"ticker": SIG[g["tag"]]
 ranking.rank = lambda conn, cfg: [
     {"strategy_key": "neg", "version": 1, "passes_gate": True, "gate": "", "score": -0.0069, "family": "f"},
     {"strategy_key": "pos", "version": 1, "passes_gate": True, "gate": "", "score": 0.0177, "family": "g"}]
+_fg, _va = stop_plans.from_genome, stop_plans.validate
 stop_plans.from_genome = lambda g: [{"type": "atr", "atr_multiple": 2.0}]
 stop_plans.validate = lambda plan: (True, [])
 c = base.fixture()
@@ -49,6 +50,7 @@ rows = {r["strategy_key"]: r for r in slots.assess(c, {})}
 check("negative score is not eligible", not rows["neg"]["eligible"]
       and "predicted to lose" in rows["neg"]["reasons"][0], rows["neg"]["reasons"])
 check("positive score stays eligible", rows["pos"]["eligible"], rows["pos"]["reasons"])
+stop_plans.from_genome, stop_plans.validate = _fg, _va
 
 # (4) stand-in
 c = base.fixture()
@@ -64,6 +66,13 @@ check("idle slot 2 filled by the first stand-in with a signal (sb, not sa)",
       pos.get(2, {}).get("strategy_key") == "sb" and pos[2]["symbol"] == "BBB", pos.get(2))
 check("the buy names the stand-in", any("stand-in for sa" in (x.get("reason") or "") for x in r), r)
 check("holder assignment unchanged", slots.current(c, {})[2]["strategy_key"] == "sa")
+
+# the stop monitor keeps a stand-in's position (09-28: it sold two as "reassigned")
+r = st.monitor(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c))
+check("monitor keeps the stand-in position", 2 in st.open_positions(c, "SIMULATION")
+      and not [x for x in r if x["action"] == "CLOSE"], r)
+# but a genuinely released slot still closes it
+base_c = c
 
 # the stand-in's position exits on the stand-in's rule, not the holder's
 SIG["sb"] = ([], {"BBB"})
@@ -82,6 +91,12 @@ c.commit()
 st.trade(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c))
 pos = st.open_positions(c, "SIMULATION")
 check("one stand-in fills at most one slot", len(pos) == 1, pos)
+held_slot = next(iter(pos))
+c.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, capital_usd, mode, reason) "
+          "VALUES ('2026-09-23T02:00:00', ?, 'RELEASE', 'sa', 1, NULL, 'SIMULATION', 't')", (held_slot,))
+c.commit()
+r = st.monitor(c, {}, "SIMULATION", qt.FixedQuotes({"AAA": 50.0, "BBB": 60.0}, conn=c))
+check("released slot closes its stand-in position", held_slot not in st.open_positions(c, "SIMULATION"), r)
 
 # stand-in list: one per family, none from a family already in a slot
 slots.genome_for = lambda conn, k, v: base.GENOME

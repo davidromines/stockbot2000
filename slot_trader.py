@@ -374,7 +374,7 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     held = slots.current(conn, cfg)
     for slot, pos in open_positions(conn, mode).items():
         holder = held.get(slot)
-        if holder is None or (holder["strategy_key"], holder["version"]) != (pos["strategy_key"], pos["version"]):
+        if holder is None or not _belongs(pos, holder):
             _exit(conn, engine, mode, slot, pos, "slot released or reassigned", ok, results)
             continue
         q = provider.get(pos["symbol"])
@@ -463,6 +463,15 @@ def net_exits(exits: set, cands, slot=None) -> set:
         log.info(f"slot {slot}: strategy exit suppressed on {len(held_on)} name(s) its entry rule still "
                  f"fires on (sell-and-rebuy is a hold)")
     return kept
+
+
+def _belongs(pos: dict, holder: dict) -> bool:
+    """The position is the slot holder's own, or a stand-in bought for this holder
+    (its OPEN reason names it). A stand-in's position stays until its own stop or exit;
+    2026-09-28 the first two were sold three minutes after purchase as "reassigned"."""
+    if (holder["strategy_key"], holder["version"]) == (pos["strategy_key"], pos["version"]):
+        return True
+    return f"(stand-in for {holder['strategy_key']})" in str(pos.get("reason") or "")
 
 
 def _account_level(reasons) -> bool:
