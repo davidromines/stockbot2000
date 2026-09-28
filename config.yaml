@@ -407,7 +407,7 @@ capital:
 slots:
   count: 5
   capital_per_slot: 20.0
-  max_per_family: 4
+  max_per_family: 1   # owner 2026-09-28: one slot per strategy family (was 4; two earnings-surprise variants at corr 0.65 got in)
   # Owner's rule 2026-09-24: slots always hold the top five of the ranking;
   # paper evidence moves strategies up and down continuously. A holder is
   # replaced when a challenger's score beats it by min_advantage_score (net

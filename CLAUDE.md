@@ -43,7 +43,7 @@ process, 2026-09-24: backtest -> rank -> paper -> move continuously; score =
 expected net return per trade, starting at the backtest and shifting to the
 paper record with each trade; a losing backtest is out) -> slots.py fills the
 five slots with the top five TRADEABLE strategies on day one (no evidence
-floor, no lifecycle state; up to 4 per family) -> slot_trader.py -> ExecutionEngine -> kill switches -> RiskEngine
+floor, no lifecycle state; ONE per family since 2026-09-28, was 4) -> slot_trader.py -> ExecutionEngine -> kill switches -> RiskEngine
 (account rules: PDT limit AND settled funds for limited_margin) ->
 robinhood_live.LiveBroker (review -> place -> confirm, ref_id idempotency)
 -> robinhood_mcp.py (MCP 2.x client, agent.robinhood.com/mcp/trading, OAuth
@@ -94,6 +94,7 @@ checks, diversity pass their group's union) — holdout had peaked AT the 6 GB c
 | [3j] composite, [9c2] knowledge cycle, [9k] funnel, health, slot plan | 3-4 min each | small |
 Expected daily end ~09:00 UTC (starts 07:00; market opens 13:30).
 
+**Owner 09-28 ~04:40 UTC: `slots.max_per_family: 1`** (was 4) — Monday plan now slot 1 Earnings Surprise, 2 ETF Rotation assets, 3 kf_factor 'Can Book-to-Market, Size and Momentum...' (+1.53%), 4 Rising 200 Stop 5.0 c, 5 FPM.
 **Slot 5 replaced again 09-28 ~04:10 UTC by the owner: -> `fx_fundamental_price_momentum_b9cea7e645` (+2.48%; FCF blocked it at corr 0.73). Stand-ins one per family (SUE repro, FCF, momentum 9-1, debt reduction, ...). Readiness checked 04:30 UTC: night pipeline done (22 PAPER / 17 REJECTED), Robinhood probe OK and matches the slot log, no kill switch, disk 47%.**
 **Earlier:** Slot 5 replaced 09-28 03:21 UTC by the owner (`slots.py --owner-replace`): MACD Pullback (-0.69%/20d, never filled) -> `fx_fcf_to_price_aedd20cf42` Fcf To Price hold=40 q=0.9 stop=5 (+1.77%).
 **Built 09-28 night (owner "do 1,2,4"):** (1) `slots.min_score` 0 — a holder or challenger the ranking
