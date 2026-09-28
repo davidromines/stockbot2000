@@ -465,29 +465,62 @@ def net_exits(exits: set, cands, slot=None) -> set:
     return kept
 
 
+def _signals(conn, cfg, g: dict, slot=None) -> tuple:
+    """(candidates, exits) for one strategy genome, by slot kind."""
+    import paper_trading as pt
+    if g.get("pair"):
+        return _pair_signals(conn, cfg, g)
+    if g.get("value"):
+        return _value_signals(conn, g)
+    if g.get("rotation"):
+        return _rotation_signals(conn, g)
+    cands, exits = pt._genome_signals(conn, cfg, g)
+    return cands, net_exits(exits, cands, slot)
+
+
+def _standin(conn, cfg, held: dict, taken: set, slot: int, mode: str):
+    """(buyer, candidates, genome, picks) from the first recorded stand-in (slots.standins)
+    not holding a slot that has a buy signal on a name no slot holds; None if none has."""
+    in_slots = {(h["strategy_key"], h["version"]) for h in held.values() if h}
+    in_slots |= {(p["strategy_key"], p["version"]) for p in open_positions(conn, mode).values()}
+    for key, ver in slots.standins(conn):
+        if (key, ver) in in_slots:
+            continue
+        g = slots.genome_for(conn, key, ver)
+        if not g or g.get("crypto") or g.get("pair") or g.get("value") or g.get("rotation"):
+            continue
+        try:
+            cands, _ = _signals(conn, cfg, g, slot)
+        except Exception as e:                               # noqa: BLE001 — try the next stand-in
+            log.warning(f"stand-in {key}: {type(e).__name__}: {e}")
+            continue
+        picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []
+        if picks:
+            return {"strategy_key": key, "version": ver}, cands, g, picks
+    return None
+
+
 def trade(conn, cfg, mode: str, provider) -> list:
     """At the open: exits, then entries (I8)."""
     init(conn)
-    import paper_trading as pt
     held = slots.current(conn, cfg)
     exits_by_slot, cands_by_slot = {}, {}
+    open_now = open_positions(conn, mode)
     for slot, h in held.items():
         if h is None:
             continue
         g = slots.genome_for(conn, h["strategy_key"], h["version"])
         if not g or g.get("crypto"):
             continue                        # crypto slots trade in crypto_slot_trader.py
-        if g.get("pair"):
-            cands, exits = _pair_signals(conn, cfg, g)
-        elif g.get("value"):
-            cands, exits = _value_signals(conn, g)
-        elif g.get("rotation"):
-            cands, exits = _rotation_signals(conn, g)
-        else:
-            cands, exits = pt._genome_signals(conn, cfg, g)
-        if not (g.get("pair") or g.get("value") or g.get("rotation")):
-            exits = net_exits(exits, cands, slot)
-        exits_by_slot[slot], cands_by_slot[slot] = exits, (cands, g)
+        cands, exits = _signals(conn, cfg, g, slot)
+        cands_by_slot[slot] = (cands, g)
+        pos = open_now.get(slot)
+        if pos and (pos["strategy_key"], pos["version"]) != (h["strategy_key"], h["version"]):
+            # A stand-in's position (or one bought before a reassignment) exits on the rule
+            # of the strategy that bought it, never on the new holder's.
+            pg = slots.genome_for(conn, pos["strategy_key"], pos["version"])
+            exits = _signals(conn, cfg, pg, slot)[1] if pg and not pg.get("crypto") else set()
+        exits_by_slot[slot] = exits
 
     results = monitor(conn, cfg, mode, provider, strategy_exits=exits_by_slot)
     import killswitch as ks
@@ -512,6 +545,16 @@ def trade(conn, cfg, mode: str, provider) -> list:
             continue
         cands, g = cands_by_slot[slot]
         picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES] if len(cands) else []
+        buyer = h
+        if not picks:
+            # Owner, 2026-09-28: the slot's own strategy has no buy signal, so the best
+            # eligible strategy not in a slot that does fills it (the reassessment's
+            # stand-in list). The position belongs to the stand-in: its stop plan and exit
+            # rule apply; the holder takes over once that position closes.
+            sb = _standin(conn, cfg, held, taken, slot, mode)
+            if sb:
+                buyer, cands, g, picks = sb
+                log.info(f"slot {slot}: {h['strategy_key']} has no signal; stand-in {buyer['strategy_key']}")
         if not picks:
             results.append({"slot": slot, "action": "NONE", "reason": "entry rule fired on nothing new",
                             "status": "no_action"})
@@ -524,15 +567,16 @@ def trade(conn, cfg, mode: str, provider) -> list:
                 results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": "no live quote",
                                 "status": "skipped"})
                 continue
-            sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{h['strategy_key']}",
-                            reason=f"entry rule of {h['strategy_key']} v{h['version']}",
-                            notional_value=float(h["capital_usd"]), session=engine.session)
+            why = f"entry rule of {buyer['strategy_key']} v{buyer['version']}" + (
+                f" (stand-in for {h['strategy_key']})" if buyer is not h else "")
+            sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{buyer['strategy_key']}",
+                            reason=why, notional_value=float(h["capital_usd"]), session=engine.session)
             res = engine.execute(sig, reconciled=ok)
             results.append({"slot": slot, "action": "BUY", "symbol": pick, "reason": sig.reason,
                             "status": res["status"], "why": res.get("reasons")})
             row = cands[cands["ticker"].astype(str) == pick].iloc[0].to_dict() if len(cands) else None
             plan = _entry_plan(conn, g, pick, row)
-            if _record_trade(conn, mode, slot, h, pick, "OPEN", res, sig.reason, plan=plan,
+            if _record_trade(conn, mode, slot, buyer, pick, "OPEN", res, sig.reason, plan=plan,
                              atr=_atr(conn, pick)):
                 taken.add(pick)
                 break
