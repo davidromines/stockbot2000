@@ -94,6 +94,7 @@ checks, diversity pass their group's union) — holdout had peaked AT the 6 GB c
 | [3j] composite, [9c2] knowledge cycle, [9k] funnel, health, slot plan | 3-4 min each | small |
 Expected daily end ~09:00 UTC (starts 07:00; market opens 13:30).
 
+**Slot 5 replaced 09-28 03:21 UTC by the owner** (`slots.py --owner-replace`): MACD Pullback (-0.69%/20d, never filled) -> `fx_fcf_to_price_aedd20cf42` Fcf To Price hold=40 q=0.9 stop=5 (+1.77%).
 **Monday's reassessment (from `slots.py --plan`, read-only):** RELEASE slots 1-3 (Rising 200 variants:
 backtest with dead companies loses -0.07..-0.47%/trade; slot 1 sells SNDK); ASSIGN fundamental price
 momentum, earnings surprise (age=10 hold=60 q=0.9), ETF rotation assets; keep slots 4-5. Both stock picks
