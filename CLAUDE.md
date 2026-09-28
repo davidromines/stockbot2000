@@ -73,7 +73,50 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-09-27 evening (START HERE; the blocks below are background)
+### SESSION HANDOFF — 2026-09-28 early (START HERE; the blocks below are background)
+
+**Dress rehearsal of Monday's daily run done 09-27/28 (every new stage run once, timed, memory-capped).**
+All succeed after fixes found by it: market_checks connection needed `row_factory = sqlite3.Row`
+(null surface crashed); survivorship_backtest OOM-killed at 6 GB (now loads/attaches only the
+columns its strategies read, trims before attaching, frees frames, and skips search strategies —
+`ranking.from_search`, paper-only scoring); the shared panel `factory_pipeline.panel(..., cols=)`
+now keeps/attaches only the columns read (pipeline = batch union via `_COLS`; holdout, market
+checks, diversity pass their group's union) — holdout had peaked AT the 6 GB cap.
+`storage.attach_fundamentals(conn, df, cols, extras)` + `storage.columns_read(genomes)`.
+
+| stage (first full pass; later days incremental) | time | peak |
+|---|---:|---:|
+| [5] paper step, ~1,440 funds, research mode | 11.4 min | 4.7 GB |
+| [9f2] survivorship (487 strategies x 3 modes) | ~10 min | 5.7 GB |
+| [9f3] unseen window | 7 min | 6.0 GB (before the panel fix) |
+| [9f4] bull-market checks | 10.4 min | 5.4 GB |
+| [9f5] correlations incl. bear windows | 11.6 min | 5.6 GB |
+| [3j] composite, [9c2] knowledge cycle, [9k] funnel, health, slot plan | 3-4 min each | small |
+Expected daily end ~09:00 UTC (starts 07:00; market opens 13:30).
+
+**Monday's reassessment (from `slots.py --plan`, read-only):** RELEASE slots 1-3 (Rising 200 variants:
+backtest with dead companies loses -0.07..-0.47%/trade; slot 1 sells SNDK); ASSIGN fundamental price
+momentum, earnings surprise (age=10 hold=60 q=0.9), ETF rotation assets; keep slots 4-5. Both stock picks
+PASS unseen-vs-random and bear-vs-random. Bear check across 243: PASS 203 / FAIL 40.
+
+**External block — DeepSeek balance exhausted (HTTP 402 "Insufficient Balance") at ~01:40 UTC 09-28**
+after 1,572 paper-title translations (2,199 left). Owner tops up; until then [9c2] extraction and ADO
+builds fail (the daily job continues). Title yield: 121 of ~1,600 translatable (7.6%, not the trial's 25%).
+
+**Uncommitted on purpose:** `options_live.py` + `tests/regression/test_options_live.py` (R7 real-money
+options trader, finished draft). Auto mode blocked running its fake-broker test AND moving the files.
+`./run_tests.sh` would pick up that test — run it only in a manual-approval session, or exclude it.
+
+**Also done 09-27 night (see the evening block below):** unseen-window test, bull/bear checks, correlation
+limit on slots (+bear windows), ETF rotation (12 variants in paper), weekly digest (Sun 10 AM PT), paper
+research mode (20 positions), paper pages for titles, nightly pipeline cron, per-20-session ranking
+(`hold_period.py`), bear-market slot rule (SHADOW — evidence says no), congressional trades (O-pol),
+insider Form 4 daily feed, crypto one-slot cap, L4 prior (off), llm_report on DeepSeek.
+
+**Monday checks:** `tail -150 logs/daily.log` (stages [3d4]-[3d5], [3j], [9c2], [9d3], [9f2]-[9f5], [9k]);
+the slot changes in `logs/slot_trader_live.log` from 13:30 UTC. First weekly digest: Sunday 2026-10-04, 10 AM PT.
+
+### SESSION HANDOFF — 2026-09-27 evening (background)
 
 **Owner's direction (09-27):** "finish building the system as currently defined before we say
 it's not working"; complete every roadmap item; DeepSeek as much as possible; paper-track all
