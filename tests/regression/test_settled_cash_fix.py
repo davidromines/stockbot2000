@@ -42,4 +42,11 @@ check("settled-cash refusal is account-level",
       st._account_level(["only $0.00 settled ($89.25 unsettled): buying with unsettled funds risks a good-faith violation"]))
 check("market-cap refusal is not", not st._account_level(["market cap $0M below floor $100M"]))
 
+pf = {"buying_power": 89.25, "equity": 89.25, "unsettled_proceeds": 89.25, "day_trades_5d": 0}
+lm = {"account_type": "limited_margin"}
+a, why = ar.check_buy(pf, lm, 20.0)
+check("limited margin: settled-funds rule on by default", why is not None and "settled" in why, (a, why))
+a, why = ar.check_buy(pf, {**lm, "limited_margin_settled_funds": False}, 20.0)
+check("limited margin: operator switch off -> buying power governs", a == 20.0 and why is None, (a, why))
+
 sys.exit(1 if FAILED else 0)

@@ -124,10 +124,15 @@ def check_buy(portfolio: dict, limits: dict, want: float) -> tuple:
     kind = str(limits.get("account_type", "cash")).lower()
     cash = float(portfolio.get("buying_power") or 0)
     if kind == "limited_margin":
-        # Both rules; the smaller allowance wins.
+        # Both rules; the smaller allowance wins. The settled-funds half is the
+        # operator's switch (config/risk.yaml limited_margin_settled_funds, default
+        # true): good-faith violations are a cash-account rule and Robinhood's
+        # buying power already allows unsettled proceeds on this account type.
         a, why = check_buy(portfolio, {**limits, "account_type": "margin"}, want)
         if why:
             return a, why
+        if not limits.get("limited_margin_settled_funds", True):
+            return a, None
         return check_buy(portfolio, {**limits, "account_type": "cash"}, a)
     if kind == "cash":
         if "unsettled_proceeds" not in portfolio:
