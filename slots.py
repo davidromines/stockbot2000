@@ -79,6 +79,14 @@ DEFAULTS = {
     # the same few ETFs and cannot be measured by strategy_diversity (no stock rule), so
     # one slot per rotation universe.
     "family_caps": {"etf_rotation_sectors": 1, "etf_rotation_assets": 1},
+    # Owner, 2026-09-28: a strategy the ranking predicts to lose (score below this, expected
+    # net return per 20 sessions held) may not hold or take a slot. MACD Pullback held slot 5
+    # at -0.69% because only a losing BACKTEST released a holder.
+    "min_score": 0.0,
+    # Owner, 2026-09-28: when a slot's own strategy has no buy signal, the trader may fill it
+    # with the best eligible strategy not in a slot that does (a stand-in). The daily
+    # reassessment records this many, best first, in slot_reviews.
+    "standins": 5,
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -244,6 +252,8 @@ def assess(conn, cfg: dict) -> list:
                                    "AND date > ? AND date <= ?", (r["as_of"], latest)).fetchone()[0])
             if lag > s["max_evidence_lag_sessions"]:
                 reasons.append(f"stale evidence: {lag} sessions behind")
+        if r.get("score") is not None and r["score"] < s["min_score"]:
+            reasons.append(f"predicted to lose: score {r['score']:+.2%} per 20 sessions held")
         if key.startswith("crypto:") and not _crypto_armed():
             reasons.append("crypto not armed: config/risk.yaml allow_crypto is false (Stage K7, owner)")
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
@@ -254,6 +264,17 @@ def assess(conn, cfg: dict) -> list:
     # Rank on the score; more forward trades breaks ties — more evidence wins.
     out.sort(key=lambda x: (-_rank_value(x), -(x.get("forward_trades") or 0)))
     return out
+
+
+def standins(conn) -> list:
+    """[(key, version)] the latest reassessment recorded as stand-ins, best first."""
+    try:
+        r = conn.execute("SELECT summary FROM slot_reviews ORDER BY id DESC LIMIT 1").fetchone()
+    except sqlite3.Error:
+        return []
+    if not r:
+        return []
+    return [tuple(x) for x in (json.loads(r[0]).get("standins") or [])]
 
 
 def _crypto_armed() -> bool:
@@ -371,6 +392,22 @@ def plan(conn, cfg: dict) -> dict:
         taken.add((r["strategy_key"], r["version"]))
         replacements += 1
 
+    # Stand-ins (owner, 2026-09-28): the best eligible strategies not in a slot, for a
+    # slot whose own strategy has no buy signal. Plain stock rules only — pair, value,
+    # rotation and crypto slots have their own signal and exit paths.
+    held_now = held_keys | taken
+    standins = []
+    for r in eligible:
+        if len(standins) >= s["standins"]:
+            break
+        k = (r["strategy_key"], r["version"])
+        if k in held_now or str(r["strategy_key"]).startswith("crypto:"):
+            continue
+        g = genome_for(conn, *k) or {}
+        if g.get("pair") or g.get("value") or g.get("rotation") or g.get("crypto"):
+            continue
+        standins.append(list(k))
+
     halted = killswitch.global_engaged()
     if halted:
         # §25: promotions freeze while the global switch is on. Releases still
@@ -380,6 +417,7 @@ def plan(conn, cfg: dict) -> dict:
     cash = [slot for slot in held if slot not in keep and slot not in {a[0] for a in assigns}]
     return {"held": held, "keep": {k: {kk: vv for kk, vv in v.items() if kk != "row"} for k, v in keep.items()},
             "release": releases, "assign": assigns, "cash_slots": cash, "skipped_correlated": skipped_corr,
+            "standins": standins,
             "eligible": len(eligible), "assessed": len(ranked), "ranked": ranked,
             "settings": s}
 
@@ -408,7 +446,8 @@ def apply(conn, cfg: dict, mode: str = "SIMULATION", actor: str = "slots") -> di
                       f"assigned slot {slot} in LIVE mode", to_state=league.LIVE,
                       classification="LIVE", actor=actor)
     summary = {"released": len(p["release"]), "assigned": len(p["assign"]),
-               "cash_slots": p["cash_slots"], "eligible": p["eligible"], "assessed": p["assessed"]}
+               "cash_slots": p["cash_slots"], "eligible": p["eligible"], "assessed": p["assessed"],
+               "standins": p["standins"]}
     conn.execute("INSERT INTO slot_reviews (at, mode, summary) VALUES (?,?,?)",
                  (at, mode, json.dumps(summary)))
     conn.commit()
