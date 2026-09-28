@@ -82,14 +82,45 @@ class LLMProvider:
         raise NotImplementedError
 
 
+class SpendCapReached(LLMError):
+    """Today's recorded spend has reached the configured daily cap."""
+
+
+# Owner, 2026-09-28: one unattended job spent a whole $2 top-up in 16 minutes.
+DEFAULT_DB = Path(__file__).resolve().parent.parent / "data" / "market_data.db"
+
+
+def spent_today(db_path: Path = DEFAULT_DB) -> float:
+    """Estimated USD recorded in llm_calls since 00:00 UTC today (0 if no table)."""
+    import sqlite3
+    if not Path(db_path).exists():
+        return 0.0
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        c = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=30)
+        try:
+            r = c.execute("SELECT COALESCE(SUM(cost_usd),0) FROM llm_calls "
+                          "WHERE at >= ?", (day,)).fetchone()
+        finally:
+            c.close()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e):
+            return 0.0
+        raise
+    return float(r[0])
+
+
 class DeepSeekProvider(LLMProvider):
     name = "deepseek"
     KEY_FILE = Path.home() / ".deepseek_key"
     URL = "https://api.deepseek.com/chat/completions"
 
     def __init__(self, model: str = "deepseek-chat", key_file: Path | None = None,
-                 attempts: int = 3, timeout: int = 300):
+                 attempts: int = 3, timeout: int = 300,
+                 daily_cap_usd: float | None = None, db_path: Path | None = None):
         self.model = model
+        self.daily_cap_usd = daily_cap_usd
+        self.db_path = db_path or DEFAULT_DB
         self.key_file = key_file or self.KEY_FILE
         self.attempts = attempts
         self.timeout = timeout
@@ -106,6 +137,12 @@ class DeepSeekProvider(LLMProvider):
 
     def complete(self, system: str, user: str, max_tokens: int = 8000,
                  temperature: float = 0.0) -> Response:
+        if self.daily_cap_usd is not None:
+            spent = spent_today(self.db_path)
+            if spent >= self.daily_cap_usd:
+                raise SpendCapReached(
+                    f"daily DeepSeek cap reached: ${spent:.2f} of "
+                    f"${self.daily_cap_usd:.2f} (config ado.daily_cap_usd)")
         payload = json.dumps({
             "model": self.model,
             "messages": [{"role": "system", "content": system},
@@ -159,7 +196,8 @@ def get_provider(cfg: dict | None = None) -> LLMProvider:
     name = a.get("provider", "deepseek")
     if name not in PROVIDERS:
         raise LLMError(f"unknown provider {name!r}; known: {sorted(PROVIDERS)}")
-    return PROVIDERS[name](model=a.get("model", "deepseek-chat"))
+    return PROVIDERS[name](model=a.get("model", "deepseek-chat"),
+                           daily_cap_usd=a.get("daily_cap_usd"))
 
 
 # --- usage metering ---------------------------------------------------------

@@ -277,6 +277,9 @@ ado:
   # cannot be reviewed properly later.
   model: deepseek-chat
   max_tokens: 8000
+  # Estimated spend per UTC day across every DeepSeek caller (llm_calls); a call
+  # is refused once reached. Owner, 2026-09-28, after a $2 top-up went in 16 min.
+  daily_cap_usd: 1.00
   rates:
     input_per_mtok: 0.27
     output_per_mtok: 1.10
