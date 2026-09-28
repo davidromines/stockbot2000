@@ -13,6 +13,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 
+import sqlite3
+
+import knowledge_extract as ke
 import knowledge_factory as kf
 
 FAILED = []
@@ -29,8 +32,11 @@ for script in ("daily.sh", "services.sh", "lab_loop.sh"):
     if not os.path.exists(path):
         continue
     code = "\n".join(l for l in open(path).read().splitlines() if not l.lstrip().startswith("#"))
-    for bad in ("llm_report.py", "knowledge_extract.py", "orchestrator.py", "ado_ship.sh"):
+    for bad in ("llm_report.py", "orchestrator.py", "ado_ship.sh"):
         check(f"{script} does not run {bad}", bad not in code)
+    for m in re.finditer(r"knowledge_extract\.py[^\n]*", code):
+        check(f"{script}: knowledge_extract only as --pending-alert",
+              "--pending-alert" in m.group(0) and "--run" not in m.group(0), m.group(0))
     for m in re.finditer(r"knowledge_factory\.py[^\n]*", code):
         n = re.search(r"--extract\s+(\d+)", m.group(0))
         check(f"{script}: knowledge cycle passes --extract 0", n is not None and int(n.group(1)) == 0,
@@ -38,5 +44,14 @@ for script in ("daily.sh", "services.sh", "lab_loop.sh"):
 
 check("cycle() defaults to no extraction",
       inspect.signature(kf.cycle).parameters["extract"].default == 0)
+
+conn = sqlite3.connect(":memory:")
+conn.execute("CREATE TABLE knowledge_entries(entry_id TEXT)")
+conn.execute("CREATE TABLE knowledge_translations(entry_id TEXT)")
+check("no waiting entries -> no message", ke.pending_alert(conn, send=False) is None)
+conn.executemany("INSERT INTO knowledge_entries VALUES (?)", [("a",), ("b",), ("c",)])
+conn.execute("INSERT INTO knowledge_translations VALUES ('a')")
+msg = ke.pending_alert(conn, send=False)
+check("waiting entries are counted without a model call", msg is not None and msg.startswith("2 "), msg)
 
 sys.exit(1 if FAILED else 0)

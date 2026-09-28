@@ -435,6 +435,32 @@ def pending(conn, limit=50, sources=None):
     return [dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
+# Measured 2026-09-28: 2,185 extractions + 183 verifications cost $2.49 -> ~$0.0012 per entry.
+COST_PER_ENTRY_USD = 0.0012
+
+
+def pending_count(conn) -> int:
+    """Library entries not yet translated. Pure SQL — no model call."""
+    return conn.execute("SELECT COUNT(*) FROM knowledge_entries e "
+                        "LEFT JOIN knowledge_translations t ON t.entry_id = e.entry_id "
+                        "WHERE t.entry_id IS NULL").fetchone()[0]
+
+
+def pending_alert(conn, send=True) -> str | None:
+    """Owner, 2026-09-28: translation is a by-hand DeepSeek job, so the daily run
+    only tells the owner when entries are waiting. Returns the message (None if 0)."""
+    n = pending_count(conn)
+    if not n:
+        return None
+    msg = (f"{n} new strategy-library entries are waiting to be translated "
+           f"(DeepSeek, est. ${n * COST_PER_ENTRY_USD:.2f}). Ask Claude: "
+           f"\"translate the pending library entries\".")
+    if send:
+        import notify
+        notify.notify("Stockbot2000: library entries waiting", msg)
+    return msg
+
+
 def run(conn, provider, limit=50, sources=None, rates=None, workers=1):
     """Translate pending entries. With workers > 1 the model calls run in parallel threads;
     every database write stays on this thread (sqlite writers must not overlap)."""
@@ -493,6 +519,8 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--source", action="append", default=None)
     ap.add_argument("--workers", type=int, default=1)
+    ap.add_argument("--pending-alert", action="store_true",
+                    help="count untranslated entries and notify the owner (no model call)")
     args = ap.parse_args(argv)
 
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=60)
@@ -501,6 +529,8 @@ def main(argv=None):
         init(conn)
         if args.status:
             _status(conn)
+        if args.pending_alert:
+            print(pending_alert(conn) or "no library entries waiting")
         if args.run:
             provider = get_provider(cfg)
             counts = run(conn, provider, limit=args.limit,

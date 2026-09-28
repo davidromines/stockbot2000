@@ -230,7 +230,9 @@ run "[9c/10] Research library sync" $PY library_bridge.py --sync
 # provenance and the multiple-testing ledger. The stages below test what it registers.
 run "[9c2/10] Knowledge Factory cycle" bounded $PY knowledge_factory.py --cycle --extract 0
 # Owner, 2026-09-28: DeepSeek is for development tasks only, never a scheduled job.
-# Translating new library entries (knowledge_extract.py --run) is run by hand.
+# Translating new library entries (knowledge_extract.py --run) is run by hand;
+# this line only counts them and messages the owner when any are waiting.
+run "[9c3/10] Library entries waiting" $PY knowledge_extract.py --pending-alert
 run "[9d/10] Factory templates" $PY strategy_factory.py --generate
 # Owner, 2026-09-26: every strategy idea is paper-tracked from the day it exists,
 # judged or not, so no forward record is lost (paper_all.py; no lifecycle change).
