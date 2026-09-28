@@ -415,6 +415,54 @@ def apply(conn, cfg: dict, mode: str = "SIMULATION", actor: str = "slots") -> di
     return {**summary, "plan": p}
 
 
+def owner_replace(conn, cfg: dict, slot: int, key: str, version: int, reason: str,
+                  mode: str = "LIVE", rows: list | None = None) -> dict:
+    """
+    The owner's explicit replacement of one slot's holder (2026-09-28: slot 5, MACD Pullback
+    -> Free Cash Flow to Price). Skips the min-hold and advantage rules — that is the owner's
+    call — but never the gates that protect money: the new strategy must be eligible
+    (assess), not already in a slot, and not correlated above max_correlation with another
+    holder. Recorded like any replacement: RELEASE then ASSIGN, reason naming the owner.
+    """
+    s = settings(cfg)
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}")
+    held = current(conn, cfg)
+    if slot not in held:
+        raise ValueError(f"no slot {slot}")
+    rows = rows if rows is not None else assess(conn, cfg)
+    r = next((x for x in rows if x["strategy_key"] == key and x["version"] == version), None)
+    if r is None:
+        raise ValueError(f"{key} v{version} is not in the ranking")
+    if not r["eligible"]:
+        raise ValueError(f"{key} v{version} is not eligible: {r['reasons'][0]}")
+    for sl, h in held.items():
+        if h and sl != slot and (h["strategy_key"], h["version"]) == (key, version):
+            raise ValueError(f"{key} v{version} already holds slot {sl}")
+    import strategy_diversity as sd
+    for sl, h in held.items():
+        if h and sl != slot:
+            c = sd.lookup(conn, (key, version), (h["strategy_key"], h["version"]))
+            if c is not None and c > s["max_correlation"]:
+                raise ValueError(f"correlation {c:.2f} with slot {sl} ({h['strategy_key']}) "
+                                 f"is above {s['max_correlation']}")
+    at = _now()
+    old = held[slot]
+    if old:
+        conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, "
+                     "capital_usd, mode, reason) VALUES (?,?,?,?,?,?,?,?)",
+                     (at, slot, "RELEASE", old["strategy_key"], old["version"], None, mode,
+                      f"replaced by owner: {reason}"))
+    ev = {k: r.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
+                                "max_drawdown_pct", "tier", "family", "league", "score")}
+    conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, "
+                 "capital_usd, mode, reason, evidence) VALUES (?,?,?,?,?,?,?,?,?)",
+                 (at, slot, "ASSIGN", key, version, s["capital_per_slot"], mode,
+                  f"owner decision: {reason}", json.dumps(ev, default=str)))
+    conn.commit()
+    return {"slot": slot, "released": old, "assigned": (key, version), "score": r.get("score")}
+
+
 # --- I4: the P&L-first leaderboard --------------------------------------------
 
 def leaderboard(conn, cfg: dict) -> list:
@@ -476,6 +524,9 @@ def main(argv=None) -> int:
     ap.add_argument("--mode", default="SIMULATION", choices=MODES)
     ap.add_argument("--leaderboard", action="store_true")
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--owner-replace", nargs=3, metavar=("SLOT", "KEY", "VERSION"),
+                    help="the owner's explicit replacement of one slot's holder (gates still apply)")
+    ap.add_argument("--reason", default="owner's instruction")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if args.mode == "LIVE":
@@ -490,6 +541,13 @@ def main(argv=None) -> int:
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=60)
     conn.row_factory = sqlite3.Row
     init(conn)
+    if args.owner_replace:
+        sl, key, ver = args.owner_replace
+        r = owner_replace(conn, cfg, int(sl), key, int(ver), args.reason, args.mode)
+        old = r["released"]
+        print(f"slot {r['slot']}: {old['strategy_key'] + ' v' + str(old['version']) if old else 'CASH'} "
+              f"-> {key} v{ver} (score {r['score']:+.2%}) [{args.mode}]")
+        return 0
     if args.apply:
         r = apply(conn, cfg, args.mode)
         print(render_plan(r["plan"]))
