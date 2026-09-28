@@ -13,7 +13,9 @@ import runtime  # noqa: F401
 from risk_engine import RiskEngine, load_limits
 from signals import Signal, SignalError
 
-LIMITS = load_limits()
+# Pinned: the production config/risk.yaml may carry the operator's switches (account type,
+# limited_margin_settled_funds); these tests check the rules, not today's settings.
+LIMITS = {**load_limits(), "account_type": "cash", "limited_margin_settled_funds": True}
 E = RiskEngine(LIMITS)
 
 GOOD_QUOTE = {"price": 50.0, "dollar_volume_20": 20_000_000.0, "market_cap": 5e9}

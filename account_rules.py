@@ -71,12 +71,17 @@ def unsettled_proceeds(conn, today: str, mode: str, settlement_days: int = 1,
 
 
 def day_trades(conn, today: str, mode: str, window: int = 5) -> int:
-    """Day trades (same-session filled buy and sell of one symbol) in the last `window` weekdays."""
+    """Day trades in the last `window` weekdays: a symbol BOUGHT and then SOLD in the same
+    session. Selling shares held overnight and buying back the same day is not one (owner,
+    2026-09-28: SNDK sold then bought on 09-25 was counted and blocked every buy)."""
     start = weekdays_back(date.fromisoformat(today), window - 1).isoformat()
     rows = conn.execute(
-        "SELECT session, symbol FROM orders WHERE mode=? AND state IN (?,?) AND filled_quantity > 0 "
-        "AND session >= ? GROUP BY session, symbol HAVING SUM(side='BUY') > 0 AND SUM(side='SELL') > 0",
-        (mode, *FILLED, start)).fetchall()
+        "SELECT b.session, b.symbol FROM orders b JOIN orders s ON s.mode=b.mode AND s.session=b.session "
+        "AND s.symbol=b.symbol AND s.side='SELL' AND s.state IN (?,?) AND s.filled_quantity > 0 "
+        "AND s.created_at > b.created_at "
+        "WHERE b.mode=? AND b.side='BUY' AND b.state IN (?,?) AND b.filled_quantity > 0 AND b.session >= ? "
+        "GROUP BY b.session, b.symbol",
+        (*FILLED, mode, *FILLED, start)).fetchall()
     return len(rows)
 
 

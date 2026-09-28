@@ -49,4 +49,16 @@ check("limited margin: settled-funds rule on by default", why is not None and "s
 a, why = ar.check_buy(pf, {**lm, "limited_margin_settled_funds": False}, 20.0)
 check("limited margin: operator switch off -> buying power governs", a == 20.0 and why is None, (a, why))
 
+# day trades: bought then sold in one session counts; sold (held overnight) then bought does not
+d = sqlite3.connect(":memory:")
+d.execute("CREATE TABLE orders (client_order_id TEXT, created_at TEXT, session TEXT, symbol TEXT, side TEXT, "
+          "state TEXT, filled_quantity REAL, avg_fill_price REAL, mode TEXT)")
+rows = [("2026-09-25T13:34:27", "2026-09-25", "SNDK", "SELL"), ("2026-09-25T13:34:50", "2026-09-25", "SNDK", "BUY"),
+        ("2026-09-28T14:40:53", "2026-09-28", "OKE", "BUY"), ("2026-09-28T14:44:09", "2026-09-28", "OKE", "SELL"),
+        ("2026-09-28T14:41:06", "2026-09-28", "JBL", "BUY"), ("2026-09-28T14:44:15", "2026-09-28", "JBL", "SELL")]
+for i, (at, sess, sym, side) in enumerate(rows):
+    d.execute("INSERT INTO orders VALUES (?,?,?,?,?,'FILLED',1,1,'LIVE')", (str(i), at, sess, sym, side))
+n = ar.day_trades(d, "2026-09-28", "LIVE")
+check("sell-then-buy is not a day trade; buy-then-sell is (2, not 3)", n == 2, n)
+
 sys.exit(1 if FAILED else 0)
