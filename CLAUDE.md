@@ -99,9 +99,13 @@ backtest with dead companies loses -0.07..-0.47%/trade; slot 1 sells SNDK); ASSI
 momentum, earnings surprise (age=10 hold=60 q=0.9), ETF rotation assets; keep slots 4-5. Both stock picks
 PASS unseen-vs-random and bear-vs-random. Bear check across 243: PASS 203 / FAIL 40.
 
-**External block — DeepSeek balance exhausted (HTTP 402 "Insufficient Balance") at ~01:40 UTC 09-28**
-after 1,572 paper-title translations (2,199 left). Owner tops up; until then [9c2] extraction and ADO
-builds fail (the daily job continues). Title yield: 121 of ~1,600 translatable (7.6%, not the trial's 25%).
+**DeepSeek balance — topped up 09-28 ~01:40 UTC, exhausted AGAIN ~01:58 UTC** after 2,183 more
+paper translations (14 left) and part of the knowledge cycle (40 internal entries failed 402). Library now
+3,933 of 3,987 translated (yes 31, needs interpretation 319, no 3,583); cycle reproduced 106 -> queued.
+Until the next top-up, [9c2] extraction and ADO builds fail (the daily job continues). Rerun:
+`knowledge_extract.py --run --source pwb_papers --workers 4` then `knowledge_factory.py --cycle`.
+Nightly pipeline cron did not run 09-27 (no log); run by hand 09-28 01:59 as `sb-night-pipeline`
+(budget 70, systemd cap ends ~05:40 UTC).
 
 **Uncommitted on purpose:** `options_live.py` + `tests/regression/test_options_live.py` (R7 real-money
 options trader, finished draft). Auto mode blocked running its fake-broker test AND moving the files.
