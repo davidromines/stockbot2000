@@ -414,6 +414,7 @@ slots:
   # return per trade), after min_hold_sessions, at most max_replacements_per_day.
   min_advantage_score: 0.002
   min_hold_sessions: 3
+  entry_retry_minutes: 20   # owner 2026-09-28: retry the buying pass every 20 min while a slot is empty
   max_replacements_per_day: 2
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
