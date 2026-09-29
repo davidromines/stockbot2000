@@ -2,7 +2,7 @@
 
 - component: data
 - priority: high
-- state: TODO
+- state: IN_PROGRESS
 - branch: ado/task-058
 - created: 2026-09-29T05:10:00+00:00
 - dependencies: none
@@ -41,3 +41,6 @@ EDGAR sources (User-Agent header = sec_fundamentals.UA; at most 8 requests per s
 1. PYTHONPATH=. venv/bin/python tests/regression/test_edgar_financials.py exits 0.
 2. The test checks: parse_index keeps 10-Q/10-K rows only and extracts cik, filed and adsh (including a company name with spaces); et_accepted converts UTC to New York time in summer (EDT) and winter (EST); qtrs gives 0 for instants, 1 for a quarter, 4 for a year; fact_rows keeps only WANTED tags with the matching accn and formats ddate as YYYYMMDD; load_filing writes one sec_filings row with accepted in New York time and period/filed without dashes, stores the facts, and returns 0 on a second call (already present); a filing whose ticker_raw is set keeps its ticker after a reload; run() records the processed day and honours only_ciks; a 404 index (None) records nothing for that day.
 3. At least 10 lines beginning with `  PASS`; ./run_tests.sh reports ALL PASS.
+
+## Review notes (2026-09-29)
+DeepSeek's response hit the 8,000-token output cap: the module arrived complete, the test did not; Claude wrote the test against the acceptance criteria. Fixed in review: index columns read in reverse (CIK taken as the file name — every filing would have been skipped); companyfacts not unwrapped from its "facts" key (every filing would have stored zero facts; caught by the test); a per-run cache holding every company's facts JSON (several MB each, hundreds per peak day) removed; config loaded from the wrong module. Live check: 8x8's 10-Q of 2026-08-05 loads 69 facts; its 2026-03-31 total assets equal the quarterly data set's value.
