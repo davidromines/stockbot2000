@@ -2,7 +2,7 @@
 
 - component: research
 - priority: high
-- state: TODO
+- state: COMPLETE
 - branch: ado/task-057
 - created: 2026-09-29T02:05:00+00:00
 - dependencies: none
@@ -32,5 +32,5 @@ Prices: table prices(ticker TEXT, date TEXT 'YYYY-MM-DD', open REAL, high REAL, 
 
 ## Acceptance criteria
 1. PYTHONPATH=. venv/bin/python tests/regression/test_kalman_pair.py exits 0.
-2. The test checks: on the synthetic cointegrated pair the filter's slope converges near 1.5 (within 0.2 over the last 100 days); e has mean near 0; positions only take values -1/0/+1 and switch from 0 to +1 only when e < -sqrt(q); backtest trades fill at the open of the day after the signal day; mean_net < mean_gross; mode long_leg never records a short side; spread-mode backtest on the synthetic mean-reverting pair has positive mean_gross; max_drawdown is between 0 and 1; load() keeps only dates with both closes and SPY present.
+2. The test checks: on the synthetic cointegrated pair the filter's slope converges near 1.5 (within 0.2 over the last 100 days); e has mean near 0; positions only take values -1/0/+1 and switch from 0 to +1 only when e < -sqrt(q); backtest trades fill at the open of the day after the signal day; mean_net < mean_gross; mode long_leg never records a short side; the spread return is exact on a hand-made move (long gains and short loses when y recovers against x; sized on both legs' notional) — changed in review 2026-09-29: a synthetic "must make money" check depends on noise vs filter settings, not on the code; max_drawdown is between 0 and 1; load() keeps only dates with both closes and SPY present.
 3. At least 10 lines beginning with `  PASS`; ./run_tests.sh reports ALL PASS.
