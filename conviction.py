@@ -189,7 +189,10 @@ def _load_panel(conn, cfg, start: str, end: str) -> pd.DataFrame:
     # never by a current share count, which would be look-ahead precisely where
     # it does most damage — dilution is what distressed companies do next.
     extra = [c for c in ("ebit_to_ev", "roic") if c not in FUNDAMENTAL_COLS]
-    cols = ",".join(f"d.{c}" for c in FUNDAMENTAL_COLS)
+    # market_cap comes from `fundamentals` (below). daily_fundamentals also carries it since
+    # 2026-09-27, and selecting both gave the frame two market_cap columns — the paper step
+    # crashed on 2026-09-29 (df[SIZE_COL] returned a DataFrame).
+    cols = ",".join(f"d.{c}" for c in FUNDAMENTAL_COLS if c != "market_cap")
     join_extra = "".join(f", fu.{c}" for c in extra + ["market_cap"])
     q = f"""
         SELECT d.ticker, d.date, p.close, d.days_since_filing, {cols}{join_extra}
