@@ -114,6 +114,22 @@ pos = st.open_positions(c, "SIMULATION")
 check("stand-in with only an already-bought name is skipped for the next",
       pos.get(1, {}).get("strategy_key") == "sc" and pos[1]["symbol"] == "AAA", pos)
 
+# idle rule: a strategy whose entry rule fired on 0 recent sessions is not used (09-28)
+import signal_activity as sa
+_act, _rf = sa.activity, pt._recent_frame
+pt._recent_frame = lambda conn, cfg: pd.DataFrame({"ticker": [], "date": []})
+sa.activity = lambda conn, cfg, k, v, df=None, sessions=60: {
+    "measurable": True, "active_sessions": 0 if k == "dec" else 12, "last_signal": None}
+idle = slots._idle_check(None, {}, {"min_active_sessions": 1, "activity_sessions": 60})
+check("idle strategy flagged", "0 of the last 60" in idle({"strategy_key": "dec", "version": 1}))
+check("active strategy not flagged", idle({"strategy_key": "live", "version": 1}) == "")
+off = slots._idle_check(None, {}, {"min_active_sessions": 0})
+check("rule off with min_active_sessions 0", off({"strategy_key": "dec", "version": 1}) == "")
+sa.activity = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+failing = slots._idle_check(None, {}, {"min_active_sessions": 1, "activity_sessions": 60})
+check("measurement error fails open", failing({"strategy_key": "x", "version": 1}) == "")
+sa.activity, pt._recent_frame = _act, _rf
+
 # stand-in list: one per family, none from a family already in a slot
 slots.genome_for = lambda conn, k, v: base.GENOME
 c = base.fixture()

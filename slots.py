@@ -87,6 +87,11 @@ DEFAULTS = {
     # with the best eligible strategy not in a slot that does (a stand-in). The daily
     # reassessment records this many, best first, in slot_reviews.
     "standins": 5,
+    # Owner, 2026-09-28: a strategy whose entry rule fired on fewer than this many of the
+    # last `activity_sessions` sessions cannot hold or take a slot (a "December effect"
+    # rule held slot 1 in September). Fund-type strategies are not measured. 0 = off.
+    "min_active_sessions": 1,
+    "activity_sessions": 60,
 }
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
@@ -302,6 +307,33 @@ def _rank_value(r: dict) -> float:
 
 # --- I3: allocation and replacement -------------------------------------------
 
+def _idle_check(conn, cfg, s):
+    """A cached function row -> reason string if the strategy's entry rule is idle, else ''.
+    Fails open (''): the rule is about wasted slots, not risk, and a measurement error must
+    not empty the slots."""
+    n, window = int(s.get("min_active_sessions") or 0), int(s.get("activity_sessions") or 60)
+    cache, frame = {}, {}
+
+    def idle(r):
+        if n <= 0:
+            return ""
+        k = (r["strategy_key"], r["version"])
+        if k not in cache:
+            try:
+                import signal_activity as sa
+                if "df" not in frame:
+                    import paper_trading as pt
+                    frame["df"] = pt._recent_frame(conn, cfg)
+                a = sa.activity(conn, cfg, k[0], k[1], df=frame["df"], sessions=window)
+                cache[k] = (f"entry rule fired on {a['active_sessions']} of the last {window} sessions"
+                            if a["measurable"] and "error" not in a and (a["active_sessions"] or 0) < n else "")
+            except Exception as e:                           # noqa: BLE001 — fail open
+                log.warning(f"activity check {k[0]}: {type(e).__name__}: {e}")
+                cache[k] = ""
+        return cache[k]
+    return idle
+
+
 def plan(conn, cfg: dict) -> dict:
     """What the slots should be, and the releases and assignments that implies."""
     s = settings(cfg)
@@ -311,6 +343,7 @@ def plan(conn, cfg: dict) -> dict:
     by_key = {(r["strategy_key"], r["version"]): r for r in ranked}
     eligible = [r for r in ranked if r["eligible"]]
 
+    idle = _idle_check(conn, cfg, s)
     releases, keep = [], {}
     for slot, h in held.items():
         if h is None:
@@ -320,6 +353,8 @@ def plan(conn, cfg: dict) -> dict:
             releases.append((slot, h, "no longer in the forward pool"))
         elif not r["eligible"]:
             releases.append((slot, h, f"no longer eligible: {r['reasons'][0]}"))
+        elif idle(r):
+            releases.append((slot, h, f"no longer eligible: {idle(r)}"))
         else:
             keep[slot] = {**h, "row": r}
 
@@ -356,6 +391,8 @@ def plan(conn, cfg: dict) -> dict:
             continue
         if is_crypto(r["strategy_key"]) and held_crypto >= s["max_crypto_slots"]:
             continue
+        if idle(r):                          # measured last: only candidates about to be assigned
+            continue
         slot = free.pop(0)
         assigns.append((slot, r, "eligible and a slot is open"))
         held_fams[r["family"]] += 1
@@ -388,7 +425,7 @@ def plan(conn, cfg: dict) -> dict:
             and sum(1 for sl, h in keep.items() if sl != weakest_slot and is_crypto(h["strategy_key"]))
             >= s["max_crypto_slots"])
         held_for = _sessions_since(conn, w["since"])
-        if adv < need or family_clash or held_for < s["min_hold_sessions"]:
+        if adv < need or family_clash or held_for < s["min_hold_sessions"] or idle(r):
             continue
         unit = (lambda v: f"{v:+.2%}/trade") if scored else (lambda v: f"${v:+.2f} net")
         releases.append((weakest_slot, w, f"replaced by {r['strategy_key']}: "
@@ -415,7 +452,7 @@ def plan(conn, cfg: dict) -> dict:
         if k in held_now or str(r["strategy_key"]).startswith("crypto:") or r.get("family") in used_fams:
             continue
         g = genome_for(conn, *k) or {}
-        if g.get("pair") or g.get("value") or g.get("crypto"):
+        if g.get("pair") or g.get("value") or g.get("crypto") or idle(r):
             continue
         standins.append(list(k))
         used_fams.add(r.get("family"))
