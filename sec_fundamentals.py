@@ -167,8 +167,9 @@ def quarters(start_year: int = 2009, end_year: int | None = None):
             yield y, q
 
 
-def fetch(start_year: int = 2009, rate: float = 0.8) -> int:
-    """Download the quarterly archives. Resumable — cached files are kept."""
+def fetch(start_year: int = 2009, rate: float = 0.8, new: list | None = None) -> int:
+    """Download the quarterly archives. Resumable — cached files are kept. Paths of newly
+    downloaded archives are appended to `new` when given (for --update)."""
     CACHE.mkdir(parents=True, exist_ok=True)
     s = requests.Session()
     s.headers.update({"User-Agent": UA})
@@ -196,6 +197,8 @@ def fetch(start_year: int = 2009, rate: float = 0.8) -> int:
             log.warning(f"{y}Q{q}: HTTP {r.status_code}"); continue
         dest.write_bytes(r.content)
         got += 1
+        if new is not None:
+            new.append(dest)
         log.info(f"  {y}Q{q}: {len(r.content)/1e6:.1f} MB  ({got} downloaded)")
         time.sleep(rate)
     log.info(f"Fetched {got}, already had {have}, {missing} not published")
@@ -230,7 +233,7 @@ def _ticker_map(conn) -> dict:
     return m
 
 
-def load(conn, limit: int | None = None) -> None:
+def load(conn, limit: int | None = None, files: list | None = None) -> None:
     """
     Parse cached quarters into `sec_filings` and `sec_facts`.
 
@@ -246,7 +249,7 @@ def load(conn, limit: int | None = None) -> None:
     tmap = _ticker_map(conn)
     log.info(f"CIK->ticker map: {len(tmap):,} entries")
 
-    files = sorted(CACHE.glob("*.zip"))
+    files = sorted(files) if files is not None else sorted(CACHE.glob("*.zip"))
     if limit:
         files = files[:limit]
     done = conn.execute("SELECT COUNT(*) FROM sec_facts").fetchone()[0]
@@ -369,11 +372,21 @@ def main():
     ap.add_argument("--load", action="store_true")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--status", action="store_true")
+    ap.add_argument("--update", action="store_true",
+                    help="daily: download any newly published quarter and parse only those "
+                         "(owner 2026-09-29: filings after 30 June were never loaded)")
     a = ap.parse_args()
     cfg = load_config()
     runtime.be_nice()
     conn = storage.connect(cfg["database"]["market_data_path"])
     storage.init_db(conn); init(conn)
+    if a.update:
+        new = []
+        fetch(start_year=time.gmtime().tm_year - 1, new=new)
+        if new:
+            load(conn, files=new)
+        else:
+            log.info("no new quarterly archive published")
     if a.fetch:
         fetch()
     if a.load:
