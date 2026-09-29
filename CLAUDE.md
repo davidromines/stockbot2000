@@ -306,7 +306,7 @@ O-ins insider Form 4; Q3 minute history; Phase 6 report.
 - FINRA's CDN returns 403 to Python's default user agent.
 - `strategy_factory --generate` used to re-mint a template after discovery recycled it; fixed,
   but any new registration path must check `so.defined_before`.
-- Auto mode blocks: git push, merging live-trading code, and writing real-money order code.
+- Auto mode blocks merging live-trading code and writing real-money order code. `git push origin main` WORKS as a bare command (allowed in .claude/settings.local.json); compound `cd ...; git push | tail` is blocked.
 
 ### SESSION HANDOFF — 2026-09-25/26 overnight session
 
