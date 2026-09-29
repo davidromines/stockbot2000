@@ -73,6 +73,15 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-09-29 early — idle rule, Stage AA, reviewer page
+
+- `signal_activity.py` (DeepSeek TASK-056 + review) and the slots idle rule (`slots.min_active_sessions` 1 of
+  `activity_sessions` 60; measured only for candidates about to be chosen; fails open). Tuesday's [9i] releases slot 1
+  (December effect, 0 of 60) -> "Price and Earning Momentum" reproduction; its stand-in CF is sold at the open.
+- Stage AA `kalman_pair.py` (TASK-057) built and run: fails after costs/next-open fills (see ROADMAP_INTEGRATION AA).
+- Tracker v41 has "For the independent reviewer" (5 questions) for the owner to hand to the reviewer.
+- DeepSeek spend 09-29: ~$0.012 for both tasks.
+
 ### LIVE 2026-09-28 (Monday) — first session on the new slots
 
 - 13:36 UTC entry pass bought nothing: account_rules took max(ledger, broker) unsettled and the ledger's

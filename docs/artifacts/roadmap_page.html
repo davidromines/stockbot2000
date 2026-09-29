@@ -187,8 +187,8 @@
     <h1>Stockbot2000</h1>
     <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
     <div class="meta-row">
-      <span>UPDATED 2026-09-28</span>
-      <span>13 PHASES + ADDENDA A–E + STAGES K–T</span>
+      <span>UPDATED 2026-09-29</span>
+      <span>13 PHASES + ADDENDA A–E + STAGES K–AA</span>
       <span>STATUS: LIVE SINCE 09-24 15:39 UTC · REAL ORDERS, AGENTIC ACCOUNT · STAGES K–Z BUILT · DAILY RUN REHEARSED · DEEPSEEK FOR DEVELOPMENT ONLY</span>
     </div>
   </header>
@@ -197,8 +197,8 @@
     <div class="stat done"><div class="n">11</div><div class="l">Phases complete</div></div>
     <div class="stat progress"><div class="n">1</div><div class="l">At 85% (smoke test: Ollama)</div></div>
     <div class="stat done"><div class="n">3</div><div class="l">Built 09-24 — Phase 13, Addenda A, C</div></div>
-    <div class="stat done"><div class="n">1 / 5</div><div class="l">Slots holding today (SNDK); $70.92 cash; slots 1–3 rotate at Monday’s open</div></div>
-    <div class="stat done"><div class="n">12</div><div class="l">Stages built 09-25 to 09-28 — K, L, M, O, P, Q, R, S, T, U–Z</div></div>
+    <div class="stat done"><div class="n">5 / 5</div><div class="l">Slots holding since Monday 10 AM PT (CF, HD, DBC, DELL, MU); cash $0</div></div>
+    <div class="stat done"><div class="n">13</div><div class="l">Stages built 09-25 to 09-29 — K, L, M, O, P, Q, R, S, T, U–Z, AA</div></div>
     <div class="stat"><div class="n">0</div><div class="l">Strategies with a proven edge</div></div>
   </div>
 
@@ -216,11 +216,21 @@
   </div>
 
   <div class="questions">
-    <h2 style="margin-bottom:6px;">Next on the VM</h2>
-    <p class="section-cap" style="margin-bottom:12px;">As of Sunday evening 27 September (PT). All automatic.</p>
-    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Monday 07:00 UTC (midnight PT): first real daily run of everything built 09-27</div><div class="q-body">Rehearsed stage by stage on 09-27/28 and fixed where it broke (a crash and two memory overruns). Expected to finish ~09:00 UTC (2 AM PT). About 1,400 paper funds take their first step.</div></div></div>
-    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Monday’s open (6:30 AM PT): slots 1–3 change holder</div><div class="q-body">Slots 1–3 (Rising 200 variants, which lose once dead companies are included; slot 1 sells SNDK) move to fundamental price momentum, earnings surprise and ETF asset-class rotation. Slots 4–5 keep their holders. Both new stock picks beat random entry in the unseen 2023–26 window and in bear-market entries. Check with <span class="mono">/positions</span> in Telegram.</div></div></div>
-    <div class="q-item"><div class="q-mark partial">3</div><div><div class="q-title">Phase 6 research-integrity report</div><div class="q-body">Built 09-24, never run. About 10 minutes on the VM, after Monday’s daily run.</div></div></div>
+    <h2 style="margin-bottom:6px;">For the independent reviewer</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Where an outside view would help most. State as of Tuesday 29 September, before the open. Nothing here is proven: 0 strategies have a demonstrated edge.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Slot selection rests mostly on backtests</div><div class="q-body">Four of five slot holders have fewer than 10 forward trades; their “predicted” return is a backtest with synthetic dead companies (generator v5c), shifting to paper results as trades close. Is the score (per 20 sessions held, losing backtest out, predicted-loser out, idle rule out, one per family, correlation ≤ 0.7) a sound way to pick five live strategies with this little forward evidence?</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Stand-ins</div><div class="q-body">When a slot’s own strategy has no buy signal, the next eligible strategy of another family trades the slot (its own stop and exit). Two of today’s five positions are stand-ins (CF, DBC). Does this dilute the ranking’s meaning, or is it the right use of idle cash?</div></div></div>
+    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">Risk rules loosened on the owner’s instruction (28 Sep)</div><div class="q-body">(a) Robinhood’s buying power governs on this limited-margin account (settled-cash rule off by the owner’s switch); (b) a day trade is counted as buy-then-sell only (sell-then-buy of an overnight position no longer counts). The pattern-day-trader limit (3 per 5 sessions under $25k) is still enforced. Are these readings of the rules correct?</div></div></div>
+    <div class="q-item"><div class="q-mark open">4</div><div><div class="q-title">Live bugs found on the first full day</div><div class="q-body">Four, all fixed the same day with tests: settled cash double-counted (no buys at the open); 118 broker calls → throttled → halted; stand-in positions sold 3 minutes after purchase (used 2 day trades); ETF-rotation strategies lost their rule definition. What else in the live path should get a test before it fails in production?</div></div></div>
+    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Published strategies checked this week</div><div class="q-body">Chan’s Kalman ETF pairs (claimed 26%/yr, Sharpe 2.4) lose after costs under next-open fills, 2013–today (Stage AA). A self-improving LLM-agent framework (ATLAS) was not adopted: its own results lose 5.9% and its backtest overlaps the model’s training data. Is dismissing these the right call?</div></div></div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Next, automatically</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Times Pacific.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Tuesday midnight: daily run — slot 1 reassigned</div><div class="q-body">Slot 1’s December-effect holder fired 0 times in 60 sessions and is released by the new idle rule; “Price and Earning Momentum” (+1.78%) takes it. Its stand-in position (CF) is sold at the open.</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">During market hours</div><div class="q-body">Stops and exits every 5 minutes; the buying pass retries every 20 minutes while a slot is empty; evening report at 2:10 PM with the five-slot table.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">3</div><div><div class="q-title">Phase 6 research-integrity report</div><div class="q-body">Built 09-24, still not run.</div></div></div>
   </div>
 
   <div class="questions">
@@ -235,44 +245,36 @@
 
   <section class="dataset">
     <h2>The five slots — what the system is doing</h2>
-    <p class="cap">Real Robinhood account (Agentic), as of Friday 25 September’s last mark. <b>Predicted</b> = the ranking’s expected net return per 20 trading days held (backtest including dead companies, shifting to the paper record as trades close). <b>Current</b> = the open position against its real fill. Updated by hand after each change until this page reads the account directly.</p>
+    <p class="cap">Real Robinhood account (Agentic), marked at Monday 28 September’s close. <b>Predicted</b> = the ranking’s expected net return per 20 trading days held (backtest including dead companies, shifting to the paper record as trades close). <b>Now</b> = the open position against its real fill.</p>
     <div class="figures">
-      <div class="figure"><div class="v">$89.86</div><div class="k">account value</div></div>
-      <div class="figure"><div class="v">$70.92</div><div class="k">cash (4 slots empty)</div></div>
-      <div class="figure"><div class="v">+$2.46</div><div class="k">realized, 4 closed trades</div></div>
-      <div class="figure"><div class="v neg">−$0.25</div><div class="k">unrealized, 1 open position</div></div>
+      <div class="figure"><div class="v">$89.21</div><div class="k">account value</div></div>
+      <div class="figure"><div class="v">$0.00</div><div class="k">cash — all five slots invested</div></div>
+      <div class="figure"><div class="v">+$1.59</div><div class="k">realized, 7 closed trades since 24 Sep</div></div>
+      <div class="figure"><div class="v neg">−$0.09</div><div class="k">unrealized, 5 open positions</div></div>
     </div>
     <div class="scroll"><table class="dist">
-      <caption>Today</caption>
-      <thead><tr><th>Slot</th><th>Strategy</th><th>Holding</th><th class="r">Entry → now</th><th class="r">Current</th><th class="r">Predicted</th><th>Monday</th></tr></thead>
+      <caption>Open positions</caption>
+      <thead><tr><th>Slot</th><th>Holder</th><th>Bought by</th><th>Holding</th><th class="r">Entry → now</th><th class="r">Now</th><th class="r">Predicted</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>Rising 200 · Stop 2.5</td><td>SNDK $19.26</td><td class="num">1,801.60 → 1,778.25</td><td class="num neg">−1.3% (−$0.25)</td><td class="num neg">−0.33%*</td><td>released; sells SNDK</td></tr>
-        <tr><td>2</td><td>Rising 200 · Stop 3.3</td><td>cash</td><td class="num">—</td><td class="num">—</td><td class="num neg">−0.07%*</td><td>released</td></tr>
-        <tr><td>3</td><td>Rising 200 · Stop 2.6</td><td>cash</td><td class="num">—</td><td class="num">—</td><td class="num neg">−0.47%*</td><td>released</td></tr>
-        <tr><td>4</td><td>Rising 200 · Stop 5.0 c</td><td>cash — waiting for its buy signal</td><td class="num">—</td><td class="num">—</td><td class="num">+1.78%</td><td>kept</td></tr>
-        <tr><td>5</td><td>Fundamental Price Momentum (hold 20, top 20%)</td><td>cash — buys at Monday’s open</td><td class="num">—</td><td class="num">—</td><td class="num">+2.48%</td><td>new holder</td></tr>
+        <tr><td>1</td><td>December effect (released at Tuesday’s run)</td><td>stand-in: Bollinger low</td><td>CF $20.00</td><td class="num">115.74 → 115.40</td><td class="num neg">−0.3% (−$0.06)</td><td class="num">—</td></tr>
+        <tr><td>2</td><td>Lab search strategy 7a74b7</td><td>holder</td><td>HD $20.00</td><td class="num">293.35 → 289.83</td><td class="num neg">−1.2% (−$0.24)</td><td class="num">+2.09%</td></tr>
+        <tr><td>3</td><td>Earnings Surprise (no signal since 2 July)</td><td>stand-in: ETF Rotation</td><td>DBC $18.38</td><td class="num">32.49 → 32.48</td><td class="num">0.0% (−$0.01)</td><td class="num">+2.00%</td></tr>
+        <tr><td>4</td><td>Rising 200 · Stop 5.0 c</td><td>holder</td><td>DELL $10.92</td><td class="num">540.25 → 543.12</td><td class="num">+0.5% (+$0.06)</td><td class="num">+1.97%</td></tr>
+        <tr><td>5</td><td>Fundamental Price Momentum</td><td>holder</td><td>MU $20.00</td><td class="num">1,045.98 → 1,054.35</td><td class="num">+0.8% (+$0.16)</td><td class="num">+2.98%</td></tr>
       </tbody></table></div>
-    <p class="note">* Backtest per trade with dead companies included; it loses money, which is why slots 1–3 are released Monday.</p>
+    <p class="note">Tuesday’s daily run releases slot 1 (its rule fired 0 times in 60 sessions) and assigns “Price and Earning Momentum” (+1.78%). Rules in force: losing backtest out; predicted loser out; idle rule out; one slot per strategy family; weekly-return correlation ≤ 0.7 between slots; stand-ins fill a slot whose own strategy has no signal.</p>
     <div class="scroll" style="margin-top:14px;"><table class="dist">
-      <caption>Monday’s open (6:30 AM PT): the three strategies taking slots 1–3 (plan re-run Sunday night)</caption>
-      <thead><tr><th>Slot</th><th>Strategy</th><th class="r">Predicted</th><th class="r">Backtest / trade</th><th>Paper record</th></tr></thead>
+      <caption>Every closed live trade. The 25 Sep sells were the exit-rule bug; OKE and JBL on 28 Sep were the stand-in bug (both fixed).</caption>
+      <thead><tr><th>Date</th><th>Symbol</th><th>Strategy</th><th class="r">Entry → exit</th><th class="r">Stake</th><th class="r">Result</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>Earnings Surprise (10 days after a beat, hold 60, top 10%)</td><td class="num">+2.00%</td><td class="num">+1.52%</td><td>none yet</td></tr>
-        <tr><td>2</td><td>ETF Rotation — best asset class over 12 months</td><td class="num">+1.86%</td><td class="num">+0.98%</td><td>none yet</td></tr>
-        <tr><td>3</td><td>Book-to-market, size and momentum (reproduced from a published paper)</td><td class="num">+1.53%</td><td class="num">—</td><td>none yet</td></tr>
-      </tbody></table></div>
-    <p class="note">Stand-ins (fill a slot whose own strategy has no buy signal): Standardized Unexpected Earnings, Free Cash Flow to Price, Momentum 9-1, Debt Reduction, a book-to-market/size/momentum reproduction. Every slot is a different strategy family (your rule, Sunday night); the 0.7 correlation limit also applies.</p>
-    <p class="note new"><b>New rules from Sunday night:</b> a strategy predicted to lose can no longer hold or take a slot; an idle slot is filled by the best stand-in with a buy signal; the evening Telegram report now opens with this five-slot table.</p>
-    <p class="note new"><b>Slot 5 replaced on your instruction (Sunday evening PT).</b> MACD Pullback was predicted to lose (−0.69%) and never bought anything. Slot 5 now holds Fundamental Price Momentum (+2.48%, 5 paper trades +$5.33), the top strategy; Free Cash Flow to Price moves with it (correlation 0.73) and is a stand-in instead.</p>
-    <div class="scroll" style="margin-top:14px;"><table class="dist">
-      <caption>Every closed live trade. All four sells on 25 September came from the exit-rule bug (since fixed), not from planned exits.</caption>
-      <thead><tr><th>Slot</th><th>Symbol</th><th>Strategy</th><th class="r">Entry → exit</th><th class="r">Stake</th><th class="r">Result</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>SNDK</td><td>Rising 200 · Stop 2.5</td><td class="num">1,767.07 → 1,795.10</td><td class="num">$20.00</td><td class="num">+$0.32</td></tr>
-        <tr><td>2</td><td>DELL</td><td>Rising 200 · Stop 3.3</td><td class="num">532.05 → 548.25</td><td class="num">$20.00</td><td class="num">+$0.61</td></tr>
-        <tr><td>3</td><td>MRNA</td><td>Rising 200 · Stop 2.6</td><td class="num">185.31 → 196.21</td><td class="num">$20.00</td><td class="num">+$1.18</td></tr>
-        <tr><td>4</td><td>TWST</td><td>Rising 200 · Stop 5.0 c</td><td class="num">172.62 → 180.00</td><td class="num">$8.45</td><td class="num">+$0.36</td></tr>
-        <tr class="highlight"><td colspan="4">Total</td><td class="num">$68.45</td><td class="num">+$2.46</td></tr>
+        <tr><td>25 Sep</td><td>SNDK</td><td>Rising 200 · Stop 2.5</td><td class="num">1,767.07 → 1,795.10</td><td class="num">$20.00</td><td class="num">+$0.32</td></tr>
+        <tr><td>25 Sep</td><td>DELL</td><td>Rising 200 · Stop 3.3</td><td class="num">532.05 → 548.25</td><td class="num">$20.00</td><td class="num">+$0.61</td></tr>
+        <tr><td>25 Sep</td><td>MRNA</td><td>Rising 200 · Stop 2.6</td><td class="num">185.31 → 196.21</td><td class="num">$20.00</td><td class="num">+$1.18</td></tr>
+        <tr><td>25 Sep</td><td>TWST</td><td>Rising 200 · Stop 5.0 c</td><td class="num">172.62 → 180.00</td><td class="num">$8.45</td><td class="num">+$0.36</td></tr>
+        <tr><td>28 Sep</td><td>SNDK</td><td>Rising 200 · Stop 2.5 (slot released)</td><td class="num">1,801.60 → 1,715.13</td><td class="num">$19.26</td><td class="num neg">−$0.92</td></tr>
+        <tr><td>28 Sep</td><td>OKE</td><td>stand-in (bug)</td><td class="num">88.34 → 88.48</td><td class="num">$20.00</td><td class="num">+$0.03</td></tr>
+        <tr><td>28 Sep</td><td>JBL</td><td>stand-in (bug)</td><td class="num">314.13 → 314.38</td><td class="num">$20.00</td><td class="num">+$0.02</td></tr>
+        <tr class="highlight"><td colspan="5">Total realized</td><td class="num">+$1.59</td></tr>
       </tbody></table></div>
   </section>
 
@@ -851,14 +853,23 @@
         <p class="note warn"><b>One conflict, stated.</b> Mutating knowledge-derived strategies (§23) meets the frozen evolutionary search (§12: “do not bypass it”). O12 is built on the governed factory path — registered experiment, declared budget, ancestry — and running the frozen search on a knowledge seed population stays your edit to <span class="mono">search.mode</span>, as the freeze requires.</p>
       </div>
     </div>
-    <p class="group-label">Planned</p>
+    <p class="group-label">Built 29 September</p>
     <div class="phase">
       <div class="phase-num">AA</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Kalman-filter ETF pairs</div><span class="pill planned">Planned 09-28</span></div>
-        <p class="phase-desc">From Ernest Chan’s <i>Algorithmic Trading</i> (2013): trade the gap between two related ETFs (his example: Australia EWA vs Canada EWC) when it stretches, with the hedge ratio re-estimated every day by a Kalman filter. The book claims 26.2% a year (Sharpe 2.4) on data up to 2012. We test it on 2006–2012, then on 2013–today as the after-publication check, with real costs and next-morning fills; if it holds up it paper-trades and competes for a slot.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--planned);"></div></div><span class="bar-pct">0%</span></div>
-        <p class="note">Built by DeepSeek as a development task. Published pairs strategies usually fade after publication; the test decides.</p>
+        <div class="phase-head"><div class="phase-title">Kalman-filter ETF pairs</div><span class="pill done">Built 09-29 · fails</span></div>
+        <p class="phase-desc">From Ernest Chan’s <i>Algorithmic Trading</i> (2013): trade the gap between two related ETFs when it stretches, hedge ratio re-estimated daily by a Kalman filter. The book claims 26.2% a year (Sharpe 2.4) to 2012. Built by DeepSeek (<span class="mono">kalman_pair.py</span>), reviewed and tested; six pairs declared before any result; two modes — the long/short spread (research only: this account cannot short) and a long-only version.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="scroll"><table class="dist">
+          <caption>Net per trade, next-open fills, 5 bp a leg; trades last ~2 sessions</caption>
+          <thead><tr><th>Pair / mode</th><th class="r">2006–2012</th><th class="r">2013–today (after publication)</th></tr></thead>
+          <tbody>
+            <tr><td>EWA/EWC spread (Chan’s)</td><td class="num neg">−0.08%</td><td class="num neg">−0.15%</td></tr>
+            <tr><td>EWA/EWC long-only</td><td class="num">+0.20%</td><td class="num">+0.03%</td></tr>
+            <tr><td>GLD/GDX long-only</td><td class="num">+0.42%</td><td class="num neg">−0.59% (28 trades)</td></tr>
+            <tr><td>XLE/XOP, EWU/EWG, XLF/KBE</td><td class="num">≈ 0 or negative</td><td class="num">≈ 0</td></tr>
+          </tbody></table></div>
+        <p class="note warn">The reversion is mostly over by the next morning’s open; the book’s figure assumes fills at the signal day’s close and no costs. Not paper-traded yet (the paper engine has no pair-spread step); the ranking would reject it on the losing backtest anyway.</p>
       </div>
     </div>
     <p class="group-label">Built 27–28 September</p>
@@ -972,6 +983,8 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Idle rule and Stage AA (09-29).</b> A strategy whose rule fired on 0 of the last 60 sessions can no longer hold or take a slot (DeepSeek-built <span class="mono">signal_activity.py</span>); Kalman ETF pairs built and tested — they lose after publication.</li>
+      <li><b>First full live day (09-28).</b> All five slots filled by 10 AM PT after four live bugs were found and fixed the same day (settled cash, broker throttling, stand-in sell-off, ETF-rotation definitions); settled-cash rule switched off by you for this account type; day trades counted as buy-then-sell.</li>
       <li><b>DeepSeek for development only (09-28).</b> Library translation finished (3,987 of 3,987); the daily run no longer calls DeepSeek; a $1/day cap and a Telegram alert when new entries wait. 133 new strategies went through testing overnight.</li>
       <li><b>Dress rehearsal and Monday’s plan (09-27/28).</b> Every new daily stage run once and fixed; slots 1–3 rotate to fundamental momentum, earnings surprise and ETF rotation at Monday’s open.</li>
       <li><b>Stages U–Y (09-27 night).</b> Unseen-window test, bull/bear checks, correlation limit on slots, ETF rotation, per-20-session scoring, congressional trades from House PDFs, crypto one-slot cap, weekly digest.</li>
