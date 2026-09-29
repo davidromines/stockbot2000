@@ -48,10 +48,16 @@ def _http(url, as_json):
     last = None
     for attempt in range(3):
         _throttle()
-        req = urllib.request.Request(url, headers={"User-Agent": sec_fundamentals.UA})
+        req = urllib.request.Request(url, headers={"User-Agent": sec_fundamentals.UA,
+                                                   "Accept-Encoding": "gzip"})
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
-                body = resp.read().decode("utf-8", "replace")
+                raw = resp.read()
+                # companyfacts JSON is several MB; gzip cuts the transfer ~10x.
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    import gzip
+                    raw = gzip.decompress(raw)
+                body = raw.decode("utf-8", "replace")
             return json.loads(body) if as_json else body
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
