@@ -128,8 +128,13 @@ def load_library() -> pd.DataFrame:
     return pd.read_parquet(LIB)
 
 
-def neighbours(lib_x: np.ndarray, q: np.ndarray, k: int = K, chunk: int = 256) -> tuple:
-    """(indices, distances) of the k nearest library rows for each query row (Euclidean)."""
+def neighbours(lib_x: np.ndarray, q: np.ndarray, k: int = K, chunk: int | None = None) -> tuple:
+    """(indices, distances) of the k nearest library rows for each query row (Euclidean).
+    Each chunk builds a chunk x library distance matrix plus an int64 partition index, so the
+    chunk is sized from the library: about 2e7 cells (~250 MB). A fixed 256 against the full
+    1.9M-row library needed several GB and was OOM-killed at the 6 GB cap (09-28, 09-29)."""
+    if chunk is None:
+        chunk = max(1, min(256, int(2e7 // max(1, lib_x.shape[0]))))
     ln = (lib_x * lib_x).sum(1)
     idx_out, dist_out = [], []
     for i in range(0, len(q), chunk):
