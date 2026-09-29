@@ -94,6 +94,17 @@ run "[3/10] Features" $PY build_features.py
 # conviction screen in the daily book stale data. A 90-day window is enough
 # to pick up newly filed reports and to repair a gap of a week or two;
 # INSERT OR REPLACE makes re-running it a no-op on days with nothing new.
+# New filings (owner 2026-09-29: nothing filed after 2026-06-30 had been loaded — the
+# quarterly Financial Statement Data Sets lag up to three months and nothing fetched them).
+# edgar_financials: yesterday's and today's 10-Q/10-K straight from EDGAR; sec_fundamentals
+# --update: any newly published quarterly data set. Then the ticker repair, the first
+# tradeable session per filing, and the derived metrics for recent filings.
+run "[3a2/10] SEC quarterly data sets" $PY sec_fundamentals.py --update
+run "[3a3/10] EDGAR 10-Q/10-K feed" bounded $PY edgar_financials.py --daily --days 7
+run "[3a4/10] Filing ticker repair" $PY fix_ticker_map.py --run
+run "[3a5/10] First tradeable session" $PY pit_facts.py --annotate
+run "[3a6/10] Value metrics (recent filings)" bounded $PY value_metrics.py --build \
+    --since "$(date -u -d '120 days ago' +%Y%m%d)"
 run "[3b/10] Fundamental projection" $PY fundamental_features.py --build \
     --start "$(date -u -d '90 days ago' +%F)"
 # Earnings surprise (sue_features.py): new 10-Q/10-K EPS -> daily_sue, point-in-time.
