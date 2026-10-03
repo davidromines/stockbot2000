@@ -2,7 +2,7 @@
 
 - component: reporting
 - priority: medium
-- state: REVIEW
+- state: COMPLETE
 - branch: ado/task-060
 - created: 2026-10-03T00:00:00+00:00
 - dependencies: none
