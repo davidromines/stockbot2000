@@ -73,6 +73,14 @@ recorded here, not relitigated.
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-10-03 — LIVE HALTED since 10-01 17:49 UTC: Robinhood sign-in expired
+
+- Token from 09-24 was never refreshed (file mtime unchanged); every trader run since raises NeedsLogin. Owner fix:
+  `./venv/bin/python robinhood_mcp.py --login`. Expect it again ~weekly until refresh is handled.
+- 5 positions held unmonitored (DELL s1, CRS s2, DBC s3, MRNA s4, MU s5); broker matches ledger; no stop or
+  take-profit crossed through the 10-02 close (checked 10-03 via the read-only connector).
+- EOD report crashed on NULL slot_marks (float(None)) — fixed f580d36. [9f2] OOM-killed 09-30 and 10-01, ran 10-02.
+
 ### 2026-09-29 early — idle rule, Stage AA, reviewer page
 
 - `signal_activity.py` (DeepSeek TASK-056 + review) and the slots idle rule (`slots.min_active_sessions` 1 of
