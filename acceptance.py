@@ -2,7 +2,7 @@
 The pre-LIVE acceptance checklist. docs/ROBINHOOD_AGENTIC.md phase 25;
 Addendum B §B13-B14.
 
-Twenty-six items, each one EXECUTED — never asserted from memory, never marked
+Twenty-seven items, each one EXECUTED — never asserted from memory, never marked
 PASS without running (the spec's rule). Every functional item runs against an
 isolated in-memory database and injected quotes, so the checklist can run any
 time without touching the forward record or the account. The global kill
@@ -20,7 +20,9 @@ NOT READY until the shadow record exists.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
+import io
 import json
+import logging
 import os
 import sqlite3
 import subprocess
@@ -271,11 +273,35 @@ def run(with_suite: bool = True) -> list:
             n = 0
         return (n >= MIN_SHADOW_SESSIONS, f"{n} SHADOW sessions of {MIN_SHADOW_SESSIONS} required")
     item(26, f"SHADOW track record >= {MIN_SHADOW_SESSIONS} sessions", shadow_record)
+
+    def empty_cfg_no_warning():
+        c = _fixture()
+        slots.assess = lambda conn, cfg: [{"strategy_key": "x", "version": 1, "net_usd": 9, "family": "f",
+                                           "eligible": True, "reasons": [], "sessions": 30}]
+        # Capture the slots logger directly rather than via caplog: acceptance.py
+        # runs outside pytest, so there is no caplog fixture to lean on.
+        log_buf = io.StringIO()
+        handler = logging.StreamHandler(log_buf)
+        logging.getLogger("slots").addHandler(handler)
+        try:
+            slots.plan(c, {})
+            warn_output = log_buf.getvalue()
+        finally:
+            logging.getLogger("slots").removeHandler(handler)
+            import importlib
+            importlib.reload(slots)
+            _patch()
+        # The regression is a WARNING that leaks the raw KeyError text; match the
+        # exact substring the fix suppresses rather than any KeyError mention.
+        if "KeyError: 'universe'" in warn_output:
+            return (False, repr(warn_output[:200]))
+        return (True, "no KeyError: 'universe' in log")
+    item(27, "slots.plan with empty cfg emits no KeyError: 'universe' warning", empty_cfg_no_warning)
     return items
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Pre-LIVE acceptance checklist (26 executed items).")
+    ap = argparse.ArgumentParser(description="Pre-LIVE acceptance checklist (27 executed items).")
     ap.add_argument("--no-suite", action="store_true")
     args = ap.parse_args(argv)
     items = run(with_suite=not args.no_suite)
