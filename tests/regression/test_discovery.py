@@ -188,6 +188,75 @@ def test_family_record_counts_rejected():
     c.close()
 
 
+def _make_slot_trades(c):
+    c.execute("CREATE TABLE IF NOT EXISTS slot_trades "
+              "(id INTEGER PRIMARY KEY, at TEXT, mode TEXT, slot_id INTEGER, strategy_key TEXT, "
+              "version INTEGER, symbol TEXT, action TEXT, quantity REAL, price REAL, atr REAL, "
+              "stop_plan TEXT, reason TEXT, signal_id TEXT)")
+
+
+def _make_orders(c):
+    c.execute("CREATE TABLE IF NOT EXISTS orders "
+              "(client_order_id TEXT, signal_id TEXT, mode TEXT, side TEXT, "
+              "avg_fill_price REAL, quote_price REAL)")
+
+
+# --- 10. N6 stop-exit rate: family flagged when >60% stops and >= min trips ---
+def test_weak_spots_stop_exit_rate():
+    c = conn()
+    discovery.init(c)
+    _make_slot_trades(c)
+    key, _ = _register(c, "fx_xs_momentum_stoptest", "xs_momentum")
+    for i, reason in enumerate(["stop_loss", "stop_loss", "stop_loss", "strategy_exit"]):
+        c.execute("INSERT INTO slot_trades (mode, action, strategy_key, reason, signal_id) "
+                  "VALUES ('LIVE', 'CLOSE', ?, ?, ?)", (key, reason, f"sig{i}"))
+    c.commit()
+    w = discovery.weak_spots(c)
+    check("N6 stop-exit rate flags family",
+          "xs_momentum" in w and "stop-exit" in w.get("xs_momentum", ""),
+          f"weak={w}")
+    c.close()
+
+
+# --- 11. N6 stop-exit rate: below threshold does not flag ---------------------
+def test_weak_spots_stop_exit_below_threshold():
+    c = conn()
+    discovery.init(c)
+    _make_slot_trades(c)
+    key, _ = _register(c, "fx_xs_momentum_lowstop", "xs_momentum")
+    for i, reason in enumerate(["stop_loss", "strategy_exit", "strategy_exit", "strategy_exit"]):
+        c.execute("INSERT INTO slot_trades (mode, action, strategy_key, reason, signal_id) "
+                  "VALUES ('LIVE', 'CLOSE', ?, ?, ?)", (key, reason, f"sig{i}"))
+    c.commit()
+    w = discovery.weak_spots(c)
+    check("N6 stop-exit below threshold does not flag",
+          "xs_momentum" not in w,
+          f"weak={w}")
+    c.close()
+
+
+# --- 12. N6 slippage: family flagged when slippage > threshold ----------------
+def test_weak_spots_slippage():
+    c = conn()
+    discovery.init(c)
+    _make_slot_trades(c)
+    _make_orders(c)
+    key, _ = _register(c, "fx_xs_momentum_sliptest", "xs_momentum")
+    # 4 fills, each with ~50 bps slippage (above 30 bps threshold)
+    for i in range(4):
+        sig = f"slipsig{i}"
+        c.execute("INSERT INTO slot_trades (mode, action, strategy_key, signal_id) "
+                  "VALUES ('LIVE', 'OPEN', ?, ?)", (key, sig))
+        c.execute("INSERT INTO orders (signal_id, mode, side, avg_fill_price, quote_price) "
+                  "VALUES (?, 'LIVE', 'buy', ?, ?)", (sig, 100.35, 100.0))
+    c.commit()
+    w = discovery.weak_spots(c)
+    check("N6 slippage flags family",
+          "xs_momentum" in w and "slippage" in w.get("xs_momentum", ""),
+          f"weak={w}")
+    c.close()
+
+
 def main():
     test_priority_untested_beats_explored()
     test_priority_recycle_lower()
@@ -199,6 +268,9 @@ def main():
     test_recycle_creates_version()
     test_recycle_skips_data_failure()
     test_family_record_counts_rejected()
+    test_weak_spots_stop_exit_rate()
+    test_weak_spots_stop_exit_below_threshold()
+    test_weak_spots_slippage()
     if _failures:
         print(f"\n  {len(_failures)} FAILED: {', '.join(_failures)}")
         return 1

@@ -118,14 +118,20 @@ def family_record(conn) -> dict:
 
 KNOWLEDGE_PREFIX = "kf_"          # Stage O rev 2: families of documented-source reproductions
 
+# N7/N6 thresholds for live-feedback signals
+_LIVE_MIN_TRIPS = 3           # min live closed trades to draw a stop-rate inference
+_LIVE_MIN_FILLS = 4           # min live fills to draw a slippage inference
+_STOP_RATE_THRESHOLD = 0.60   # >60% stop exits is "high"
+_SLIPPAGE_THRESHOLD_BPS = 30.0  # >30 bps mean entry slippage is "high"
+
 
 def weak_spots(conn) -> dict:
     """N7 (Addendum D §9-10): families where research is aimed at a MEASURED weakness,
-    family -> reason. Two signals, both read from records other stages write:
-      - near misses (funnel.py strategy_failures): failed by a small margin, so a
-        controlled change to that family is the cheapest credible path;
-      - a live slot holder whose health (strategy_health.py) is WATCH / DEGRADING /
-        FAILED: families in the same league are its replacement candidates.
+    family -> reason. Four signals, all read from records other stages write:
+      - near misses (funnel.py strategy_failures): failed by a small margin;
+      - a live slot holder whose health is WATCH / DEGRADING / FAILED;
+      - high stop-exit rate from live slot trades (N6 live_feedback.py data);
+      - systematic entry slippage from live orders (N6 orders/slot_trades data).
     A boost, never a gate: nothing skips the pipeline because it is aimed well."""
     out = {}
     try:
@@ -151,6 +157,51 @@ def weak_spots(conn) -> dict:
             if f.get("league") in weak:
                 out.setdefault(fam, "replacement for a weakening slot holder")
     except Exception:                                           # noqa: BLE001 — a boost, never a failure
+        pass
+    # N6 — high stop-exit rate from live slot trades (boost families needing stop-resistance)
+    try:
+        rows = conn.execute(
+            "SELECT strategy_key, reason, COUNT(*) n FROM slot_trades "
+            "WHERE mode='LIVE' AND action='CLOSE' GROUP BY strategy_key, reason"
+        ).fetchall()
+        exits_by_key: dict = {}
+        for key, reason, n in rows:
+            exits_by_key.setdefault(key, {})
+            exits_by_key[key][reason or "unknown"] = n
+        for key, reasons in exits_by_key.items():
+            total = sum(reasons.values())
+            stops = reasons.get("stop_loss", 0)
+            if total >= _LIVE_MIN_TRIPS and stops / total > _STOP_RATE_THRESHOLD:
+                row = conn.execute(
+                    "SELECT family FROM strategy_meta WHERE strategy_key=? ORDER BY version DESC LIMIT 1",
+                    (key,)).fetchone()
+                if row and row[0]:
+                    out.setdefault(row[0], f"high stop-exit rate in live ({stops}/{total} trades)")
+    except sqlite3.Error:
+        pass
+    # N6 — systematic entry slippage from live orders (boost longer-hold families)
+    try:
+        has_q = "quote_price" in {r[1] for r in conn.execute("PRAGMA table_info(orders)")}
+        if has_q:
+            slip_rows = conn.execute(
+                "SELECT st.strategy_key, "
+                "  AVG((CAST(o.avg_fill_price AS REAL) / o.quote_price - 1.0) * 10000.0) slip, "
+                "  COUNT(*) n "
+                "FROM orders o "
+                "JOIN slot_trades st ON st.signal_id = o.signal_id "
+                "WHERE o.mode='LIVE' AND st.action='OPEN' "
+                "  AND o.avg_fill_price IS NOT NULL AND o.quote_price > 0 "
+                "GROUP BY st.strategy_key "
+                "HAVING n >= ? AND AVG((CAST(o.avg_fill_price AS REAL) / o.quote_price - 1.0) * 10000.0) > ?",
+                (_LIVE_MIN_FILLS, _SLIPPAGE_THRESHOLD_BPS)
+            ).fetchall()
+            for key, slip, n in slip_rows:
+                row = conn.execute(
+                    "SELECT family FROM strategy_meta WHERE strategy_key=? ORDER BY version DESC LIMIT 1",
+                    (key,)).fetchone()
+                if row and row[0]:
+                    out.setdefault(row[0], f"high entry slippage in live ({slip:.0f} bps, n={n})")
+    except sqlite3.Error:
         pass
     return out
 
@@ -303,6 +354,8 @@ def main() -> int:
     ap.add_argument("--plan", action="store_true")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--recycle", action="store_true")
+    ap.add_argument("--weaknesses", action="store_true",
+                    help="print N7 weak-spot families and reasons")
     a = ap.parse_args()
     cfg = load_config()
     conn = storage.connect(cfg["database"]["market_data_path"])
@@ -311,7 +364,15 @@ def main() -> int:
         print(f"  recycled: {recycle(conn, cfg)}")
     if a.plan:
         print(f"  plan: {plan(conn, cfg)}")
-    if a.status or not (a.plan or a.recycle):
+    if a.weaknesses:
+        w = weak_spots(conn)
+        if w:
+            print(f"  N7 weak spots ({len(w)}):")
+            for fam, reason in sorted(w.items()):
+                print(f"    {fam:<40} {reason}")
+        else:
+            print("  N7 weak spots: none")
+    if a.status or not (a.plan or a.recycle or a.weaknesses):
         s = status(conn, cfg)
         print(f"  families {s['families']}, explored {len(s['explored'])}, ignored "
               f"{len(s['ignored'])}, data-blocked {len(s['data_blocked'])}")
