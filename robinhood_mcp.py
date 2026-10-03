@@ -11,7 +11,12 @@ file readable only by this Linux user:
 
     ~/.config/stockbot2000/robinhood_oauth.json      (mode 600)
 
-Refresh is automatic while the refresh token is valid. When it is not, every
+Refresh is automatic while the refresh token is valid (`refresh()`: before every
+session once a quarter of the token's stated life has passed, and once more on a
+rejected token). The MCP client never did this itself: it does not store when a
+token was issued, so after a restart it treated the stored token as valid
+forever, and on a rejection it went straight to the browser sign-in — the 09-24
+token died 10-01 with its refresh token unused. When refresh fails, every
 call raises NeedsLogin — the trader then halts (fail closed) and alerts the
 owner to run --login again. Nothing ever falls back to trading without it.
 
@@ -34,6 +39,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -50,6 +56,10 @@ TOKEN_FILE = Path(os.path.expanduser("~/.config/stockbot2000/robinhood_oauth.jso
 # and pastes it back into the --login prompt. That works whether the browser is
 # on this VM or on a laptop.
 REDIRECT_URI = "http://localhost:8765/callback"
+# Refresh once this fraction of the token's stated lifetime has passed. The 09-24
+# token said ~8.1 days and was rejected after ~7.1, so the stated life is not trusted.
+REFRESH_AFTER = 0.25
+FALLBACK_TOKEN_ENDPOINT = "https://api.robinhood.com/oauth2/token/"
 
 
 class NeedsLogin(RuntimeError):
@@ -94,12 +104,13 @@ class FileTokenStorage:
 
     async def get_tokens(self):
         from mcp.shared.auth import OAuthToken
-        t = self._read().get("tokens")
+        t = dict(self._read().get("tokens") or {})
+        t.pop("issued_at", None)
         return OAuthToken.model_validate(t) if t else None
 
     async def set_tokens(self, tokens) -> None:
         d = self._read()
-        d["tokens"] = tokens.model_dump(mode="json", exclude_none=True)
+        d["tokens"] = {**tokens.model_dump(mode="json", exclude_none=True), "issued_at": time.time()}
         self._write(d)
 
     async def get_client_info(self):
@@ -111,6 +122,62 @@ class FileTokenStorage:
         d = self._read()
         d["client"] = info.model_dump(mode="json", exclude_none=True)
         self._write(d)
+
+
+def _token_endpoint(url: str) -> str:
+    import httpx2
+    u = urlparse(url)
+    try:
+        r = httpx2.get(f"{u.scheme}://{u.netloc}/.well-known/oauth-authorization-server{u.path}", timeout=15)
+        if r.status_code == 200 and r.json().get("token_endpoint"):
+            return r.json()["token_endpoint"]
+    except Exception as e:                                   # noqa: BLE001
+        log.warning(f"token endpoint discovery failed ({e}); using {FALLBACK_TOKEN_ENDPOINT}")
+    return FALLBACK_TOKEN_ENDPOINT
+
+
+def refresh(force: bool = False, url: str | None = None, storage: "FileTokenStorage | None" = None,
+            post=None) -> bool:
+    """Exchange the stored refresh token for new tokens when due (or `force`). True = a usable token
+    is stored. Serialised across processes with a lock file; a refresh another process did in the
+    last minute counts, so two runs never spend one (possibly single-use) refresh token twice."""
+    import fcntl
+    st = storage or FileTokenStorage()
+    st.path.parent.mkdir(parents=True, exist_ok=True)
+    with os.fdopen(os.open(st.path.with_suffix(".lock"), os.O_WRONLY | os.O_CREAT, 0o600), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        d = st._read()
+        t, c = d.get("tokens") or {}, d.get("client") or {}
+        if not t.get("refresh_token") or not c.get("client_id"):
+            return False
+        age = time.time() - float(t.get("issued_at") or 0)
+        life = float(t.get("expires_in") or 0)
+        if age < 60 or (not force and life and age < REFRESH_AFTER * life):
+            return True
+        url = url or settings()["mcp_url"]
+        data = {"grant_type": "refresh_token", "refresh_token": t["refresh_token"],
+                "client_id": c["client_id"], "resource": url}
+        try:
+            if post is None:
+                import httpx2
+                r = httpx2.post(_token_endpoint(url), data=data, timeout=30)
+                status, body = r.status_code, (r.json() if r.status_code == 200 else r.text[:200])
+            else:
+                status, body = post(data)
+        except Exception as e:                               # noqa: BLE001 — a failed refresh is a NeedsLogin later
+            log.warning(f"Robinhood token refresh failed: {e}")
+            return False
+        if status != 200 or not isinstance(body, dict) or not body.get("access_token"):
+            log.warning(f"Robinhood token refresh refused: HTTP {status} {body if status != 200 else ''}")
+            return False
+        new = {k: v for k, v in body.items() if v is not None}
+        new.setdefault("refresh_token", t["refresh_token"])  # RFC 6749 §6: may be omitted = unchanged
+        new["issued_at"] = time.time()
+        d["tokens"] = new
+        st._write(d)
+        log.info("Robinhood token refreshed (old one %s)"
+                 % (f"{age / 86400:.1f} days old" if t.get("issued_at") else "of unknown age"))
+        return True
 
 
 def _provider(url: str, interactive: bool):
@@ -167,6 +234,8 @@ async def _open(url: str, interactive: bool):
     import httpx2
     from mcp import ClientSession
     from mcp.client.streamable_http import streamable_http_client
+    if not interactive:
+        await asyncio.to_thread(refresh, False, url)
     async with httpx2.AsyncClient(auth=_provider(url, interactive), timeout=30.0) as http:
         async with streamable_http_client(url, http_client=http) as streams:
             async with ClientSession(streams[0], streams[1]) as session:
@@ -253,7 +322,7 @@ class Session:
                     item[2].set_exception(self.error or RobinhoodError("MCP session closed"))
 
     # the caller side
-    def __enter__(self):
+    def __enter__(self, retried: bool = False):
         global _ACTIVE
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run, name="robinhood-mcp", daemon=True)
@@ -262,6 +331,11 @@ class Session:
             raise RobinhoodError("MCP session did not open within 60 s")
         if self.dead:
             self.thread.join(5)
+            if (isinstance(self.error, NeedsLogin) and not self.interactive and not retried
+                    and refresh(force=True, url=self.url)):
+                self.ready.clear()
+                self.error, self.dead = None, False
+                return self.__enter__(retried=True)
             raise self.error or RobinhoodError("MCP session failed to open")
         self._prev, _ACTIVE = _ACTIVE, self
         return self
@@ -315,6 +389,12 @@ def calls(batch: list, interactive: bool = False, url: str | None = None) -> lis
             out.append(_parse(await session.call_tool(tool, args or {})))
         return out
     try:
+        try:
+            return asyncio.run(_session_do(url, interactive, run))
+        except BaseException as e:                           # noqa: BLE001
+            # A rejected token: refresh once and retry (the server may end a token before its stated life).
+            if interactive or not isinstance(_unwrap(e), NeedsLogin) or not refresh(force=True, url=url):
+                raise
         return asyncio.run(_session_do(url, interactive, run))
     except NeedsLogin:
         raise
@@ -359,6 +439,7 @@ def main(argv=None) -> int:
     ap.add_argument("--login", action="store_true")
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--tools", action="store_true")
+    ap.add_argument("--refresh", action="store_true", help="exchange the refresh token now")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     try:
@@ -368,6 +449,10 @@ def main(argv=None) -> int:
             print("\nSigned in. Token stored at", TOKEN_FILE, "(readable only by you).")
             print("Agentic account:", (a or {}).get("account_number", "NOT FOUND — open one in the Robinhood app"))
             return 0
+        if args.refresh:
+            ok = refresh(force=True)
+            print("refreshed" if ok else "refresh failed — run --login")
+            return 0 if ok else 3
         if args.tools:
             for t in list_tools():
                 print(t["name"], json.dumps(t["schema"].get("required", [])))
