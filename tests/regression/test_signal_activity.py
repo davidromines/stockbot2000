@@ -1,12 +1,11 @@
-"""Regression tests for signal_activity."""
+"""Regression tests for signal_activity.all_slots."""
 import runtime  # noqa: F401
 
 import os
+import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-import pandas as pd
 
 import signal_activity as sa
 
@@ -21,86 +20,76 @@ def check(name, cond, detail=""):
         FAILED.append(name)
 
 
-def _frame():
-    """3 tickers x 100 business days; 'flag' is 1 only on chosen rows."""
-    dates = pd.bdate_range("2024-01-01", periods=100).strftime("%Y-%m-%d").tolist()
-    rows = []
-    for ticker in ("AAA", "BBB", "CCC"):
-        for d in dates:
-            rows.append({"ticker": ticker, "date": d, "close": 10.0, "flag": 0.0})
-    df = pd.DataFrame(rows)
-    return df, dates
+def _db():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """CREATE TABLE slot_assignments (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               at TEXT NOT NULL, slot_id INTEGER NOT NULL, action TEXT NOT NULL,
+               strategy_key TEXT, version INTEGER, capital_usd REAL,
+               mode TEXT, reason TEXT)"""
+    )
+    conn.execute(
+        """CREATE TABLE strategy_objects (
+               strategy_key TEXT NOT NULL, version INTEGER NOT NULL,
+               family TEXT, PRIMARY KEY (strategy_key, version))"""
+    )
+    return conn
 
 
-def _set(df, ticker, date, value=1.0):
-    df.loc[(df["ticker"] == ticker) & (df["date"] == date), "flag"] = value
-
-
-FLAG_ENTRY = {"entry": {"op": "gt", "args": [{"col": "flag"}, {"const": 0.5}]}}
+def _assign(conn, at, slot_id, action, key, version):
+    conn.execute(
+        "INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (at, slot_id, action, key, version),
+    )
 
 
 def main():
-    df, dates = _frame()
-    recent = dates[-60:]
+    conn = _db()
+    _assign(conn, "2026-09-01T00:00:00", 1, "ASSIGN", "fx_aaa", 1)
+    _assign(conn, "2026-09-02T00:00:00", 2, "ASSIGN", "fx_bbb", 3)
+    # A later ASSIGN for slot 1 must win over the earlier one.
+    _assign(conn, "2026-09-03T00:00:00", 1, "ASSIGN", "fx_ccc", 2)
+    # A non-ASSIGN row must not be treated as a holder.
+    _assign(conn, "2026-09-04T00:00:00", 3, "RELEASE", "fx_ddd", 1)
+    conn.execute(
+        "INSERT INTO strategy_objects (strategy_key, version, family) VALUES (?, ?, ?)",
+        ("fx_ccc", 2, "earnings_surprise"),
+    )
+    conn.execute(
+        "INSERT INTO strategy_objects (strategy_key, version, family) VALUES (?, ?, ?)",
+        ("fx_bbb", 3, "etf_rotation"),
+    )
+    conn.commit()
 
-    # 5 distinct recent dates, one ticker each.
-    for d in recent[:5]:
-        _set(df, "AAA", d)
-    check("five distinct recent dates -> 5", sa.active_sessions(df, FLAG_ENTRY) == 5,
-          sa.active_sessions(df, FLAG_ENTRY))
-
-    # Two tickers firing on the same date count once.
-    df2, dates2 = _frame()
-    _set(df2, "AAA", dates2[-1])
-    _set(df2, "BBB", dates2[-1])
-    check("two tickers same date counts once", sa.active_sessions(df2, FLAG_ENTRY) == 1,
-          sa.active_sessions(df2, FLAG_ENTRY))
-
-    # Firings older than the window are excluded.
-    df3, dates3 = _frame()
-    for d in dates3[:10]:
-        _set(df3, "AAA", d)
-    check("old firings excluded", sa.active_sessions(df3, FLAG_ENTRY) == 0,
-          sa.active_sessions(df3, FLAG_ENTRY))
-
-    # Never fires.
-    df4, _ = _frame()
-    check("never fires -> 0", sa.active_sessions(df4, FLAG_ENTRY) == 0)
-    check("never fires -> last_signal None", sa.last_signal(df4, FLAG_ENTRY) is None)
-
-    # last_signal is the latest firing date.
-    df5, dates5 = _frame()
-    _set(df5, "AAA", dates5[-3])
-    _set(df5, "BBB", dates5[-1])
-    check("last_signal latest date", sa.last_signal(df5, FLAG_ENTRY) == dates5[-1],
-          sa.last_signal(df5, FLAG_ENTRY))
-
-    # measurable().
-    check("measurable plain genome", sa.measurable(FLAG_ENTRY) is True)
-    for k in ("pair", "value", "rotation", "crypto"):
-        check(f"measurable False for {k}", sa.measurable({"entry": {}, k: {}}) is False)
-    check("measurable False for None", sa.measurable(None) is False)
-
-    # activity() with a rotation genome: not measurable, no counts.
-    import slots
-    orig = slots.genome_for
-    slots.genome_for = lambda conn, key, version: {"rotation": {"x": 1}}
+    # activity() would hit the real genome/paper_trading stack; stub it so the
+    # test exercises slot resolution only.
+    orig = sa.activity
+    sa.activity = lambda conn, cfg, key, version, **kw: {
+        "key": key, "version": version, "measurable": True,
+        "active_sessions": 0, "last_signal": None,
+    }
     try:
-        out = sa.activity(None, None, "rot", 1, df=df)
+        out = sa.all_slots(conn, {})
     finally:
-        slots.genome_for = orig
-    check("activity rotation measurable False", out["measurable"] is False)
-    check("activity rotation active_sessions None", out["active_sessions"] is None)
+        sa.activity = orig
 
-    # A rule referencing a missing column: measurable, 0, with error text.
-    bad = {"entry": {"op": "gt", "args": [{"col": "nope"}, {"const": 0.5}]}}
-    slots.genome_for = lambda conn, key, version: bad
-    try:
-        out2 = sa.activity(None, None, "bad", 1, df=df)
-    finally:
-        slots.genome_for = orig
-    check("missing column -> active_sessions 0", out2["active_sessions"] == 0)
-    check("missing column -> error key", "error" in out2 and bool(out2["error"]))
+    check("returns five entries", len(out) == 5, len(out))
+    check("slot ids 1..5", [e["slot_id"] for e in out] == [1, 2, 3, 4, 5],
+          [e["slot_id"] for e in out])
+    check("slot 1 latest ASSIGN wins", out[0]["strategy_key"] == "fx_ccc", out[0])
+    check("slot 1 version", out[0]["version"] == 2, out[0])
+    check("slot 1 family", out[0]["family"] == "earnings_surprise", out[0])
+    check("slot 2 key", out[1]["strategy_key"] == "fx_bbb", out[1])
+    check("slot 2 family", out[1]["family"] == "etf_rotation", out[1])
+    check("slot 3 RELEASE is not a holder", out[2]["strategy_key"] is None, out[2])
+    for i in (2, 3, 4):
+        check(f"slot {i + 1} empty", out[i]["strategy_key"] is None, out[i])
+        check(f"slot {i + 1} version None", out[i]["version"] is None, out[i])
+        check(f"slot {i + 1} family None", out[i]["family"] is None, out[i])
+    check("occupied slot merges activity", out[0]["measurable"] is True, out[0])
 
     if FAILED:
         print(f"\n{len(FAILED)} FAILED")

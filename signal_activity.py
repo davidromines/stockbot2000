@@ -110,23 +110,115 @@ def activity(conn, cfg, key, version, df=None, sessions=60) -> dict:
     return out
 
 
+def _current_holders(conn) -> dict:
+    """slot_id -> (strategy_key, version) for the latest ASSIGN row per slot.
+
+    Ties on `at` are broken by rowid so the result is deterministic; without a
+    tiebreak two rows written in the same second could flip the holder between
+    runs and the report would disagree with itself.
+    """
+    rows = conn.execute(
+        """
+        SELECT slot_id, strategy_key, version
+          FROM slot_assignments
+         WHERE action = 'ASSIGN'
+         ORDER BY slot_id, at, id
+        """
+    ).fetchall()
+    holders = {}
+    for r in rows:
+        holders[int(r["slot_id"])] = (r["strategy_key"], r["version"])
+    return holders
+
+
+def _family_for(conn, key, version):
+    """Family name from strategy_objects, or None when the row is absent."""
+    try:
+        row = conn.execute(
+            "SELECT family FROM strategy_objects WHERE strategy_key = ? AND version = ?",
+            (key, version),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    return row["family"] if row is not None else None
+
+
+def all_slots(conn, cfg) -> list:
+    """Activity report for each of the five live slots.
+
+    Always returns five entries, one per slot_id 1-5, so the caller can print a
+    fixed-shape report; an empty slot is represented by None fields rather than
+    being omitted.
+    """
+    holders = _current_holders(conn)
+    out = []
+    for slot_id in range(1, 6):
+        entry = {
+            "slot_id": slot_id,
+            "strategy_key": None,
+            "version": None,
+            "family": None,
+        }
+        holder = holders.get(slot_id)
+        if holder is not None:
+            key, version = holder
+            entry["strategy_key"] = key
+            entry["version"] = version
+            entry["family"] = _family_for(conn, key, version)
+            entry.update(activity(conn, cfg, key, version))
+        out.append(entry)
+    return out
+
+
+def _format_slot(entry) -> str:
+    """One report line per slot, matching the documented output format."""
+    slot = entry["slot_id"]
+    if entry["strategy_key"] is None:
+        return f"slot {slot}  (empty)"
+    head = (
+        f"slot {slot}  {entry['strategy_key']}  v{entry['version']}  "
+        f"family={entry['family']}"
+    )
+    if not entry.get("measurable"):
+        return f"{head}  not measurable"
+    if entry.get("error"):
+        return f"{head}  not measurable: {entry['error']}"
+    sessions = entry.get("sessions", 60)
+    return (
+        f"{head}  active={entry['active_sessions']}/{sessions}  "
+        f"last={entry['last_signal']}"
+    )
+
+
 def main(argv=None):
     import argparse
 
     from universe import load_config
 
     parser = argparse.ArgumentParser(description="Strategy signal activity")
-    parser.add_argument("--key", required=True)
-    parser.add_argument("--version", type=int, required=True)
+    parser.add_argument("--key")
+    parser.add_argument("--version", type=int)
     parser.add_argument("--sessions", type=int, default=60)
+    parser.add_argument(
+        "--all-slots",
+        action="store_true",
+        help="report activity for every currently assigned slot",
+    )
     args = parser.parse_args(argv)
+
+    if not args.all_slots and (args.key is None or args.version is None):
+        parser.error("--key and --version are required unless --all-slots is set")
 
     cfg = load_config()
     path = cfg["database"]["market_data_path"]
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
-        print(activity(conn, cfg, args.key, args.version, sessions=args.sessions))
+        if args.all_slots:
+            for entry in all_slots(conn, cfg):
+                print(_format_slot(entry))
+        else:
+            print(activity(conn, cfg, args.key, args.version, sessions=args.sessions))
     finally:
         conn.close()
     return 0
