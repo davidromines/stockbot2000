@@ -65,7 +65,8 @@ def compute(conn, cfg: dict, mode: str = "LIVE") -> dict:
     try:
         for slot, sym, price in conn.execute("SELECT slot_id, symbol, price FROM slot_marks WHERE mode=? "
                                              "ORDER BY at, id", (mode,)):
-            marks[(slot, sym)] = float(price)
+            if price is not None:                 # a run with no quote writes NULL; keep the last real mark
+                marks[(slot, sym)] = float(price)
     except sqlite3.Error:
         pass
     open_ = []

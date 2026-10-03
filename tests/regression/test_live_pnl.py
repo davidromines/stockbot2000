@@ -41,6 +41,8 @@ def main():
         ("2026-09-25T15:00:00+00:00", "SIMULATION", 3, "x", 1, "ZZZ", "CLOSE", 1.0, 99.0),
     ])
     c.execute("INSERT INTO slot_marks (at, mode, slot_id, symbol, price) VALUES ('2026-09-25T19:00:00+00:00','LIVE',2,'CCC',44.0)")
+    # a run with no quote writes a NULL mark; it must not crash or replace the last real one (EOD report, 10-02)
+    c.execute("INSERT INTO slot_marks (at, mode, slot_id, symbol, price) VALUES ('2026-09-25T19:05:00+00:00','LIVE',2,'CCC',NULL)")
     r = live_pnl.compute(c, CFG, "LIVE")
     check("two closed LIVE trades; SIMULATION excluded", r["closed_n"] == 2, r["closed_n"])
     g = r["closed_total"]["gross"]
