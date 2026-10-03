@@ -319,17 +319,26 @@ def _idle_check(conn, cfg, s):
             return ""
         k = (r["strategy_key"], r["version"])
         if k not in cache:
-            try:
-                import signal_activity as sa
-                if "df" not in frame:
+            if "df" not in frame:
+                try:
                     import paper_trading as pt
                     frame["df"] = pt._recent_frame(conn, cfg)
-                a = sa.activity(conn, cfg, k[0], k[1], df=frame["df"], sessions=window)
-                cache[k] = (f"entry rule fired on {a['active_sessions']} of the last {window} sessions"
-                            if a["measurable"] and "error" not in a and (a["active_sessions"] or 0) < n else "")
-            except Exception as e:                           # noqa: BLE001 — fail open
-                log.warning(f"activity check {k[0]}: {type(e).__name__}: {e}")
+                except (KeyError, TypeError):
+                    frame["df"] = None   # cfg incomplete — fail open silently
+                except Exception as e:  # noqa: BLE001
+                    log.warning(f"activity frame: {type(e).__name__}: {e}")
+                    frame["df"] = None
+            if frame.get("df") is None:
                 cache[k] = ""
+            else:
+                try:
+                    import signal_activity as sa
+                    a = sa.activity(conn, cfg, k[0], k[1], df=frame["df"], sessions=window)
+                    cache[k] = (f"entry rule fired on {a['active_sessions']} of the last {window} sessions"
+                                if a["measurable"] and "error" not in a and (a["active_sessions"] or 0) < n else "")
+                except Exception as e:                       # noqa: BLE001 — fail open
+                    log.warning(f"activity check {k[0]}: {type(e).__name__}: {e}")
+                    cache[k] = ""
         return cache[k]
     return idle
 

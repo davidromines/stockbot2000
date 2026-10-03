@@ -130,6 +130,27 @@ def main():
     killswitch.engage_strategy(c, "zz", "test")
     check("strategy kill switch reports halted", killswitch.strategy_halted(c, "zz") == "test")
 
+    # _idle_check with incomplete cfg (cfg={}) must not log a warning or raise.
+    # Previously raised KeyError: 'universe' through paper_trading._recent_frame.
+    import logging
+    import io
+    log_buf = io.StringIO()
+    handler = logging.StreamHandler(log_buf)
+    logging.getLogger("slots").addHandler(handler)
+    try:
+        c2 = conn_with_prices()
+        slots.init(c2)
+        ranked2 = [row("q", 9, "mom")]
+        slots.assess = lambda conn, cfg: ranked2
+        p2 = slots.plan(c2, {})
+        warn_output = log_buf.getvalue()
+        check("_idle_check with empty cfg: no KeyError: 'universe' warning",
+              "KeyError: 'universe'" not in warn_output, repr(warn_output[:200]))
+        check("_idle_check with empty cfg: plan returns (cash or assign)",
+              "cash_slots" in p2, list(p2.keys()))
+    finally:
+        logging.getLogger("slots").removeHandler(handler)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED: {', '.join(FAILED)}")

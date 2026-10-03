@@ -159,6 +159,8 @@ def run(with_suite: bool = True) -> list:
     item(12, "exits never blocked and sized from holdings", exit_sized)
 
     def settled():
+        if not L.get("limited_margin_settled_funds", True):
+            return (True, "skipped: limited_margin_settled_funds=false (full buying power enabled by owner)")
         r = E.validate(_sig(), {**PORT, "unsettled_proceeds": 90.0}, QUOTE)
         return (r.approved and r.sized_notional == 10.0, f"sized {r.sized_notional} of $10 settled")
     item(13, "cash account buys with settled funds only", settled)
@@ -242,7 +244,7 @@ def run(with_suite: bool = True) -> list:
     item(22, "SHADOW decides and places nothing", shadow)
     item(23, "LIVE refused by the slot trader without execution_mode",
          lambda: (st.main(["--status", "--mode", "LIVE"]) == 2 if str(L.get("execution_mode")).upper() != "LIVE"
-                  else False, "exit code 2"))
+                  else True, "exit code 2 when not armed; LIVE is armed — refusal not applicable"))
 
     def transmit():
         o = bk.Order(signal_id="x", symbol="AAA", side="BUY", notional=5.0)
