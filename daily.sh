@@ -178,6 +178,7 @@ run "[5/10] Paper trading step" $PY paper_trading.py --step
 # the option paper funds walk them (bought at the ask, sold at the bid).
 run "[5b/10] Options data" $PY options_data.py --daily
 run "[5c/10] Options paper" bounded $PY options_lab.py --step
+run "[5d/10] Kalman pair step" $PY kalman_pair.py --step
 
 # 5. The daily book: best candidate from every system, sell signals on open
 #    picks, and both recorded so the forward record builds itself.

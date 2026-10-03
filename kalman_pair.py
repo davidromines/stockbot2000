@@ -8,10 +8,16 @@ Pure functions over price frames plus loaders. Two declared modes:
 
 Signals are computed on a close and fill at the NEXT session's open, matching
 the project's fill convention.
+
+The backtest loses after costs, but the strategy is paper-tracked anyway: every
+strategy accrues a forward record from the day it exists, judged or not, so a
+backtest that looks bad today can still be re-examined against real forward
+evidence later.
 """
 import runtime  # noqa: F401  (thread limits must be set before numpy/pandas)
 
 import argparse
+import json
 import sqlite3
 import sys
 from datetime import date
@@ -24,6 +30,16 @@ import pandas as pd
 WARMUP = "2004-01-01"   # filter history starts here; trades count only inside the window
 PAIRS = [("EWA", "EWC"), ("GLD", "GDX"), ("XLE", "XOP"),
          ("EWU", "EWG"), ("XLF", "KBE"), ("SPY", "RSP")]
+
+# The one pair this fund tracks. Kept as a module constant so the label, the
+# strategy JSON and the signal call cannot drift apart.
+FUND_LABEL = "kalman_ewa_ewc"
+FUND_FAMILY = "kalman_pair"
+FUND_PAIR = ("EWA", "EWC")
+FUND_CAPITAL = 100.0
+
+DEFAULT_PARAMS = {"mode": "long_leg", "delta": 0.0001, "ve": 0.001,
+                  "entry_z": 1.0}
 
 
 def kalman(x, y, delta=0.0001, ve=0.001):
@@ -238,6 +254,75 @@ def _close_trade(close, open_, a, b, mode, side, entry_i, exit_i, slope0, cost):
             "ret_gross": float(gross), "ret_net": float(net)}
 
 
+def signal(conn, a, b, params=None):
+    """Today's long-only entry signal for the pair, or None.
+
+    Reads the same filter the backtest reads, over the same history, so the
+    forward record and the backtest are the same rule. Returns the leg the
+    spread calls cheap: e below -entry_z*sd means y (b) is cheap, e above
+    +entry_z*sd means x (a) is cheap.
+    """
+    p = dict(DEFAULT_PARAMS)
+    if params:
+        p.update(params)
+    entry_z = float(p["entry_z"])
+
+    close, _ = load(conn, a, b, WARMUP, date.today().isoformat())
+    if close.empty or len(close) < 2:
+        return None
+    kf = kalman(close[a], close[b], delta=float(p["delta"]),
+                ve=float(p["ve"]))
+    e = float(kf["e"].iloc[-1])
+    sd = float(np.sqrt(kf["q"].iloc[-1]))
+    if sd <= 0.0:
+        return None
+    if e < -entry_z * sd:
+        return {"ticker": b, "side": 1, "entry_z": entry_z}
+    if e > entry_z * sd:
+        return {"ticker": a, "side": 1, "entry_z": entry_z}
+    return None
+
+
+def open_fund(conn):
+    """Register the fund if it is not already registered. Idempotent.
+
+    INSERT OR IGNORE rather than a check-then-insert: the name is UNIQUE, so
+    a concurrent or repeated call cannot create a second fund, and re-running
+    the daily capture never resets a fund that has already accrued a record.
+    """
+    import uuid
+    from datetime import datetime
+    today = (conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+             or datetime.utcnow().strftime("%Y-%m-%d"))
+    run_id = "kf_" + FUND_LABEL[:8]
+    conn.execute(
+        "INSERT OR IGNORE INTO paper_runs "
+        "(run_id, name, strategy, capital_usd, cash_usd, started_on, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (run_id, FUND_LABEL,
+         json.dumps({"pair": "%s/%s" % FUND_PAIR, "mode": "long_leg",
+                     "family": FUND_FAMILY}),
+         FUND_CAPITAL, FUND_CAPITAL, today,
+         datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"))
+    conn.commit()
+
+
+def step_fund(conn, cfg):
+    """Ensure the fund is registered then step it.
+
+    open_fund ensures the fund row exists; paper_trading.step_genome steps
+    the fund using its JSON strategy. If step_genome is unavailable (schema
+    difference) the call is a no-op: the [5/10] paper step in daily.sh
+    steps all open funds anyway, so this is belt-and-suspenders.
+    """
+    open_fund(conn)
+    try:
+        import paper_trading
+        paper_trading.step_genome(conn, cfg, FUND_LABEL)
+    except (AttributeError, TypeError, KeyError):
+        pass  # step handled by the [5/10] paper step; registration is enough
+
+
 def _print_result(label, res):
     print("%-28s n=%4d gross=%+8.4f net=%+8.4f win=%5.1f%% hold=%6.1f "
           "cagr=%+8.2f%% maxdd=%6.2f%%"
@@ -260,6 +345,8 @@ def main(argv=None):
     ap.add_argument("--ve", type=float, default=0.001)
     ap.add_argument("--entry-z", type=float, default=1.0)
     ap.add_argument("--cost-bps", type=float, default=5.0)
+    ap.add_argument("--open", action="store_true")
+    ap.add_argument("--step", action="store_true")
     args = ap.parse_args(argv)
 
     cfg = load_config()
@@ -299,5 +386,35 @@ def main(argv=None):
         conn.close()
 
 
+def _main_fund(argv=None):
+    """--open / --step. These write, so they need a read-write connection;
+    the backtest path above opens read-only and must stay that way."""
+    from universe import load_config
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--open", action="store_true")
+    ap.add_argument("--step", action="store_true")
+    args = ap.parse_args(argv)
+
+    cfg = load_config()
+    path = cfg["database"]["market_data_path"]
+    conn = sqlite3.connect(path)
+    try:
+        if args.open:
+            open_fund(conn)
+            return 0
+        if args.step:
+            step_fund(conn, cfg)
+            return 0
+    finally:
+        conn.close()
+    return 0
+
+
 if __name__ == "__main__":
+    # --open/--step write to the database and need a read-write connection;
+    # every other flag is a read-only backtest. Dispatch before main() opens
+    # the read-only handle.
+    if any(f in sys.argv[1:] for f in ("--open", "--step")):
+        sys.exit(_main_fund())
     sys.exit(main())

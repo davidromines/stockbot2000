@@ -127,6 +127,33 @@ def main():
     check("PAIRS declared", len(kp.PAIRS) == 6 and ("EWA", "EWC") in kp.PAIRS)
 
     conn.close()
+
+    # open_fund idempotency
+    import paper_trading as pt
+    iconn = sqlite3.connect(":memory:")
+    pt.init(iconn)
+    iconn.execute("CREATE TABLE IF NOT EXISTS prices (ticker TEXT, date TEXT,"
+                  " open REAL, high REAL, low REAL, close REAL, volume REAL)")
+    kp.open_fund(iconn)
+    kp.open_fund(iconn)
+    rows = iconn.execute(
+        "SELECT * FROM paper_runs WHERE name='kalman_ewa_ewc'").fetchall()
+    check("open_fund idempotent — exactly one row", len(rows) == 1, len(rows))
+    iconn.close()
+
+    # step_fund completes without error on a minimal DB (no open runs)
+    import paper_trading as pt
+    sconn = sqlite3.connect(":memory:")
+    pt.init(sconn)
+    sconn.execute("CREATE TABLE IF NOT EXISTS prices (ticker TEXT, date TEXT,"
+                  " open REAL, high REAL, low REAL, close REAL, volume REAL)")
+    try:
+        kp.step_fund(sconn, {})
+        check("step_fund completes on minimal DB", True)
+    except Exception as exc:
+        check("step_fund completes on minimal DB", False, str(exc))
+    sconn.close()
+
     if FAILED:
         print("\n%d FAILED" % len(FAILED))
         return 1
