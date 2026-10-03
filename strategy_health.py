@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS strategy_health (
 )
 """
 
+# States that are worth surfacing to the operator. HEALTHY/WATCH transitions
+# are routine and would drown the FAILURES section of the EOD report.
+ALERT_STATES = ("DEGRADING", "FAILED")
+ALERT_SEVERITY = {"DEGRADING": "warning", "FAILED": "critical"}
+
 
 def init(conn):
     conn.execute(SCHEMA)
@@ -48,9 +53,9 @@ def init(conn):
 
 def _now(now=None):
     if now is None:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
     if isinstance(now, datetime):
-        return now.isoformat()
+        return now.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
     return str(now)
 
 
@@ -249,6 +254,26 @@ def evaluate(conn, cfg, rank_rows, now=None):
     return results
 
 
+def _emit_health_alert(conn, key, version, state, reason, at):
+    """Record a DEGRADING/FAILED transition in system_events.
+
+    Inline SQL rather than killswitch: this module must stay importable and
+    runnable when the killswitch schema has not been initialised (fresh test
+    DBs, partial deployments). A missing table is not an error here — the
+    health row itself is the authoritative record.
+    """
+    detail = "%s v%s: %s \u2014 %s" % (key, version, state, reason)
+    severity = ALERT_SEVERITY.get(state, "warning")
+    try:
+        conn.execute(
+            "INSERT INTO system_events (at, kind, detail, severity) VALUES (?,?,?,?)",
+            (at, "health_alert", detail, severity),
+        )
+    except sqlite3.OperationalError:
+        return False
+    return True
+
+
 def record(conn, results, now=None):
     at = _now(now)
     written = 0
@@ -270,6 +295,11 @@ def record(conn, results, now=None):
              json.dumps(r.get("metrics"), sort_keys=True) if r.get("metrics") is not None else None),
         )
         written += 1
+        # Only a transition into an alert state is news. A strategy that was
+        # already FAILED and stays FAILED must not re-alert every day.
+        prev_state = prev["state"] if prev is not None else None
+        if state in ALERT_STATES and prev_state != state:
+            _emit_health_alert(conn, key, version, state, r.get("reason"), at)
     conn.commit()
     return written
 
