@@ -440,6 +440,7 @@ def main(argv=None) -> int:
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--tools", action="store_true")
     ap.add_argument("--refresh", action="store_true", help="exchange the refresh token now")
+    ap.add_argument("--quiet", action="store_true", help="suppress stdout when --refresh does nothing")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     try:
@@ -450,9 +451,15 @@ def main(argv=None) -> int:
             print("Agentic account:", (a or {}).get("account_number", "NOT FOUND — open one in the Robinhood app"))
             return 0
         if args.refresh:
-            ok = refresh(force=True)
-            print("refreshed" if ok else "refresh failed — run --login")
-            return 0 if ok else 3
+            if not TOKEN_FILE.exists():
+                return 0  # sign-in never done — no-op
+            ok = refresh(force=False)
+            if not ok:
+                print("refresh failed — run --login")
+                return 3
+            if not getattr(args, "quiet", False):
+                print("token ok")
+            return 0
         if args.tools:
             for t in list_tools():
                 print(t["name"], json.dumps(t["schema"].get("required", [])))

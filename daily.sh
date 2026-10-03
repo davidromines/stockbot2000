@@ -115,6 +115,14 @@ run "[3b2/10] Earnings surprise" $PY sue_features.py --build
 # name still unknown after this is still rejected by the risk engine.
 run "[3c/10] Market-cap fallback" $PY market_caps.py --backfill
 
+# Robinhood OAuth token, refreshed once a day BEFORE the trading window opens.
+# The 09-24 token was never refreshed and died on 10-01, halting LIVE: refresh
+# only ever happened inside an active trading session, so a token that expired
+# between sessions stayed expired. --quiet keeps a no-op day (token still fresh,
+# or sign-in never done) silent; a real failure is still printed and, because
+# this must never block the capture, does not abort the pipeline.
+run "[3c2/10] Robinhood token refresh" $PY robinhood_mcp.py --refresh --quiet || true
+
 # Rates series for the Phase 6 §21 rate regimes (FRED, ^IRX fallback).
 run "[3d/10] Rates series" $PY regimes.py --load-rates
 # Beta, idiosyncratic vol and CAPM alpha (risk_metrics), sampled every 21 sessions:
@@ -304,3 +312,4 @@ else
     $PY notify.py --alert "Daily capture FAILED. Check logs/daily.log — the symbol directory step is the one that must not be missed, because a skipped day loses that day's delistings permanently." >/dev/null 2>&1 || true
 fi
 exit $fail
+
