@@ -23,6 +23,7 @@ STALE_MINUTES = 30
 FAILURE_CAP = 20
 RANKING_TOP = 10
 LINE_WIDTH = 60
+DISCOVERY_TARGET_CAP = 5
 
 HEADINGS = [
     ("account", "ACCOUNT"),
@@ -39,6 +40,7 @@ HEADINGS = [
     ("research", "RESEARCH"),
     ("new_candidates", "NEW CANDIDATES"),
     ("failures", "FAILURES"),
+    ("discovery_targets", "DISCOVERY TARGETS"),
     ("system_health", "SYSTEM HEALTH"),
     ("next_actions", "NEXT ACTIONS"),
 ]
@@ -406,6 +408,21 @@ def _section_failures(conn, day, mode):
     }
 
 
+def _section_discovery_targets(conn):
+    """Families discovery.weak_spots() flags, as {family: reason}.
+
+    Any failure here (import, schema drift, a bug in discovery) degrades to an
+    empty dict: the EOD report is the owner's only view of the session and must
+    never be taken down by an advisory section.
+    """
+    try:
+        import discovery
+
+        return dict(discovery.weak_spots(conn) or {})
+    except Exception:  # noqa: BLE001 — a report never raises
+        return {}
+
+
 def _section_system_health(conn, now):
     """Latest trader_runs row per mode, and whether it is stale.
 
@@ -520,6 +537,7 @@ def build(conn, day, mode="LIVE", rank_fn=None, now=None):
         "research": _section_research(conn, day),
         "new_candidates": _section_new_candidates(conn, day),
         "failures": failures,
+        "discovery_targets": _section_discovery_targets(conn),
         "system_health": system_health,
         "next_actions": _section_next_actions(conn, mode, failures, system_health),
     }
@@ -629,6 +647,14 @@ def render(report):
     for b in f["bad_runs"]:
         _emit(lines, "run %s %s" % (timefmt.pt(b["time"]), b["outcome"]))
 
+    # Advisory only: absent entirely when discovery has nothing to say, so the
+    # section's presence is itself the signal.
+    targets = report.get("discovery_targets") or {}
+    if targets:
+        head("discovery_targets", "DISCOVERY TARGETS")
+        for family in sorted(targets)[:DISCOVERY_TARGET_CAP]:
+            _emit(lines, "  %s: %s" % (family, targets[family]))
+
     head("system_health", "SYSTEM HEALTH")
     if not report["system_health"]:
         _emit(lines, "no data")
@@ -677,5 +703,50 @@ def main(argv=None):
     return 0
 
 
+def _selftest():
+    """Acceptance checks for the DISCOVERY TARGETS section (TASK-060).
+
+    Exercises render() directly with a minimal report dict: the section is
+    purely a function of report["discovery_targets"], so no database is needed.
+    """
+    import discovery
+
+    base = {
+        "slots": [], "account": {"equity": None, "buying_power": None, "cash": None,
+                                 "unsettled": None, "prev_session": None,
+                                 "prev_equity": None, "equity_change": None},
+        "real_account": [], "pnl": {"realized_gross": None, "closed_trades": 0,
+                                    "unrealized_gross": None, "net_equity_change": None,
+                                    "costs": ""},
+        "trades": [], "positions": [], "strategy_performance": [], "ranking": [],
+        "replacements": [], "research": {}, "new_candidates": [],
+        "failures": {"risk_rejections": [], "system_events": [], "bad_runs": [],
+                     "n_risk_rejections": 0},
+        "system_health": {}, "next_actions": ["none"],
+    }
+
+    original = discovery.weak_spots
+    try:
+        discovery.weak_spots = lambda conn: {"xs_momentum": "stop-exit 75%"}
+        text = render(dict(base, discovery_targets={"xs_momentum": "stop-exit 75%"}))
+        assert "DISCOVERY TARGETS" in text, "heading missing when targets present"
+        assert "xs_momentum" in text, "family missing when targets present"
+        assert "  xs_momentum: stop-exit 75%" in text, "row format wrong"
+
+        discovery.weak_spots = lambda conn: {}
+        text = render(dict(base, discovery_targets={}))
+        assert "DISCOVERY TARGETS" not in text, "heading emitted for empty targets"
+
+        text = render(base)
+        assert "DISCOVERY TARGETS" not in text, "heading emitted for missing key"
+    finally:
+        discovery.weak_spots = original
+
+    print("eod_report selftest ok")
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    if len(sys.argv) > 1 and sys.argv[1] == "--selftest":
+        _selftest()
+    else:
+        sys.exit(main())
