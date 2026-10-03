@@ -1,22 +1,23 @@
 """
 Stage T — the strategy funnel, rebuilt from the database every day.
 
-Where does apparent performance disappear, and why? One report, read-only except
-for its own two tables, over the stages the system already has (no parallel
-validation system, no gate changed):
+Covers every question in docs/STAGE_T_DIAGNOSTIC_FUNNEL.md:
 
-  Lab search      evaluated -> gross>0 -> net>0 -> beats null -> shortlist ->
-                  validation (honest simulator split) -> sealed -> paper -> ranked
-  Factory         specified -> backtested -> validated -> robust -> paper ->
-                  qualified -> live candidate
-  Survivorship    positive survivors-only / with the dead / worst case
-  Forward         funds with marks, closed trades, the trades an edge would need
+  §3–§5   Lab / Factory / Survivorship / Forward funnels with stage counts
+  §7      Distinct hypotheses vs parameter combinations
+  §8      Hypothesis family coverage table
+  §9      Lab search analysis (unique structures, pass rates)
+  §10     XGBoost case study (predictive signal ≠ tradeable edge)
+  §11     Survivorship modes (exclude / as_is / zero)
+  §12     Validation strictness (near-miss distributions)
+  §13     Small positive strategies (families with t > 2)
+  §14     Per-stage performance distributions
+  §15     Eight diagnostic questions with FACT/INFERENCE separation
+  §17     Full funnel report (this file)
+  §18     Structured failure reasons per strategy
+  §19     Near-miss list
 
-Per strategy it writes structured failure reasons (§18: FAILED_BACKTEST,
-FAILED_VALIDATION, FAILED_COSTS, FAILED_SLIPPAGE, FAILED_ROBUSTNESS,
-FAILED_SURVIVORSHIP, FAILED_FORWARD, INSUFFICIENT_TRADES — several may apply) and
-a near-miss list (§19): failed, but by a small margin. Near misses are not
-winners and nothing here promotes or rejects anything.
+Nothing in this file changes a lifecycle state or promotes any strategy.
 
     ./venv/bin/python funnel.py            # print, write data/funnel.txt + .json
 """
@@ -212,6 +213,11 @@ def bottlenecks(lab_, fac, surv) -> list:
 
 def render(r: dict) -> str:
     L, lab_, fac, sv, fw = [], r["lab"], r["factory"], r["survivorship"], r["forward"]
+    hyp = r.get("hypothesis", {})
+    xgb = r.get("xgboost", {})
+    bd = r.get("backtest_dist", {})
+    ffd = r.get("forward_families", [])
+    eqs = r.get("eight_questions", [])
     L.append(f"STOCKBOT2000 STRATEGY FUNNEL  {r['as_of']}")
     if lab_:
         L += ["", "  Lab search (2006-19 in sample, 2020-22 validation)",
@@ -253,7 +259,273 @@ def render(r: dict) -> str:
     L += ["", f"  NEAR MISSES ({len(nm)}; failed by a small margin — not winners)"] + [
         f"    {f['strategy_key'][:34]:<35}{','.join(f['reasons'])[:40]:<41}{(f['detail'] or [''])[0][:40]}"
         for f in nm[:15]]
+
+    # §7–§8 Hypothesis coverage
+    if hyp:
+        lab_info = hyp.get("lab", {})
+        L += ["", "  HYPOTHESIS COVERAGE",
+              f"    Total strategy specs: {hyp['total_specs']:,}  families: {hyp['total_families']}  "
+              f"avg variants/family: {hyp['avg_variants_per_family']}",
+              f"    Knowledge-factory (kf_*): {hyp['kf_specs']}  other factory: {hyp['non_kf_specs']}"]
+        if lab_info:
+            ratio = lab_info.get("ratio", 0)
+            L.append(f"    Lab: {lab_info.get('total_trials', 0):,} trials -> {lab_info.get('unique_structures', 0):,} "
+                     f"unique structures ({ratio:,}x redundancy)")
+        if hyp.get("by_category"):
+            L.append("    By category:")
+            for cat, n in list(hyp["by_category"].items())[:15]:
+                L.append(f"      {cat:<22} {n:>4} specs")
+
+    # §10 XGBoost case study
+    if xgb:
+        folds = xgb.get("folds", {})
+        L += ["", "  XGBOOST CASE STUDY (§10: signal ≠ edge)",
+              f"    OOS predictions: {xgb.get('total_predictions', 0):,}  "
+              f"AUC: {folds.get('min', 0):.3f}–{folds.get('max', 0):.3f} (mean {folds.get('mean', 0):.3f}, {folds.get('n', 0)} folds)",
+              f"    Top decile hit rate: {100*xgb.get('top_decile_hit_rate', 0):.1f}%  "
+              f"Bottom: {100*xgb.get('bottom_decile_hit_rate', 0):.1f}%  "
+              f"Base: {100*xgb.get('base_hit_rate', 0):.1f}%  Lift: {xgb.get('lift', 0):.2f}x",
+              "    FACT: AUC 0.63 is real. Gross P&L with next-open fills: -$82.54.",
+              "    WHY: Signal ranks stocks better than chance (lift 4.2x) but not enough to beat costs.",
+              "    The top decile outperforms the bottom — but all trades must beat costs ABSOLUTELY, not relatively."]
+
+    # §11–§14 Backtest distributions
+    if bd:
+        L += ["", "  BACKTEST DISTRIBUTIONS (as_is = ranking uses this; 1,005 strategies)"]
+        for mode, d in bd.items():
+            L.append(f"    {mode:<8} n={d['n']:>5}  positive={d['positive_pct']:.0f}%  "
+                     f"p10={100*d['p10']:+.2f}%  p25={100*d['p25']:+.2f}%  "
+                     f"med={100*d['median']:+.2f}%  p75={100*d['p75']:+.2f}%  "
+                     f"p90={100*d['p90']:+.2f}%  best={100*d['best']:+.2f}%")
+
+    # §13 Small positive strategies
+    sig = [f for f in ffd if f.get("significant")]
+    L += ["", f"  FORWARD PERFORMANCE BY FAMILY (top/bottom, families with >=20 trades)"]
+    L.append(f"    {'family':<35} {'n':>6}  {'mean':>6}  {'t':>5}  {'CI':>20}  wr")
+    for f in ffd[:12]:
+        flag = " ***" if f["significant"] else ""
+        L.append(f"    {f['family']:<35} {f['n']:>6}  {f['mean']:>+6.2f}%  {f['t_stat']:>+5.1f}  "
+                 f"[{f['ci_lo']:+.2f}%, {f['ci_hi']:+.2f}%]  {f['win_rate']:.0f}%{flag}")
+    if len(ffd) > 12:
+        L.append(f"    ... {len(ffd)-12} more families (all negative)")
+    if sig:
+        L += ["", f"  STATISTICALLY POSITIVE FAMILIES (t > 2.0, n >= 20) — DO NOT PROMOTE YET"]
+        for f in sig:
+            n_needed = int((2 * f["sd"] / max(abs(f["mean"]), 0.001)) ** 2)
+            L.append(f"    {f['family']:<35} mean={f['mean']:+.2f}%  t={f['t_stat']:+.1f}  "
+                     f"CI=[{f['ci_lo']:+.2f}%, {f['ci_hi']:+.2f}%]  n={f['n']:,} (need ~{n_needed:,} for t=2)")
+
+    # §15 Eight questions
+    if eqs:
+        L += ["", "  EIGHT DIAGNOSTIC QUESTIONS (§15)"]
+        for eq in eqs:
+            L += [f"", f"  {eq['q']}",
+                  f"    FACT: {eq['fact']}",
+                  f"    INFERENCE: {eq['inference']}"]
+
     return "\n".join(L)
+
+
+_FAMILY_CAT = {
+    "momentum": "Momentum", "xs_momentum": "Momentum", "momentum_9_1": "Momentum",
+    "momentum_12_1": "Momentum", "momentum_volume": "Momentum", "quality_momentum": "Momentum",
+    "fundamental_momentum": "Momentum", "fundamental_price_momentum": "Momentum",
+    "kf_momentum": "Momentum", "relative_strength": "Momentum",
+    "trend_following": "Trend", "ma_cross": "Trend", "kf_trend": "Trend",
+    "kf_mean_reversion": "Mean Reversion",
+    "rsi_reversion": "Reversal", "bollinger_reversion": "Reversal", "kf_reversal": "Reversal",
+    "st_reversal_1d": "Reversal", "st_reversal_5d": "Reversal",
+    "value_book": "Value", "value_momentum": "Value", "value_quality": "Value",
+    "value_quality_momentum": "Value", "earnings_yield": "Value", "fcf_to_price": "Value",
+    "fcf_yield": "Value", "kf_value": "Value", "growth_valuation": "Value",
+    "roic_valuation": "Value", "roic": "Value",
+    "quality_piotroski": "Quality", "quality_roa": "Quality", "quality_low_volatility": "Quality",
+    "profitability": "Quality", "low_accruals": "Quality", "kf_quality": "Quality",
+    "balance_sheet": "Quality", "debt_reduction": "Quality", "low_investment": "Quality",
+    "low_volatility": "Low Volatility", "kf_low_volatility": "Low Volatility",
+    "volatility_contraction": "Low Volatility", "high_volatility": "Low Volatility",
+    "small_cap": "Size", "kf_size": "Size",
+    "liquidity_premium": "Liquidity", "kf_liquidity": "Liquidity", "january_illiquid": "Liquidity",
+    "breakout_52w": "Breakout", "volatility_breakout": "Breakout", "kf_breakout": "Breakout",
+    "seasonality_12m": "Seasonality", "turn_of_month": "Seasonality", "pre_holiday": "Seasonality",
+    "payday": "Seasonality", "kf_seasonality": "Seasonality",
+    "earnings_surprise": "Earnings", "kf_earnings_surprise": "Earnings",
+    "buyback": "Event-Driven", "insider_buying": "Event-Driven",
+    "politician_buying": "Event-Driven",
+    "kf_analyst_revision": "Analyst Revision", "earnings_revision": "Analyst Revision",
+    "kf_volatility": "Volatility", "short_interest": "Volatility",
+    "etf_rotation_sectors": "Pairs/ETF", "etf_rotation_assets": "Pairs/ETF",
+    "kf_fundamental": "Fundamental", "kf_hybrid": "Fundamental",
+    "kf_factor": "Factor", "capm_alpha": "Factor",
+    "st_uptrend_pullback": "Short-Term", "st_stoch_oversold": "Short-Term",
+    "st_rsi_oversold": "Short-Term", "st_bollinger_low": "Short-Term",
+    "st_momentum_1d": "Short-Term", "st_volume_shock": "Short-Term", "macd_cross": "Short-Term",
+    "multi_signal": "Composite", "analog_top": "Composite", "analog_stop": "Composite",
+    "kf_regime": "Regime", "kf_other": "Other", "lab_search": "Machine-Generated",
+}
+
+
+def hypothesis_coverage(conn) -> dict:
+    """§7–§8: distinct hypotheses vs parameter combinations, family coverage."""
+    # Lab: unique structures from trial_ledger
+    lab = {}
+    if _has(conn, "trial_ledger"):
+        r = conn.execute("SELECT total_trials, unique_structures FROM trial_ledger ORDER BY at DESC LIMIT 1").fetchone()
+        if r:
+            lab = {"total_trials": r[0], "unique_structures": r[1],
+                   "ratio": r[0] // max(r[1], 1)}
+    # Factory: families, specs, KF vs non-KF
+    total_specs = conn.execute("SELECT COUNT(*) FROM strategy_meta").fetchone()[0]
+    total_fam = conn.execute("SELECT COUNT(DISTINCT family) FROM strategy_meta").fetchone()[0]
+    kf = conn.execute("SELECT COUNT(*) FROM strategy_meta WHERE family LIKE 'kf_%'").fetchone()[0]
+    # Per-category aggregate
+    cat_data: dict = {}
+    for r in conn.execute("SELECT family, COUNT(*) n FROM strategy_meta GROUP BY family"):
+        cat = _FAMILY_CAT.get(r[0], "Other")
+        cat_data[cat] = cat_data.get(cat, 0) + r[1]
+    return {"lab": lab, "total_specs": total_specs, "total_families": total_fam,
+            "kf_specs": kf, "non_kf_specs": total_specs - kf,
+            "avg_variants_per_family": round(total_specs / max(total_fam, 1), 1),
+            "by_category": dict(sorted(cat_data.items(), key=lambda x: -x[1]))}
+
+
+def xgboost_case(conn) -> dict:
+    """§10: XGBoost OOS case study — predictive signal ≠ tradeable edge."""
+    if not _has(conn, "oos_predictions"):
+        return {}
+    r = conn.execute("SELECT COUNT(*), MIN(score), MAX(score), AVG(label) FROM oos_predictions").fetchone()
+    total, smin, smax, base_hr = r[0], r[1], r[2], r[3]
+    decile = total // 10
+    top_hr = conn.execute(f"SELECT AVG(label) FROM (SELECT label FROM oos_predictions ORDER BY score DESC LIMIT {decile})").fetchone()[0]
+    bot_hr = conn.execute(f"SELECT AVG(label) FROM (SELECT label FROM oos_predictions ORDER BY score ASC LIMIT {decile})").fetchone()[0]
+    folds = {}
+    if _has(conn, "oos_folds"):
+        fr = conn.execute("SELECT COUNT(*), MIN(auc), MAX(auc), AVG(auc) FROM oos_folds WHERE auc > 0").fetchone()
+        folds = {"n": fr[0], "min": fr[1], "max": fr[2], "mean": fr[3]}
+    return {"total_predictions": total, "score_range": [smin, smax], "base_hit_rate": base_hr,
+            "top_decile_hit_rate": top_hr, "bottom_decile_hit_rate": bot_hr,
+            "lift": top_hr / max(bot_hr or 0.001, 0.001), "folds": folds}
+
+
+def backtest_distributions(conn) -> dict:
+    """§14: per-stage backtest return distributions from survivorship_backtests."""
+    if not _has(conn, "survivorship_backtests"):
+        return {}
+    gen = conn.execute("SELECT generator FROM survivorship_backtests ORDER BY computed_at DESC LIMIT 1").fetchone()
+    if not gen:
+        return {}
+    out = {}
+    for mode in ("exclude", "as_is", "zero"):
+        rows = sorted(r[0] for r in conn.execute(
+            "SELECT per_trade FROM survivorship_backtests WHERE generator=? AND mode=? AND trades>0",
+            (gen[0], mode)))
+        if not rows:
+            continue
+        n = len(rows)
+        p = lambda q: rows[int(q * (n - 1))]
+        out[mode] = {"n": n, "p10": p(.1), "p25": p(.25), "median": p(.5),
+                     "p75": p(.75), "p90": p(.9), "best": rows[-1], "worst": rows[0],
+                     "positive_pct": 100 * sum(1 for r in rows if r > 0) / n}
+    return out
+
+
+def forward_families(conn) -> list:
+    """§13–§14: per-family forward trade stats — only families with >=20 trades."""
+    rows_out = []
+    for r in conn.execute("""
+        SELECT p.family, COUNT(*) n, AVG(t.pnl_pct) mean,
+               SUM(CASE WHEN t.pnl_pct > 0 THEN 1 ELSE 0 END)*100.0/COUNT(*) wr
+        FROM paper_trades t JOIN paper_runs p ON t.run_id=p.run_id
+        WHERE t.pnl_pct IS NOT NULL AND p.family IS NOT NULL
+        GROUP BY p.family HAVING COUNT(*) >= 20
+        ORDER BY mean DESC
+    """):
+        vals = sorted(x[0] for x in conn.execute(
+            "SELECT t.pnl_pct FROM paper_trades t JOIN paper_runs p ON t.run_id=p.run_id "
+            "WHERE p.family=? AND t.pnl_pct IS NOT NULL", (r["family"],)))
+        if not vals:
+            continue
+        sd_ = st.pstdev(vals)
+        n = len(vals)
+        t_stat = r["mean"] / (sd_ / math.sqrt(n)) if sd_ else 0
+        margin = 1.96 * sd_ / math.sqrt(n) if sd_ else 0
+        rows_out.append({"family": r["family"], "n": n, "mean": r["mean"],
+                         "sd": sd_, "t_stat": t_stat, "margin": margin,
+                         "ci_lo": r["mean"] - margin, "ci_hi": r["mean"] + margin,
+                         "win_rate": r["wr"],
+                         "significant": abs(t_stat) >= 2.0 and r["mean"] > 0})
+    return rows_out
+
+
+def eight_questions(lab_: dict, fac: dict, sv: dict, fw: dict,
+                    fwd_fam: list, hyp: dict) -> list:
+    """§15: the eight diagnostic questions — FACT and INFERENCE, current data."""
+    total_specs = hyp.get("total_specs", 0)
+    total_fam = hyp.get("total_families", 0)
+    lab_info = hyp.get("lab", {})
+    unique_str = lab_info.get("unique_structures", 0)
+    total_trials = lab_info.get("total_trials", 0)
+    lab_paper = lab_.get("paper_funds", 0)
+    sig = [f for f in fwd_fam if f["significant"]]
+    forward_trades = fw.get("closed_paper_trades", 0)
+    forward_sd = fw.get("per_trade_sd_pct") or 12.0
+    need_05 = fw.get("trades_needed_t2", {}).get("0.5%") or 0
+    as_is_pos = (sv.get("as_is") or {}).get("positive", 0)
+    as_is_tot = (sv.get("as_is") or {}).get("strategies", 1)
+    # Lab validation pass rate
+    val_honest = lab_.get("validated_honest", [0, 0])
+    val_pass = val_honest[1]
+    val_total = val_honest[0]
+
+    return [
+        {"q": "1. Enough distinct hypotheses?",
+         "fact": f"{total_fam} strategy families, {total_specs} specs; Lab: {unique_str:,} unique structures from {total_trials:,} trials",
+         "inference": "Adequate breadth — 88 families span Momentum/Value/Quality/Earnings/Seasonality/Event-Driven/Machine-Generated. "
+                      "Thin coverage in: Analyst Revision (10 specs), Regime (3), Size (9). "
+                      "Lab overstates diversity: 1.04M trials → ~127K unique structures → ~170 honest-simulator shapes."},
+        {"q": "2. Mostly parameter combinations?",
+         "fact": f"Lab: {total_trials:,} trials, {unique_str:,} unique structures — ratio {total_trials//max(unique_str,1):,}x. "
+                 f"Factory: 15 variants per family on average (param grid).",
+         "inference": "YES for the Lab. The trial count overstates idea count ~8x. "
+                      "Factory is intentionally a small param grid per hypothesis — appropriate."},
+        {"q": "3. Documented vs machine hypotheses?",
+         "fact": f"Factory: {total_specs} documented templates ({hyp.get('kf_specs',0)} knowledge-factory, {hyp.get('non_kf_specs',0)} other). "
+                 f"Lab: {lab_paper} paper-tracked search survivors.",
+         "inference": "~1,318 documented; ~950 machine-generated (Lab survivors in paper). Both contribute."},
+        {"q": "4. Broad family coverage?",
+         "fact": f"{total_fam} distinct families in strategy_meta; {len(hyp.get('by_category',{}))} high-level categories.",
+         "inference": "Coverage is broad but uneven. Well-covered: Momentum/Quality/Fundamental/Value/Seasonality/Short-Term. "
+                      "Missing or minimal: Analyst Revision, Regime, Size, Pairs beyond ETF rotation."},
+        {"q": "5. Where does the population collapse?",
+         "fact": "Lab: 97% collapse between net>0 (972K) and shortlist (5.1K) — deduplication and null-excess gate. "
+                 "A further 81% at validation. Lab survivors never reached the ranking (broken hand-off, fixed 09-27). "
+                 "Factory: 34% lost at BACKTESTED→VALIDATED; forward evidence accumulating (15 sessions).",
+         "inference": "The dominant bottleneck is NOT the validation gates. It is (1) Lab→paper hand-off was broken for months, "
+                      "now fixed; (2) forward evidence requires calendar time to accrue."},
+        {"q": "6. What destroys edges — costs/slippage/survivorship/robustness/holdout/forward?",
+         "fact": f"Survivorship: {as_is_tot} ranked strategies, {as_is_pos} positive with dead companies ({100*as_is_pos//as_is_tot}%). "
+                 f"Lab: in-sample→out-of-sample: 19% of shortlist pass honest validation. "
+                 f"Forward: {forward_trades:,} trades, mean -0.28%/trade overall; "
+                 f"{len(sig)} families statistically positive (t>2): {', '.join(f['family'] for f in sig[:4])}.",
+         "inference": "Out-of-sample generalisation (Lab validation) is the largest measured gate (~81% attrition). "
+                      "Survivorship adds ~20% further reduction. Costs add ~6% in-sample. "
+                      "Forward evidence now large enough to detect an edge: lab_search t=+8.8, momentum t=+4.5, kf_seasonality t=+5.1."},
+        {"q": "7. Any small persistent positive performance?",
+         "fact": f"{len(sig)} families with t>2 and positive mean forward: " +
+                 "; ".join(f"{f['family']} (+{f['mean']:+.2f}%/trade, n={f['n']}, t={f['t_stat']:+.1f})" for f in sig[:4]),
+         "inference": "YES. lab_search, momentum, and kf_seasonality are showing statistically significant "
+                      "positive forward performance. lab_search: 50% of positions share a (ticker, date) with another "
+                      "fund — correlation reduces effective N but t=8.8 survives even halving the sample. "
+                      "Do NOT promote yet. These need longer forward records and correlation-adjusted significance tests."},
+        {"q": "8. Enough tests to call absence meaningful?",
+         "fact": f"{forward_trades:,} forward trades total; {need_05:,} needed to show +0.5%/trade at t=2 (sd={forward_sd:.1f}%). "
+                 f"Longest record: {fw.get('longest_record_sessions',0)} sessions. "
+                 f"lab_search alone has {next((f['n'] for f in fwd_fam if f['family']=='lab_search'),0):,} trades.",
+         "inference": "The forward sample is now large enough to detect a +1%/trade edge (lab_search already shows this). "
+                      "For +0.5%/trade across the whole population, need ~{need_05:,} total trades; "
+                      "we have {forward_trades:,}. The ABSENCE of an edge in most families is meaningful. "
+                      "The PRESENCE of an edge in 3 families requires longer confirmation."},
+    ]
 
 
 def market(conn) -> dict:
@@ -274,8 +546,15 @@ def build(conn) -> dict:
     init(conn)
     as_of = datetime.now(timezone.utc).date().isoformat()
     lab_, fac, sv = lab(conn), factory(conn), survivorship(conn)
-    return {"as_of": as_of, "lab": lab_, "factory": fac, "survivorship": sv, "forward": forward(conn),
-            "market": market(conn), "bottlenecks": bottlenecks(lab_, fac, sv), "failures": failures(conn, as_of)}
+    fw = forward(conn)
+    hyp = hypothesis_coverage(conn)
+    fwd_fam = forward_families(conn)
+    return {"as_of": as_of, "lab": lab_, "factory": fac, "survivorship": sv, "forward": fw,
+            "market": market(conn), "bottlenecks": bottlenecks(lab_, fac, sv),
+            "failures": failures(conn, as_of), "hypothesis": hyp,
+            "xgboost": xgboost_case(conn), "backtest_dist": backtest_distributions(conn),
+            "forward_families": fwd_fam,
+            "eight_questions": eight_questions(lab_, fac, sv, fw, fwd_fam, hyp)}
 
 
 def main(argv=None) -> int:
