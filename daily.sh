@@ -245,6 +245,8 @@ run "[9b/10] Accounting" $PY accounting.py --restate --snapshot data/accounting.
 #
 # (bounded() is defined near the top: stages before the factory use it too.)
 run "[9c/10] Research library sync" $PY library_bridge.py --sync
+# O10: import JKP published factors as knowledge entries (seed library).
+run "[9c1/10] Knowledge Library: JKP factors" $PY knowledge_library.py --import published_factors
 # Stage O rev 2: assign lineage to already-translated strategies, register
 # reproductions and (after a passed reproduction) its declared variants, record
 # provenance and the multiple-testing ledger. The stages below test what it registers.
