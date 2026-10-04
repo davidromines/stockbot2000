@@ -34,10 +34,10 @@ def check(name, cond, detail=""):
         FAILED.append(name)
 
 
-def entry(conn, eid, date, fam, g):
+def entry(conn, eid, date, fam, g, claim=None):
     kl.upsert(conn, {"entry_id": eid, "source": "test", "strategy_name": eid.upper(),
                      "source_type": "ACADEMIC_PAPER", "source_title": f"Paper {eid}", "source_date": date,
-                     "provenance": {"t": 1}})
+                     "original_claim": claim, "provenance": {"t": 1}})
     conn.execute("INSERT INTO knowledge_translations (entry_id, translated_at, model, prompt_version, "
                  "original_definition, fields, genome, assumptions, ambiguities, missing_information, "
                  "translation_confidence, machine_translatable, family, data_available, errors) "
@@ -52,7 +52,7 @@ def main():
     conn.execute("CREATE TABLE prices (ticker TEXT, date TEXT, close REAL)")
     conn.execute("INSERT INTO prices VALUES ('SPY', '2026-09-24', 1.0)")
     kl.init(conn); ke.init(conn); so.init(conn); league.init(conn); kf.init(conn)
-    entry(conn, "e1", "1993-03-01", "VALUE", BM)
+    entry(conn, "e1", "1993-03-01", "VALUE", BM, claim="test claim")
     entry(conn, "e2", "2005-01-01", "VALUE", BM)
     entry(conn, "e3", "1990-01-01", "MOMENTUM", MOM)
     entry(conn, "e4", "2000-01-01", "OTHER", None)
@@ -84,6 +84,7 @@ def main():
     rp = conn.execute("SELECT * FROM knowledge_reproductions WHERE entry_id='e1'").fetchone()
     check("reproduction records source / stockbot / data / implementation versions",
           all(rp[c] for c in ("source_version", "stockbot_version", "data_version", "implementation_version")))
+    check("source_claim_text populated", rp["source_claim_text"] == "test claim", rp["source_claim_text"])
     check("reproduce is idempotent", kf.reproduce(conn) == [])
 
     check("no variants before the reproduction has passed its backtest", kf.make_variants(conn) == [])
@@ -127,6 +128,18 @@ def main():
     check("a person can record independence",
           conn.execute("SELECT independence_status FROM knowledge_lineage WHERE entry_id='e2'").fetchone()[0]
           == "INDEPENDENT")
+
+    conn.execute("CREATE TABLE evaluations (strategy_key TEXT, mode TEXT, net_per_trade REAL,"
+                 " n_trades INTEGER, evaluated_at TEXT)")
+    conn.execute("INSERT INTO evaluations VALUES (?,?,?,?,?)",
+                 (k1[0], "as_is", 0.012, 50, "2026-10-01T00:00:00Z"))
+    conn.commit()
+    check("sync_results updates from evaluations", kf.sync_results(conn) >= 1)
+    sr = conn.execute("SELECT stockbot_net_per_trade, stockbot_n_trades FROM knowledge_reproductions"
+                      " WHERE entry_id='e1'").fetchone()
+    check("sync_results writes net-per-trade and trade count",
+          abs(sr["stockbot_net_per_trade"] - 0.012) < 1e-9 and sr["stockbot_n_trades"] == 50, dict(sr))
+
     src = open(os.path.join(ROOT, "knowledge_factory.py")).read()
     check("the factory never imports the frozen search", "import evolve" not in src and "from evolve" not in src)
     print()

@@ -91,6 +91,14 @@ def init(conn) -> None:
             entry_id TEXT PRIMARY KEY, strategy_key TEXT NOT NULL, version INTEGER NOT NULL,
             source_version TEXT, stockbot_version TEXT, data_version TEXT,
             implementation_version TEXT, reproduction_assumptions TEXT, created_at TEXT NOT NULL)""")
+    for col, typedef in [("source_claim_text", "TEXT"),
+                         ("stockbot_net_per_trade", "REAL"),
+                         ("stockbot_n_trades", "INTEGER"),
+                         ("stockbot_result_at", "TEXT")]:
+        try:
+            conn.execute(f"ALTER TABLE knowledge_reproductions ADD COLUMN {col} {typedef}")
+        except Exception:
+            pass  # column already exists
     conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_lineage_stats (
             as_of TEXT NOT NULL, lineage_id TEXT NOT NULL, hypothesis_count INTEGER,
             independent_sources INTEGER, variant_count INTEGER, strategy_count INTEGER,
@@ -215,10 +223,15 @@ def reproduce(conn) -> list:
         else:
             reg, new = so.register(conn, obj, author=ACTOR), True
         src_v = hashlib.sha256((r.get("original_definition") or "").encode()).hexdigest()[:16]
-        conn.execute("INSERT OR REPLACE INTO knowledge_reproductions VALUES (?,?,?,?,?,?,?,?,?)",
-                     (r["entry_id"], key, reg["version"], src_v, head, data_v,
-                      f"knowledge_extract prompt {r['prompt_version']} / knowledge_factory 1",
-                      r.get("assumptions"), _now()))
+        claim_text = (r.get("original_claim") or "")[:200] or None
+        conn.execute(
+            "INSERT OR REPLACE INTO knowledge_reproductions "
+            "(entry_id, strategy_key, version, source_version, stockbot_version, data_version, "
+            "implementation_version, reproduction_assumptions, created_at, source_claim_text) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (r["entry_id"], key, reg["version"], src_v, head, data_v,
+             f"knowledge_extract prompt {r['prompt_version']} / knowledge_factory 1",
+             r.get("assumptions"), _now(), claim_text))
         conn.execute("INSERT OR IGNORE INTO knowledge_links VALUES (?,?,?,?,?)",
                      (r["entry_id"], key, reg["version"], "SOURCE_REPRODUCTION", _now()))
         if new:
@@ -482,6 +495,39 @@ def render(rep: dict, stats: list) -> str:
 
 # --- the loop (N11, §25) ------------------------------------------------------------------------
 
+def sync_results(conn) -> int:
+    """Copy the latest backtest net_per_trade / n_trades into knowledge_reproductions for every
+    reproduction whose stockbot_net_per_trade is NULL or whose evaluation post-dates it."""
+    try:
+        rows = conn.execute(
+            "SELECT entry_id, strategy_key, version FROM knowledge_reproductions").fetchall()
+    except Exception:                                              # noqa: BLE001
+        return 0
+    updated = 0
+    for entry_id, key, _ver in rows:
+        try:
+            ev = conn.execute(
+                "SELECT net_per_trade, n_trades, evaluated_at FROM evaluations "
+                "WHERE strategy_key=? AND mode='as_is' ORDER BY evaluated_at DESC LIMIT 1",
+                (key,)).fetchone()
+        except Exception:                                          # noqa: BLE001
+            continue
+        if not ev:
+            continue
+        net, n_trades, ev_at = ev
+        cur = conn.execute(
+            "SELECT stockbot_net_per_trade, stockbot_result_at FROM knowledge_reproductions "
+            "WHERE entry_id=?", (entry_id,)).fetchone()
+        if cur and (cur[0] is None or (ev_at and cur[1] and ev_at > cur[1])):
+            conn.execute(
+                "UPDATE knowledge_reproductions SET stockbot_net_per_trade=?, "
+                "stockbot_n_trades=?, stockbot_result_at=? WHERE entry_id=?",
+                (net, n_trades, ev_at, entry_id))
+            updated += 1
+    conn.commit()
+    return updated
+
+
 def cycle(conn, cfg, extract: int = 0) -> dict:
     """One pass: translate a budget of new entries, assign lineage, reproduce, vary the
     reproductions that passed, record provenance for everything, snapshot the ledger.
@@ -502,6 +548,9 @@ def cycle(conn, cfg, extract: int = 0) -> dict:
     out["variants"] = len(make_variants(conn))
     out["provenance_backfilled"] = backfill(conn)
     out["lineages"] = len(lineage_stats(conn))
+    n = sync_results(conn)  # update knowledge_reproductions with latest backtest results
+    log.info("knowledge: sync_results wrote %d reproduction results", n)
+    out["synced_results"] = n
     return out
 
 
