@@ -78,44 +78,45 @@ in a new session for anything touching orders.
 
 **LIVE still halted (sign-in expired 10-01).** Owner fix: `./venv/bin/python robinhood_mcp.py --login`.
 5 positions held unmonitored (DELL s1, CRS s2, DBC s3, MRNA s4, MU s5); broker matches ledger.
-First weekly digest runs today (Sunday 2026-10-04, 17:00 UTC = 10 AM PT, cron in services.sh, log `logs/digest.log`).
+First weekly digest ran today (Sunday 2026-10-04, 17:00 UTC = 10 AM PT, cron in services.sh, log `logs/digest.log`).
 
-**Built this session (all on main, committed and pushed):**
+**Stage O — Knowledge Factory — now fully built (O1–O13):**
 
-- **TASK-059** Robinhood token auto-refresh cron step: `robinhood_mcp.py --refresh-token` runs every 6 h via cron
-  (`services.sh`); refreshes silently when the token is valid, logs NeedsLogin when it is not (the owner still
-  fixes a NeedsLogin manually). 5 regression tests in `tests/regression/test_robinhood_refresh.py`.
+- O1–O4 (schema, importers, normalization, pipeline integration) — built 2026-09-25/26
+- O5–O9 (genome translation, reproduction, controlled variants, provenance, Control Center panel) — built earlier
+- **O10 (TASK-067)** `knowledge_library.py import_published_factors`: 153 JKP factors from `published_signals`
+  imported as `KNOWN_FACTOR` seed entries (`jkp:` prefix). Daily `[9c1]` stage. 3 regression tests.
+- **O11** `sync_results`: copies latest backtest net_per_trade/n_trades into `knowledge_reproductions`.
+- **O12 (this session)** `knowledge_factory.queue_hybrid_seeds`: passing reproductions (VALIDATED+) are queued in
+  `knowledge_hybrid_seeds` as seeds for governed machine mutation. `--seeds` flag prints the queue as JSON.
+  When the owner arms `search.mode: ACTIVE`, `evolve.py --knowledge-seeds` can seed its population from this
+  table. Wired into `cycle()` and `[9c2]`. 3 regression tests. Factory still never imports evolve.py.
+- **O13**: continuous ingestion mechanism exists — IMPORTERS dict in `knowledge_library.py`, `[9c1]` runs DB-based
+  importers daily; network importers (`pwb_papers`, `qc_library`) run with `knowledge_library.py --import all`
+  when new papers are added.
 
-- **TASK-060** EOD report DISCOVERY TARGETS section: `eod_report.py` now appends a `DISCOVERY TARGETS` block from
-  `discovery.weak_spots(conn)` when any targets exist; absent when none. Advisory only.
+**Also built this session (TASK-059 to TASK-064, all on main, committed and pushed):**
 
-- **TASK-061** `strategy_health.py` emits `system_events` on HEALTHY→DEGRADING and HEALTHY/DEGRADING→FAILED state
-  transitions (severity `warning` / `error`). Timestamps use `Z`-terminated UTC format. 5 regression tests in
-  `tests/regression/test_strategy_health.py`.
-
-- **TASK-062** `acceptance.py` check 27: regression guard for the `slots._idle_check` `KeyError: 'universe'` fix —
-  `slots.plan(conn, {})` must emit no `KeyError: 'universe'` warning. Acceptance now 24/27 expected (check 25 needs
-  `--suite`; check 26 needs more SHADOW sessions; check 27 passes).
-
-- **TASK-063** `signal_activity.py --all-slots`: reads all 5 slot strategies from `slot_assignments`, calls
-  `activity()` for each occupied slot, prints a summary. 1 regression test in
-  `tests/regression/test_signal_activity.py`.
-
-- **TASK-064** `kalman_pair.py` `open_fund` / `step_fund` + `daily.sh [5d]`: registers the `kalman_ewa_ewc`
-  paper fund on startup (idempotent) and steps it daily. The pair backtests lose after costs; the paper fund
-  accumulates forward evidence. 2 new regression tests in `tests/regression/test_kalman_pair.py`.
+- **TASK-059** Robinhood token auto-refresh cron (`robinhood_mcp.py --refresh-token` every 6 h).
+- **TASK-060** EOD report DISCOVERY TARGETS section from `discovery.weak_spots()`.
+- **TASK-061** `strategy_health.py` emits `system_events` on HEALTHY→DEGRADING/FAILED transitions.
+- **TASK-062** `acceptance.py` check 27 (regression guard for slots empty-cfg KeyError fix).
+- **TASK-063** `signal_activity.py --all-slots` reads all 5 slot strategies.
+- **TASK-064** `kalman_pair.py` `open_fund`/`step_fund` + `daily.sh [5d]` wiring.
 
 **Still failing (expected, not regressions):**
 - Check 25 (full suite): always fails without `--suite` flag
 - Check 26 (SHADOW sessions): time-dependent, accrues with trading days
 
 **What is still open:**
-- Robinhood sign-in needs renewal (owner step, ~weekly)
+- Robinhood sign-in needs renewal (owner step, ~weekly): `./venv/bin/python robinhood_mcp.py --login`
 - `options_live.py` + `tests/regression/test_options_live.py` sit UNCOMMITTED — run `./run_tests.sh` only in
   a manual-approval session or exclude that file (blocks auto mode)
 - `survivorship_backtest.py` OOM-killed 09-30 and 10-01 (ran 10-02); fix committed but not yet confirmed stable
-- **Next buildable**: Addendum E Stage O items O5–O8, O10–O12 (Knowledge Factory genome, reproduction, variants,
-  provenance ledger, seed library, pipeline integration). O1–O4, O9 are built.
+- `n6/decision-quote` branch: owner merge (stores decision-time quote on orders for real slippage; blocked by auto mode)
+- **All Addendum D (N1–N12) and Addendum E (O1–O13) roadmap items are now built.**
+  Remaining owner-gated items: R7 options live trader (manual-approval session), `allow_options`, `allow_crypto`,
+  `search.mode: ACTIVE`, `published_prior` (L4). No buildable roadmap items remain without owner authorization.
 
 ### 2026-10-03/04 — DeepSeek tasks TASK-059 to TASK-064 completed
 

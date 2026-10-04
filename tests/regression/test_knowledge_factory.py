@@ -103,6 +103,18 @@ def main():
     uv = kf.variant(BM, "universe", {"filter": "large_cap"})
     check("a universe variant adds a large-cap filter", "market_cap" in json.dumps(uv["entry"]))
 
+    # O12: hybrid seed queue — passing reproductions become mutation seeds
+    n_seeds = kf.queue_hybrid_seeds(conn)
+    check("queue_hybrid_seeds queues a reproduction that reached VALIDATED",
+          n_seeds >= 1, n_seeds)
+    seed = conn.execute("SELECT * FROM knowledge_hybrid_seeds WHERE strategy_key=?",
+                        (k1[0],)).fetchone()
+    check("queued seed has genome_json and correct entry_id",
+          seed is not None and seed["genome_json"] and seed["entry_id"] == "e1",
+          dict(seed) if seed else None)
+    check("queue_hybrid_seeds is idempotent (no duplicates on second call)",
+          kf.queue_hybrid_seeds(conn) == 0)
+
     so.register(conn, {"strategy_key": "fx_value_book_x", "name": "VB", "family": "value_book",
                        "league": "fundamental", "genome": BM, "source": "factory_template"})
     league.register(conn, "paper:abc", "lab", {"family": "lab_search", "entry_rule": "x"},

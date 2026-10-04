@@ -104,6 +104,10 @@ def init(conn) -> None:
             independent_sources INTEGER, variant_count INTEGER, strategy_count INTEGER,
             test_count INTEGER, holdout_tests INTEGER, successful_variants INTEGER,
             failed_variants INTEGER, selection_events INTEGER, PRIMARY KEY (as_of, lineage_id))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_hybrid_seeds (
+            strategy_key TEXT PRIMARY KEY, entry_id TEXT NOT NULL, lineage_id TEXT,
+            family TEXT, genome_json TEXT NOT NULL, state TEXT NOT NULL,
+            queued_at TEXT NOT NULL, used_at TEXT)""")
     conn.commit()
 
 
@@ -493,6 +497,45 @@ def render(rep: dict, stats: list) -> str:
     return "\n".join(lines)
 
 
+# --- hybrid seeds (O12, N12) —— governed machine mutation ----------------------------------
+
+def queue_hybrid_seeds(conn) -> int:
+    """Queue reproductions that passed their backtest as seeds for governed machine mutation.
+
+    A seed is a passing knowledge genome that can be given to the evolutionary search
+    when the owner activates it (search.mode: ACTIVE; evolve.py --knowledge-seeds).
+    This function only queues — it never touches evolve.py or lifts the freeze.
+    Use `knowledge_factory.py --seeds` to print the current queue as JSON.
+    """
+    if not conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='knowledge_hybrid_seeds'").fetchone():
+        return 0
+    out = 0
+    for eid, key, ver in conn.execute(
+            "SELECT entry_id, strategy_key, version FROM knowledge_reproductions").fetchall():
+        if conn.execute("SELECT 1 FROM knowledge_hybrid_seeds WHERE strategy_key=?",
+                        (key,)).fetchone():
+            continue                               # already queued
+        st = league.canonical(league.state(conn, key, ver))
+        if st not in PASSED:
+            continue
+        g = so.genome(conn, key, ver)
+        if not g:
+            continue
+        m = so.meta(conn, key, ver) or {}
+        prov = conn.execute(
+            "SELECT lineage_id FROM strategy_provenance WHERE strategy_key=? AND version=?",
+            (key, ver)).fetchone()
+        conn.execute(
+            "INSERT OR IGNORE INTO knowledge_hybrid_seeds VALUES (?,?,?,?,?,?,?,?)",
+            (key, eid, prov[0] if prov else None, m.get("family"),
+             json.dumps(g, sort_keys=True), st, _now(), None))
+        out += 1
+    if out:
+        conn.commit()
+    return out
+
+
 # --- the loop (N11, §25) ------------------------------------------------------------------------
 
 def sync_results(conn) -> int:
@@ -551,12 +594,15 @@ def cycle(conn, cfg, extract: int = 0) -> dict:
     n = sync_results(conn)  # update knowledge_reproductions with latest backtest results
     log.info("knowledge: sync_results wrote %d reproduction results", n)
     out["synced_results"] = n
+    out["hybrid_seeds"] = queue_hybrid_seeds(conn)  # O12: queue passing reproductions as mutation seeds
     return out
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--cycle", action="store_true")
+    ap.add_argument("--seeds", action="store_true",
+                    help="print the hybrid seed queue (passing knowledge genomes) as JSON")
     ap.add_argument("--extract", type=int, default=0,
                     help="entries to translate via DeepSeek this cycle (0 = none; by hand only, never from cron)")
     ap.add_argument("--report", action="store_true")
@@ -576,6 +622,11 @@ def main(argv=None) -> int:
         Path("data/knowledge_factory.txt").write_text(text + "\n")
         Path("data/knowledge_factory.json").write_text(json.dumps(rep, indent=2))
         print(text)
+    if a.seeds:
+        seeds = conn.execute(
+            "SELECT strategy_key, entry_id, lineage_id, family, genome_json, state, queued_at "
+            "FROM knowledge_hybrid_seeds WHERE used_at IS NULL").fetchall()
+        print(json.dumps([dict(r) for r in seeds], indent=2))
     return 0
 
 
