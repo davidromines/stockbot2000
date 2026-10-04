@@ -74,46 +74,59 @@ needs `--suite`; check 26 needs more SHADOW sessions).
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-10-03 (START HERE)
+### SESSION HANDOFF — 2026-10-04 (START HERE)
 
 **LIVE still halted (sign-in expired 10-01).** Owner fix: `./venv/bin/python robinhood_mcp.py --login`.
 5 positions held unmonitored (DELL s1, CRS s2, DBC s3, MRNA s4, MU s5); broker matches ledger.
+First weekly digest runs today (Sunday 2026-10-04, 17:00 UTC = 10 AM PT, cron in services.sh, log `logs/digest.log`).
 
 **Built this session (all on main, committed and pushed):**
 
-- **N7 `discovery.py` `weak_spots()`** — four signals now steer discovery priority: near misses (funnel),
-  weakening slot holder (N5 health), high stop-exit rate in live (>60% stops, ≥3 trips, from `slot_trades`),
-  high entry slippage (>30 bps, ≥4 fills, from `orders` JOIN `slot_trades`). `--weaknesses` CLI flag.
-  13 regression tests in `tests/regression/test_discovery.py`. (commit 05e333e)
+- **TASK-059** Robinhood token auto-refresh cron step: `robinhood_mcp.py --refresh-token` runs every 6 h via cron
+  (`services.sh`); refreshes silently when the token is valid, logs NeedsLogin when it is not (the owner still
+  fixes a NeedsLogin manually). 5 regression tests in `tests/regression/test_robinhood_refresh.py`.
 
-- **Acceptance.py regressions fixed** — `acceptance.py` was 22/26 (was 25/26 at arming); now 24/26:
-  - **Check 13** (settled funds): now skips with PASS when `limited_margin_settled_funds=false` — the
-    owner set this 09-28 to allow full buying power; the old test assumed settled-only sizing.
-  - **Check 23** (LIVE refused without execution_mode): was hard-coded `else False` so always failed when
-    LIVE is armed. Fixed to `else True`: when execution_mode IS LIVE the refusal check doesn't apply.
-  - **`slots._idle_check`**: `KeyError: 'universe'` (from `paper_trading._recent_frame` when `cfg={}`) now
-    fails open silently (no warning) instead of logging spurious `WARNING activity check x: KeyError: 'universe'`.
-    Other exceptions still warn. 2 new tests in `test_slots.py` (22 total, all pass). (commit d816d2d)
+- **TASK-060** EOD report DISCOVERY TARGETS section: `eod_report.py` now appends a `DISCOVERY TARGETS` block from
+  `discovery.weak_spots(conn)` when any targets exist; absent when none. Advisory only.
+
+- **TASK-061** `strategy_health.py` emits `system_events` on HEALTHY→DEGRADING and HEALTHY/DEGRADING→FAILED state
+  transitions (severity `warning` / `error`). Timestamps use `Z`-terminated UTC format. 5 regression tests in
+  `tests/regression/test_strategy_health.py`.
+
+- **TASK-062** `acceptance.py` check 27: regression guard for the `slots._idle_check` `KeyError: 'universe'` fix —
+  `slots.plan(conn, {})` must emit no `KeyError: 'universe'` warning. Acceptance now 24/27 expected (check 25 needs
+  `--suite`; check 26 needs more SHADOW sessions; check 27 passes).
+
+- **TASK-063** `signal_activity.py --all-slots`: reads all 5 slot strategies from `slot_assignments`, calls
+  `activity()` for each occupied slot, prints a summary. 1 regression test in
+  `tests/regression/test_signal_activity.py`.
+
+- **TASK-064** `kalman_pair.py` `open_fund` / `step_fund` + `daily.sh [5d]`: registers the `kalman_ewa_ewc`
+  paper fund on startup (idempotent) and steps it daily. The pair backtests lose after costs; the paper fund
+  accumulates forward evidence. 2 new regression tests in `tests/regression/test_kalman_pair.py`.
 
 **Still failing (expected, not regressions):**
 - Check 25 (full suite): always fails without `--suite` flag
-- Check 26 (SHADOW sessions): 6 of 10 minimum — time-dependent, accrues with trading days
+- Check 26 (SHADOW sessions): time-dependent, accrues with trading days
 
 **What is still open:**
 - Robinhood sign-in needs renewal (owner step, ~weekly)
 - `options_live.py` + `tests/regression/test_options_live.py` sit UNCOMMITTED — run `./run_tests.sh` only in
   a manual-approval session or exclude that file (blocks auto mode)
 - `survivorship_backtest.py` OOM-killed 09-30 and 10-01 (ran 10-02); fix committed but not yet confirmed stable
+- **Next buildable**: Addendum E Stage O items O5–O8, O10–O12 (Knowledge Factory genome, reproduction, variants,
+  provenance ledger, seed library, pipeline integration). O1–O4, O9 are built.
 
-### 2026-10-03 — LIVE HALTED since 10-01 17:49 UTC: Robinhood sign-in expired
+### 2026-10-03/04 — DeepSeek tasks TASK-059 to TASK-064 completed
 
-- Token from 09-24 was never refreshed (file mtime unchanged); every trader run since raises NeedsLogin. Owner fix:
-  `./venv/bin/python robinhood_mcp.py --login`. Expect it again ~weekly until refresh is handled.
-- 5 positions held unmonitored (DELL s1, CRS s2, DBC s3, MRNA s4, MU s5); broker matches ledger; no stop or
-  take-profit crossed through the 10-02 close (checked 10-03 via the read-only connector).
-- EOD report crashed on NULL slot_marks (float(None)) — fixed f580d36. [9f2] OOM-killed 09-30 and 10-01, ran 10-02.
-- **N7 built** (weak_spots, 4 signals, 13 tests). **Acceptance 24/26** (check 13 and 23 regression fixed,
-  slots._idle_check KeyError warning silenced).
+- LIVE still halted (sign-in expired 10-01). 5 positions held unmonitored; broker matches ledger.
+- TASK-059: Robinhood token auto-refresh cron (6-hourly, `robinhood_mcp.py --refresh-token`).
+- TASK-060: EOD report DISCOVERY TARGETS section from `discovery.weak_spots()`.
+- TASK-061: `strategy_health.py` emits `system_events` on DEGRADING/FAILED transitions.
+- TASK-062: `acceptance.py` check 27 (regression guard for slots empty-cfg KeyError fix).
+- TASK-063: `signal_activity.py --all-slots` reads all 5 slot strategies.
+- TASK-064: `kalman_pair.py` `open_fund`/`step_fund` + `daily.sh [5d]` wiring.
+- All 142 regression tests pass. TASK queue empty. Next: ADO tasks for O5/O6 (Knowledge Factory genome + reproduction).
 
 ### 2026-09-29 early — idle rule, Stage AA, reviewer page
 
