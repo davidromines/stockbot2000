@@ -142,6 +142,37 @@ def main():
 
     src = open(os.path.join(ROOT, "knowledge_factory.py")).read()
     check("the factory never imports the frozen search", "import evolve" not in src and "from evolve" not in src)
+
+    # O10: import_published_factors — seed library from JKP table
+    conn2 = sqlite3.connect(":memory:")
+    conn2.row_factory = sqlite3.Row
+    kl.init(conn2)
+    # empty table -> returns 0 without error
+    check("import_published_factors returns 0 when published_signals is absent",
+          kl.import_published_factors(conn2) == 0)
+    conn2.execute("CREATE TABLE published_signals (source TEXT, signal TEXT, description TEXT, "
+                  "cluster TEXT, year INTEGER, sample_start TEXT, sample_end TEXT, direction INTEGER, "
+                  "authors TEXT, op_return REAL, op_tstat REAL, significance INTEGER)")
+    conn2.execute("CREATE TABLE published_evidence (family TEXT, signal TEXT, weighting TEXT, period TEXT, "
+                  "months INTEGER, mean_long REAL, mean_mkt REAL, mean_excess REAL, tstat_excess REAL, "
+                  "mean_ls REAL, computed_at TEXT)")
+    conn2.execute("INSERT INTO published_signals VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                  ("jkp", "ret_1_0", "Short-term reversal", "Momentum", 1965, "1926", "2020",
+                   -1, "Jegadeesh (1990)", -0.5, -5.2, 1))
+    conn2.execute("INSERT INTO published_evidence VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                  ("Momentum", "ret_1_0", "ew", "post", 360, -0.1, 0.0, -0.05, -2.3, -0.12, "2026-01-01"))
+    conn2.commit()
+    n_imported = kl.import_published_factors(conn2)
+    check("import_published_factors writes one entry per JKP signal", n_imported == 1, n_imported)
+    row = conn2.execute("SELECT * FROM knowledge_entries WHERE entry_id='jkp:ret_1_0'").fetchone()
+    check("entry has correct source_type, source and entry_id prefix",
+          row is not None and row["source_type"] == "KNOWN_FACTOR" and row["source"] == "jkp"
+          and row["entry_id"] == "jkp:ret_1_0", dict(row) if row else None)
+    kl.import_published_factors(conn2)
+    n_after = conn2.execute("SELECT COUNT(*) FROM knowledge_entries").fetchone()[0]
+    check("import_published_factors is idempotent (row count stable on second call)", n_after == 1, n_after)
+    conn2.close()
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

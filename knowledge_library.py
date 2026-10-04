@@ -349,8 +349,79 @@ def import_stockbot(conn) -> int:
     return n
 
 
+def import_published_factors(conn) -> int:
+    """Import 153 JKP published factors from published_signals as knowledge entries (O10 seed library).
+
+    Reads the published_signals table (source='jkp') and creates knowledge_entries with
+    source_type='KNOWN_FACTOR'. Post-publication evidence from published_evidence sets
+    source_confidence. Idempotent: re-importing unchanged rows is a no-op.
+    """
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='published_signals'").fetchone():
+        return 0
+    # Build post-pub evidence lookup: signal -> (mean_excess, tstat_excess)
+    post_ev: dict = {}
+    try:
+        for r in conn.execute(
+                "SELECT signal, mean_excess, tstat_excess FROM published_evidence "
+                "WHERE period='post' AND weighting='ew'"):
+            post_ev[r[0]] = (r[1], r[2])
+    except Exception:
+        pass
+    # Fundamental-data clusters
+    fundamental_clusters = {"accounting", "value", "profitability", "investment", "earnings quality",
+                             "accruals", "financing activities", "debt issuance", "equity issuance"}
+    rows = conn.execute(
+        "SELECT signal, description, cluster, year, sample_start, sample_end, "
+        "direction, authors, op_return, op_tstat, significance "
+        "FROM published_signals WHERE source='jkp'").fetchall()
+    n = 0
+    for r in rows:
+        sig, desc, cluster, year, s_start, s_end, direction, authors, op_ret, op_tstat, sig_flag = r
+        post_mean, post_t = post_ev.get(sig, (None, None))
+        if post_t is not None and post_t >= 2.0:
+            conf = "HIGH"
+        elif post_t is not None and post_t >= 1.5:
+            conf = "MEDIUM"
+        elif post_t is not None:
+            conf = "LOW"
+        elif op_tstat is not None and abs(op_tstat) >= 2.0:
+            conf = "MEDIUM"
+        else:
+            conf = "LOW"
+        dir_word = "high" if (direction or 1) > 0 else "low"
+        if post_t is not None:
+            claim = (f"{dir_word.capitalize()} {sig} predicts higher returns "
+                     f"(in-sample t={op_tstat:.1f}; post-pub ew t={post_t:.1f})")
+        else:
+            claim = (f"{dir_word.capitalize()} {sig} predicts higher returns "
+                     f"(in-sample t={op_tstat:.1f})" if op_tstat else f"JKP signal {sig}")
+        req = ("fundamentals" if (cluster or "").lower() in fundamental_clusters else "daily_price")
+        upsert(conn, {
+            "entry_id": f"jkp:{sig}",
+            "source": "jkp",
+            "strategy_name": desc or sig,
+            "strategy_family": family_of(desc or sig),
+            "source_type": "KNOWN_FACTOR",
+            "source_title": "JKP Global Factor Data (Jensen, Kelly, and Pedersen 2023)",
+            "source_author": authors,
+            "source_publication": "JKP 2023",
+            "original_claim": claim,
+            "original_market": "US equities",
+            "original_time_period": (f"{s_start or ''}–{s_end or ''}").strip("–") or None,
+            "required_data": req,
+            "source_confidence": conf,
+            "machine_translatable": "YES",
+            "generation_method": "PUBLISHED_REPRODUCTION",
+            "licence": "academic",
+            "provenance": {"importer": "jkp", "signal": sig, "fetched_at": _now()},
+        })
+        n += 1
+    conn.commit()
+    return n
+
+
 IMPORTERS = {"pwb_papers": import_pwb_papers, "pwb_coded": import_pwb_coded, "qc_library": import_qc_library,
-             "stockbot": import_stockbot}
+             "stockbot": import_stockbot, "published_factors": import_published_factors}
 
 
 def report(conn) -> str:
