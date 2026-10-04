@@ -43,7 +43,7 @@ ALLOWED_COLS = (
     "cal_month", "cal_dom", "cal_tdom", "cal_tdom_rev", "cal_pre_holiday",
     "cal_post_holiday",
 )
-PROMPT_VERSION = "5"   # 5: paper pages for title-only entries; 4: column glossary, long leg of long-short; 2: cached source text in the prompt; 3: verification pass
+PROMPT_VERSION = "6"   # 6: optional take_profit_pct / trailing_atr_multiple risk fields; 5: paper pages for title-only entries; 4: column glossary, long leg of long-short; 2: cached source text in the prompt; 3: verification pass
 
 # The source's own words, in the order they should be read. Title first.
 SOURCE_COLS = (
@@ -134,12 +134,14 @@ RULES
 "data_available" is "YES" or "NO: <reason>".
 
 GENOME GRAMMAR
-A genome is {"entry": NODE, "exit": NODE, "risk": {"stop_atr_multiple": float, "max_hold_days": int}}.
+A genome is {"entry": NODE, "exit": NODE, "risk": {"stop_atr_multiple": float, "max_hold_days": int, "take_profit_pct": float or null, "trailing_atr_multiple": float or null}}.
 A NODE is one of {"col": NAME}, {"const": number}, {"op": OP, "args": [NODE, ...]}, and for time-series ops also "n": int.
 OPs: comparisons gt, lt, crosses_above, crosses_below (2 args); logic and, or (2 args), not (1 arg); time-series within a ticker lag, delta, zscore, pct_change (1 arg plus "n"); cross-sectional rank (1 arg, percentile 0-1 across stocks that day).
 Positions are long only, one stock per position, $20 each. "Buy the top decile of X" is {"op":"gt","args":[{"op":"rank","args":[{"col":"X"}]},{"const":0.9}]}.
 An exit that never fires is {"op":"lt","args":[{"col":"close"},{"const":0}]} (exit by stop or holding period only).
 stop_atr_multiple must be in 0.5..10; max_hold_days must be in 1..504.
+take_profit_pct is the profit target in PERCENT (a source that says "exit at 15%% profit" is 15.0, not 0.15) and must be in 1.0..500.0; set it to null when the source states no profit target.
+trailing_atr_multiple is the trailing stop distance in ATRs (exit when price falls that many ATRs below the highest price since entry) and must be in 0.25..10.0; set it to null when the source states no trailing stop.
 
 ALLOWED COLUMN NAMES
 %s
@@ -230,6 +232,22 @@ def _validate_node(node, path, errors):
         _validate_node(arg, "%s.args[%d]" % (path, i), errors)
 
 
+def _optional_number(risk, key, lo, hi, errors):
+    """An optional risk field: absent or null means the source stated no such rule,
+    which is not an error. A present value must be a finite number in range."""
+    val = risk.get(key)
+    if val is None:
+        return
+    if isinstance(val, bool) or not isinstance(val, (int, float)):
+        errors.append("risk.%s is not a number" % key)
+        return
+    if val != val or val in (float("inf"), float("-inf")):
+        errors.append("risk.%s is not finite" % key)
+        return
+    if not lo <= val <= hi:
+        errors.append("risk.%s outside %s..%s" % (key, lo, hi))
+
+
 def validate_genome(g):
     errors = []
     if not isinstance(g, dict):
@@ -256,6 +274,8 @@ def validate_genome(g):
                 errors.append("risk.max_hold_days is not an integer")
             elif not 1 <= hold <= 504:
                 errors.append("risk.max_hold_days outside 1..504")
+            _optional_number(risk, "take_profit_pct", 1.0, 500.0, errors)
+            _optional_number(risk, "trailing_atr_multiple", 0.25, 10.0, errors)
     return errors
 
 
@@ -338,6 +358,8 @@ VERIFY_SYSTEM = """You check a translation of a documented trading strategy into
 For EVERY condition in the genome check, against the source text and the stated assumptions:
 the direction (gt vs lt; a high-value leg is rank > q, a low-value leg is rank < q), the column
 (does it measure what the source ranks on?), the threshold and the holding period.
+Also check the risk block: take_profit_pct is a percent (15%% profit is 15.0, not 0.15) and
+trailing_atr_multiple is an ATR distance; both must be null when the source states no such rule.
 Answer with ONE JSON object in a ```json fenced block: {"ok": true|false, "problems": [strings],
 "genome": the corrected genome (or the same genome when ok)}. Change only what is wrong; never add
 conditions the source does not state."""

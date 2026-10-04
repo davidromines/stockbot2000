@@ -125,6 +125,20 @@ def main():
     check("missing risk rejected", ke.validate_genome(
         {"entry": VALID["entry"], "exit": VALID["exit"]}) != [])
 
+    # --- optional stop fields (TASK-065) ---------------------------------
+    with_tp = json.loads(json.dumps(VALID))
+    with_tp["risk"]["take_profit_pct"] = 15.0
+    check("take_profit_pct accepted", ke.validate_genome(with_tp) == [],
+          ke.validate_genome(with_tp))
+    with_trail = json.loads(json.dumps(VALID))
+    with_trail["risk"]["trailing_atr_multiple"] = 3.0
+    check("trailing_atr_multiple accepted", ke.validate_genome(with_trail) == [],
+          ke.validate_genome(with_trail))
+    low_tp = json.loads(json.dumps(VALID))
+    low_tp["risk"]["take_profit_pct"] = 0.5
+    check("take_profit_pct below 1.0 rejected",
+          ke.validate_genome(low_tp) != [], ke.validate_genome(low_tp))
+
     # --- parse_response --------------------------------------------------
     good = ke.parse_response(fenced(good_payload()))
     check("good answer is YES", good["machine_translatable"] == "YES",
