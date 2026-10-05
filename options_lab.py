@@ -583,7 +583,8 @@ def sig_iv_high_uptrend(conn, date: str, p: dict, s: dict, state: dict) -> list:
         "AND iv_current > 0 AND hv_current > 0 AND iv_current / hv_current > 1.2",
         (date,)).fetchall() if r[0] in uni}
     uptrend = {r[0] for r in conn.execute(
-        "SELECT ticker FROM features WHERE date=? AND sma_200 IS NOT NULL AND close > sma_200",
+        "SELECT f.ticker FROM features f JOIN prices p ON p.ticker=f.ticker AND p.date=f.date "
+        "WHERE f.date=? AND f.sma_200 IS NOT NULL AND p.close > f.sma_200",
         (date,)).fetchall()}
     rows = sorted([(sym, ratio) for sym, ratio in iv_high.items() if sym in uptrend],
                   key=lambda r: -r[1])
