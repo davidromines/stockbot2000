@@ -1089,6 +1089,8 @@ def main(argv=None) -> int:
     ap.add_argument("--start", default="2020-03-01")
     ap.add_argument("--end", default=None)
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--open-funds", action="store_true", dest="open_funds",
+                    help="register all option strategies in the league for paper trading (idempotent)")
     ap.add_argument("--step", action="store_true", help="paper: walk the option funds over new dates")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -1100,19 +1102,32 @@ def main(argv=None) -> int:
     names = a.strategy or list(STRATEGIES)
     if a.backtest:
         backtest(conn, cfg, names, a.start, a.end)
+    if a.open_funds:
+        opened = open_funds(conn, cfg)
+        print(f"Opened {len(opened)} new option funds: {opened}" if opened else "All option funds already open.")
     if a.step:
         print(json.dumps(step(conn, cfg), indent=1, default=float))
     if a.report or a.backtest:
-        for n in names:
-            r = summarize(conn, n)
+        results = [(n, summarize(conn, n)) for n in names]
+        results.sort(key=lambda x: x[1].get("mean_ret", -99) if x[1]["trades"] else -99, reverse=True)
+        s = settings(cfg)
+        print(f"\n{'Strategy':<28} {'Trades':>6} {'Mean':>7} {'Median':>7} {'Win%':>5}  Per ${s['stake_usd']:.0f}  Status")
+        print("-" * 85)
+        for n, r in results:
             if not r["trades"]:
-                print(f"  {n:<24} no trades")
+                print(f"  {n:<26} {'':>6} {'—':>7} {'—':>7} {'—':>5}  —         no trades")
                 continue
-            print(f"  {n:<24} {r['trades']:>5} trades  mean {r['mean_ret']:+.1%}  median {r['median_ret']:+.1%}  "
-                  f"won {r['win_rate']:.0%}  ${settings(cfg)['stake_usd'] * r['mean_ret']:+.2f} per "
-                  f"${settings(cfg)['stake_usd']:.0f}  ({r['modelled_exits']} exits modelled)")
+            status = "✓ PASS" if r["mean_ret"] > 0 else "✗ fail"
+            print(f"  {n:<26} {r['trades']:>6} {r['mean_ret']:>+7.1%} {r['median_ret']:>+7.1%} "
+                  f"{r['win_rate']:>5.0%}  {s['stake_usd'] * r['mean_ret']:>+7.2f}   {status}")
+        print()
+        for n, r in results:
+            if not r["trades"] or not r.get("by_year"):
+                continue
+            print(f"  {n}:")
             for y, v in r["by_year"].items():
-                print(f"      {y}: {v['n']:>4} trades  mean {v['mean']:+.1%}")
+                print(f"    {y}: {v['n']:>4} trades  mean {v['mean']:+.1%}")
+            print()
     return 0
 
 
