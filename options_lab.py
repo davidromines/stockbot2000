@@ -752,8 +752,9 @@ def sig_oversold_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
     state["week"] = week
     uni = set(liquid(conn, date, 300))
     rows = conn.execute(
-        "SELECT ticker, rsi_14, sma_200, close FROM features WHERE date=? "
-        "AND rsi_14 IS NOT NULL AND sma_200 IS NOT NULL",
+        "SELECT f.ticker, f.rsi_14, f.sma_200, p.close FROM features f "
+        "JOIN prices p ON p.ticker=f.ticker AND p.date=f.date "
+        "WHERE f.date=? AND f.rsi_14 IS NOT NULL AND f.sma_200 IS NOT NULL",
         (date,)).fetchall()
     ranked = [(sym, rsi) for sym, rsi, sma, close in rows
               if sym in uni and rsi < 35 and close > sma * 0.98]  # uptrend with pullback
