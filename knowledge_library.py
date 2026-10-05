@@ -401,12 +401,13 @@ def import_published_factors(conn) -> int:
         else:
             conf = "LOW"
         dir_word = "high" if (direction or 1) > 0 else "low"
+        in_sample = f"in-sample t={op_tstat:.1f}" if op_tstat is not None else "in-sample t unavailable"
         if post_t is not None:
             claim = (f"{dir_word.capitalize()} {sig} predicts higher returns "
-                     f"(in-sample t={op_tstat:.1f}; post-pub ew t={post_t:.1f})")
+                     f"({in_sample}; post-pub ew t={post_t:.1f})")
         else:
-            claim = (f"{dir_word.capitalize()} {sig} predicts higher returns "
-                     f"(in-sample t={op_tstat:.1f})" if op_tstat else f"JKP signal {sig}")
+            claim = (f"{dir_word.capitalize()} {sig} predicts higher returns ({in_sample})"
+                     if op_tstat else f"JKP signal {sig}")
         req = ("fundamentals" if (cluster or "").lower() in fundamental_clusters else "daily_price")
         upsert(conn, {
             "entry_id": f"jkp:{sig}",

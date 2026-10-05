@@ -183,6 +183,25 @@ def main():
     kl.import_published_factors(conn2)
     n_after = conn2.execute("SELECT COUNT(*) FROM knowledge_entries").fetchone()[0]
     check("import_published_factors is idempotent (row count stable on second call)", n_after == 1, n_after)
+
+    # A JKP signal with no in-sample t-stat crashed the daily [9c1] stage (None formatted with :.1f)
+    for sig, op_t, post_t in (("be_me", None, 2.5), ("ni_me", None, None), ("cop_at", 4.1, None)):
+        conn2.execute("INSERT INTO published_signals VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                      ("jkp", sig, sig, "Value", 1984, "1974", "1981", 1, "Foster (1984)", 0.3, op_t, 1))
+        if post_t is not None:
+            conn2.execute("INSERT INTO published_evidence VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                          ("Value", sig, "ew", "post", 360, 0.2, 0.0, 0.1, post_t, 0.1, "2026-01-01"))
+    conn2.commit()
+    try:
+        n_null = kl.import_published_factors(conn2)
+    except TypeError as e:
+        n_null = f"TypeError: {e}"
+    check("import_published_factors tolerates a NULL in-sample t-stat", n_null == 4, n_null)
+    claims = {r[0]: r[1] for r in conn2.execute(
+        "SELECT entry_id, original_claim FROM knowledge_entries WHERE source='jkp'")}
+    check("a NULL in-sample t-stat is stated as unavailable, not as zero",
+          "unavailable" in claims.get("jkp:be_me", "") and "t=2.5" in claims.get("jkp:be_me", ""),
+          claims.get("jkp:be_me"))
     conn2.close()
 
     print()
