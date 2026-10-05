@@ -171,6 +171,17 @@ def main():
         check("BPS: short leg is put at lower strike", short_leg and short_leg["cp"] == "P"
               and short_leg["strike"] < long_leg["strike"], bps)
 
+    pcs = ol.pick(c3, "ZZZ", d3, "PCS", (21, 60, 35), s3)
+    check("PCS: 2 legs returned", pcs is not None and len(pcs) == 2, pcs)
+    if pcs:
+        long_leg = next((l for l in pcs if not l.get("short")), None)
+        short_leg = next((l for l in pcs if l.get("short")), None)
+        check("PCS: short leg is ATM put (higher strike)", short_leg and short_leg["cp"] == "P"
+              and short_leg["strike"] == 100.0, pcs)
+        check("PCS: long leg is OTM put (lower strike)", long_leg and long_leg["cp"] == "P"
+              and long_leg["strike"] < 100.0, pcs)
+        check("PCS: net credit > 0", short_leg["bid"] - long_leg["ask"] > 0, pcs)
+
     # IC backtest walk: verify credit/return calculation
     ol.STRATEGIES["t_ic"] = {"rule": "stock_signal", "legs": "IC", "dte": (21, 60, 35),
                               "hold": 30, "per_day": 1, "is_credit": True, "take_profit": 0.50}

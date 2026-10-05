@@ -181,6 +181,24 @@ STRATEGIES = {
                "(delta ~0.30 vs 0.50 ATM) collects less premium but allows a larger move before "
                "the position loses money. Higher win rate; lower per-win premium. "
                "Coval & Shumway (2001 JF); Carr & Wu (2009 RFS)."},
+    "opt_short_call_uptrend": {
+        "rule": "iv_high_uptrend", "legs": "C", "dte": (21, 50, 35), "hold": 20, "top": 3,
+        "short": True, "take_profit": 0.50,
+        "name": "Short call / covered call (uptrend)",
+        "why": "The CBOE BuyWrite Index (BXM) has outperformed the S&P500 by ~100bps/yr on a "
+               "risk-adjusted basis since 1988 (Whaley 2002 JD). Selling ATM calls on uptrending "
+               "stocks (above SMA200) collects the variance risk premium on the call side. "
+               "Loses badly when stock has a large upside move; wins on flat or down days. "
+               "Complements the short-put strategy: testing whether put or call side of VRP is larger."},
+    "opt_put_credit_spread": {
+        "rule": "iv_high_uptrend", "legs": "PCS", "dte": (21, 50, 35), "hold": 20, "top": 3,
+        "is_credit": True, "take_profit": 0.50,
+        "name": "Put credit spread (defined risk VRP)",
+        "why": "Sell ATM put + buy OTM put as a single spread: collects the variance risk premium with "
+               "a defined maximum loss (spread width minus credit received). On limited_margin, "
+               "requires less buying power than a naked short put. Hutchinson & Mulqueeney (2020); "
+               "Whaley (2002 JD): short put strategies earn ~1.5%/mo premium with defined-risk variant "
+               "reducing margin by 30-50% vs. naked short."},
 }
 
 
@@ -330,6 +348,20 @@ def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list |
                     continue
                 l1, l2 = _leg(atm_p), _leg(otm)
                 l2["short"] = True
+                return [l1, l2]
+        elif legs == "PCS":
+            # Put credit spread (bull put spread): short ATM put + long OTM put
+            atm_p = min(puts, key=lambda r: abs(abs(r["delta"]) - 0.5))
+            otm_cands = [r for r in puts if r["strike"] < atm_p["strike"]]
+            if not otm_cands:
+                continue
+            otm = min(otm_cands, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            if _ok(atm_p, s) and _ok(otm, {**s, "min_ask": 0.01}):
+                net_credit = atm_p["bid"] - otm["ask"]
+                if net_credit <= 0:
+                    continue
+                l1, l2 = _leg(atm_p), _leg(otm)
+                l1["short"] = True  # short the higher-strike (ATM) put
                 return [l1, l2]
     return None
 
@@ -835,7 +867,7 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 continue
             overdue = _days(op, d) - p["hold"] * 7 // 5
             # compute current value
-            if is_credit and p.get("legs") in ("IC", "CS") and any(l.get("short") for l in legs) \
+            if is_credit and p.get("legs") in ("IC", "CS", "PCS") and any(l.get("short") for l in legs) \
                     and any(not l.get("short") for l in legs):
                 # mixed position: net cost to close = short_asks - long_bids
                 short_legs = [l for l in legs if l.get("short")]
