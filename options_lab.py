@@ -851,6 +851,19 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 if sv is None or lv is None:
                     continue
                 v = sv - lv  # net cost to close (positive = costs us money)
+                # Cap IC at theoretical max loss (wing width). B-S hs inflation can exceed it
+                # when both legs are deep ITM — that money doesn't exist in reality.
+                sc_strikes = [l["strike"] for l in short_legs if l["cp"] == "C"]
+                lc_strikes = [l["strike"] for l in long_legs if l["cp"] == "C"]
+                sp_strikes = [l["strike"] for l in short_legs if l["cp"] == "P"]
+                lp_strikes = [l["strike"] for l in long_legs if l["cp"] == "P"]
+                wings = []
+                if sc_strikes and lc_strikes:
+                    wings.append(max(lc_strikes) - min(sc_strikes))
+                if sp_strikes and lp_strikes:
+                    wings.append(max(sp_strikes) - min(lp_strikes))
+                if wings:
+                    v = min(v, max(wings))
                 modelled = sm or lm
             elif p.get("is_debit_spread"):
                 # debit spread: net receipt to close = long_bids - short_asks
