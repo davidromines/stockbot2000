@@ -182,6 +182,20 @@ def genome_for(conn, key: str, version: int) -> dict | None:
     g = None
     if key.startswith("pair:"):
         return {"pair": key.split(":", 1)[1], "risk": pair_risk(), "exit": "switch when the fund switches"}
+    if key.startswith("option:"):
+        # Stage R: options strategies are bounded by their own expiry and time stop;
+        # options_live.py handles P&L-based exits. The option_expiry stop type tells
+        # the risk engine "this position has a structural loss floor" without comparing
+        # it to a stock price level.
+        import options_lab
+        name = key.split(":", 1)[1]
+        spec = options_lab.STRATEGIES.get(name) or {}
+        hold = int(spec.get("hold") or 20)
+        tp = spec.get("take_profit")
+        risk = {"option_expiry": True, "max_hold_days": hold}
+        if tp:
+            risk["take_profit_pct"] = float(tp) * 100  # spec stores 0.50 = 50%
+        return {"option": name, "risk": risk, "exit": "options_lab exit signal"}
     if key.startswith("value:"):
         # Owner's option C (2026-09-24): the slot holds the Value Fund's
         # top-ranked current holding, with a price stop the fund itself does
@@ -268,6 +282,8 @@ def assess(conn, cfg: dict) -> list:
             reasons.append(f"predicted to lose: score {r['score']:+.2%} per 20 sessions held")
         if key.startswith("crypto:") and not _crypto_armed():
             reasons.append("crypto not armed: config/risk.yaml allow_crypto is false (Stage K7, owner)")
+        if key.startswith("option:") and not _options_armed():
+            reasons.append("options not armed: config/risk.yaml allow_options is false (R7, owner)")
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
         ok, why = stop_plans.validate(plan)
         if not ok:
@@ -294,6 +310,15 @@ def _crypto_armed() -> bool:
     try:
         import risk_engine
         return bool(risk_engine.load_limits().get("allow_crypto"))
+    except Exception:                                        # noqa: BLE001 — fail closed
+        return False
+
+
+def _options_armed() -> bool:
+    """The operator's switch (R7). Off until the owner sets allow_options: true."""
+    try:
+        import risk_engine
+        return bool(risk_engine.load_limits().get("allow_options"))
     except Exception:                                        # noqa: BLE001 — fail closed
         return False
 

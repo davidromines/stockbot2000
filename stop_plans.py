@@ -36,7 +36,7 @@ live slot traded a different strategy from the one that was tested and ranked.
 import runtime  # noqa: F401  — must precede numpy/pandas
 import math
 
-PRICE_STOPS = ("fixed_pct", "atr", "volatility", "trailing_pct", "trailing_atr")
+PRICE_STOPS = ("fixed_pct", "atr", "volatility", "trailing_pct", "trailing_atr", "option_expiry")
 ALL_TYPES = PRICE_STOPS + ("time", "take_profit", "strategy")
 
 # Parameter each rule type needs, and its sane bounds. A 0.1% stop is noise
@@ -69,6 +69,8 @@ def from_genome(g: dict | None) -> list:
         plan.append({"type": "time", "max_hold_days": int(risk["max_hold_days"])})
     if risk.get("take_profit_pct"):
         plan.append({"type": "take_profit", "pct": float(risk["take_profit_pct"])})
+    if risk.get("option_expiry"):
+        plan.append({"type": "option_expiry"})
     if (g or {}).get("exit"):
         plan.append({"type": "strategy"})
     return plan
@@ -143,6 +145,11 @@ def stop_price(plan, entry_price: float, atr: float | None = None,
             levels.append(high * (1 - float(rule["pct"]) / 100))
         elif t == "trailing_atr" and atr:
             levels.append(high - float(rule["atr_multiple"]) * atr)
+        elif t == "option_expiry":
+            # Option expiry is a structural loss bound (premium → 0 at expiry).
+            # A tiny positive value satisfies "has a price stop" without ever
+            # triggering on real stock prices; options_live.py does the real monitoring.
+            levels.append(0.0001)
     levels = [lv for lv in levels if lv > 0]
     return max(levels) if levels else None
 

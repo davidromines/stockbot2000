@@ -80,6 +80,23 @@ def main():
     r = sp.check(plan, {"entry_price": 100}, price=101.0, sessions_held=1)
     check("no evaluable price stop -> exit (fail closed)", r["exit"] and r["kind"] == "risk", r)
 
+    # option_expiry stop type (Stage R): makes option: strategies eligible in slots
+    opt_plan = sp.from_genome({"option": "opt_short_put_uptrend",
+                               "risk": {"option_expiry": True, "max_hold_days": 20,
+                                        "take_profit_pct": 50.0}})
+    check("option_expiry plan contains option_expiry + time + take_profit",
+          [r["type"] for r in opt_plan] == ["time", "take_profit", "option_expiry"], opt_plan)
+    ok_opt, why_opt = sp.validate(opt_plan)
+    check("option_expiry plan is valid (satisfies price stop requirement)", ok_opt, why_opt)
+    sp_opt = sp.stop_price(opt_plan, entry_price=50.0)
+    check("option_expiry stop_price is 0.0001 (never triggers on real prices)", sp_opt == 0.0001, sp_opt)
+    # Stock price far above 0.0001 — option position must NOT be stopped by price check
+    r_opt = sp.check(opt_plan, {"entry_price": 50.0}, price=40.0, sessions_held=5)
+    check("option position not stopped by stock price drop", not r_opt["exit"], r_opt)
+    # Time exit fires after max_hold_days
+    r_opt_time = sp.check(opt_plan, {"entry_price": 50.0}, price=40.0, sessions_held=20)
+    check("option position exits after time limit", r_opt_time["exit"] and r_opt_time["kind"] == "time", r_opt_time)
+
     # --- slots --------------------------------------------------------------
     c = conn_with_prices()
     p = run_plan(c, [])
