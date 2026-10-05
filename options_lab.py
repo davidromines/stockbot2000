@@ -667,11 +667,11 @@ def sig_pead_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
     d1 = (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
     # Recent earnings event + positive price reaction (proxy for beat)
     events = conn.execute(
-        "SELECT DISTINCT e.ticker, e.filed, f.close, f2.close "
+        "SELECT DISTINCT e.ticker, e.filed, p.close, p2.close "
         "FROM edgar_events e "
-        "JOIN features f ON f.ticker=e.ticker AND f.date=e.filed "
-        "JOIN features f2 ON f2.ticker=e.ticker AND f2.date=( "
-        "  SELECT MAX(date) FROM features WHERE ticker=e.ticker AND date < e.filed) "
+        "JOIN prices p ON p.ticker=e.ticker AND p.date=e.filed "
+        "JOIN prices p2 ON p2.ticker=e.ticker AND p2.date=( "
+        "  SELECT MAX(date) FROM prices WHERE ticker=e.ticker AND date < e.filed) "
         "WHERE e.item='2.02' AND e.filed BETWEEN ? AND ?",
         (d0, d1)).fetchall()
     out = []
@@ -738,12 +738,10 @@ def sig_insider_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
     state["week"] = week
     uni = set(liquid(conn, date, 300))
     d30 = (dt.date.fromisoformat(date) - dt.timedelta(days=30)).isoformat()
-    # Query insider buys from Form 4 (edgar_events item 'form4_buy' or similar)
-    # Fall back to a price check on optionable universe
     try:
         rows = conn.execute(
-            "SELECT ticker, COUNT(*) AS cnt FROM edgar_events "
-            "WHERE item='form4_buy' AND filed BETWEEN ? AND ? GROUP BY ticker "
+            "SELECT ticker, COUNT(*) AS cnt FROM insider_trades "
+            "WHERE code='P' AND filing_date BETWEEN ? AND ? GROUP BY ticker "
             "ORDER BY cnt DESC", (d30, date)).fetchall()
         return [(sym, f"insider buys {cnt}x in 30d") for sym, cnt in rows
                 if sym in uni][:p.get("top", 3)]
