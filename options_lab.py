@@ -271,25 +271,35 @@ def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list |
                 return [l1, l2]
 
         elif legs == "IC":
-            # Iron condor: short call (~0.30δ) + short put (~0.30δ) + long call wing + long put wing
+            # Iron condor: short call (~0.30δ) + short put (~0.30δ) + long call wing + long put wing.
+            # Wings must give net_credit >= 20% of wing_width to ensure the trade is worth entering.
             sc = min(calls, key=lambda r: abs(abs(r["delta"]) - 0.30))
             sp = min(puts, key=lambda r: abs(abs(r["delta"]) - 0.30))
             if sc["strike"] <= sp["strike"]:
                 continue
-            # wings: next available strike further OTM
             lc_cands = [r for r in calls if r["strike"] > sc["strike"]]
             lp_cands = [r for r in puts if r["strike"] < sp["strike"]]
             if not lc_cands or not lp_cands:
                 continue
-            lc = min(lc_cands, key=lambda r: r["strike"])  # cheapest wing call
-            lp = max(lp_cands, key=lambda r: r["strike"])  # cheapest wing put
-            if all(_ok(q, {**s, "min_ask": 0.01}) for q in (sc, sp, lc, lp)):
-                net_credit = sc["bid"] + sp["bid"] - lc["ask"] - lp["ask"]
-                if net_credit <= 0:
-                    continue  # no credit
-                lsc, lsp, llc, llp = _leg(sc), _leg(sp), _leg(lc), _leg(lp)
-                lsc["short"] = lsp["short"] = True
-                return [lsc, lsp, llc, llp]
+            # Try wings progressively wider until credit >= 20% of wing width.
+            chosen = None
+            for lc in sorted(lc_cands, key=lambda r: r["strike"]):
+                for lp in sorted(lp_cands, key=lambda r: -r["strike"]):
+                    if not all(_ok(q, {**s, "min_ask": 0.01}) for q in (sc, sp, lc, lp)):
+                        continue
+                    net_credit = sc["bid"] + sp["bid"] - lc["ask"] - lp["ask"]
+                    wing_w = min(lc["strike"] - sc["strike"], sp["strike"] - lp["strike"])
+                    if net_credit >= 0.15 * wing_w and wing_w > 0:
+                        chosen = (lc, lp, net_credit)
+                        break
+                if chosen:
+                    break
+            if not chosen:
+                continue
+            lc, lp, net_credit = chosen
+            lsc, lsp, llc, llp = _leg(sc), _leg(sp), _leg(lc), _leg(lp)
+            lsc["short"] = lsp["short"] = True
+            return [lsc, lsp, llc, llp]
 
         elif legs == "BCS":
             # Bull call spread: long ATM call + short OTM call
