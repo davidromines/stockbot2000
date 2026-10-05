@@ -52,6 +52,17 @@ log = logging.getLogger("simulator")
 MAX_HOLD_CAP = 60   # matches the genome's max_hold_days ceiling
 
 
+def _is_sorted(df: pd.DataFrame) -> bool:
+    """Strictly ordered by (ticker, date) — the order sort_values(["ticker", "date"]) produces."""
+    if len(df) < 2:
+        return True
+    t = df["ticker"]
+    tk = t.cat.codes.to_numpy() if isinstance(t.dtype, pd.CategoricalDtype) else pd.factorize(t, sort=True)[0]
+    d = df["date"].to_numpy()
+    step = np.diff(tk)
+    return bool(((step > 0) | ((step == 0) & (d[1:] > d[:-1]))).all())
+
+
 class Panel:
     """
     The precomputed evaluation surface. Built once, reused by every candidate.
@@ -63,7 +74,9 @@ class Panel:
 
     def __init__(self, df: pd.DataFrame, max_hold: int = MAX_HOLD_CAP,
                  exit_prices: pd.DataFrame | None = None):
-        df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
+        # An already-sorted frame is used as is (copy-on-write: no second copy of the data while
+        # the caller still holds it — survivorship_backtest was OOM-killed at 6 GB on 09-30/10-01).
+        df = df.reset_index(drop=True) if _is_sorted(df) else df.sort_values(["ticker", "date"]).reset_index(drop=True)
         if "returns" not in df:
             df["returns"] = df.groupby("ticker", observed=True)["close"].pct_change()
         self.df = df

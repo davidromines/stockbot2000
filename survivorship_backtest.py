@@ -271,7 +271,8 @@ def _combine(a: pd.DataFrame, b: pd.DataFrame) -> pd.DataFrame:
                     ignore_index=True)
     out["date"] = pd.to_datetime(out["date"])
     out["ticker"] = out["ticker"].astype("category")
-    return out
+    # Sorted here, while nothing larger is held, so simulator.Panel uses it without a second copy.
+    return out.sort_values(["ticker", "date"], ignore_index=True)
 
 
 def run(conn, cfg, only: list | None = None) -> dict:
