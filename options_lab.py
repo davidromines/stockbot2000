@@ -695,11 +695,11 @@ def sig_breakout_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
     uni = set(liquid(conn, date, 300))
     # Stocks at or above their 52-week high (highest close in 252 trading days)
     rows = conn.execute("""
-        SELECT f.ticker, f.close,
-               (SELECT MAX(close) FROM features WHERE ticker=f.ticker
-                AND date < f.date AND date >= date(f.date, '-365 days')) AS high52
-        FROM features f
-        WHERE f.date=? AND f.close IS NOT NULL""", (date,)).fetchall()
+        SELECT p.ticker, p.close,
+               (SELECT MAX(close) FROM prices WHERE ticker=p.ticker
+                AND date < p.date AND date >= date(p.date, '-365 days')) AS high52
+        FROM prices p
+        WHERE p.date=? AND p.close IS NOT NULL""", (date,)).fetchall()
     out = []
     for sym, close, high52 in rows:
         if sym not in uni or high52 is None:
@@ -968,7 +968,7 @@ def backtest(conn, cfg: dict, names: list, start: str, end: str | None = None) -
     out = []
     for name in names:
         conn.execute("DELETE FROM option_trades WHERE mode='BACKTEST' AND strategy=?", (name,))
-        sig = stock_signals(conn, cfg, dates[0], dates[-1]) if STRATEGIES[name]["rule"] == "stock_signal" else None
+        sig = stock_signals(conn, cfg, dates[0], dates[-1]) if STRATEGIES[name]["rule"] in ("stock_signal", "signal_cheap_iv") else None
         run(conn, cfg, name, dates, "BACKTEST", sig)
         r = summarize(conn, name)
         conn.execute("INSERT OR REPLACE INTO option_backtests VALUES (?,?,?,?,?,?,?,?,?)",
