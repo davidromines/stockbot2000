@@ -74,10 +74,11 @@ needs `--suite`; check 26 needs more SHADOW sessions).
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-10-04 (START HERE)
+### SESSION HANDOFF — 2026-10-05 (START HERE)
 
-**LIVE still halted (sign-in expired 10-01).** Owner fix: `./venv/bin/python robinhood_mcp.py --login`.
-5 positions held unmonitored (DELL s1, CRS s2, DBC s3, MRNA s4, MU s5); broker matches ledger.
+**LIVE resumed 2026-10-05 ~00:50 UTC.** Owner renewed sign-in (`robinhood_mcp.py --login`).
+5 positions reconciled OK: DELL s1 (fx_kf_momentum), CRS s2 (paper:cf4dcc), DBC s3 (etf_rotation), MRNA s4 (paper:0fafb9), MU s5 (fpm). Cash $0.
+Trading resumes at next 5-min cron tick (13:00–20:59 UTC weekdays). `Session termination failed: 400` in logs is harmless noise.
 First weekly digest ran today (Sunday 2026-10-04, 17:00 UTC = 10 AM PT, cron in services.sh, log `logs/digest.log`).
 
 **Stage O — Knowledge Factory — now fully built (O1–O13):**
