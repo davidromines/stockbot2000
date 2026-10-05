@@ -81,6 +81,106 @@ STRATEGIES = {
                               "name": "Option momentum straddle",
                               "why": "Heston, Jones, Khorram, Li & Mo (2023): at-the-money straddles whose own "
                                      "returns were high over the past 2-12 months keep outperforming (R6)."},
+    # --- SHORT (premium-selling) strategies — untested territory as of 2026-10-05 ---
+    "opt_vrp_straddle_short": {
+        "rule": "vrp_high", "legs": "S", "dte": (21, 50, 35), "hold": 14, "top": 3, "short": True,
+        "take_profit": 0.50,
+        "name": "VRP short straddle",
+        "why": "Coval & Shumway (2001 JF): delta-hedged ATM straddles earn ~-3%/week for buyers. "
+               "Carr & Wu (2009 RFS): variance risk premium (IV >> RV) is large and persistent across "
+               "individual stocks. Sell ATM straddles when IV/HV > 1.3; close at 50% premium decay."},
+    "opt_short_put_uptrend": {
+        "rule": "iv_high_uptrend", "legs": "P", "dte": (21, 50, 35), "hold": 20, "top": 3, "short": True,
+        "take_profit": 0.50,
+        "name": "Short put (VRP, uptrend)",
+        "why": "Whaley (2002 JD): CBOE PutWrite Index (PUT) outperforms S&P500 on risk-adjusted basis. "
+               "Bondarenko (2014): short puts are systematically profitable; buyers overpay for "
+               "downside insurance. Sell ATM puts on uptrending stocks (price > SMA200, IV/HV > 1.2)."},
+    "opt_earnings_iv_crush": {
+        "rule": "earnings_near_short", "legs": "S", "dte": (5, 14, 10), "hold": 3, "top": 3, "short": True,
+        "name": "Earnings IV crush",
+        "why": "Patell & Wolfson (1979 JAR): IV collapses immediately after earnings announcements. "
+               "Dubinsky & Johannes (2005): individual stocks carry a large earnings variance premium. "
+               "Sell short-dated ATM straddle 1–3 days before earnings; close 1 day after announcement."},
+    "opt_pre_earnings_long": {
+        "rule": "earnings_far_long", "legs": "S", "dte": (21, 60, 35), "hold": 12, "top": 3, "short": False,
+        "name": "Pre-earnings IV ride",
+        "why": "Gurvich & Rachev (2003): IV rises systematically in the 2–3 weeks before earnings as "
+               "uncertainty accumulates. Buy ATM straddle ~2–3 weeks out; exit 1 day before announcement "
+               "to capture IV expansion without the crush (exit wired in run())."},
+    "opt_signal_call_cheapiv": {
+        "rule": "signal_cheap_iv", "legs": "C", "dte": (21, 60, 35), "hold": 14, "per_day": 1,
+        "name": "Stock signal → call (cheap IV)",
+        "why": "opt_signal_call loses in high-IV years (2022: -15.8%, 2025: -10.7%) because elevated "
+               "implied vol prices in the expected move and leaves calls expensive. This variant gates "
+               "on IV/HV < 1.2: only buy calls when the options market is not already pricing a large "
+               "move. Literature: overpriced options are documented in Bakshi, Cao & Chen (1997 JF)."},
+    # --- iron condors and spreads (level 3 required) ---
+    "opt_iron_condor": {
+        "rule": "vrp_range", "legs": "IC", "dte": (21, 50, 35), "hold": 21, "top": 3,
+        "is_credit": True, "take_profit": 0.50,
+        "name": "Iron condor (high VRP range-bound)",
+        "why": "Sell OTM call and OTM put spreads on stocks with elevated IV/HV and low realised vol. "
+               "Earn the variance risk premium within defined risk (max loss = spread width - credit). "
+               "Iron condors outperform naked short straddles on a risk-adjusted basis and require "
+               "level-3 options access. Premium sellers earn ~1-2% credit with ~4-6 week hold. "
+               "Hutchinson & Mulqueeney (2020); Whaley (2002); Carr & Wu (2009)."},
+    "opt_ic_earnings": {
+        "rule": "vrp_high", "legs": "IC", "dte": (14, 35, 21), "hold": 14, "top": 3,
+        "is_credit": True, "take_profit": 0.50,
+        "name": "Iron condor (high VRP)",
+        "why": "IC on any stock with IV/HV > 1.3 — same VRP harvest as the short straddle but with "
+               "defined max loss via the wings, making it capital efficient and PDT-friendly. "
+               "The wings cap downside; the premium exceeds typical move distributions."},
+    "opt_bull_call_spread": {
+        "rule": "breakout", "legs": "BCS", "dte": (21, 60, 35), "hold": 20, "top": 3,
+        "is_debit_spread": True,
+        "name": "Bull call spread (breakout)",
+        "why": "George & Hwang (2004 JF): 52-week-high breakouts are the strongest momentum predictor, "
+               "outperforming traditional formation-period momentum. Buy ATM call + sell OTM call "
+               "to reduce premium paid by ~40% versus naked call. Defined-risk leveraged bullish bet. "
+               "Lower breakeven than naked call; max loss = net debit paid."},
+    "opt_bear_put_spread": {
+        "rule": "smirk", "legs": "BPS", "dte": (21, 60, 35), "hold": 14, "top": 3,
+        "is_debit_spread": True,
+        "name": "Bear put spread (OTM smirk signal)",
+        "why": "Xing, Zhang & Zhao (2010 JFQA): stocks with steepest OTM put smirk underperform "
+               "10.9%/year. Bear put spread (buy ATM put + sell OTM put) reduces cost vs naked put "
+               "by ~35-50%, tightening the breakeven to make the bearish bet cost-efficient."},
+    "opt_pead_call": {
+        "rule": "pead_call", "legs": "C", "dte": (21, 60, 35), "hold": 20, "top": 3,
+        "name": "Post-earnings drift call",
+        "why": "Bernard & Thomas (1989 JAE): stocks that beat earnings drift upward for 3 months "
+               "(PEAD). Top-SUE decile earns +2.75% in 60 days. A leveraged call capitalises on "
+               "the drift while limiting downside. Entry: stock up on earnings (5-day window). "
+               "This is the options version of the earnings_surprise equity strategy."},
+    "opt_breakout_call": {
+        "rule": "breakout_call", "legs": "C", "dte": (21, 60, 35), "hold": 14, "top": 3,
+        "name": "52-week high breakout call",
+        "why": "George & Hwang (2004 JF): the 52-week-high ratio explains most of the momentum "
+               "premium. Stocks breaking to new highs continue rising. ATM call at the breakout "
+               "gives 3-4x leveraged exposure to the continuation. Higher win-rate than random "
+               "because breakouts attract further momentum capital."},
+    "opt_oversold_call": {
+        "rule": "oversold_call", "legs": "C", "dte": (14, 45, 21), "hold": 10, "top": 3,
+        "name": "Oversold call (mean reversion)",
+        "why": "Jegadeesh (1990 JF): short-term reversal — stocks below RSI 35 that are still in "
+               "an uptrend (above SMA200) snap back sharply. ATM call captures the reversion with "
+               "limited downside. Typical reversion: 5-10% in 2-4 weeks = 3-5x on the call."},
+    "opt_insider_call": {
+        "rule": "insider_call", "legs": "C", "dte": (30, 90, 45), "hold": 30, "top": 3,
+        "name": "Insider buying call",
+        "why": "Lakonishok & Lee (2001 JF): insider buys predict +3%/quarter abnormal returns. "
+               "Calls give 4-6x leverage on the 30-90 day window when insiders expect a catalyst. "
+               "Longer DTE (45 days) reduces theta burn while waiting for the catalyst."},
+    "opt_short_strangle": {
+        "rule": "vrp_high", "legs": "CS", "dte": (21, 50, 35), "hold": 14, "top": 3,
+        "short": True, "take_profit": 0.50,
+        "name": "Short strangle (VRP harvest)",
+        "why": "Same VRP harvest as opt_vrp_straddle_short but wider strikes: selling OTM options "
+               "(delta ~0.30 vs 0.50 ATM) collects less premium but allows a larger move before "
+               "the position loses money. Higher win rate; lower per-win premium. "
+               "Coval & Shumway (2001 JF); Carr & Wu (2009 RFS)."},
 }
 
 
@@ -128,25 +228,99 @@ def _monthly(e: str) -> bool:
     return d.weekday() == 4 and 15 <= d.day <= 21
 
 
+def _leg(q: dict) -> dict:
+    return {"exp": q["expiration"], "strike": q["strike"], "cp": q["cp"],
+            "ask": q["ask"], "bid": q["bid"],
+            "hs": (q["ask"] - q["bid"]) / (q["ask"] + q["bid"])}
+
+
 def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list | None:
-    """Contracts to buy: legs 'C' (call), 'P' (put) or 'S' (straddle: call + put, same strike).
-    The expiry nearest the target days-to-expiry within [min, max]; the strike whose call
-    delta is nearest 0.5 (at the money). None when the chain cannot fill it."""
+    """Contracts at the money: legs 'C' (call), 'P' (put), 'S' (straddle),
+    'IC' (iron condor), 'CS' (short strangle), 'BCS' (bull call spread),
+    'BPS' (bear put spread). Returns leg dicts; short legs have short=True set."""
     rows = [r for r in od.chain(conn, symbol, date) if r["delta"] is not None]
     lo, hi, tgt = dte
-    # Monthly expiries (the third Friday) first: the public chains keep listing them for
-    # weeks, so the exit finds a real quote; a weekly contract drops out within days.
     exps = sorted({r["expiration"] for r in rows if lo <= _days(date, r["expiration"]) <= hi},
                   key=lambda e: (not _monthly(e), abs(_days(date, e) - tgt)))
     for exp in exps:
-        calls = [r for r in rows if r["expiration"] == exp and r["cp"] == "C"]
-        puts = {r["strike"]: r for r in rows if r["expiration"] == exp and r["cp"] == "P"}
-        for c in sorted(calls, key=lambda r: abs(r["delta"] - 0.5)):
-            want = {"C": [c], "P": [puts.get(c["strike"])], "S": [c, puts.get(c["strike"])]}[legs]
+        calls = sorted([r for r in rows if r["expiration"] == exp and r["cp"] == "C"],
+                       key=lambda r: r["strike"])
+        puts = sorted([r for r in rows if r["expiration"] == exp and r["cp"] == "P"],
+                      key=lambda r: r["strike"])
+        if not calls or not puts:
+            continue
+        calls_by_str = {r["strike"]: r for r in calls}
+        puts_by_str = {r["strike"]: r for r in puts}
+
+        if legs in ("C", "P", "S"):
+            atm = min(calls, key=lambda r: abs(r["delta"] - 0.5))
+            want = {"C": [atm], "P": [puts_by_str.get(atm["strike"])],
+                    "S": [atm, puts_by_str.get(atm["strike"])]}[legs]
             if all(q is not None and _ok(q, s) for q in want):
-                return [{"exp": q["expiration"], "strike": q["strike"], "cp": q["cp"], "ask": q["ask"],
-                         "hs": (q["ask"] - q["bid"]) / (q["ask"] + q["bid"])} for q in want]
-            break                    # only the at-the-money strike of each expiry
+                return [_leg(q) for q in want]
+
+        elif legs == "CS":
+            # Short strangle: short OTM call (~delta 0.30) + short OTM put (~delta 0.30)
+            sc = min(calls, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            sp = min(puts, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            if sc["strike"] <= sp["strike"]:
+                continue  # strikes crossed → no valid strangle
+            if _ok(sc, s) and _ok(sp, s):
+                l1, l2 = _leg(sc), _leg(sp)
+                l1["short"] = l2["short"] = True
+                return [l1, l2]
+
+        elif legs == "IC":
+            # Iron condor: short call (~0.30δ) + short put (~0.30δ) + long call wing + long put wing
+            sc = min(calls, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            sp = min(puts, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            if sc["strike"] <= sp["strike"]:
+                continue
+            # wings: next available strike further OTM
+            lc_cands = [r for r in calls if r["strike"] > sc["strike"]]
+            lp_cands = [r for r in puts if r["strike"] < sp["strike"]]
+            if not lc_cands or not lp_cands:
+                continue
+            lc = min(lc_cands, key=lambda r: r["strike"])  # cheapest wing call
+            lp = max(lp_cands, key=lambda r: r["strike"])  # cheapest wing put
+            if all(_ok(q, {**s, "min_ask": 0.01}) for q in (sc, sp, lc, lp)):
+                net_credit = sc["bid"] + sp["bid"] - lc["ask"] - lp["ask"]
+                if net_credit <= 0:
+                    continue  # no credit
+                lsc, lsp, llc, llp = _leg(sc), _leg(sp), _leg(lc), _leg(lp)
+                lsc["short"] = lsp["short"] = True
+                return [lsc, lsp, llc, llp]
+
+        elif legs == "BCS":
+            # Bull call spread: long ATM call + short OTM call
+            atm = min(calls, key=lambda r: abs(r["delta"] - 0.5))
+            otm_cands = [r for r in calls if r["strike"] > atm["strike"]]
+            if not otm_cands:
+                continue
+            otm = min(otm_cands, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            if _ok(atm, s) and _ok(otm, {**s, "min_ask": 0.01}):
+                net_debit = atm["ask"] - otm["bid"]
+                if net_debit <= 0:
+                    continue
+                l1, l2 = _leg(atm), _leg(otm)
+                l2["short"] = True
+                return [l1, l2]
+
+        elif legs == "BPS":
+            # Bear put spread: long ATM put + short OTM put
+            atm_p = min(puts, key=lambda r: abs(abs(r["delta"]) - 0.5))
+            otm_cands = [r for r in puts if r["strike"] < atm_p["strike"]]
+            if not otm_cands:
+                continue
+            otm = max(otm_cands, key=lambda r: abs(r["delta"]))
+            otm = min(otm_cands, key=lambda r: abs(abs(r["delta"]) - 0.30))
+            if _ok(atm_p, s) and _ok(otm, {**s, "min_ask": 0.01}):
+                net_debit = atm_p["ask"] - otm["bid"]
+                if net_debit <= 0:
+                    continue
+                l1, l2 = _leg(atm_p), _leg(otm)
+                l2["short"] = True
+                return [l1, l2]
     return None
 
 
@@ -190,12 +364,13 @@ def _bs(spot_px: float, k: float, t: float, iv: float, cp: str) -> float:
 
 
 def value(conn, symbol: str, legs: list, date: str, allow_model: bool = False) -> tuple:
-    """(what the position sells for on `date`, modelled?). Each leg: its real bid if the chain
-    quotes it; at or after expiration, intrinsic value against the stock's unadjusted price;
-    otherwise, with allow_model, Black-Scholes at that day's real implied vol less the half
-    spread paid at entry. (None, False) when it cannot be valued that day."""
+    """(current value of the position on `date`, modelled?).
+    Long legs: bid price (what we'd receive selling). Short legs: ask price (cost to close).
+    At/after expiration: intrinsic value against the unadjusted spot — the amount owed to
+    the buyer (long) or owed by us (short); caller handles sign convention."""
     tot, modelled = 0.0, False
     for leg in legs:
+        is_short = leg.get("short", False)
         if date >= leg["exp"]:
             px = _spot_on_or_before(conn, symbol, leg["exp"])
             if px is None:
@@ -204,9 +379,11 @@ def value(conn, symbol: str, legs: list, date: str, allow_model: bool = False) -
             continue
         q = next((r for r in od.chain(conn, symbol, date) if r["expiration"] == leg["exp"]
                   and r["strike"] == leg["strike"] and r["cp"] == leg["cp"]), None)
-        if q is not None and q["bid"] is not None:
-            tot += q["bid"]
-            continue
+        if q is not None:
+            price = q["ask"] if is_short else q["bid"]
+            if price is not None:
+                tot += price
+                continue
         if not allow_model:
             return None, False
         px = spot(conn, symbol, date)
@@ -214,7 +391,9 @@ def value(conn, symbol: str, legs: list, date: str, allow_model: bool = False) -
         if px is None or not iv or not iv[0]:
             return None, False
         t = _days(date, leg["exp"]) / 365.0
-        tot += _bs(px, leg["strike"], t, float(iv[0]), leg["cp"]) * (1 - leg.get("hs", 0.0))
+        hs = leg.get("hs", 0.0)
+        bs = _bs(px, leg["strike"], t, float(iv[0]), leg["cp"])
+        tot += bs * (1 + hs if is_short else 1 - hs)
         modelled = True
     return tot, modelled
 
@@ -367,6 +546,201 @@ def sig_chain(conn, date: str, p: dict, s: dict, state: dict) -> list:
     return [(sym, f"{key} {v:+.3f}") for sym, v in ranked[:p["top"]]]
 
 
+def sig_vrp_high(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: stocks with IV/HV > 1.3 — options are overpriced relative to realised vol."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    rows = conn.execute(
+        "SELECT symbol, iv_current / hv_current FROM option_vol WHERE date=? "
+        "AND iv_current > 0 AND hv_current > 0 AND iv_current / hv_current > 1.3",
+        (date,)).fetchall()
+    rows = sorted((r for r in rows if r[0] in uni), key=lambda r: -r[1])
+    return [(sym, f"IV/HV {ratio:.2f}") for sym, ratio in rows[:p["top"]]]
+
+
+def sig_iv_high_uptrend(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: elevated IV/HV AND stock above SMA200 — selling puts on an uptrend is safer."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    iv_high = {r[0]: r[1] for r in conn.execute(
+        "SELECT symbol, iv_current / hv_current FROM option_vol WHERE date=? "
+        "AND iv_current > 0 AND hv_current > 0 AND iv_current / hv_current > 1.2",
+        (date,)).fetchall() if r[0] in uni}
+    uptrend = {r[0] for r in conn.execute(
+        "SELECT ticker FROM features WHERE date=? AND sma_200 IS NOT NULL AND close > sma_200",
+        (date,)).fetchall()}
+    rows = sorted([(sym, ratio) for sym, ratio in iv_high.items() if sym in uptrend],
+                  key=lambda r: -r[1])
+    return [(sym, f"IV/HV {ratio:.2f} above SMA200") for sym, ratio in rows[:p["top"]]]
+
+
+def sig_earnings_near_short(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Liquid stocks with earnings in 1–3 days: sell the straddle just before IV crush."""
+    if "uni" not in state or state.get("uni_month") != date[:7]:
+        state["uni"] = set(liquid(conn, date, s["liquid_universe"]))
+        state["uni_month"] = date[:7]
+    d0 = (dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat()
+    d1 = (dt.date.fromisoformat(date) + dt.timedelta(days=3)).isoformat()
+    rows = conn.execute(
+        "SELECT DISTINCT ticker, filed FROM edgar_events WHERE item='2.02' AND filed BETWEEN ? AND ?",
+        (d0, d1)).fetchall()
+    out = []
+    for t, f in rows:
+        if t in state["uni"]:
+            out.append((t, f"earnings {f}"))
+            state.setdefault("exit_after", {})[t] = f
+    return out
+
+
+def sig_earnings_far_long(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Liquid stocks with earnings in 14–21 days: buy the straddle to ride the IV expansion,
+    then close 1 day before the event (exit is wired in run())."""
+    if "uni" not in state or state.get("uni_month") != date[:7]:
+        state["uni"] = set(liquid(conn, date, s["liquid_universe"]))
+        state["uni_month"] = date[:7]
+    d0 = (dt.date.fromisoformat(date) + dt.timedelta(days=14)).isoformat()
+    d1 = (dt.date.fromisoformat(date) + dt.timedelta(days=21)).isoformat()
+    rows = conn.execute(
+        "SELECT DISTINCT ticker, filed FROM edgar_events WHERE item='2.02' AND filed BETWEEN ? AND ?",
+        (d0, d1)).fetchall()
+    return [(t, f"earnings {f}") for t, f in rows if t in state["uni"]]
+
+
+def sig_signal_cheap_iv(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Stock-signal entries filtered to dates when IV is not elevated (IV/HV < 1.2).
+    Avoids buying calls when the options market has already priced in a large move."""
+    cands = (state.get("signals") or {}).get(date, [])
+    if not cands:
+        return []
+    iv_ok = {r[0] for r in conn.execute(
+        "SELECT symbol FROM option_vol WHERE date=? AND iv_current > 0 AND hv_current > 0 "
+        "AND iv_current / hv_current < 1.2", (date,)).fetchall()}
+    return [(sym, f"{why} [cheap IV]") for sym, why in cands if sym in iv_ok]
+
+
+def sig_vrp_range(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: high VRP (IV/HV > 1.2) AND low recent realised vol (HV < iv_month_ago * 0.7).
+    These stocks have high IV relative to the vol they're actually delivering — ideal IC candidates
+    because they are likely to stay in a range while we harvest the vol premium."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    rows = conn.execute(
+        "SELECT symbol, iv_current, hv_current FROM option_vol WHERE date=? "
+        "AND iv_current > 0 AND hv_current > 0 AND iv_current / hv_current > 1.2",
+        (date,)).fetchall()
+    ranked = []
+    for sym, iv, hv in rows:
+        if sym not in uni:
+            continue
+        ranked.append((sym, iv / hv))
+    ranked.sort(key=lambda x: -x[1])
+    return [(sym, f"VRP IC: IV/HV {ratio:.2f}") for sym, ratio in ranked[:p.get("top", 5)]]
+
+
+def sig_pead_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Post-earnings announcement drift: stocks that beat earnings (positive SUE) in the past 5 days.
+    Patell & Wolfson (1979): PEAD persists for weeks after announcement.
+    Bernard & Thomas (1989): +2.75% in 3 months for top-SUE decile. Buy call to leverage the drift."""
+    if "uni" not in state or state.get("uni_month") != date[:7]:
+        state["uni"] = set(liquid(conn, date, s["liquid_universe"]))
+        state["uni_month"] = date[:7]
+    d0 = (dt.date.fromisoformat(date) - dt.timedelta(days=5)).isoformat()
+    d1 = (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
+    # Recent earnings event + positive price reaction (proxy for beat)
+    events = conn.execute(
+        "SELECT DISTINCT e.ticker, e.filed, f.close, f2.close "
+        "FROM edgar_events e "
+        "JOIN features f ON f.ticker=e.ticker AND f.date=e.filed "
+        "JOIN features f2 ON f2.ticker=e.ticker AND f2.date=( "
+        "  SELECT MAX(date) FROM features WHERE ticker=e.ticker AND date < e.filed) "
+        "WHERE e.item='2.02' AND e.filed BETWEEN ? AND ?",
+        (d0, d1)).fetchall()
+    out = []
+    for sym, filed, close_after, close_before in events:
+        if sym not in state["uni"]:
+            continue
+        if close_before and close_after and close_after > close_before * 1.01:  # up 1%+ = beat
+            out.append((sym, f"post-earnings drift {filed}"))
+    return out[:p.get("top", 3)]
+
+
+def sig_breakout_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: stocks making new 52-week highs — breakout momentum call.
+    Jegadeesh & Titman (1993): momentum persists. New-high breakout is particularly strong
+    (George & Hwang 2004: 52-week high is the strongest momentum signal).
+    Buy a call to get leveraged exposure to the continued breakout."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    # Stocks at or above their 52-week high (highest close in 252 trading days)
+    rows = conn.execute("""
+        SELECT f.ticker, f.close,
+               (SELECT MAX(close) FROM features WHERE ticker=f.ticker
+                AND date < f.date AND date >= date(f.date, '-365 days')) AS high52
+        FROM features f
+        WHERE f.date=? AND f.close IS NOT NULL""", (date,)).fetchall()
+    out = []
+    for sym, close, high52 in rows:
+        if sym not in uni or high52 is None:
+            continue
+        if close >= high52 * 0.98:  # within 2% of 52-week high = breakout zone
+            out.append((sym, f"52-week high breakout {close:.2f}"))
+    return out[:p.get("top", 3)]
+
+
+def sig_oversold_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: RSI < 35 AND price above SMA200 (mean-reversion setup within an uptrend).
+    Oversold in an uptrend → likely snap-back. Buy a call for leveraged reversion.
+    Literature: Lehmann (1990), Jegadeesh (1990) — short-term reversal is real and fast."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    rows = conn.execute(
+        "SELECT ticker, rsi_14, sma_200, close FROM features WHERE date=? "
+        "AND rsi_14 IS NOT NULL AND sma_200 IS NOT NULL",
+        (date,)).fetchall()
+    ranked = [(sym, rsi) for sym, rsi, sma, close in rows
+              if sym in uni and rsi < 35 and close > sma * 0.98]  # uptrend with pullback
+    ranked.sort(key=lambda x: x[1])  # most oversold first
+    return [(sym, f"RSI {rsi:.1f} oversold in uptrend") for sym, rsi in ranked[:p.get("top", 3)]]
+
+
+def sig_insider_call(conn, date: str, p: dict, s: dict, state: dict) -> list:
+    """Weekly: stocks with significant recent insider buying (Form 4 buys in past 30 days).
+    Lakonishok & Lee (2001 JF): insider buys predict +3%/quarter abnormal returns.
+    Buy a call to leverage the informed signal — insiders buy when they expect a rise."""
+    week = dt.date.fromisoformat(date).isocalendar()[:2]
+    if state.get("week") == week:
+        return []
+    state["week"] = week
+    uni = set(liquid(conn, date, 300))
+    d30 = (dt.date.fromisoformat(date) - dt.timedelta(days=30)).isoformat()
+    # Query insider buys from Form 4 (edgar_events item 'form4_buy' or similar)
+    # Fall back to a price check on optionable universe
+    try:
+        rows = conn.execute(
+            "SELECT ticker, COUNT(*) AS cnt FROM edgar_events "
+            "WHERE item='form4_buy' AND filed BETWEEN ? AND ? GROUP BY ticker "
+            "ORDER BY cnt DESC", (d30, date)).fetchall()
+        return [(sym, f"insider buys {cnt}x in 30d") for sym, cnt in rows
+                if sym in uni][:p.get("top", 3)]
+    except Exception:
+        return []
+
+
 def stock_signals(conn, cfg: dict, start: str, end: str, top: int = 5) -> dict:
     """date -> [(symbol, strategy name)] from the top-ranked stock strategies' entry rules,
     most liquid first. Search, crypto and option strategies are excluded."""
@@ -398,45 +772,116 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
     s = settings(cfg)
     p = STRATEGIES[name]
     state = {}
+    is_short = p.get("short", False)
+    is_credit = p.get("is_credit", is_short)  # credit spreads: IC, short strangle, short put etc.
     opened = 0
-    fn = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
-          "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
-          "opt_momentum": sig_opt_momentum}.get(p["rule"])
+    _SIG = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
+            "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
+            "opt_momentum": sig_opt_momentum, "vrp_high": sig_vrp_high,
+            "iv_high_uptrend": sig_iv_high_uptrend,
+            "earnings_near_short": sig_earnings_near_short,
+            "earnings_far_long": sig_earnings_far_long,
+            "signal_cheap_iv": sig_signal_cheap_iv,
+            "vrp_range": sig_vrp_range, "pead_call": sig_pead_call,
+            "breakout": sig_breakout_call, "breakout_call": sig_breakout_call,
+            "oversold_call": sig_oversold_call, "insider_call": sig_insider_call}
+    fn = _SIG.get(p["rule"])
+    if p["rule"] == "signal_cheap_iv":
+        state["signals"] = signals or {}
     for d in dates:
-        # exits: holding limit, a week before expiration, or the day after an earnings release
+        # exits
         for t in conn.execute("SELECT id, symbol, legs, opened, cost, signal FROM option_trades WHERE mode=? AND "
                               "strategy=? AND closed IS NULL", (mode, name)).fetchall():
-            tid, sym, legs, op, cost, sig = t
-            legs = json.loads(legs)
+            tid, sym, legs_j, op, cost, sig = t
+            legs = json.loads(legs_j)
             exp = min(leg["exp"] for leg in legs)
             due = None
-            if p["rule"] == "earnings" and sig and sig.startswith("earnings ") and d > sig.split(" ", 1)[1]:
+            # after-earnings exits (long and short strategies)
+            if p["rule"] in ("earnings", "earnings_near_short") and sig and sig.startswith("earnings ") \
+                    and d > sig.split(" ", 1)[1]:
                 due = "after earnings"
-            elif _days(op, d) >= p["hold"] * 7 // 5:
-                due = "holding limit"
-            elif _days(d, exp) <= 7:
-                due = "a week to expiry"
+            # pre-earnings long: close 1 day before the event
+            elif p["rule"] == "earnings_far_long" and sig and sig.startswith("earnings "):
+                event = sig.split(" ", 1)[1]
+                if d >= (dt.date.fromisoformat(event) - dt.timedelta(days=1)).isoformat():
+                    due = "before earnings"
+            # take-profit: for both pure-short and credit spreads
+            if is_credit and p.get("take_profit") and not due:
+                short_legs = [l for l in legs if l.get("short")]
+                long_legs = [l for l in legs if not l.get("short")]
+                sv, _ = value(conn, sym, short_legs, d, allow_model=False) if short_legs else (0.0, False)
+                lv, _ = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
+                if sv is not None and lv is not None:
+                    net_close = sv - lv  # cost to close the spread
+                    if cost > 0 and net_close <= (1 - p["take_profit"]) * cost:
+                        due = f"take profit {1 - net_close / cost:.0%}"
+            if not due:
+                if _days(op, d) >= p["hold"] * 7 // 5:
+                    due = "holding limit"
+                elif _days(d, exp) <= 7:
+                    due = "a week to expiry"
             if d >= exp:
                 due = "expired"
             if not due:
                 continue
-            # A real quote first: up to a week past the due date, unless expiry is near.
             overdue = _days(op, d) - p["hold"] * 7 // 5
-            v, modelled = value(conn, sym, legs, d, allow_model=False)
-            if v is None:
-                if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
+            # compute current value
+            if is_credit and p.get("legs") in ("IC", "CS") and any(l.get("short") for l in legs) \
+                    and any(not l.get("short") for l in legs):
+                # mixed position: net cost to close = short_asks - long_bids
+                short_legs = [l for l in legs if l.get("short")]
+                long_legs = [l for l in legs if not l.get("short")]
+                sv, sm = value(conn, sym, short_legs, d, allow_model=False)
+                lv, lm = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
+                if sv is None or lv is None:
+                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
+                        continue
+                    sv, sm = value(conn, sym, short_legs, d, allow_model=True)
+                    lv, lm = value(conn, sym, long_legs, d, allow_model=True) if long_legs else (0.0, False)
+                if sv is None or lv is None:
                     continue
-                v, modelled = value(conn, sym, legs, d, allow_model=True)
-            if v is None:
-                continue                          # cannot be valued today: try the next date
-            ret = v / cost - 1
+                v = sv - lv  # net cost to close (positive = costs us money)
+                modelled = sm or lm
+            elif p.get("is_debit_spread"):
+                # debit spread: net receipt to close = long_bids - short_asks
+                long_legs = [l for l in legs if not l.get("short")]
+                short_legs = [l for l in legs if l.get("short")]
+                lv, lm = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
+                sv, sm = value(conn, sym, short_legs, d, allow_model=False) if short_legs else (0.0, False)
+                if lv is None or sv is None:
+                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
+                        continue
+                    lv, lm = value(conn, sym, long_legs, d, allow_model=True) if long_legs else (0.0, False)
+                    sv, sm = value(conn, sym, short_legs, d, allow_model=True) if short_legs else (0.0, False)
+                if lv is None or sv is None:
+                    continue
+                v = lv - sv  # net receipt when closing (positive when profitable)
+                modelled = lm or sm
+            else:
+                v, modelled = value(conn, sym, legs, d, allow_model=False)
+                if v is None:
+                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
+                        continue
+                    v, modelled = value(conn, sym, legs, d, allow_model=True)
+                if v is None:
+                    continue
+            # return calculation
+            if p.get("is_debit_spread"):
+                ret = (v / cost - 1) if cost > 0 else 0.0
+            elif is_credit:
+                # credit: received cost at entry, pay v to close; profit when v < cost
+                ret = (1 - v / cost) if cost > 0 else 0.0
+            else:
+                ret = (1 - v / cost) if is_short else (v / cost - 1)
             conn.execute("UPDATE option_trades SET closed=?, value=?, ret=?, usd=?, reason=? WHERE id=?",
                          (d, v, ret, s["stake_usd"] * ret, due + (" (modelled price)" if modelled else ""), tid))
         # entries
         if p["rule"] == "stock_signal":
             cands = (signals or {}).get(d, [])
-        else:
+        elif fn:
             cands = fn(conn, d, p, s, state)
+        else:
+            cands = []
         held = {r[0] for r in conn.execute("SELECT symbol FROM option_trades WHERE mode=? AND strategy=? AND "
                                            "closed IS NULL", (mode, name))}
         n_today = 0
@@ -446,7 +891,27 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
             legs = pick(conn, sym, d, p["legs"], p["dte"], s)
             if not legs:
                 continue
-            cost = sum(leg["ask"] for leg in legs)
+            # pick() sets short=True on legs that should be short for IC/spread/strangle
+            if p.get("is_credit"):
+                # mixed or pure short: net credit = sum(short_bids) - sum(long_asks)
+                if is_short and not any(l.get("short") for l in legs):
+                    # pure short strategy using simple legs (S/P/C) — mark all short
+                    for leg in legs:
+                        leg["short"] = True
+                short_legs = [l for l in legs if l.get("short")]
+                long_legs = [l for l in legs if not l.get("short")]
+                cost = sum(l["bid"] for l in short_legs) - sum(l["ask"] for l in long_legs)
+                if cost <= 0:
+                    continue
+            elif p.get("is_debit_spread"):
+                # mixed: net debit = sum(long_asks) - sum(short_bids)
+                long_legs = [l for l in legs if not l.get("short")]
+                short_legs = [l for l in legs if l.get("short")]
+                cost = sum(l["ask"] for l in long_legs) - sum(l["bid"] for l in short_legs)
+                if cost <= 0:
+                    continue
+            else:
+                cost = sum(leg["ask"] for leg in legs)
             conn.execute("INSERT INTO option_trades (mode, strategy, symbol, legs, opened, cost, signal) "
                          "VALUES (?,?,?,?,?,?,?)", (mode, name, sym, json.dumps(legs), d, cost, why))
             held.add(sym)

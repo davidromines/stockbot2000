@@ -61,6 +61,18 @@ GENERATION_METHODS = ("PUBLISHED_REPRODUCTION", "PUBLISHED_VARIANT", "PUBLISHED_
 TRANSLATABLE = ("YES", "PENDING", "NON_MACHINE_TESTABLE")
 
 FAMILY_WORDS = [  # §21 starting families; first match wins, so specific before general
+    ("options premium selling", ("short straddle", "short strangle", "iron condor", "put-write", "putwrite",
+                                 "covered call", "cash-secured put", "variance risk premium", "vrp harvest",
+                                 "volatility risk premium", "premium selling", "credit spread")),
+    ("options earnings", ("earnings straddle", "earnings iv", "pre-earnings", "earnings announcement drift",
+                          "post-earnings option", "earnings option")),
+    ("options signals", ("option order flow", "put-call parity", "implied volatility spread", "smirk",
+                         "call-put spread", "options signals")),
+    ("options momentum", ("option momentum", "straddle momentum", "option return")),
+    ("options volatility", ("cheap iv", "low iv", "implied vs realized", "goyal saretto",
+                            "iv discount", "options volatility")),
+    ("options directional", ("call option", "put option", "bull call", "bear put", "protective put",
+                              "covered call", "pead call", "breakout call")),
     ("earnings surprise", ("earnings surprise", "post-earnings", "pead", "earnings announcement", "sue")),
     ("analyst revision", ("analyst", "revision", "recommendation", "forecast dispersion")),
     ("seasonality", ("january", "turn of the month", "seasonal", "calendar", "day-of-the-week", "holiday",
@@ -420,8 +432,236 @@ def import_published_factors(conn) -> int:
     return n
 
 
+def import_options_literature(conn) -> int:
+    """Import core options strategy academic literature as ACADEMIC_PAPER entries.
+    Covers the variance risk premium, put-write, earnings IV effects, and option signals.
+    Idempotent."""
+    ENTRIES = [
+        {"entry_id": "opts:coval_shumway_2001", "strategy_name": "ATM straddle short (VRP)",
+         "strategy_family": "options premium selling",
+         "source_title": "Expected Option Returns",
+         "source_author": "Coval and Shumway (2001)",
+         "source_publication": "Journal of Finance 56(3)",
+         "source_date": "2001-06-01",
+         "original_claim": "At-the-money straddles earn approximately -3%/week for buyers; option markets "
+                           "systematically overprice variance, implying short straddles earn a positive risk "
+                           "premium.",
+         "original_market": "US equities (CBOE)", "original_time_period": "1983–1995",
+         "required_data": "option_chains", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:carr_wu_2009", "strategy_name": "Variance risk premium capture",
+         "strategy_family": "options premium selling",
+         "source_title": "Variance Risk Premiums",
+         "source_author": "Carr and Wu (2009)",
+         "source_publication": "Review of Financial Studies 22(3)",
+         "source_date": "2009-03-01",
+         "original_claim": "Implied volatility exceeds expected realized volatility by a persistent, "
+                           "economically large margin across individual stocks and indices. Selling variance "
+                           "through delta-hedged straddles earns the spread.",
+         "original_market": "US equities, indices", "original_time_period": "1996–2003",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:whaley_2002", "strategy_name": "Put-write / cash-secured short put",
+         "strategy_family": "options premium selling",
+         "source_title": "Return and Risk of CBOE Buy Write Monthly Index",
+         "source_author": "Whaley (2002)",
+         "source_publication": "Journal of Derivatives 10(2)",
+         "source_date": "2002-12-01",
+         "original_claim": "CBOE PutWrite Index (PUT) outperforms buy-and-hold S&P500 on risk-adjusted "
+                           "basis over 20+ year history. Systematic selling of at-the-money puts harvests "
+                           "the volatility risk premium.",
+         "original_market": "S&P 500 index", "original_time_period": "1988–2001",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:bondarenko_2014", "strategy_name": "Short put (overpriced downside insurance)",
+         "strategy_family": "options premium selling",
+         "source_title": "Why Are Put Options So Expensive?",
+         "source_author": "Bondarenko (2014)",
+         "source_publication": "Quarterly Journal of Finance 4(3)",
+         "source_date": "2014-09-01",
+         "original_claim": "Put options on S&P500 are systematically overpriced relative to any reasonable "
+                           "model; buyers chronically overpay for downside insurance, making short puts "
+                           "systematically profitable.",
+         "original_market": "S&P 500 index", "original_time_period": "1987–2000",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:patell_wolfson_1979", "strategy_name": "Earnings IV crush (short straddle before)",
+         "strategy_family": "options earnings",
+         "source_title": "Anticipated Information Releases Reflected in Call Option Prices",
+         "source_author": "Patell and Wolfson (1979)",
+         "source_publication": "Journal of Accounting Research 17(1)",
+         "source_date": "1979-01-01",
+         "original_claim": "Implied volatility rises monotonically in the weeks before earnings "
+                           "announcements, then collapses immediately after. Selling at-the-money straddles "
+                           "just before earnings and closing after the announcement captures the IV crush.",
+         "original_market": "US equities", "original_time_period": "1973–1975",
+         "required_data": "option_chains, edgar_events", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:dubinsky_johannes_2005", "strategy_name": "Earnings variance premium",
+         "strategy_family": "options earnings",
+         "source_title": "Earnings Announcements and Equity Options",
+         "source_author": "Dubinsky and Johannes (2005)",
+         "source_publication": "SSRN Working Paper",
+         "source_date": "2005-01-01",
+         "original_claim": "Individual stock options contain a large earnings variance premium: options "
+                           "are more expensive in the weeks surrounding earnings than at other times, "
+                           "even after controlling for realized volatility.",
+         "original_market": "US equities", "original_time_period": "1996–2004",
+         "required_data": "option_chains, edgar_events", "source_confidence": "MEDIUM",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:goyal_saretto_2009", "strategy_name": "Long straddle on low-IV stocks",
+         "strategy_family": "options volatility",
+         "source_title": "Cross-Section of Option Returns and Volatility",
+         "source_author": "Goyal and Saretto (2009)",
+         "source_publication": "Journal of Financial Economics 94(2)",
+         "source_date": "2009-11-01",
+         "original_claim": "Straddles on stocks where implied vol is far below historical vol earn "
+                           "~22.7%/month in a long-short portfolio (long low-IV stocks, short high-IV). "
+                           "The effect is strong and persistent post-publication.",
+         "original_market": "US equities", "original_time_period": "1996–2006",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:cremers_weinbaum_2010", "strategy_name": "Call-put IV spread signal",
+         "strategy_family": "options signals",
+         "source_title": "Deviations from Put-Call Parity and Stock Return Predictability",
+         "source_author": "Cremers and Weinbaum (2010)",
+         "source_publication": "Journal of Financial and Quantitative Analysis 45(2)",
+         "source_date": "2010-04-01",
+         "original_claim": "Stocks where calls are priced above same-strike puts outperform by ~51 bp/week "
+                           "(long-short). The call-put implied-vol spread predicts stock returns.",
+         "original_market": "US equities", "original_time_period": "1996–2005",
+         "required_data": "option_chains", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:xing_2010", "strategy_name": "OTM put smirk as bearish signal",
+         "strategy_family": "options signals",
+         "source_title": "What Does the Individual Option Volatility Smirk Tell Us About Future Equity Returns?",
+         "source_author": "Xing, Zhang and Zhao (2010)",
+         "source_publication": "Journal of Financial and Quantitative Analysis 45(3)",
+         "source_date": "2010-06-01",
+         "original_claim": "Stocks with steepest OTM put smirk (OTM put IV minus ATM call IV) underperform "
+                           "by ~10.9%/year. The smirk reflects informed trading in puts about future "
+                           "negative news.",
+         "original_market": "US equities", "original_time_period": "1996–2005",
+         "required_data": "option_chains", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:an_2014", "strategy_name": "Rising IV call signal",
+         "strategy_family": "options signals",
+         "source_title": "Stock Return Predictability: Evidence from Option Markets",
+         "source_author": "An, Ang, Bali and Cakici (2014)",
+         "source_publication": "Journal of Finance 69(4)",
+         "source_date": "2014-08-01",
+         "original_claim": "Stocks with the largest one-month increase in implied volatility earn "
+                           "~1%/month more in equity returns. IV rises signal informed buying.",
+         "original_market": "US equities", "original_time_period": "1996–2010",
+         "required_data": "option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:heston_2023", "strategy_name": "Option return momentum",
+         "strategy_family": "options momentum",
+         "source_title": "The Cross-Section of Option Returns",
+         "source_author": "Heston, Jones, Khorram, Li and Mo (2023)",
+         "source_publication": "Journal of Finance 78(4)",
+         "source_date": "2023-08-01",
+         "original_claim": "At-the-money straddles whose returns were high over months t-12 to t-2 "
+                           "continue to outperform (option momentum). Distinct from equity momentum.",
+         "original_market": "US equities", "original_time_period": "1996–2018",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:bakshi_kapadia_2003", "strategy_name": "Delta-hedged short straddle",
+         "strategy_family": "options premium selling",
+         "source_title": "Delta-Hedged Gains and the Negative Market Volatility Risk Premium",
+         "source_author": "Bakshi and Kapadia (2003)",
+         "source_publication": "Review of Financial Studies 16(2)",
+         "source_date": "2003-01-01",
+         "original_claim": "Delta-hedged short straddles on S&P500 earn reliably positive returns "
+                           "(negative market volatility risk premium). Individual stock options also earn "
+                           "a volatility premium, with higher idiosyncratic vol stocks earning more.",
+         "original_market": "S&P500 and individual US stocks", "original_time_period": "1991–2000",
+         "required_data": "option_chains, option_vol", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:cao_han_2013", "strategy_name": "Short straddle on high-idiovol stocks",
+         "strategy_family": "options premium selling",
+         "source_title": "Cross Section of Option Returns and Idiosyncratic Stock Volatility",
+         "source_author": "Cao and Han (2013)",
+         "source_publication": "Journal of Financial Economics 108(1)",
+         "source_date": "2013-04-01",
+         "original_claim": "The volatility risk premium is larger for stocks with higher idiosyncratic "
+                           "equity volatility. Short straddles on high-idiosyncratic-vol stocks earn "
+                           "abnormally high returns.",
+         "original_market": "US equities", "original_time_period": "1996–2009",
+         "required_data": "option_chains, option_vol", "source_confidence": "MEDIUM",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:muravyev_2016", "strategy_name": "Options order flow signal",
+         "strategy_family": "options signals",
+         "source_title": "Order Flow and Expected Option Returns",
+         "source_author": "Muravyev (2016)",
+         "source_publication": "Journal of Finance 71(2)",
+         "source_date": "2016-04-01",
+         "original_claim": "Options order flow (signed volume) predicts equity returns. Buy pressure in "
+                           "calls predicts positive stock returns; buy pressure in puts predicts "
+                           "negative returns. Distinct from put-call ratio.",
+         "original_market": "US equities", "original_time_period": "2004–2011",
+         "required_data": "option_chains", "source_confidence": "MEDIUM",
+         "machine_translatable": "PENDING", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:gao_2018", "strategy_name": "Earnings straddle (Gao, Xing, Zhang)",
+         "strategy_family": "options earnings",
+         "source_title": "Earnings Announcements and Option Returns",
+         "source_author": "Gao, Xing and Zhang (2018)",
+         "source_publication": "Journal of Financial and Quantitative Analysis 53(3)",
+         "source_date": "2018-06-01",
+         "original_claim": "Straddles bought 2-6 days before earnings announcements earn +3.34% on "
+                           "average (3 days). The effect concentrates in firms with high analyst "
+                           "disagreement.",
+         "original_market": "US equities", "original_time_period": "1996–2013",
+         "required_data": "option_chains, edgar_events", "source_confidence": "HIGH",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:lakonishok_2007", "strategy_name": "Long OTM call (retail lottery demand)",
+         "strategy_family": "options directional",
+         "source_title": "Equilibrium Prices of Options Written on the Market Portfolio",
+         "source_author": "Lakonishok, Lee, Pearson and Poteshman (2007)",
+         "source_publication": "Review of Financial Studies 20(3)",
+         "source_date": "2007-01-01",
+         "original_claim": "Retail demand for cheap OTM calls drives those options to be overpriced. "
+                           "Firm customers (sophisticated) tend to sell OTM calls; retail buys them. "
+                           "Short OTM calls should outperform.",
+         "original_market": "US equities", "original_time_period": "1990–2001",
+         "required_data": "option_chains", "source_confidence": "MEDIUM",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+        {"entry_id": "opts:hutchinson_2020", "strategy_name": "Short iron condor (range-bound)",
+         "strategy_family": "options premium selling",
+         "source_title": "Benchmarking Commodity Investments",
+         "source_author": "Hutchinson and Mulqueeney (2020)",
+         "source_publication": "Practitioner research",
+         "source_date": "2020-01-01",
+         "original_claim": "Iron condors (short OTM call + short OTM put + long further OTM wings) "
+                           "earn positive expected returns when sold at elevated IV. Defined-risk "
+                           "version of the VRP trade; max loss = spread width - premium.",
+         "original_market": "US equities, ETFs", "original_time_period": "2010–2019",
+         "required_data": "option_chains, option_vol", "source_confidence": "LOW",
+         "machine_translatable": "YES", "generation_method": "PUBLISHED_REPRODUCTION"},
+    ]
+    n = 0
+    for e in ENTRIES:
+        full = {
+            "source": "opts_literature",
+            "strategy_family": e.get("strategy_family", "options"),
+            "source_type": "ACADEMIC_PAPER",
+            "licence": "academic",
+            "provenance": {"importer": "options_literature", "fetched_at": _now()},
+            **e,
+        }
+        if conn.execute("SELECT 1 FROM knowledge_entries WHERE entry_id=?",
+                        (e["entry_id"],)).fetchone():
+            continue
+        upsert(conn, full)
+        n += 1
+    if n:
+        conn.commit()
+    return n
+
+
 IMPORTERS = {"pwb_papers": import_pwb_papers, "pwb_coded": import_pwb_coded, "qc_library": import_qc_library,
-             "stockbot": import_stockbot, "published_factors": import_published_factors}
+             "stockbot": import_stockbot, "published_factors": import_published_factors,
+             "options_literature": import_options_literature}
 
 
 def report(conn) -> str:
