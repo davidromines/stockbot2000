@@ -39,7 +39,7 @@ def gather(conn, cfg: dict) -> dict:
 
     trials = mt.count(conn)
     forward = [dict(r) for r in conn.execute("""
-        SELECT p.label, p.family, p.capital_usd, p.started_on,
+        SELECT p.run_id, p.label, p.family, p.capital_usd, p.started_on,
                e.equity_usd, e.date
         FROM paper_runs p LEFT JOIN paper_equity e ON e.run_id=p.run_id
          AND e.date=(SELECT MAX(date) FROM paper_equity e2 WHERE e2.run_id=p.run_id)
@@ -238,14 +238,14 @@ def render(d: dict) -> str:
         "|---|---|---|---:|",
     ]
     for f in sorted(live, key=lambda x: -(pct(x) or 0)):
-        L.append(f"| {f['label']} | {f['family'] or '-'} | {f['started_on']} | "
+        L.append(f"| {f['label'] or f['run_id']} | {f['family'] or '-'} | {f['started_on']} | "
                  f"{pct(f):+.2f}% |")
     stalled = [f for f in d["forward"] if pct(f) is None]
     if stalled:
         L.append("")
         L.append(f"**Stalled and excluded from the count** (last marked "
                  f"{stalled[0].get('date') or 'never'}, others {newest}): "
-                 f"{', '.join(f['label'] for f in stalled)}")
+                 f"{', '.join(str(f['label'] or f['run_id']) for f in stalled)}")
     L += [
         "",
         f"{up} of {len(live)} are up. **These records are days old, not years.**",
