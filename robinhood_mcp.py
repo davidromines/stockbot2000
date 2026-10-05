@@ -110,7 +110,8 @@ class FileTokenStorage:
 
     async def set_tokens(self, tokens) -> None:
         d = self._read()
-        d["tokens"] = {**tokens.model_dump(mode="json", exclude_none=True), "issued_at": time.time()}
+        d["tokens"] = {**tokens.model_dump(mode="json", exclude_none=True), "issued_at": time.time(),
+                       "login_at": time.time()}  # written ONLY on full --login, not on refresh()
         self._write(d)
 
     async def get_client_info(self):
@@ -416,6 +417,33 @@ def list_tools(interactive: bool = False) -> list:
     return asyncio.run(_session_do(settings()["mcp_url"], interactive, run))
 
 
+LOGIN_WARN_DAYS = 20   # alert when the last full --login is this many days old
+LOGIN_MAX_DAYS  = 30   # assumed max lifetime of a Robinhood refresh token
+
+
+def _check_login_age() -> None:
+    """Alert via Telegram/desktop when the last full login is approaching its expiry.
+    Runs during --refresh (called every 6 h from daily.sh) so the owner is warned
+    before trading halts.  No-ops silently when notify is unavailable."""
+    try:
+        st = FileTokenStorage()
+        t = st._read().get("tokens") or {}
+        login_at = float(t.get("login_at") or 0)
+        if not login_at:
+            return  # no login_at recorded yet — will be set on next --login
+        days = (time.time() - login_at) / 86400
+        if days < LOGIN_WARN_DAYS:
+            return
+        days_left = max(0, LOGIN_MAX_DAYS - int(days))
+        import notify
+        msg = (f"Robinhood sign-in is {int(days):.0f} days old (estimated ≤{days_left} days left). "
+               f"Run: ./venv/bin/python robinhood_mcp.py --login")
+        notify.send(msg, title="Robinhood sign-in renewal due")
+        log.warning(msg)
+    except Exception:       # noqa: BLE001 — never interrupt the refresh flow
+        pass
+
+
 def agentic_account(accounts) -> dict | None:
     """The one account with agentic_allowed=true, from a get_accounts result."""
     def _find_list(o):
@@ -457,6 +485,7 @@ def main(argv=None) -> int:
             if not ok:
                 print("refresh failed — run --login")
                 return 3
+            _check_login_age()
             if not getattr(args, "quiet", False):
                 print("token ok")
             return 0
