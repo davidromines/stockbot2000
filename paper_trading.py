@@ -303,6 +303,14 @@ def _rotation_of(run: dict):
     return g.get("rotation") if isinstance(g, dict) else None
 
 
+def _kalman_of(run: dict) -> bool:
+    try:
+        g = json.loads(run.get("strategy") or "")
+    except (ValueError, TypeError):
+        return False
+    return isinstance(g, dict) and g.get("family") == "kalman_pair"
+
+
 def _rotation_step(conn, cfg, run, today, cost_model) -> bool:
     """
     Advance one ETF rotation fund (rotation.py): once a month — or when it holds nothing —
@@ -516,6 +524,8 @@ def step(conn, cfg: dict) -> None:
             if run["last_step_on"] != today:
                 _rotation_step(conn, cfg, run, today, cost_model)
             continue
+        if _kalman_of(run):
+            continue    # kalman_pair.step_fund() steps this fund (daily.sh [5d]); no entry rule here
         if _conviction_of(run):
             if _conviction_step(conn, cfg, run, today, prices, dv, cost_model):
                 continue
