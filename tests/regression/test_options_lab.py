@@ -190,6 +190,42 @@ def main():
         check("IC: positive return when IV decayed (cost-to-close < credit received)",
               t_ic[2] is None or t_ic[2] > 0 or t_ic[3] == "take profit 50%", t_ic)
 
+    # --- signal function: features.close → prices.close fixes -----------------
+    c4 = sqlite3.connect(":memory:")
+    ol.init(c4)
+    c4.execute("CREATE TABLE prices (ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL, source TEXT)")
+    c4.execute("CREATE TABLE IF NOT EXISTS insider_trades (accession TEXT, trans_sk TEXT, owner_cik TEXT, ticker TEXT, issuer_cik TEXT, trans_date TEXT, filing_date TEXT, code TEXT, shares REAL, price REAL, value_usd REAL, relationship TEXT)")
+
+    # sig_iv_high_uptrend: should not crash when features has no 'close' column
+    d4 = "2024-03-04"
+    c4.execute("INSERT INTO option_vol (date, symbol, iv_current, hv_current) VALUES (?,?,?,?)", (d4, "AAA", 0.45, 0.25))
+    c4.execute("INSERT OR IGNORE INTO option_fetch_log VALUES ('chain','AAA',?,1,'t')", (d4,))
+    c4.execute("CREATE TABLE IF NOT EXISTS features (ticker TEXT, date TEXT, sma_200 REAL, rsi_14 REAL)")
+    c4.execute("INSERT INTO features (ticker, date, sma_200) VALUES ('AAA', ?, 95.0)", (d4,))
+    c4.execute("INSERT INTO prices VALUES ('AAA', ?, 0, 0, 0, 100.0, 1e6, 's')", (d4,))
+    real_liq = ol.liquid
+    ol.liquid = lambda conn, date, n: ["AAA"]
+    s4 = ol.settings(CFG)
+    result = ol.sig_iv_high_uptrend(c4, d4, {"top": 1}, s4, {})
+    check("sig_iv_high_uptrend: returns signals using prices.close (no crash)", result != [] and result[0][0] == "AAA", result)
+
+    # sig_pead_call: should not crash when edgar_events exists
+    try:
+        c4.execute("CREATE TABLE edgar_events (ticker TEXT, item TEXT, filed TEXT)")
+        c4.execute("INSERT INTO edgar_events VALUES ('AAA','2.02','2024-03-01')")
+        c4.execute("INSERT INTO prices VALUES ('AAA','2024-03-01',0,0,0,105.0,1e6,'s')")
+        c4.execute("INSERT INTO prices VALUES ('AAA','2024-02-28',0,0,0,100.0,1e6,'s')")
+        pead_result = ol.sig_pead_call(c4, "2024-03-05", {"top": 3}, s4, {})
+        check("sig_pead_call: returns post-earnings signals using prices.close", isinstance(pead_result, list), pead_result)
+    except Exception as e:
+        check("sig_pead_call: no crash", False, str(e))
+
+    # sig_insider_call: should query insider_trades, not edgar_events
+    c4.execute("INSERT INTO insider_trades VALUES ('acc1','t1','cik1','AAA','cik2','2024-03-01','2024-03-02','P',100,50.0,5000.0,'Officer')")
+    ins_result = ol.sig_insider_call(c4, "2024-03-10", {"top": 3}, s4, {})
+    check("sig_insider_call: returns insider buy signals from insider_trades", isinstance(ins_result, list) and len(ins_result) > 0, ins_result)
+    ol.liquid = real_liq
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")
