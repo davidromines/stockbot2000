@@ -440,6 +440,44 @@ def value(conn, symbol: str, legs: list, date: str, allow_model: bool = False) -
     return tot, modelled
 
 
+def sells_premium(p: dict) -> bool:
+    """True for a strategy that is paid up front: credit spreads, and every pure-short spec."""
+    return p.get("is_credit", p.get("short", False))
+
+
+def close_value(conn, p: dict, symbol: str, legs: list, date: str, allow_model: bool = False) -> tuple:
+    """(what closing the whole position is worth on `date`, modelled?); (None, False) when a leg has
+    no price. Credit position: cost to close = short asks - long bids, capped at the widest wing (the
+    most it can lose). Other mixed positions (debit spreads): receipt = long bids - short asks.
+    Single-sided positions: value() as it is (longs at bid, shorts at ask)."""
+    shorts = [leg for leg in legs if leg.get("short")]
+    longs = [leg for leg in legs if not leg.get("short")]
+    if not (shorts and longs):
+        return value(conn, symbol, legs, date, allow_model)
+    sv, sm = value(conn, symbol, shorts, date, allow_model)
+    lv, lm = value(conn, symbol, longs, date, allow_model)
+    if sv is None or lv is None:
+        return None, False
+    if not sells_premium(p):
+        return lv - sv, sm or lm
+    v = sv - lv
+    wings = []
+    for cp in ("C", "P"):
+        s_k = [leg["strike"] for leg in shorts if leg["cp"] == cp]
+        l_k = [leg["strike"] for leg in longs if leg["cp"] == cp]
+        if s_k and l_k:
+            wings.append(max(l_k) - min(s_k) if cp == "C" else max(s_k) - min(l_k))
+    return (min(v, max(wings)) if wings else v), sm or lm
+
+
+def trade_return(p: dict, v: float, cost: float) -> float:
+    """Fractional return on the entry price: premium sold earns 1 - close/credit, premium bought
+    (long options, debit spreads) value/debit - 1."""
+    if cost <= 0:
+        return 0.0
+    return (1 - v / cost) if sells_premium(p) else (v / cost - 1)
+
+
 # --- signals -------------------------------------------------------------------
 def option_dates(conn, start: str, end: str | None = None) -> list:
     q = "SELECT DISTINCT date FROM option_vol WHERE date >= ?" + (" AND date <= ?" if end else "") + " ORDER BY date"
@@ -815,7 +853,7 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
     p = STRATEGIES[name]
     state = {}
     is_short = p.get("short", False)
-    is_credit = p.get("is_credit", is_short)  # credit spreads: IC, short strangle, short put etc.
+    is_credit = sells_premium(p)  # credit spreads: IC, short strangle, short put etc.
     opened = 0
     _SIG = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
             "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
@@ -847,16 +885,11 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 event = sig.split(" ", 1)[1]
                 if d >= (dt.date.fromisoformat(event) - dt.timedelta(days=1)).isoformat():
                     due = "before earnings"
-            # take-profit: for both pure-short and credit spreads
+            # take-profit: buy a short position back once most of its credit has decayed
             if is_credit and p.get("take_profit") and not due:
-                short_legs = [l for l in legs if l.get("short")]
-                long_legs = [l for l in legs if not l.get("short")]
-                sv, _ = value(conn, sym, short_legs, d, allow_model=False) if short_legs else (0.0, False)
-                lv, _ = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
-                if sv is not None and lv is not None:
-                    net_close = sv - lv  # cost to close the spread
-                    if cost > 0 and net_close <= (1 - p["take_profit"]) * cost:
-                        due = f"take profit {1 - net_close / cost:.0%}"
+                net_close, _ = close_value(conn, p, sym, legs, d, allow_model=False)
+                if net_close is not None and cost > 0 and net_close <= (1 - p["take_profit"]) * cost:
+                    due = f"take profit {1 - net_close / cost:.0%}"
             if not due:
                 if _days(op, d) >= p["hold"] * 7 // 5:
                     due = "holding limit"
@@ -867,67 +900,14 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
             if not due:
                 continue
             overdue = _days(op, d) - p["hold"] * 7 // 5
-            # compute current value
-            if is_credit and p.get("legs") in ("IC", "CS", "PCS") and any(l.get("short") for l in legs) \
-                    and any(not l.get("short") for l in legs):
-                # mixed position: net cost to close = short_asks - long_bids
-                short_legs = [l for l in legs if l.get("short")]
-                long_legs = [l for l in legs if not l.get("short")]
-                sv, sm = value(conn, sym, short_legs, d, allow_model=False)
-                lv, lm = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
-                if sv is None or lv is None:
-                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
-                        continue
-                    sv, sm = value(conn, sym, short_legs, d, allow_model=True)
-                    lv, lm = value(conn, sym, long_legs, d, allow_model=True) if long_legs else (0.0, False)
-                if sv is None or lv is None:
+            v, modelled = close_value(conn, p, sym, legs, d, allow_model=False)
+            if v is None:
+                if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
                     continue
-                v = sv - lv  # net cost to close (positive = costs us money)
-                # Cap IC at theoretical max loss (wing width). B-S hs inflation can exceed it
-                # when both legs are deep ITM — that money doesn't exist in reality.
-                sc_strikes = [l["strike"] for l in short_legs if l["cp"] == "C"]
-                lc_strikes = [l["strike"] for l in long_legs if l["cp"] == "C"]
-                sp_strikes = [l["strike"] for l in short_legs if l["cp"] == "P"]
-                lp_strikes = [l["strike"] for l in long_legs if l["cp"] == "P"]
-                wings = []
-                if sc_strikes and lc_strikes:
-                    wings.append(max(lc_strikes) - min(sc_strikes))
-                if sp_strikes and lp_strikes:
-                    wings.append(max(sp_strikes) - min(lp_strikes))
-                if wings:
-                    v = min(v, max(wings))
-                modelled = sm or lm
-            elif p.get("is_debit_spread"):
-                # debit spread: net receipt to close = long_bids - short_asks
-                long_legs = [l for l in legs if not l.get("short")]
-                short_legs = [l for l in legs if l.get("short")]
-                lv, lm = value(conn, sym, long_legs, d, allow_model=False) if long_legs else (0.0, False)
-                sv, sm = value(conn, sym, short_legs, d, allow_model=False) if short_legs else (0.0, False)
-                if lv is None or sv is None:
-                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
-                        continue
-                    lv, lm = value(conn, sym, long_legs, d, allow_model=True) if long_legs else (0.0, False)
-                    sv, sm = value(conn, sym, short_legs, d, allow_model=True) if short_legs else (0.0, False)
-                if lv is None or sv is None:
-                    continue
-                v = lv - sv  # net receipt when closing (positive when profitable)
-                modelled = lm or sm
-            else:
-                v, modelled = value(conn, sym, legs, d, allow_model=False)
-                if v is None:
-                    if due == "holding limit" and overdue < 7 and _days(d, exp) > 7:
-                        continue
-                    v, modelled = value(conn, sym, legs, d, allow_model=True)
-                if v is None:
-                    continue
-            # return calculation
-            if p.get("is_debit_spread"):
-                ret = (v / cost - 1) if cost > 0 else 0.0
-            elif is_credit:
-                # credit: received cost at entry, pay v to close; profit when v < cost
-                ret = (1 - v / cost) if cost > 0 else 0.0
-            else:
-                ret = (1 - v / cost) if is_short else (v / cost - 1)
+                v, modelled = close_value(conn, p, sym, legs, d, allow_model=True)
+            if v is None:
+                continue
+            ret = trade_return(p, v, cost)
             conn.execute("UPDATE option_trades SET closed=?, value=?, ret=?, usd=?, reason=? WHERE id=?",
                          (d, v, ret, s["stake_usd"] * ret, due + (" (modelled price)" if modelled else ""), tid))
         # entries
@@ -946,11 +926,10 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
             legs = pick(conn, sym, d, p["legs"], p["dte"], s)
             if not legs:
                 continue
-            # pick() sets short=True on legs that should be short for IC/spread/strangle
-            if p.get("is_credit"):
-                # mixed or pure short: net credit = sum(short_bids) - sum(long_asks)
+            if is_credit:
+                # premium sold: credit = short bids - long asks. A spec that is short without naming
+                # which legs (plain S/P/C) sells every leg; the flag is what the exit prices off.
                 if is_short and not any(l.get("short") for l in legs):
-                    # pure short strategy using simple legs (S/P/C) — mark all short
                     for leg in legs:
                         leg["short"] = True
                 short_legs = [l for l in legs if l.get("short")]
@@ -1047,16 +1026,17 @@ def open_funds(conn, cfg: dict) -> list:
 
 
 def mark(conn, cfg: dict, name: str, date: str) -> dict:
-    """Fund equity on `date`: capital + realised dollars + open positions at today's bid."""
+    """Fund equity on `date`: capital + realised dollars + open positions as they would close today."""
     s = settings(cfg)
+    p = STRATEGIES[name]
     cap = conn.execute("SELECT capital_usd FROM option_funds WHERE name=?", (name,)).fetchone()[0]
     real = conn.execute("SELECT COALESCE(SUM(usd),0) FROM option_trades WHERE mode='PAPER' AND strategy=? AND "
                         "ret IS NOT NULL", (name,)).fetchone()[0]
     unreal, n = 0.0, 0
     for sym, legs, cost in conn.execute("SELECT symbol, legs, cost FROM option_trades WHERE mode='PAPER' AND "
                                         "strategy=? AND closed IS NULL", (name,)).fetchall():
-        v, _ = value(conn, sym, json.loads(legs), date, allow_model=True)
-        unreal += s["stake_usd"] * ((v if v is not None else cost) / cost - 1)
+        v, _ = close_value(conn, p, sym, json.loads(legs), date, allow_model=True)
+        unreal += s["stake_usd"] * (trade_return(p, v, cost) if v is not None else 0.0)
         n += 1
     eq = {"equity_usd": cap + real + unreal, "realized_usd": real, "unrealized_usd": unreal, "open_positions": n}
     conn.execute("INSERT OR REPLACE INTO option_fund_equity VALUES (?,?,?,?,?,?)",
