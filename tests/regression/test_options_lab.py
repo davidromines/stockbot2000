@@ -114,6 +114,82 @@ def main():
     check("weekly: a second date in the same week signals nothing",
           ol.sig_chain(c2, "2024-03-06", {"rule": "smirk", "top": 1}, s2, st) == [])
     ol.liquid = real_liquid
+
+    # --- pick() extensions: IC, CS, BCS, BPS ------------------------------------
+    c3 = sqlite3.connect(":memory:")
+    ol.init(c3)
+    exp3 = "2024-04-19"
+    d3 = "2024-03-18"
+    # strikes: 90, 95, 100 (ATM), 105, 110
+    for k, cp, bid, ask, delta in [
+        (90,  "C", 9.5, 9.7, 0.80), (90,  "P", 0.4, 0.5, -0.15),
+        (95,  "C", 5.5, 5.7, 0.60), (95,  "P", 0.9, 1.0, -0.28),
+        (100, "C", 2.0, 2.2, 0.50), (100, "P", 1.8, 2.0, -0.50),
+        (105, "C", 0.7, 0.8, 0.30), (105, "P", 4.5, 4.7, -0.68),
+        (110, "C", 0.2, 0.3, 0.13), (110, "P", 9.0, 9.2, -0.85),
+    ]:
+        c3.execute("INSERT INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, delta) "
+                   "VALUES (?,?,?,?,?,?,?,0.25,?)", (d3, "ZZZ", exp3, k, cp, bid, ask, delta))
+    c3.execute("INSERT OR IGNORE INTO option_fetch_log VALUES ('chain','ZZZ',?,1,'t')", (d3,))
+    s3 = ol.settings(CFG)
+
+    ic = ol.pick(c3, "ZZZ", d3, "IC", (21, 60, 35), s3)
+    check("IC: 4 legs returned", ic is not None and len(ic) == 4, ic)
+    if ic:
+        short_legs = [l for l in ic if l.get("short")]
+        long_legs = [l for l in ic if not l.get("short")]
+        check("IC: exactly 2 short legs (the OTM strikes)", len(short_legs) == 2, ic)
+        check("IC: exactly 2 long legs (the wing strikes)", len(long_legs) == 2, ic)
+        net_credit = sum(l["bid"] for l in short_legs) - sum(l["ask"] for l in long_legs)
+        check("IC: net credit is positive", net_credit > 0, net_credit)
+        # short call strike > short put strike (no overlap)
+        sc = next(l for l in short_legs if l["cp"] == "C")
+        sp = next(l for l in short_legs if l["cp"] == "P")
+        check("IC: short call strike > short put strike (no inverted condor)", sc["strike"] > sp["strike"], (sc, sp))
+
+    cs = ol.pick(c3, "ZZZ", d3, "CS", (21, 60, 35), s3)
+    check("CS: 2 legs returned", cs is not None and len(cs) == 2, cs)
+    if cs:
+        check("CS: both legs short", all(l.get("short") for l in cs), cs)
+        check("CS: one call one put", {l["cp"] for l in cs} == {"C", "P"}, cs)
+
+    bcs = ol.pick(c3, "ZZZ", d3, "BCS", (21, 60, 35), s3)
+    check("BCS: 2 legs returned", bcs is not None and len(bcs) == 2, bcs)
+    if bcs:
+        long_leg = next((l for l in bcs if not l.get("short")), None)
+        short_leg = next((l for l in bcs if l.get("short")), None)
+        check("BCS: long leg is ATM call", long_leg and long_leg["cp"] == "C" and long_leg["strike"] == 100.0, bcs)
+        check("BCS: short leg is OTM call at higher strike", short_leg and short_leg["strike"] > 100, bcs)
+        check("BCS: net debit > 0", long_leg["ask"] - short_leg["bid"] > 0, bcs)
+
+    bps = ol.pick(c3, "ZZZ", d3, "BPS", (21, 60, 35), s3)
+    check("BPS: 2 legs returned", bps is not None and len(bps) == 2, bps)
+    if bps:
+        long_leg = next((l for l in bps if not l.get("short")), None)
+        short_leg = next((l for l in bps if l.get("short")), None)
+        check("BPS: long leg is put", long_leg and long_leg["cp"] == "P", bps)
+        check("BPS: short leg is put at lower strike", short_leg and short_leg["cp"] == "P"
+              and short_leg["strike"] < long_leg["strike"], bps)
+
+    # IC backtest walk: verify credit/return calculation
+    ol.STRATEGIES["t_ic"] = {"rule": "stock_signal", "legs": "IC", "dte": (21, 60, 35),
+                              "hold": 30, "per_day": 1, "is_credit": True, "take_profit": 0.50}
+    d_close = "2024-04-01"
+    # add a closing chain where IC is worth ~30% of initial credit
+    for k, cp, bid, ask, delta in [
+        (105, "C", 0.15, 0.2, 0.08), (95, "P", 0.15, 0.2, -0.08),
+        (110, "C", 0.05, 0.1, 0.04), (90, "P", 0.05, 0.1, -0.04),
+    ]:
+        c3.execute("INSERT INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, delta) "
+                   "VALUES (?,?,?,?,?,?,?,0.15,?)", (d_close, "ZZZ", exp3, k, cp, bid, ask, delta))
+    c3.execute("INSERT OR IGNORE INTO option_fetch_log VALUES ('chain','ZZZ',?,1,'t')", (d_close,))
+    n_ic = ol.run(c3, CFG, "t_ic", [d3, d_close], "BACKTEST", {d3: [("ZZZ", "IC test")]})
+    t_ic = c3.execute("SELECT cost, value, ret, reason FROM option_trades WHERE strategy='t_ic'").fetchone()
+    check("IC: trade opened", n_ic >= 1 or t_ic is not None, (n_ic, t_ic))
+    if t_ic and t_ic[0]:
+        check("IC: positive return when IV decayed (cost-to-close < credit received)",
+              t_ic[2] is None or t_ic[2] > 0 or t_ic[3] == "take profit 50%", t_ic)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")
