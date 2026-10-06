@@ -506,6 +506,10 @@ options:
   max_spread_frac: 0.5      # skip contracts whose bid-ask is wider than half the mid
   min_ask: 0.05
   liquid_universe: 50       # earnings straddles: the 50 most traded optionable stocks
+  # Owner 2026-10-05: "I am not doing open shorts. All options must be a single contract cost."
+  # Only a long single-leg strategy is tradeable; a short leg or several legs is research only.
+  max_contract_cost_usd: 100.0   # ask x 100 of the one contract bought; a dearer one is skipped, never swapped
+  tradeable_legs: [C, P]         # leg shapes that may ever trade; a short spec never does, whatever this says
   # The real-money options book (N9). Nothing trades until config/risk.yaml
   # allow_options is true AND the account has options access (owner's steps).
   live:

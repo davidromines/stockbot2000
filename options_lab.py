@@ -50,7 +50,8 @@ import sys
 import options_data as od
 
 log = logging.getLogger("options_lab")
-DEFAULTS = {"stake_usd": 100.0, "max_spread_frac": 0.5, "min_ask": 0.05, "liquid_universe": 50}
+DEFAULTS = {"stake_usd": 100.0, "max_spread_frac": 0.5, "min_ask": 0.05, "liquid_universe": 50,
+            "max_contract_cost_usd": 100.0, "tradeable_legs": ("C", "P")}
 
 STRATEGIES = {
     "opt_signal_call": {"rule": "stock_signal", "legs": "C", "dte": (21, 60, 35), "hold": 14, "per_day": 1,
@@ -204,6 +205,16 @@ STRATEGIES = {
 
 def settings(cfg: dict) -> dict:
     return {**DEFAULTS, **(cfg.get("options") or {})}
+
+
+def tradeable(spec, cfg: dict | None = None) -> bool:
+    """Owner's rule (2026-10-05): no open shorts, every option one contract. Only a long single-leg
+    strategy may ever trade; a spec with a short leg never does, whatever the config lists.
+    `spec` is a STRATEGIES entry or a name ('opt_x' or 'option:opt_x'); an unknown name is not tradeable."""
+    p = spec if isinstance(spec, dict) else STRATEGIES.get(str(spec).removeprefix("option:"))
+    if not p or p.get("short") or p.get("is_credit") or p.get("is_debit_spread"):
+        return False
+    return p.get("legs") in settings(cfg or {})["tradeable_legs"]
 
 
 def init(conn) -> None:
