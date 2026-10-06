@@ -36,6 +36,7 @@ def books(cfg: dict, limits: dict) -> dict:
         "options": {"capital_usd": float(ol.get("capital_usd", 1000.0)),
                     "per_trade_usd": float(ol.get("per_trade_usd", 100.0)), "max_open": int(ol.get("max_open", 10)),
                     "paper_stake_usd": float(o.get("stake_usd", 100.0)),
+                    "max_contract_usd": float(o.get("max_contract_cost_usd", 100.0)),
                     "max_daily_loss_usd": float(ol.get("max_daily_loss_usd", 150.0)),
                     "max_drawdown_pct": float(ol.get("max_drawdown_pct", 35.0)),
                     "min_paper_trades": int(ol.get("min_paper_trades", 20)),
@@ -66,6 +67,9 @@ def problems(b: dict) -> list:
     if abs(o["per_trade_usd"] - o["paper_stake_usd"]) > 1e-9:
         out.append(f"options: paper measures ${o['paper_stake_usd']:.2f} trades but real trades are "
                    f"${o['per_trade_usd']:.2f} — the paper record would describe a different size")
+    if o["max_contract_usd"] > o["per_trade_usd"] + 1e-9:
+        out.append(f"options: one contract may cost ${o['max_contract_usd']:.2f} but a real trade is "
+                   f"${o['per_trade_usd']:.2f} — an order could outsize the book's trade")
     if o["max_daily_loss_usd"] <= 0 or o["max_drawdown_pct"] <= 0:
         out.append("options: daily-loss and drawdown limits must be set")
     return out
