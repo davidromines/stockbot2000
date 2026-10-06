@@ -290,7 +290,6 @@ def open_fund(conn):
     a concurrent or repeated call cannot create a second fund, and re-running
     the daily capture never resets a fund that has already accrued a record.
     """
-    import uuid
     from datetime import datetime
     today = (conn.execute("SELECT MAX(date) FROM prices").fetchone()[0]
              or datetime.utcnow().strftime("%Y-%m-%d"))
@@ -307,20 +306,146 @@ def open_fund(conn):
     conn.commit()
 
 
-def step_fund(conn, cfg):
-    """Ensure the fund is registered then step it.
+def _fresh_targets(pos, dates, started_on):
+    """What the fund may act on: only runs of the signal that began on or after
+    started_on. A run already in progress when the fund opened is state it never
+    decided to enter, so it is masked, and so is the filter's warm-up.
 
-    open_fund ensures the fund row exists; paper_trading.step_genome steps
-    the fund using its JSON strategy. If step_genome is unavailable (schema
-    difference) the call is a no-op: the [5/10] paper step in daily.sh
-    steps all open funds anyway, so this is belt-and-suspenders.
+    Returns (targets, starts). targets[i] is the side to hold after session i's
+    decision (0 when the run predates the fund); starts[i] is True where a run
+    the fund may enter began at i.
     """
-    open_fund(conn)
+    targets = np.zeros(len(pos), dtype=int)
+    starts = np.zeros(len(pos), dtype=bool)
+    live, prev = False, 0
+    for i in range(len(pos)):
+        cur = int(pos[i])
+        begins = cur != 0 and cur != prev
+        if cur == 0:
+            live = False
+        elif begins:
+            live = dates[i] >= started_on
+        starts[i] = begins and live
+        targets[i] = cur if live else 0
+        prev = cur
+    return targets, starts
+
+
+def _dollar_volume(conn, ticker, day):
+    """20-day dollar volume for the cost tier; 0 (the widest tier) when unknown."""
     try:
-        import paper_trading
-        paper_trading.step_genome(conn, cfg, FUND_LABEL)
-    except (AttributeError, TypeError, KeyError):
-        pass  # step handled by the [5/10] paper step; registration is enough
+        row = conn.execute("SELECT dollar_volume_20 FROM features WHERE ticker=? AND date<=? "
+                           "ORDER BY date DESC LIMIT 1", (ticker, day)).fetchone()
+    except sqlite3.OperationalError:
+        return 0.0
+    return float(row[0]) if row and row[0] is not None else 0.0
+
+
+def step_fund(conn, cfg):
+    """Advance the fund by its newest session. Returns a one-line summary, or
+    None when there was nothing to step.
+
+    Booked the way paper_trading books a fund, so accounting.py reconciles it:
+    one equity mark per session actually stepped (skipped sessions are never
+    backfilled), entries cost nothing, an exit's cost comes out of its proceeds.
+
+    The signal decided at the previous close fills at this session's open. The
+    fund enters a run only if it began at that previous close and on or after
+    started_on: a run in progress when the fund opened is not inherited, and a
+    missed entry is not made late. Exits are always honoured. One position of
+    position_size_usd at a time. A missing open changes nothing and is retried.
+    """
+    import costs as costs_mod
+
+    open_fund(conn)
+    a, b = FUND_PAIR
+    run = conn.execute("SELECT run_id, cash_usd, started_on, last_step_on, status "
+                       "FROM paper_runs WHERE name=?", (FUND_LABEL,)).fetchone()
+    if run is None or run[4] != "open":
+        return None
+    run_id, cash, started_on, last_step_on, _ = run
+
+    close, open_ = load(conn, a, b, WARMUP, "9999-12-31")
+    if len(close) < 3:
+        return None
+    dates = [str(d) for d in close.index]
+    today = dates[-1]
+    if last_step_on is not None and last_step_on >= today:
+        return None
+
+    kf = kalman(close[a], close[b], delta=DEFAULT_PARAMS["delta"], ve=DEFAULT_PARAMS["ve"])
+    pos = positions(kf, entry_z=DEFAULT_PARAMS["entry_z"])
+    targets, starts = _fresh_targets(pos.to_numpy(), dates, started_on)
+    want = {1: b, -1: a}.get(int(targets[-2]))
+
+    held = [tuple(r) for r in conn.execute(
+        "SELECT ticker, entry_date, entry_price, shares, days_held "
+        "FROM paper_positions WHERE run_id=?", (run_id,))]
+    leaving = [h for h in held if h[0] != want]
+    staying = [h for h in held if h[0] == want]
+    entering = want if (want and starts[-2] and not staying) else None
+
+    fills = {}
+    for tk in [h[0] for h in leaving] + ([entering] if entering else []):
+        px = open_.at[today, tk]
+        if not (px == px and px > 0):
+            return None
+        fills[tk] = float(px)
+
+    cost_model = costs_mod.CostModel(cfg)
+    size = float((cfg.get("risk") or {}).get("position_size_usd") or FUND_CAPITAL / 5.0)
+    notes = []
+    try:
+        for tk, entry_date, entry_px, shares, _days in leaving:
+            px = fills[tk]
+            gross = shares * (px - entry_px)
+            cost = float(cost_model.round_trip(shares * entry_px, _dollar_volume(conn, tk, today),
+                                               shares))
+            conn.execute(
+                "INSERT OR REPLACE INTO paper_trades (run_id, ticker, entry_date, exit_date, "
+                "entry_price, exit_price, shares, gross_pnl_usd, costs_usd, net_pnl_usd, "
+                "pnl_pct, exit_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (run_id, tk, entry_date, today, entry_px, px, shares, gross, cost, gross - cost,
+                 (px / entry_px - 1.0) * 100.0,
+                 "e crossed zero" if want is None else "signal changed"))
+            conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (run_id, tk))
+            cash += shares * px - cost
+            notes.append("EXIT %s %+.2f net" % (tk, gross - cost))
+        if entering:
+            if cash + 1e-9 >= size:
+                px = fills[entering]
+                conn.execute(
+                    "INSERT INTO paper_positions (run_id, ticker, entry_date, entry_price, "
+                    "shares, stop_price, days_held) VALUES (?,?,?,?,?,?,0)",
+                    (run_id, entering, today, px, size / px, None))
+                cash -= size
+                notes.append("ENTER %s @ %.2f" % (entering, px))
+            else:
+                notes.append("no cash to enter %s" % entering)
+
+        index = {d: i for i, d in enumerate(dates)}
+        marks, n_open = 0.0, 0
+        for tk, entry_date, _px, shares, days in conn.execute(
+                "SELECT ticker, entry_date, entry_price, shares, days_held "
+                "FROM paper_positions WHERE run_id=?", (run_id,)).fetchall():
+            days = len(dates) - 1 - index[entry_date] if entry_date in index else days + 1
+            conn.execute("UPDATE paper_positions SET days_held=? WHERE run_id=? AND ticker=?",
+                         (days, run_id, tk))
+            marks += shares * float(close.at[today, tk])
+            n_open += 1
+            if tk != entering:
+                notes.append("hold %s" % tk)
+        equity = cash + marks
+        conn.execute("INSERT OR REPLACE INTO paper_equity (run_id, date, cash_usd, positions_usd, "
+                     "equity_usd, open_positions) VALUES (?,?,?,?,?,?)",
+                     (run_id, today, cash, marks, equity, n_open))
+        conn.execute("UPDATE paper_runs SET cash_usd=?, last_step_on=? WHERE run_id=?",
+                     (cash, today, run_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return "kalman fund %s: %s | equity $%.2f" % (today, ", ".join(notes) or "flat", equity)
 
 
 def _print_result(label, res):
@@ -396,15 +521,16 @@ def _main_fund(argv=None):
     ap.add_argument("--step", action="store_true")
     args = ap.parse_args(argv)
 
+    import storage
+
     cfg = load_config()
-    path = cfg["database"]["market_data_path"]
-    conn = sqlite3.connect(path)
+    conn = storage.connect(cfg["database"]["market_data_path"])
     try:
         if args.open:
             open_fund(conn)
             return 0
         if args.step:
-            step_fund(conn, cfg)
+            print(step_fund(conn, cfg) or "kalman fund: nothing to step")
             return 0
     finally:
         conn.close()
