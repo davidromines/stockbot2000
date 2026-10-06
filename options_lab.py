@@ -882,6 +882,18 @@ def stock_signals(conn, cfg: dict, start: str, end: str, top: int = 5) -> dict:
 
 
 # --- the engine ------------------------------------------------------------------
+SIGNAL_FNS = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
+              "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
+              "opt_momentum": sig_opt_momentum, "vrp_high": sig_vrp_high,
+              "iv_high_uptrend": sig_iv_high_uptrend,
+              "earnings_near_short": sig_earnings_near_short,
+              "earnings_far_long": sig_earnings_far_long,
+              "signal_cheap_iv": sig_signal_cheap_iv,
+              "vrp_range": sig_vrp_range, "pead_call": sig_pead_call,
+              "breakout": sig_breakout_call, "breakout_call": sig_breakout_call,
+              "oversold_call": sig_oversold_call, "insider_call": sig_insider_call}
+
+
 def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals: dict | None = None,
         spec: dict | None = None) -> int:
     """Walk `dates`: close what is due, then open today's signals. Same code for backtest and paper.
@@ -893,17 +905,7 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
     is_short = p.get("short", False)
     is_credit = sells_premium(p)  # credit spreads: IC, short strangle, short put etc.
     opened = 0
-    _SIG = {"iv_cheap": sig_iv_cheap, "iv_rise": sig_iv_rise, "earnings": sig_earnings,
-            "smirk": sig_chain, "ivspread_high": sig_chain, "ivspread_low": sig_chain,
-            "opt_momentum": sig_opt_momentum, "vrp_high": sig_vrp_high,
-            "iv_high_uptrend": sig_iv_high_uptrend,
-            "earnings_near_short": sig_earnings_near_short,
-            "earnings_far_long": sig_earnings_far_long,
-            "signal_cheap_iv": sig_signal_cheap_iv,
-            "vrp_range": sig_vrp_range, "pead_call": sig_pead_call,
-            "breakout": sig_breakout_call, "breakout_call": sig_breakout_call,
-            "oversold_call": sig_oversold_call, "insider_call": sig_insider_call}
-    fn = _SIG.get(p["rule"])
+    fn = SIGNAL_FNS.get(p["rule"])
     if p["rule"] == "signal_cheap_iv":
         state["signals"] = signals or {}
     for d in dates:
