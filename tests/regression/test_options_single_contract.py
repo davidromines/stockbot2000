@@ -60,12 +60,45 @@ def main() -> int:
     check("the default needs no config at all", ol.settings({})["max_contract_cost_usd"] == 100.0
           and tuple(ol.settings({})["tradeable_legs"]) == ("C", "P"))
 
+    slots_section()
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")
         return 1
     print("  ALL PASS")
     return 0
+
+
+def slots_section():
+    import sqlite3
+    import ranking
+    import slots
+
+    def row(name):
+        return {"strategy_key": f"option:{name}", "version": 1, "passes_gate": True, "gate": "", "score": 0.05}
+
+    names = ["opt_insider_call", "opt_short_put_uptrend", "opt_iv_cheap_straddle", "opt_bull_call_spread"]
+    c = sqlite3.connect(":memory:")
+    c.execute("CREATE TABLE prices (ticker TEXT, date TEXT, close REAL)")
+    real_rank, real_armed = ranking.rank, slots._options_armed
+    ranking.rank = lambda conn, cfg: [row(n) for n in names]
+    try:
+        slots._options_armed = lambda: True
+        out = {r["strategy_key"].split(":")[1]: r for r in slots.assess(c, {})}
+        check("armed: a long single-leg option is eligible", out["opt_insider_call"]["eligible"],
+              out["opt_insider_call"]["reasons"])
+        for n in names[1:]:
+            check(f"armed: {n} is still not eligible (research only)", not out[n]["eligible"]
+                  and any("research only" in x for x in out[n]["reasons"]), out[n]["reasons"])
+        slots._options_armed = lambda: False
+        out = {r["strategy_key"].split(":")[1]: r for r in slots.assess(c, {})}
+        check("not armed: the long call is blocked by the switch, not by the rule",
+              not out["opt_insider_call"]["eligible"]
+              and not any("research only" in x for x in out["opt_insider_call"]["reasons"]),
+              out["opt_insider_call"]["reasons"])
+    finally:
+        ranking.rank, slots._options_armed = real_rank, real_armed
 
 
 if __name__ == "__main__":

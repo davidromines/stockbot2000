@@ -282,8 +282,13 @@ def assess(conn, cfg: dict) -> list:
             reasons.append(f"predicted to lose: score {r['score']:+.2%} per 20 sessions held")
         if key.startswith("crypto:") and not _crypto_armed():
             reasons.append("crypto not armed: config/risk.yaml allow_crypto is false (Stage K7, owner)")
-        if key.startswith("option:") and not _options_armed():
-            reasons.append("options not armed: config/risk.yaml allow_options is false (R7, owner)")
+        if key.startswith("option:"):
+            import options_lab
+            if not options_lab.tradeable(key, cfg):
+                reasons.append("options research only: a short leg or several legs "
+                               "(owner 2026-10-05: no open shorts, every option one contract)")
+            if not _options_armed():
+                reasons.append("options not armed: config/risk.yaml allow_options is false (R7, owner)")
         plan = stop_plans.from_genome(genome_for(conn, key, ver))
         ok, why = stop_plans.validate(plan)
         if not ok:
