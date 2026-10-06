@@ -52,6 +52,7 @@ import options_data as od
 log = logging.getLogger("options_lab")
 DEFAULTS = {"stake_usd": 100.0, "max_spread_frac": 0.5, "min_ask": 0.05, "liquid_universe": 50,
             "max_contract_cost_usd": 100.0, "tradeable_legs": ("C", "P")}
+CONTRACT = 100
 
 STRATEGIES = {
     "opt_signal_call": {"rule": "stock_signal", "legs": "C", "dte": (21, 60, 35), "hold": 14, "per_day": 1,
@@ -236,6 +237,10 @@ def init(conn) -> None:
         CREATE TABLE IF NOT EXISTS option_backtests (
             strategy TEXT PRIMARY KEY, start TEXT, end TEXT, trades INTEGER, mean_ret REAL, median_ret REAL,
             win_rate REAL, by_year TEXT, computed_at TEXT)""")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS option_backtests_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, strategy TEXT NOT NULL, start TEXT, end TEXT, trades INTEGER,
+            mean_ret REAL, median_ret REAL, win_rate REAL, by_year TEXT, computed_at TEXT, archived_at TEXT)""")
     conn.commit()
 
 
@@ -263,10 +268,11 @@ def _leg(q: dict) -> dict:
             "hs": (q["ask"] - q["bid"]) / (q["ask"] + q["bid"])}
 
 
-def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list | None:
+def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict, delta: float | None = None) -> list | None:
     """Contracts at the money: legs 'C' (call), 'P' (put), 'S' (straddle),
     'IC' (iron condor), 'CS' (short strangle), 'BCS' (bull call spread),
-    'BPS' (bear put spread). Returns leg dicts; short legs have short=True set."""
+    'BPS' (bear put spread). Returns leg dicts; short legs have short=True set.
+    `delta` moves a single call or put off the money to that absolute delta; None is at the money."""
     rows = [r for r in od.chain(conn, symbol, date) if r["delta"] is not None]
     lo, hi, tgt = dte
     exps = sorted({r["expiration"] for r in rows if lo <= _days(date, r["expiration"]) <= hi},
@@ -282,9 +288,14 @@ def pick(conn, symbol: str, date: str, legs: str, dte: tuple, s: dict) -> list |
         puts_by_str = {r["strike"]: r for r in puts}
 
         if legs in ("C", "P", "S"):
-            atm = min(calls, key=lambda r: abs(r["delta"] - 0.5))
-            want = {"C": [atm], "P": [puts_by_str.get(atm["strike"])],
-                    "S": [atm, puts_by_str.get(atm["strike"])]}[legs]
+            if delta is not None and legs == "C":
+                want = [min(calls, key=lambda r: abs(r["delta"] - delta))]
+            elif delta is not None and legs == "P":
+                want = [min(puts, key=lambda r: abs(abs(r["delta"]) - delta))]
+            else:
+                atm = min(calls, key=lambda r: abs(r["delta"] - 0.5))
+                want = {"C": [atm], "P": [puts_by_str.get(atm["strike"])],
+                        "S": [atm, puts_by_str.get(atm["strike"])]}[legs]
             if all(q is not None and _ok(q, s) for q in want):
                 return [_leg(q) for q in want]
 
@@ -487,6 +498,19 @@ def trade_return(p: dict, v: float, cost: float) -> float:
     if cost <= 0:
         return 0.0
     return (1 - v / cost) if sells_premium(p) else (v / cost - 1)
+
+
+def one_contract(cost: float, s: dict) -> bool:
+    """One contract (quotes are per share, so x100) costs no more than the book allows."""
+    return cost * CONTRACT <= s["max_contract_cost_usd"]
+
+
+def trade_usd(p: dict, v: float, cost: float, s: dict, cfg: dict | None = None) -> float:
+    """A trade the rule allows is one real contract in dollars; anything else (research specs, and
+    trades opened before the cap existed) is measured as stake x return."""
+    if tradeable(p, cfg) and one_contract(cost, s):
+        return (v - cost) * CONTRACT
+    return s["stake_usd"] * trade_return(p, v, cost)
 
 
 # --- signals -------------------------------------------------------------------
@@ -858,10 +882,13 @@ def stock_signals(conn, cfg: dict, start: str, end: str, top: int = 5) -> dict:
 
 
 # --- the engine ------------------------------------------------------------------
-def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals: dict | None = None) -> int:
-    """Walk `dates`: close what is due, then open today's signals. Same code for backtest and paper."""
+def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals: dict | None = None,
+        spec: dict | None = None) -> int:
+    """Walk `dates`: close what is due, then open today's signals. Same code for backtest and paper.
+    `spec` runs a variant that is not in STRATEGIES (the sweep); `name` then only labels its trades."""
     s = settings(cfg)
-    p = STRATEGIES[name]
+    p = spec or STRATEGIES[name]
+    can_trade = tradeable(p, cfg)
     state = {}
     is_short = p.get("short", False)
     is_credit = sells_premium(p)  # credit spreads: IC, short strangle, short put etc.
@@ -920,7 +947,8 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                 continue
             ret = trade_return(p, v, cost)
             conn.execute("UPDATE option_trades SET closed=?, value=?, ret=?, usd=?, reason=? WHERE id=?",
-                         (d, v, ret, s["stake_usd"] * ret, due + (" (modelled price)" if modelled else ""), tid))
+                         (d, v, ret, trade_usd(p, v, cost, s, cfg),
+                          due + (" (modelled price)" if modelled else ""), tid))
         # entries
         if p["rule"] == "stock_signal":
             cands = (signals or {}).get(d, [])
@@ -934,7 +962,7 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
         for sym, why in cands:
             if sym in held or n_today >= p.get("per_day", 99):
                 continue
-            legs = pick(conn, sym, d, p["legs"], p["dte"], s)
+            legs = pick(conn, sym, d, p["legs"], p["dte"], s, p.get("delta"))
             if not legs:
                 continue
             if is_credit:
@@ -957,6 +985,8 @@ def run(conn, cfg: dict, name: str, dates: list, mode: str = "BACKTEST", signals
                     continue
             else:
                 cost = sum(leg["ask"] for leg in legs)
+                if can_trade and not one_contract(cost, s):
+                    continue
             conn.execute("INSERT INTO option_trades (mode, strategy, symbol, legs, opened, cost, signal) "
                          "VALUES (?,?,?,?,?,?,?)", (mode, name, sym, json.dumps(legs), d, cost, why))
             held.add(sym)
@@ -993,10 +1023,14 @@ def backtest(conn, cfg: dict, names: list, start: str, end: str | None = None) -
         sig = stock_signals(conn, cfg, dates[0], dates[-1]) if STRATEGIES[name]["rule"] in ("stock_signal", "signal_cheap_iv") else None
         run(conn, cfg, name, dates, "BACKTEST", sig)
         r = summarize(conn, name)
+        now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+        conn.execute("INSERT INTO option_backtests_history (strategy, start, end, trades, mean_ret, median_ret, "
+                     "win_rate, by_year, computed_at, archived_at) SELECT strategy, start, end, trades, mean_ret, "
+                     "median_ret, win_rate, by_year, computed_at, ? FROM option_backtests WHERE strategy=?",
+                     (now, name))
         conn.execute("INSERT OR REPLACE INTO option_backtests VALUES (?,?,?,?,?,?,?,?,?)",
                      (name, dates[0], dates[-1], r["trades"], r.get("mean_ret"), r.get("median_ret"),
-                      r.get("win_rate"), json.dumps(r.get("by_year")),
-                      dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")))
+                      r.get("win_rate"), json.dumps(r.get("by_year")), now))
         conn.commit()
         out.append(r)
         log.info(f"{name}: {r}")
@@ -1023,8 +1057,9 @@ def open_funds(conn, cfg: dict) -> list:
         key = PREFIX + name
         row = league.register(conn, key, p.get("name", name),
                               {"family": "options", "kind": "option", "entry_rule": p["rule"], "legs": p["legs"],
-                               "holding_period": p["hold"], "parameters": {"dte": list(p["dte"]),
-                                                                          "top": p.get("top"), "per_day": p.get("per_day")}},
+                               "holding_period": p["hold"],
+                               "parameters": {"dte": list(p["dte"]), "top": p.get("top"), "per_day": p.get("per_day"),
+                                              **({"delta": p["delta"]} if p.get("delta") is not None else {})}},
                               author="options_lab", source_kind="options", source_ref=name, hypothesis=p.get("why", ""))
         if league.state(conn, key, row["version"]) is None:
             league.transition(conn, key, league.PAPER, "options paper fund opened (Stage R)",
@@ -1047,7 +1082,7 @@ def mark(conn, cfg: dict, name: str, date: str) -> dict:
     for sym, legs, cost in conn.execute("SELECT symbol, legs, cost FROM option_trades WHERE mode='PAPER' AND "
                                         "strategy=? AND closed IS NULL", (name,)).fetchall():
         v, _ = close_value(conn, p, sym, json.loads(legs), date, allow_model=True)
-        unreal += s["stake_usd"] * (trade_return(p, v, cost) if v is not None else 0.0)
+        unreal += trade_usd(p, v, cost, s, cfg) if v is not None else 0.0
         n += 1
     eq = {"equity_usd": cap + real + unreal, "realized_usd": real, "unrealized_usd": unreal, "open_positions": n}
     conn.execute("INSERT OR REPLACE INTO option_fund_equity VALUES (?,?,?,?,?,?)",

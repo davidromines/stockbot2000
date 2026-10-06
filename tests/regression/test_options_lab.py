@@ -15,7 +15,7 @@ import options_data as od
 import options_lab as ol
 
 FAILED = []
-CFG = {"options": {"stake_usd": 100.0}}
+CFG = {"options": {"stake_usd": 100.0, "max_contract_cost_usd": 1000.0}}
 
 
 def check(name, cond, detail=""):
@@ -81,8 +81,8 @@ def main():
     t = c.execute("SELECT cost, value, ret, usd, reason FROM option_trades WHERE strategy='t_call'").fetchone()
     check("walk: opened on the signal, closed at the holding limit at the bid", n == 1 and t[0] == 2.2
           and t[1] == 3.0 and t[4] == "holding limit", t)
-    check("return on premium and dollars on the stake", abs(t[2] - (3.0 / 2.2 - 1)) < 1e-12
-          and abs(t[3] - 100 * t[2]) < 1e-9, t)
+    check("return on premium and dollars on the one real contract (x100 shares)", abs(t[2] - (3.0 / 2.2 - 1)) < 1e-12
+          and abs(t[3] - 100 * (3.0 - 2.2)) < 1e-9, t)
     r = ol.summarize(c, "t_call")
     check("summary", r["trades"] == 1 and r["win_rate"] == 1.0, r)
 

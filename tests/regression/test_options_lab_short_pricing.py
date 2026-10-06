@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 import options_lab as ol
 
 FAILED = []
-CFG = {"options": {"stake_usd": 100.0}}
+CFG = {"options": {"stake_usd": 100.0, "max_contract_cost_usd": 1000.0}}
 D0, D1, D2, EXP = "2024-01-08", "2024-01-10", "2024-01-16", "2024-02-09"
 
 
@@ -164,8 +164,8 @@ def main():
     ol.STRATEGIES["t_call"] = spec("C")
     ol.run(c, CFG, "t_call", [D0, D1], "PAPER", {D0: [("AAA", "test signal")]})
     eq = ol.mark(c, CFG, "t_call", D1)
-    # bought at the ask 2.2, worth the bid 1.7 -> a loss; a long position keeps value / cost - 1
-    check("mark: an open long is unchanged (1.7 / 2.2 - 1)", near(eq["unrealized_usd"], 100 * (1.7 / 2.2 - 1)), eq)
+    # bought at the ask 2.2, worth the bid 1.7 -> a loss on the one real contract (x100 shares)
+    check("mark: an open long is marked per contract ((1.7 - 2.2) x 100)", near(eq["unrealized_usd"], 100 * (1.7 - 2.2)), eq)
 
     # --- mixed positions ------------------------------------------------------------------------------------------
     c = new_db()
