@@ -94,18 +94,27 @@ def _log(conn, kind, symbol, date, n) -> None:
                  (kind, symbol, date, n, datetime.now(timezone.utc).isoformat(timespec="seconds")))
 
 
+def fetch_chain(symbol: str, date: str) -> list:
+    """The raw API rows of one chain. Touches no database, so threads may run it side by side."""
+    return query(f"SELECT * FROM option_chain WHERE date='{date}' AND act_symbol='{symbol}'")
+
+
+def store_chain(conn, symbol: str, date: str, rows: list) -> None:
+    """Write one fetched chain and its fetch-log entry, then commit. An empty chain is logged too."""
+    conn.executemany("INSERT OR REPLACE INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, "
+                     "delta, gamma, theta, vega) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                     [(r["date"], r["act_symbol"], r["expiration"], float(r["strike"]), r["call_put"][0].upper(),
+                       _f(r["bid"]), _f(r["ask"]), _f(r["vol"]), _f(r["delta"]), _f(r["gamma"]),
+                       _f(r["theta"]), _f(r["vega"])) for r in rows])
+    _log(conn, "chain", symbol, date, len(rows))
+    conn.commit()
+
+
 def chain(conn, symbol: str, date: str) -> list:
     """The option chain for `symbol` on `date` (dicts), from the local store or fetched once."""
     init(conn)
     if not _done(conn, "chain", symbol, date):
-        rows = query(f"SELECT * FROM option_chain WHERE date='{date}' AND act_symbol='{symbol}'")
-        conn.executemany("INSERT OR REPLACE INTO option_quotes (date, symbol, expiration, strike, cp, bid, ask, iv, "
-                         "delta, gamma, theta, vega) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                         [(r["date"], r["act_symbol"], r["expiration"], float(r["strike"]), r["call_put"][0].upper(),
-                           _f(r["bid"]), _f(r["ask"]), _f(r["vol"]), _f(r["delta"]), _f(r["gamma"]),
-                           _f(r["theta"]), _f(r["vega"])) for r in rows])
-        _log(conn, "chain", symbol, date, len(rows))
-        conn.commit()
+        store_chain(conn, symbol, date, fetch_chain(symbol, date))
     cur = conn.execute("SELECT date, symbol, expiration, strike, cp, bid, ask, iv, delta FROM option_quotes "
                        "WHERE symbol=? AND date=?", (symbol, date))
     cols = [d[0] for d in cur.description]
