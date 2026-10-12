@@ -107,6 +107,50 @@ upgrade on account 403446024 (owner, in-app); `allow_options` / `allow_crypto` /
 ACTIVE` / `published_prior` — all owner-gated config flips, no buildable roadmap items remain
 without one of these.
 
+**Same session, later: built `daily_snapshot.py` — a one-page image report, owner's request.**
+The owner's complaint (voice memo): asking "is it working" gets a wall of text (`eod_report.py`'s
+17 sections), not a glance-and-know answer. Wants one image: big P&L number, color, a sparkline
+per slot, no jargon, sent daily to Telegram instead.
+
+- `collect(conn, cfg, mode)` (pure data) + `render(data, out_path)` (matplotlib `Agg`, portrait
+  PNG) + `notify.send_telegram_photo()` (new, mirrors `send_telegram`'s creds/error handling).
+  Reuses `slots.current()` for the assignment cutoff and `live_pnl.compute()` for real-fill P&L
+  (never shows the cost breakdown — `no-fee-talk` memory rule); only **net** per slot/account,
+  never summed across slots (`report-decision-useful-numbers` rule).
+- **A slot's P&L and sparkline are scoped strictly to its CURRENT assignment** (`since` from
+  `slots.current()`) — slots get reassigned to different strategies over time, and a trade from
+  the previous occupant must never leak into the new one's chart. This is the one real
+  correctness risk and it's pinned by a regression test (`test_daily_snapshot.py`, fake DB with a
+  mid-stream reassignment: the old occupant's real loss must not appear in the new occupant's
+  P&L).
+- **Found and fixed a naming problem, not a bug, while verifying it against real data**:
+  `live_pnl._name()` only resolves `paper:` keys, and for Lab-discovered survivor funds
+  (`family='lab_search'`) the resolved name IS the raw evolved rule text, e.g. `"Lab 56f07a:
+  ((rank(chaikin_osc) > 0.6404 and pct_off_52w_low) ..."` — exactly the jargon this report exists
+  to hide. Added `_human_name()`: resolves `fx_...` keys via `league_strategies.name` too (which
+  `live_pnl._name` never did), and replaces any `lab_search` name with `"Lab-discovered strategy
+  (id)"` instead of just truncating it (truncating hides the jargon mid-word; it doesn't remove
+  it).
+- `matplotlib>=3.8.0` added to `requirements.txt` and the venv (no system-level build deps
+  needed, prebuilt wheels). 13 new regression checks; full suite **148 of 148 pass**.
+- **Committed, not yet live.** Rendered against the real account and sent to the owner for a
+  design look (`SendUserFile`) before touching cron or sending anything real to Telegram —
+  `eod_report.py`'s existing Telegram push is untouched pending that. Plan: drop `--send` from
+  its cron line (keep it writing the file/log) and add a new line for
+  `daily_snapshot.py --send` at the same 21:10 UTC slot, once the owner confirms the design.
+
+**Also this session: updated the two reviewer-facing artifacts** (roadmap tracker
+`claude.ai/artifact/417uBm4aaL3pQLv7BNSuDo`, reviewer dossier
+`claude.ai/artifact/3YFiMwNxvpXk3ycNVi2PKt`) with current state — R7 and Stage O both complete,
+the research-integrity report's first statistically-positive forward families (7 at t > 2:
+`lab_search` t=17.2 n=5,560, `momentum` t=4.8 n=331, `kf_seasonality` t=7.1 n=340,
+`st_uptrend_pullback` t=3.7 n=348, `bollinger_reversion` t=3.2 n=150, `kf_mean_reversion` t=2.9
+n=28, `st_momentum_1d` t=3.4 n=683 — none promoted), and the live slot table refreshed to today's
+real positions (account −$1.75 / −2.0% since 09-24, 15 trading days). Old snapshots kept
+alongside as the historical record, not overwritten. `PROJECT_STATUS.md` and
+`docs/ROADMAP_INTEGRATION.md`'s Stage D/E/R rows refreshed the same way — see those files rather
+than duplicating the numbers here.
+
 ### SESSION HANDOFF — 2026-10-05
 
 **LIVE resumed 2026-10-05 ~00:50 UTC.** Owner renewed sign-in (`robinhood_mcp.py --login`).
