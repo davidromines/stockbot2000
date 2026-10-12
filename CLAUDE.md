@@ -74,7 +74,40 @@ needs `--suite`; check 26 needs more SHADOW sessions).
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-10-05 (START HERE)
+### SESSION HANDOFF — 2026-10-12 (START HERE)
+
+**Committed and pushed: `options_live.py` (R7, the real-money options engine).** Between the
+2026-10-05 handoff below and this one, a prior session built the whole options stack in small
+committed pieces (data split, lab/signal fixes, Kalman fund step fix, books/slots gating on
+"one real contract, no shorts" — see `git log` between `4c21529` and `6b5d2ba`) and wrote
+`options_live.py` itself, but it sat **uncommitted** — the long-standing pattern where live-order
+code trips the auto-mode classifier. This session found it still sitting in the working tree,
+read it, and verified it before committing:
+
+- Mirrors a proven option strategy's newest PAPER trade for real, whole contracts at the live
+  ask, one limit order per leg; exits mirror the paper close or expiry-near. Same idioms as the
+  stock LIVE path: review-then-place, fixed ref_id (idempotent retries), UNKNOWN order blocks
+  new entries, broker/ledger mismatch halts.
+- Gated on every run: `config/risk.yaml allow_options` (owner's switch, **off**), the account
+  having `option_level_2`+ (owner applies in the Robinhood app — still not done, per the
+  2026-09-26 note below), no kill switch, and `>= min_paper_trades` (20) closed paper trades
+  net positive per strategy. **Checked the real numbers: best options paper record today is 3
+  closed trades for any one strategy** (`option_trades`: 100 PAPER rows, only 13 closed across
+  18 strategies, max 3 per strategy) — nowhere near proven. So this is correctly inert even if
+  armed today, and it is **not wired into any cron**.
+- Found and fixed a real bug in `tests/regression/test_options_live.py` while verifying it: the
+  fake broker's ask ($1.22/share = $122/contract) exceeded the test's `per_trade_usd` ($100
+  default), so its own "4 contracts" scenario never fired and every assertion after entry was
+  silently vacuous (passing on `None`/no-op). Raised the test's `per_trade_usd` to $500 to match
+  its fixture. Full suite re-run clean: **147 of 147 test files pass.**
+- Did not touch `config/risk.yaml`, cron, or anything account-level — those stay the owner's.
+
+**Still open, unchanged:** Robinhood sign-in needs the owner's weekly renewal; options level 2+
+upgrade on account 403446024 (owner, in-app); `allow_options` / `allow_crypto` / `search.mode:
+ACTIVE` / `published_prior` — all owner-gated config flips, no buildable roadmap items remain
+without one of these.
+
+### SESSION HANDOFF — 2026-10-05
 
 **LIVE resumed 2026-10-05 ~00:50 UTC.** Owner renewed sign-in (`robinhood_mcp.py --login`).
 5 positions reconciled OK: DELL s1 (fx_kf_momentum), CRS s2 (paper:cf4dcc), DBC s3 (etf_rotation), MRNA s4 (paper:0fafb9), MU s5 (fpm). Cash $0.
