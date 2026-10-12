@@ -109,6 +109,29 @@ def send_telegram(text: str, parse_mode: str | None = None) -> bool:
         return False
 
 
+def send_telegram_photo(path: str, caption: str | None = None) -> bool:
+    """
+    Post one photo (e.g. the daily snapshot image). Telegram's caption is plain
+    text, max 1024 chars — a longer one is truncated rather than rejected.
+    """
+    c = _telegram_creds()
+    if not c:
+        return False
+    try:
+        with open(path, "rb") as f:
+            data = {"chat_id": c["chat_id"]}
+            if caption:
+                data["caption"] = caption[:1024]
+            r = requests.post(f"https://api.telegram.org/bot{c['token']}/sendPhoto",
+                              data=data, files={"photo": f}, timeout=60)
+        if r.status_code != 200:
+            log.warning(f"telegram photo: HTTP {r.status_code} {r.text[:200]}")
+        return r.status_code == 200
+    except (requests.RequestException, OSError) as e:
+        log.warning(f"telegram photo: {type(e).__name__}")
+        return False
+
+
 def send_desktop(title: str, body: str) -> bool:
     """
     XFCE desktop popup. Needs DISPLAY, which cron does not provide by default —
