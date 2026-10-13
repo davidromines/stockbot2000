@@ -430,3 +430,48 @@ statistically testable.
 
 **Adopted.** Nothing. If the full list is wanted for the record, paste it; it would be
 filed as theme picks, not tested.
+
+## 2026-10-13 #11 — "SETS Machine: self-evolving trading system kills 97% of its strategies" (X post + GitHub README, github.com/Shelpid/SETS)
+
+**What it is.** A browser-only genetic algorithm that breeds long-only grid-DCA BTC
+strategies (8 genes: family, lookback, entry z, grid levels, spacing, size multiplier,
+take-profit, stop). 96 per generation: 8 random newcomers + 80 offspring; train on
+70%, judge on the last 30%; gate: out-of-sample return > 1%, drawdown < 10%, >= 3
+trades, win rate >= 50%; four species with quotas; the winner paper-trades, sized by
+Kelly. Post says a generation takes 5 seconds. The repo README (read via fetch; nothing
+cloned or run) is far more modest than the post: MIT, 257 stars, 1 commit, 2,399
+hourly candles (~100 days), 30-day out-of-sample window, 0.04% fee per fill,
+next-bar-open execution, adverse-first intrabar fills, no slippage, "a research toy,
+not a trading bot to connect to real money". Its own results: out-of-sample +7.3% to
++8.4% over 50 generations on three seeds versus +11.4% for buy-and-hold on the same
+window, and it says so.
+
+**It is our Strategy Lab, minus the controls we added after it failed us.**
+- Same loop (breed, backtest, select, repeat). We ran it to 1.05M trials, found six
+  measurement artifacts, and froze it.
+- The 30% holdout is reused by every generation, and the leader is chosen from gate
+  passers, so the "unseen" data is consumed by selection (the README admits its numbers
+  are optimistic). Our sealed holdout is evaluated once per strategy, enforced in code.
+- At 5 seconds a generation the trial count passes a million in about a day; a
+  noise-only maximum at that N is ~4.9 standard errors (entry #8). A 30-day, >1%
+  return gate is passed by luck constantly.
+- Gate "win rate >= 50%" plus a size multiplier up to 2x per grid level selects
+  martingale-like grids: many small wins, rare large losses, a tail the 30-day window
+  has not shown (the README concedes wide stops simply were not hit).
+- Kelly sizing from a backtest edge estimate overbets when the edge is overestimated.
+- Single asset, single history, ~100 days: no survivorship test, no cost stress.
+- The "$650K quant" line and "kills 97%" are marketing; a high kill rate means the
+  bar is low or the search is huge, not that the survivors work.
+
+**What is good in it (and already ours).** Honest comparison with buy-and-hold
+(we require it for pair funds); next-bar-open fills and adverse-first intrabar
+ordering (matches entry #7); species quotas (our family caps, built after the search
+collapsed to one structure); transparent gene inspection.
+
+**Adopted.**
+- Nothing for the live system; the evolutionary search stays frozen.
+- If it is ever unfrozen (owner's edit), carry over: niche quotas by structure family
+  inside the population, adverse-first intrabar ordering, and a fixed one-look holdout
+  - not a reused 30% split.
+- Not adopting: running or importing the open-source code (untrusted, BTC grid
+  strategies, crypto gated off), the win-rate gate, Kelly sizing.
