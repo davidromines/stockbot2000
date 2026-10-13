@@ -475,3 +475,38 @@ collapsed to one structure); transparent gene inspection.
   - not a reused 30% split.
 - Not adopting: running or importing the open-source code (untrusted, BTC grid
   strategies, crypto gated off), the win-rate gate, Kelly sizing.
+
+## 2026-10-13 #12 — Crypto research-analyst prompt (screenshot; the research half of entry #1's prompt, stand-alone)
+
+**What it is.** A structured prompt: act as a skeptical crypto analyst; read the market
+regime (BTC/ETH trend, dominance, stablecoin liquidity, funding, open interest);
+build a broad candidate set and cut it to 5-10 finalists; per asset cover supply,
+unlocks, insider allocations, revenue, fees, TVL, users, on-chain flows and
+competitors; separate confirmed catalysts from speculation; argue the bear case;
+output a comparison table with a "Research Score"; cite dated primary sources, never
+invent metrics, separate fact from interpretation; end with "WHAT COULD BE WRONG
+ABOUT?".
+
+**Assessment.**
+- It is a way to write a research memo, not a way to find an edge. The output (a
+  score, a thesis, "asymmetric" opportunities) is narrative; nothing in it can be
+  backtested, and picking 5-10 finalists from a broad set after reading the same
+  data is itself a selection step with no trial count.
+- A model without live data tools will fill the table with plausible but invented
+  numbers; the "cite sources, never invent" rule only works with real retrieval and a
+  human or code check against the source.
+- No point-in-time history exists for most of it (unlock schedules, TVL, holder
+  concentration as known on past dates), so it cannot be tested on the past.
+- Crypto is gated off here (`allow_crypto: false`), costs ~1.9% round trip, and
+  buy-and-hold beat every trend variant we tested; we hold no on-chain data feed.
+
+**Good habits in it (already ours or already adopted).** Skepticism first; write what
+evidence would invalidate the thesis before acting (our registered experiments state
+the failure criterion before any result); separate facts from interpretation; dated
+primary sources; a closing "what could be wrong" section (adopted from entry #1 for
+all audit reports and the weekly digest).
+
+**Adopted.** Nothing new. When Claude or DeepSeek writes the Addendum F audit report,
+use this prompt's reporting rules: every figure with its source file or query and
+date, facts / inferences / unknowns in separate labelled sections, and the closing
+"What could be wrong" section. No crypto research is started.
