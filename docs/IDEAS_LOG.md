@@ -231,3 +231,39 @@ variants, counted in the trial ledger).**
    to the rate/dollar regimes in entry #3. Descriptive only.
 Not adopted: the intraday entry, theme / focus-list picking, options leverage, the
 paid course.
+
+## 2026-10-13 #6 — "Claude has a Stock Trading Mode: 9 prompts" (@AiWithIqra thread on X)
+
+**What it is.** A 10-post thread (read in the browser pane; X shows each reply only
+to its first ~250 characters without logging in, and I did not sign in, so the
+tails of the prompts are not read). Claim: Claude has a "Stock Trading Mode" that
+can "research and trade literally any stock". The nine prompts are ordinary
+equity-research templates: (1) company snapshot, (2) fundamentals table (growth,
+margins, EPS, free cash flow, debt, ROE), (3) latest earnings vs guidance, (4)
+valuation (P/E, EV/EBITDA, P/S, FCF yield, DCF), (5) score three competitors 1-10,
+(6) catalyst and risk map with low/medium/high probabilities, (7) bull / base / bear
+cases, (8) technical analysis (trend, support/resistance, 20/50/200-day), (9) a
+decision checklist (portfolio size, risk tolerance, maximum loss). The one reply
+(a CFA) calls the "mode" nonsense.
+
+**Assessment.** I know of no Claude "Stock Trading Mode"; this is a prompt list
+presented as a hidden feature. Claude does not place trades on its own: in this
+project orders go through code (signal, risk engine, kill switches, broker), never
+through a model. The prompts themselves are reasonable discretionary research
+templates and worth nothing as an edge: they produce narrative, and an LLM given
+"current financial data" without a data feed can invent figures (prompt 8 correctly
+says to use live data only if verified).
+
+**Map to what we have.** Fundamentals and valuation (2, 4): `value_metrics.py`,
+the valuation engine, value score and Value Fund. Earnings (3): `sue_features.py`
+and the `earnings_surprise` family. Technicals (8): the 20 indicators and families.
+Checklist and max loss (9): `risk_engine.py`, ATR stop plans, the $25 order cap,
+daily-loss and drawdown kill switches. Scores 1-10 and probability words (5, 6, 7)
+are not calibrated numbers and cannot be backtested.
+
+**Adopted.** None for the system. Reaffirmed rules: no model in the order path;
+LLM text becomes a strategy only when it is turned into explicit, pre-declared
+mechanical rules and tested like everything else (the `knowledge_extract.py` path
+with its verification pass); no scheduled job calls an LLM. For the owner's own
+research on individual stocks outside this system, the templates are fine as a
+starting point, with every number checked against the filing.
