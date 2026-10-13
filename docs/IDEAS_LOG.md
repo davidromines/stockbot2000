@@ -310,3 +310,63 @@ equivalent rule for its same-day SHADOW book; confirm when Addendum F audits D2.
    slippage on stops).
 Not adopted: futures, the 3-minute window, live limit orders, the numeric parameters.
 If the original post had a backtest, share it; the numbers matter more than the rules.
+
+## 2026-10-13 #8 — "The Deflated Sharpe Ratio: Separating Genuine Skill from Backtest Luck" (one-page explainer, after Bailey & Lopez de Prado 2014)
+
+**What it is.** A two-column summary: with many trials the best Sharpe is inflated
+by selection; SE(SR) ~ sqrt((1 + SR^2/2)/T) (Lo 2002); expected maximum of N
+skill-less Sharpes ~ sigma * sqrt(2 ln N); the Deflated Sharpe Ratio compares the
+observed Sharpe with the luck benchmark SR0 and adjusts for skew and kurtosis; a
+three-layer audit: deflated Sharpe, out-of-sample holdout, Monte Carlo reshuffling
+of the trade sequence.
+
+**Checked.** Formulas (1), (3) and (4) match the published ones. **One number in the
+text is wrong:** "one million zero-edge strategies over a one-year sample: best
+Sharpe near 1.7". The formula gives about 4.9 (exact expected maximum 4.87,
+sqrt(2 ln N) = 5.26); 1.7 corresponds to only ~4 trials. The correct figure is a
+stronger version of the paper's own point. Also unstated: formula (4) needs Sharpe,
+skew and kurtosis in the same per-period units as T, and N should be the EFFECTIVE
+number of independent trials, not the raw count (ln N grows slowly but the choice of
+N moves the bar a lot, below).
+
+**What we already have, and the gap.** `promote.py` implements the deflated Sharpe
+(Euler constant, expected maximum) and applies it at the Lab ladder's sealed-holdout
+stage; `multiple_testing.py` keeps the trial counter, an `effective(total, unique)`
+count and `noise_max_sharpe`. A search finds NO deflation or multiple-testing use in
+`funnel.py`, `ranking.py`, `slots.py`, `factory_pipeline.py` or `strategy_health.py`.
+So the forward-positive families, the ranking and the live slots are not deflated at
+all; this is exactly the Addendum F A4 question and the answer is "not connected".
+
+**Why it matters for the seven families (noise-only expected maximum of N independent
+standard-normal t-stats; 95% = the level the max exceeds 5% of the time):**
+
+| N (independent tests) | expected max | 95% threshold |
+|---:|---:|---:|
+| 88 (families) | 2.49 | 3.25 |
+| 170 (honest simulator shapes) | 2.71 | 3.43 |
+| 1,405 (specs) | 3.35 | 3.97 |
+| 127,652 (unique Lab structures) | 4.44 | 4.93 |
+| 1,000,000 (raw trials) | 4.87 | 5.32 |
+
+Reported t: kf_mean_reversion 2.9, bollinger_reversion 3.2, st_momentum_1d 3.4,
+st_uptrend_pullback 3.7, momentum 4.8, kf_seasonality 7.1, lab_search 17.2. Even with
+the generous N = 88, two to three of the seven fall inside the luck range; with
+N = 1,405 the first four do. This is BEFORE correcting the iid-trade standard error,
+which makes every t smaller. The `lab_search` family alone drew from ~127k unique
+structures, so its relevant bar is ~4.4-4.9; 17.2 clears it only if the dependence
+correction leaves it above that. Indicative, not a verdict: N is uncertain and the
+families are not independent.
+
+**Adopted (Addendum F A3/A4/B3).**
+1. **Deflation column in the funnel and ranking reports** (not a gate): each family's
+   t and each strategy's per-trade score beside the noise-maximum for the stated N,
+   shown for three N values so the sensitivity is visible.
+2. **Effective N** from `multiple_testing.effective`, documented, never the raw trial
+   count.
+3. **Units**: deflate on per-period (daily portfolio) return series, with skew and
+   kurtosis from the same series; do not mix per-trade means with annualised Sharpe
+   (the project already hit this trap in `degradation.py`).
+4. **Monte Carlo layer**: block-bootstrap / reshuffle each family's trade sequence for
+   fragility of the equity curve, as the paper's layer (iii).
+5. Heavy tails first: the skew and kurtosis terms are meaningless while corporate-action
+   artefacts (entry #4, CTVA) sit in the data; clean those before computing DSR.
