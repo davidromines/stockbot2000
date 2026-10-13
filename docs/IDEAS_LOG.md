@@ -175,3 +175,59 @@ changed).**
    gives momentum +2.04% (t 4.2, n 416) and st_uptrend_pullback +0.36% (t 1.5, n 627)
    against the funnel's +2.69% and +1.13%. The cut (window, dedupe, definition) is
    unknown. This is exactly the A1 reproduction step; unresolved.
+
+## 2026-10-13 #5 — "How to make money in stocks (full guide)", @SRxTrades on X (link; read in the browser pane)
+
+**What it is.** A Qullamaggie-style momentum-breakout swing system, ending in a
+sales pitch for a paid "live swing trading challenge" (not opened). Rules:
+1. Market filter: SPY/QQQ above the 8/21/50 EMAs = full size; chop = smaller size.
+2. Scan: price > $3, market cap > $300M, volume > 500k, up on the day, ADR > 2%,
+   price above 8/21/50 EMAs; sort by volume; keep a 4-5 name focus list.
+3. Setup: tight base / pennant, volume drying up, above the averages; prefer daily
+   or weekly charts; first or second "staircase" of a hot theme.
+4. Entry: break of a repeatedly rejected resistance level on volume (5-15 minute
+   entry), or an "undercut and reclaim"; stop at the low of the day.
+5. Exit: trim 1/4 at a big resistance level and move the stop to breakeven, 1/4 on a
+   close below the 8 EMA, 1/4 below the 21 EMA, the rest below the 50 EMA.
+Claims: "made millions", NVDA / SMCI / TSLA / ARM / DELL caught. Unverifiable and
+selected winners.
+
+**What we already test, and how it differs.** Our `breakout_52w` (near the 52-week
+high + volume ratio, fixed 10-20 day hold, ATR stop) and `volatility_breakout`
+(volume surge + positive 10-day move) are NOT this setup. `volatility_contraction`
+(low ATR z-score, above the 50-day) is the closest "tight base" analogue. Forward
+paper record (whole history, plain iid t, overstated; ~15 sessions of one market):
+
+| family | n | mean net / trade | t |
+|---|---:|---:|---:|
+| volatility_contraction | 97 | -3.43% | -4.0 |
+| breakout_52w | 121 | -4.96% | -7.0 |
+
+So the closest versions we run are negative. The post's distinctive parts are not
+tested here: a resistance-level trigger, 8/21/50 EMA features (we have only SMA 50 /
+200 and ATR), the trailing-EMA / quarter-trim exit, and market-regime sizing.
+
+**Why parts cannot run as written.** Intraday 5-minute entries with a stop at the
+low of the day are day-trade style; the account is limited margin with 3 day trades
+per 5 sessions, trades via 5-minute cron and market orders, and slots hold one $20
+position with no partial trims. The edge claimed lives largely in that intraday
+entry. "Hot theme", "macro tailwind" and "clean structure" are discretionary.
+
+**Evidence we do have on the exit idea.** The registered exit sweep (P2-P3) found
+early profit-taking (5-10% targets, 2-3 ATR trails) lowered net per trade; only a
+wide +20% target helped, on one strategy. That fits "let winners run" but is not a
+test of closing-basis EMA trailing.
+
+**Adopted (attach to Addendum F Phase E; one pre-declared version, no tuned
+variants, counted in the trial ledger).**
+1. **One Stage O reproduction** of the daily-bar mechanical core: above 21 and 50
+   EMA, contraction (ATR z-score) then close above the prior N-day high on volume,
+   next-open entry, exit on a close below the 21 EMA. Needs EMA features added to the
+   daily panel first.
+2. **Exit experiment**: add closing-basis EMA-trail exits to `exit_rules` and run on
+   existing slot strategies, same adoption rule as P2 (wins the window and most
+   blocks).
+3. **Market-trend regime**: report families by "SPY above 21 and 50 EMA" vs not, next
+   to the rate/dollar regimes in entry #3. Descriptive only.
+Not adopted: the intraday entry, theme / focus-list picking, options leverage, the
+paid course.
