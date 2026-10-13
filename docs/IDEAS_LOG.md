@@ -406,3 +406,27 @@ under five months. The actual entry and strike / expiry rules are withheld behin
 considered only AFTER the underlying stock signal has an audited edge, then tested as
 "same signal, stock vs LEAPS stock-replacement", which needs a LEAPS-length data
 source first (add to the data wish-list; the current DoltHub pull stops at 77 days).
+
+## 2026-10-13 #10 — "SpaceX AI-bottleneck suppliers: 5 stocks that can 10x" (X post, cut off after item 1)
+
+**What it is.** A stock-pick promo: a quote attributed to Elon Musk (the "easiest way
+to get rich is to buy the AI bottleneck suppliers to SpaceX"), then "5 stocks that can
+10x", of which only "1. $RKLB" was shared. The Musk statement is unsourced and
+unverified here.
+
+**Facts checked in our data.** `SPCX` (Space Exploration Technologies Corp., NASDAQ,
+common stock) and `RKLB` (Rocket Lab) are both in the symbol directory. SPCX has 83
+daily bars (2026-06-12 to 2026-10-09), so it is a ~4-month-old listing: no 200-day
+average and little point-in-time fundamentals, which means most of our strategies
+cannot score it. RKLB has 1,475 bars since 2020-11-24.
+
+**Assessment.** A "can 10x" list is a theme pick: discretionary, selected after the
+theme is already popular, with no rule, no entry or exit, no loss case and no track
+record. Whether to own any named stock is the owner's own decision and not something
+Claude advises on; the system picks by pre-declared rules through its ranking, not by
+themes. A hot-theme "second-order beneficiary" idea could in principle be tested as an
+event study around a large IPO, but the sample is one event, so nothing is
+statistically testable.
+
+**Adopted.** Nothing. If the full list is wanted for the record, paste it; it would be
+filed as theme picks, not tested.
