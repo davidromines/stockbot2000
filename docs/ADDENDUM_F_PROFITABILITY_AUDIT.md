@@ -926,3 +926,6 @@ is indistinguishable from the pool. Findings and the owner's decisions: `docs/AU
 **Phase D done 2026-10-13 (owner: "Phase d go"; read-only).** D1 `audit_survivorship.py`: 33 % of ranked strategies are positive as_is and non-positive in the worst case; 21 % change sign across generator configurations; the twin-test pass is not independent
 of the configurations tried; paid delisted data is not yet warranted. D2 `audit_execution.py`: lifecycle compared across simulator, paper engine and live trader; live entries at the open (restated basis correct, original not); fill shortfalls
 inconclusive at 35 trades; the paper fund averages up to 20 names where the slot buys one; no new code defect. `docs/AUDIT_D_FINDINGS.md`.
+
+**Phases E, F, G, H done 2026-10-13 (read-only/shadow).** E1/E2 `hypothesis_scorecard.py`; E3 `experience_experiment.py` (pre-registered; analog does not meet the bar); F `profit_report.py`; G the implemented items are listed in the final report; H `docs/AUDIT_F_FINAL_REPORT.md`
+(deliverables 1-8, acceptance criteria A-H, commands to reproduce, owner approvals outstanding). Verdict: no strategy survives as an established edge; the prospective test is decisive.

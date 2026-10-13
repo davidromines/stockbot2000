@@ -179,6 +179,11 @@ unidentifiable assumption (21 % change sign across generator configurations). Pa
 describes them; the original signal-day-close basis does not); live fills are +0.39 % / +0.45 % worse than the open on entry / exit with standard errors of 0.60 / 0.33 (inconclusive); the paper fund averages up to 20 names while the slot buys one.
 No new code defect found; nothing changed.
 
+**Phases E, F, H (2026-10-13, read-only/shadow; final report `docs/AUDIT_F_FINAL_REPORT.md`).** The Knowledge Factory: 91 % of 4,158 documented ideas are title-only; the rest are about 175 lineages behind 1,281 non-search strategies (7 variants per lineage): breadth is overstated.
+A hypothesis scorecard orders what to specify and test next. The pre-registered similarity experiment (`analog_vs_baseline_2026_10`) does not meet its bar: +0.48 points over random in 47 test dates, interval −0.18 to +1.21, not distinguishable from momentum or a basic model
+(about 95 dates would be needed); no subsystem is built. `profit_report.py` states profitability four ways: the real account's realised +$0.37 and unrealised −$3.97 reconcile to its −$3.59 equity change; the research pool is −0.45 % per trade and −0.14 % per dollar-session.
+All eight acceptance criteria are met; **no strategy survives the audit as an established edge**; the prospective test (about December) is the decisive measurement.
+
 ## Housekeeping
 
 Data backup run 2026-10-13 04:41 UTC and verified (forward records: 408,131 rows, 62 tables;

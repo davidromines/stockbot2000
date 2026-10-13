@@ -149,6 +149,11 @@ off, no capital-limit change, nothing live without owner approval.
   88% as_is vs 55% in the worst case; 409 strategies (33%) flip on that unidentifiable assumption; 21% change sign across generator configurations; paid delisted data NOT recommended yet (forward evidence is the binding constraint). D2: paper fills at
   the signal-day close, live at the open (restated basis describes live); live fill vs open +0.39% / +0.45% adverse (SE 0.6 / 0.33, inconclusive); paper averages up to 20 names, the slot buys one (fund took the slot's name on 41% of sessions); the
   ranking's forward basis and the honest basis differ without a consistent direction; no stop has fired live. No new code defect found; nothing changed.
+- **PHASES E, F, H DONE 2026-10-13 (owner asleep; "keep working on all open items"; read-only/shadow; final report `docs/AUDIT_F_FINAL_REPORT.md` START THERE for the audit).** E1/E2 `hypothesis_scorecard.py` (table `hypothesis_scorecard`, in backup): 91% of 4,158 documented ideas are
+  title-only and untestable; the rest are ~175 lineages behind 1,281 non-search strategies (7 variants per lineage), so breadth is overstated; scorecard orders experiments, never promotes. E3 `experience_experiment.py` (registry `analog_vs_baseline_2026_10`,
+  COMPLETE): analog +0.48 pts over random in test (-0.18 to +1.21), not distinguishable from momentum or the model; does NOT meet the pre-registered bar; no subsystem built (would need ~95 dates). F `profit_report.py`: four denominators side by side;
+  real account realised +$0.37, unrealised -$3.97, reconciles to the equity change; research pool -0.45%/trade, per dollar-session -0.14%; no annualised figure (16 sessions). Acceptance criteria A-H all met; no strategy survives as an established edge.
+  Still waiting on the owner: the 5 ranking/eligibility decisions, `daily_snapshot.py` cron design OK, and the owner-gated flips. Tomorrow's first checks: the 07:00 UTC daily run stages [9k0], [9k1], funnel, and `prospective_eval.py` progress.
 
 ### SESSION HANDOFF — 2026-10-12
 
