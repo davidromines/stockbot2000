@@ -370,3 +370,39 @@ families are not independent.
    fragility of the equity curve, as the paper's layer (iii).
 5. Heavy tails first: the skew and kurtosis terms are meaningless while corporate-action
    artefacts (entry #4, CTVA) sit in the data; clean those before computing DSR.
+
+## 2026-10-13 #9 — "LEAPS are the best way to grow a small account" (social post, lead-magnet)
+
+**What it is.** A claim that buying one LEAPS call (12+ months, leveraged exposure to
+100 shares, defined maximum loss, no margin, no weeklies) is the best route for a
+small account; results quoted: IREN +500%, HOOD +300%, NVDA +200%, META +59% in
+under five months. The actual entry and strike / expiry rules are withheld behind
+"comment LEAP for my cheat sheet" (not engaged). Nothing testable is stated.
+
+**Assessment.**
+- The quoted results are four large winners of a strong period, chosen after the fact;
+  no losses, trade counts or total P&L are shown. A LEAPS gain is the underlying's
+  move times leverage, less time value; leverage amplifies a stock bet in both
+  directions and creates no edge of its own.
+- "Defined maximum loss" means up to 100% of the premium; the post itself says
+  mis-timed LEAPs "bleed to zero".
+
+**Hard limits here.**
+- **No LEAP data.** `option_quotes` has 6.9M rows, 702 symbols, 2020-01-06 to
+  2026-10-09, but the longest expiry in it is 77 days; zero rows are 330+ days out.
+  No LEAPS strategy could be backtested; all nine option strategies use 7-60 day
+  windows.
+- **Contract size vs account.** One NVDA or META LEAPS call costs thousands of
+  dollars. The account is ~$86, the options paper stake is $100 a trade, and
+  `books.py` already rejects a contract costing more than `max_contract_cost_usd`
+  ($100). Only sub-$1.00 premiums fit: deep out-of-the-money lottery tickets, the
+  opposite of the post's description.
+- Owner rule (09-27): long single-contract options only is allowed in principle; real
+  orders stay off (`allow_options: false`, no option level, no strategy proven).
+- Our short-dated option paper strategies lose (-1% to -27% per trade over
+  2020-2026), consistent with the research on buying options.
+
+**Adopted.** Nothing now. One ordering rule for Addendum F: leverage via options is
+considered only AFTER the underlying stock signal has an audited edge, then tested as
+"same signal, stock vs LEAPS stock-replacement", which needs a LEAPS-length data
+source first (add to the data wish-list; the current DoltHub pull stops at 77 days).
