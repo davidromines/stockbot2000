@@ -174,6 +174,14 @@ def _heartbeat(conn, mode: str, outcome: str, **kw) -> None:
         conn.commit()
     except Exception as e:                                   # noqa: BLE001
         log.warning(f"heartbeat not recorded: {type(e).__name__}: {e}")
+    if mode == "LIVE" and kw.get("equity"):
+        # Owner's drawdown notice / review messages. Like the heartbeat, it can never stop or alter a trade.
+        try:
+            import drawdown_tiers
+            import notify
+            drawdown_tiers.alert_if_new(conn, risk_engine.load_limits(), notify.notify, equity=float(kw["equity"]))
+        except Exception as e:                               # noqa: BLE001
+            log.warning(f"drawdown tier alert not sent: {type(e).__name__}: {e}")
 
 
 class LiveNotWired(RuntimeError):

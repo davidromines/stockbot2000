@@ -32,6 +32,8 @@ from pathlib import Path
 
 import yaml
 
+import drawdown_tiers
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("risk")
 
@@ -267,6 +269,10 @@ class RiskEngine:
             res.sized_quantity = q
             res.sized_notional = round(q * px, 2) if px else None
             return res
+
+        pause = drawdown_tiers.entry_pause_reason(float(portfolio.get("drawdown_percent") or 0), self.L)
+        if pause:
+            res.reject(pause)
 
         tq = self._check_tradeability(sig, quote)
         if tq:

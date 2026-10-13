@@ -43,6 +43,10 @@ max_open_positions: 5
 max_daily_loss_dollars: 15.0
 max_daily_loss_percent: 15.0
 max_drawdown_percent: 35.0
+# Drawdown tiers (owner, 2026-10-13; see drawdown_tiers.py), measured from the highest equity in
+# live_equity. The stop above is unchanged. 0 or absent turns a tier off.
+drawdown_notice_percent: 10.0    # a Telegram message once a day; nothing else changes
+drawdown_review_percent: 20.0    # new entries are refused; exits and stops still go
 
 # --- throttles -------------------------------------------------------------
 # A runaway loop is far more likely than a runaway strategy. These bound the
