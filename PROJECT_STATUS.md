@@ -156,10 +156,9 @@ next-open and clustered statistics (shared module `forward_stats.py`), requires 
 conclusions about named families are replaced by data-driven text. Under the corrected test **no family is positive** (0 of 43);
 the old iid-on-gross test still flags 6.
 
-**Drawdown tiers (approved 2026-10-13): built, NOT merged.** Branch `risk/drawdown-tiers` (worktree `~/sb2k-risk`): a Telegram
+**Drawdown tiers (approved 2026-10-13): MERGED to main 05:15 UTC and live.** A Telegram
 notice at 10% from the peak, new entries refused at 20% (exits still go), the 35% kill switch unchanged; 22 tests; touches
-`risk_engine.py` and `slot_trader.py`, so it waits for the owner's merge outside market hours. The daily image now shows the
-drawdown from peak.
+`risk_engine.py` and `slot_trader.py`. The daily image now shows the drawdown from peak. Acceptance checklist: 27/27.
 
 ## Housekeeping
 

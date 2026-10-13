@@ -68,7 +68,7 @@ the 14-year sweep found loses net — on 9 sessions of forward evidence. The
 acceptance checklist (`acceptance.py`) was 25/26 at arming: the SHADOW record
 had 1 of 10 sessions. The owner armed anyway; that is their call and is
 recorded here, not relitigated. As of 2026-10-03 the checklist is 24/26 (check 25
-needs `--suite`; check 26 needs more SHADOW sessions).
+needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 27/27** (13 SHADOW sessions; suite passes).
 
 **Permission mode:** LIVE wiring was blocked under Claude Code auto mode; the
 owner switched the session to manual approval to finish it. Expect the same
@@ -118,14 +118,14 @@ off, no capital-limit change, nothing live without owner approval.
   (named families, t-values, unformatted `{need_05}` placeholders) are now computed. Result: 0 of 43 families pass; the old iid-on-gross
   test passes 6. Caveat: trades exiting on the newest bar are not yet restatable (mostly stop-outs), so a thin honest column is
   biased upward. `ranking.py` was checked: its forward figure is accounting's net (costs deducted), only fills are same-close.
-- **DRAWDOWN TIERS built, NOT merged:** owner approved notice 10% / review 20% (new entries refused, exits still go) / stop 35%
+- **DRAWDOWN TIERS MERGED 2026-10-13 05:15 UTC (owner asked me to run it; main 1303d80, pushed):** owner approved notice 10% / review 20% (new entries refused, exits still go) / stop 35%
   unchanged. Branch `risk/drawdown-tiers`, worktree `~/sb2k-risk`, files `drawdown_tiers.py`, `config/risk.yaml` (2 keys),
   `risk_engine.py` (entries-only check), `slot_trader.py` (LIVE heartbeat alert), 22 tests. **Owner merges outside market hours**
-  (`git merge --no-ff risk/drawdown-tiers`). GOTCHA: never `git checkout -b` in `~/stockbot2000` for live-path work — cron runs
+  (done; worktree `~/sb2k-risk` and the local branch removed; remote branch kept). Verified after the merge: tier tests, risk/kill-switch/slot-trader/live-path tests, imports, `config/risk.yaml` still `execution_mode: LIVE` with 10/20/35, `acceptance.py` **27/27** (13 SHADOW sessions, suite passes). GOTCHA: never `git checkout -b` in `~/stockbot2000` for live-path work — cron runs
   from that tree; use `git worktree add ~/sb2k-<name> -b <branch>`.
 - **Housekeeping 10-13:** `backup.py` run and verified (forward 408,131 rows / 62 tables; listings snapshot
   `backups/listings_2026-10-13.sql.gz`); `daily_snapshot.py` still waiting for the owner's look before cron.
-- **Next steps:** owner merges `risk/drawdown-tiers`; then Phase A4-A6 (multiple-testing, enrollment cohort, per-family verdict),
+- **Next steps:** check tomorrow's [9k0] restate stage and funnel output, then Phase A4-A6 (multiple-testing, enrollment cohort, per-family verdict),
   B and C. Nothing live has changed on main. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
 
 ### SESSION HANDOFF — 2026-10-12

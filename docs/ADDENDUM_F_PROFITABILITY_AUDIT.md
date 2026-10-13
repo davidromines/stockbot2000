@@ -908,5 +908,5 @@ clustered t >= 2 over >= 20 entry dates; the hard-coded conclusions in `eight_qu
 Caveat recorded in the report: trades that exit on the newest stored bar have no next-open price yet and are mostly stop-outs, so a thin honest column is
 biased upward until they can be restated (e.g. `earnings_yield`: gross -3.80%, honest +1.34% on 32 of 46 rows).
 **Drawdown tiers** (owner-approved 10/20/35): `drawdown_tiers.py`, `config/risk.yaml` keys `drawdown_notice_percent` and `drawdown_review_percent`, an entries-only
-check in `risk_engine.py`, a once-a-day-per-tier Telegram message from the LIVE heartbeat in `slot_trader.py`; 22 tests; **on branch `risk/drawdown-tiers`, not merged**
-(live trading code; the owner merges outside market hours). The 35% kill switch is unchanged.
+check in `risk_engine.py`, a once-a-day-per-tier Telegram message from the LIVE heartbeat in `slot_trader.py`; 22 tests; **merged to main 2026-10-13 05:15 UTC**
+(owner-approved; checks run after the merge; acceptance checklist 27/27). The 35% kill switch is unchanged.
