@@ -582,3 +582,24 @@ entry #14 (course funnel). If the strategy matters, give the rules or a transcri
 it will be filed like the others.
 
 **Adopted.** Nothing.
+
+## 2026-10-13 #16 — "Stop telling ChatGPT 'act as an expert stock market trader'" (@HeyAmit_ thread, 9 prompts, read in the browser pane)
+
+**What it is.** Nine better-written prompts than the usual list (compare #6, #13): business
+and fundamentals breakdown with red flags; a 1-10 financial-health scorecard; technical
+scenario mapping (bull / bear / neutral with conditions, "no buy/sell calls"); strategy fit
+by investor style; a risk-first allocation framework (sizing, drawdown control,
+diversification, no stock picks); news fact-versus-hype check; a reusable screening
+system; a capital-protection checklist; a 10-minute daily routine. A reply: "if these
+worked, you'd be on a yacht".
+
+**Assessment.** These are research-memo and discipline templates, framed more soundly
+(conditions instead of predictions, risk before picks), but they produce text, not a tested
+edge; scores of 1-10 are uncalibrated and the models invent figures without data and
+filings supplied. Everything maps to something we have: screening and fundamentals
+(`value_metrics.py`, factory screens), position sizing and drawdown control
+(`risk_engine.py`, stop plans, kill switches), the daily routine (cron + the one-page
+report). No news feed here; the headline dates we hold are unverified.
+
+**Adopted.** Nothing. The "conditions for each scenario, no calls" framing is the same
+discipline as pre-declared entry and exit rules.
