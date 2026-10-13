@@ -74,7 +74,26 @@ needs `--suite`; check 26 needs more SHADOW sessions).
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### SESSION HANDOFF — 2026-10-12 (START HERE)
+### SESSION HANDOFF — 2026-10-13 (START HERE)
+
+**Independent review received and entered as Addendum F (Stage AB) — `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`. NOT yet built; the owner said plan it first, action it after.**
+It is an audit directive, not a build directive: distrust the 10-12 dossier's seven "statistically positive"
+forward families until independently reproduced from raw trade records (Phase A), then root-cause why no edge has
+been established (B), separate research ranking from live-capital eligibility in shadow mode (C), re-test
+survivorship/execution assumptions (D), improve discovery rather than add search volume (E), define profitability
+measures (F), fix verified defects (G), deliver (H). Hard rules: no live-execution change, options/crypto/search stay
+off, no capital-limit change, nothing live without owner approval.
+
+- **Owner ruling 2026-10-13:** the "1%" target is not tied to one denominator. Phase F reports per-trade,
+  per-deployed-dollar, portfolio-level and monthly/annualized side by side; no acceptance number until real figures
+  are seen.
+- **Overlap to read first:** Addendum F §E3's "Historical Experience Learning Engine" is close to Stage P already
+  built (`analog.py`, `analog_eval.py`: walk-forward AUC 0.523 vs XGBoost 0.626 on matched rows). Do not rebuild
+  the experiment from zero; account for that result.
+- Roadmap row AB added to `docs/ROADMAP_INTEGRATION.md`. Reviewer artifacts (tracker, dossier) were updated 10-12 and
+  do not yet mention Addendum F.
+
+### SESSION HANDOFF — 2026-10-12
 
 **Committed and pushed: `options_live.py` (R7, the real-money options engine).** Between the
 2026-10-05 handoff below and this one, a prior session built the whole options stack in small
@@ -1980,6 +1999,7 @@ which resolves their open decisions — see the table at the end of
 | D | Live Growth & Continuous Improvement — entered 2026-09-25; N1 Control Center built 09-25, N2-N9 open (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
 | E | Knowledge Strategy Factory — entered 2026-09-25, O1-O4 + templates + O9 built; revision 2 entered 2026-09-27, recorded not built (`docs/ADDENDUM_E_REVISION_2.md`); the spec says "Stage N", tracked as Stage O (O1–O13) | `docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md`, Stage O |
 | T | Diagnostic: why no durable edge? — entered 2026-09-27, recorded not built; the strategy funnel, distinct hypotheses, near misses | `docs/STAGE_T_DIAGNOSTIC_FUNNEL.md` |
+| F | Independent Profitability Audit (Stage AB) — entered 2026-10-13 from the independent review; an audit of the 7 forward-positive families, not a build; NOT yet built | `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.
