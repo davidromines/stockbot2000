@@ -114,6 +114,7 @@ GROUPS = {
         "knowledge_translations", "knowledge_lineage", "knowledge_reproductions",
         "strategy_provenance", "knowledge_lineage_stats",
         "strategy_failures",        # Stage T: why each strategy failed, day by day
+        "capital_gate_shadow",      # Addendum F C1: daily shadow verdict of the capital-eligibility gate
         "holdout_results",          # one look per strategy at 2023 -> today: the record IS the rule
         "market_checks",            # bull-market checks per strategy (recomputable, kept for history)
     ],

@@ -295,6 +295,9 @@ run "[9k0/10] Restate paper trades (next-open fills)" bounded $PY restate_paper.
 
 # Stage T: the strategy funnel, failure reasons and near misses (data/funnel.txt).
 run "[9k/10] Strategy funnel" bounded $PY funnel.py
+# Addendum F C1: the SHADOW capital-eligibility gate (capital_gate.py). Reads the slots and the paper record,
+# writes capital_gate_shadow and reports/capital_gate_<date>.md. Nothing trades on it.
+run "[9k1/10] Capital gate (shadow)" bounded $PY capital_gate.py
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().
