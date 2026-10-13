@@ -257,6 +257,8 @@ work on your local model, per the design goal.
 | `daily_snapshot.py --mode LIVE [--dry-run \| --out F.png \| --send]` | One portrait image: real-account P&L, a card and sparkline per slot, one plain-English line. Needs `matplotlib`. Built and tested; **not yet on cron** pending the owner's design sign-off. Slot figures are scoped to each slot's current assignment |
 | `audit_forward.py [--reported] [--families a,b]` | Read-only audit of forward families from raw `paper_trades` (Addendum F, Phase A1-A3): dedupe, clustered t, bootstrap, next-open honest-fill recompute. Writes `reports/audit_forward_<date>.md/.json` |
 | `restate_paper.py [--report]` | Restates closed paper trades at next-open fills into `paper_trades_restated` beside the originals (Addendum F G1); daily stage `[9k0]` |
+| `audit_selection.py` | Read-only multiple-testing and enrollment audit (Addendum F, Phase A4-A5): Holm / BH / max-T, effective tests, retroactive-replay split. Writes `reports/audit_selection_<date>.md` |
+| `prospective_eval.py [--register\|--complete]` | The pre-registered prospective test `forward_families_prospective` v1 (Addendum F A6): progress / evaluation of the 8 families on entries from 2026-10-12 |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
