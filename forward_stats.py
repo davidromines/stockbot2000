@@ -1,0 +1,89 @@
+"""
+Statistics for forward-trading results, shared by funnel.py and audit_forward.py (Addendum F, A3-A4).
+
+Pure functions, no database. The point of the module: a trade-level t-statistic assumes the trades are
+independent, and forward paper trades are not (many funds take the same ticker on the same date, and a
+single market move drives a whole day's entries). So every family is also measured with errors clustered
+by entry date and by ticker, a date-block bootstrap, a design effect / effective n, and a comparison with
+the level that luck alone reaches among N independent tests.
+"""
+import math
+from statistics import NormalDist
+
+import numpy as np
+import pandas as pd
+
+N_LUCK = {"88 families": 88, "1,405 specs": 1405, "127,652 Lab structures": 127652}
+CA_THRESHOLD = 0.015         # |recorded close / adjusted close on that date - 1| above this = adjusted since the trade
+MIN_DATE_CLUSTERS = 20       # fewer independent entry dates than this cannot support a label above 'unresolved'
+BOOT = 4000
+SEED = 20261013
+
+
+def iid_stats(x) -> dict:
+    x = np.asarray(x, dtype=float)
+    n = len(x)
+    if n < 3:
+        return {"n": n, "mean": float(x.mean()) if n else float("nan"), "sd": float("nan"), "t": float("nan")}
+    sd = float(x.std(ddof=1))
+    se = sd / math.sqrt(n)
+    return {"n": n, "mean": float(x.mean()), "sd": sd, "se": se, "t": float(x.mean() / se) if se else float("nan")}
+
+
+def cluster_stats(x, groups) -> dict:
+    """CR1 cluster-robust standard error of a mean; t with G-1 degrees of freedom noted."""
+    x = np.asarray(x, dtype=float)
+    g = pd.Series(groups).reset_index(drop=True)
+    n = len(x)
+    G = g.nunique()
+    m = x.mean()
+    s = pd.Series(x - m).groupby(g).sum()
+    var = (G / (G - 1)) * float((s ** 2).sum()) / (n ** 2) if G > 1 else float("nan")
+    se = math.sqrt(var) if var == var and var > 0 else float("nan")
+    return {"clusters": int(G), "se": se, "t": float(m / se) if se == se and se else float("nan")}
+
+
+def dedupe(df: pd.DataFrame, keys=("ticker", "entry_date")) -> pd.DataFrame:
+    """One observation per key: mean return over every fund that took it, plus how many did."""
+    return df.groupby(list(keys), as_index=False).agg(pnl_pct=("pnl_pct", "mean"), funds=("run_id", "nunique"),
+                                                       rows=("pnl_pct", "size"))
+
+
+def bootstrap_by_cluster(x, groups, reps=BOOT, seed=SEED) -> dict:
+    """Resample whole clusters (entry dates) with replacement; interval for the mean and P(mean <= 0)."""
+    x = np.asarray(x, dtype=float)
+    g = pd.Series(groups).reset_index(drop=True)
+    sums = pd.Series(x).groupby(g).sum().to_numpy()
+    cnts = pd.Series(x).groupby(g).size().to_numpy()
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(sums), size=(reps, len(sums)))
+    means = sums[idx].sum(axis=1) / cnts[idx].sum(axis=1)
+    return {"lo": float(np.percentile(means, 2.5)), "hi": float(np.percentile(means, 97.5)),
+            "p_le_zero": float((means <= 0).mean())}
+
+
+def luck_threshold(n_tests: int, level: float = 0.95) -> float:
+    """t that the maximum of n_tests independent standard-normal statistics exceeds with prob 1 - level."""
+    return NormalDist().inv_cdf(level ** (1.0 / n_tests))
+
+
+def classify(t_cluster: float, ci_lo: float, date_clusters: int) -> str:
+    """Mechanical, provisional. Never returns an 'eligible' or 'supported' label: that needs a human."""
+    if not (t_cluster == t_cluster):
+        return "Unresolved (cannot compute)"
+    if date_clusters < MIN_DATE_CLUSTERS:
+        return f"Unresolved: only {date_clusters} independent entry dates (need {MIN_DATE_CLUSTERS}+)"
+    if t_cluster < 2.0 or ci_lo <= 0:
+        return "Unresolved: not significant after the dependence correction"
+    if t_cluster < luck_threshold(88):
+        return "Unresolved: significant, but inside the range luck produces among 88 families"
+    return "Promising but unproven: survives dependence and the 88-family luck bar"
+
+
+def corporate_action_flag(df: pd.DataFrame, thr: float = CA_THRESHOLD) -> pd.Series:
+    """The engine records the close it saw; the prices table is back-adjusted later. A gap means an adjustment."""
+    re = (df["entry_price"] / df["close_entry"] - 1).abs()
+    rx = (df["exit_price"] / df["close_exit"] - 1).abs()
+    return ((re > thr) | (rx > thr)).fillna(False)
+
+

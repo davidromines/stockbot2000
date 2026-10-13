@@ -289,6 +289,10 @@ run "[9i2/10] Ranking snapshot" bounded $PY journal.py --snapshot
 # Addendum D §12 (N5): HEALTHY / WATCH / DEGRADING / FAILED per strategy from its
 # paper record; appended only when a state changes. Observability — nothing trades on it.
 run "[9j/10] Strategy health" $PY strategy_health.py --run
+# Addendum F G1: restate closed paper trades at next-open fills beside the originals (paper_trades_restated),
+# so the funnel can show an honest column. Cheap, idempotent, read-only on paper_trades.
+run "[9k0/10] Restate paper trades (next-open fills)" bounded $PY restate_paper.py
+
 # Stage T: the strategy funnel, failure reasons and near misses (data/funnel.txt).
 run "[9k/10] Strategy funnel" bounded $PY funnel.py
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
