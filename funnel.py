@@ -298,22 +298,30 @@ def render(r: dict) -> str:
                      f"med={100*d['median']:+.2f}%  p75={100*d['p75']:+.2f}%  "
                      f"p90={100*d['p90']:+.2f}%  best={100*d['best']:+.2f}%")
 
-    # §13 Small positive strategies
+    # §13 Small positive strategies (Addendum F: judged on the honest basis with dependence-aware errors)
     sig = [f for f in ffd if f.get("significant")]
-    L += ["", f"  FORWARD PERFORMANCE BY FAMILY (top/bottom, families with >=20 trades)"]
-    L.append(f"    {'family':<35} {'n':>6}  {'mean':>6}  {'t':>5}  {'CI':>20}  wr")
+    sig_iid = [f for f in ffd if f.get("significant_iid")]
+    L += ["", "  FORWARD PERFORMANCE BY FAMILY (families with >=20 trades; ranked on the honest basis)",
+          "    gross = pnl_pct as stored (price move at same-close fills, costs NOT deducted); net = minus modelled costs;",
+          "    honest = net at next-open fills (restate_paper.py); cluster t = errors clustered by entry date and ticker, the smaller used;",
+          "    dates = independent entry dates (a label above 'unresolved' needs 20+); hon n < n because trades that exit on the",
+          "    newest stored bar have no next-open price yet - those are mostly stop-outs, so a thin honest column is biased upward"]
+    L.append(f"    {'family':<28} {'n':>6} {'gross':>7} {'iid t':>6} {'net':>7} {'honest':>7} {'hon n':>6} {'cl t':>6} {'dates':>5}  label")
     for f in ffd[:12]:
-        flag = " ***" if f["significant"] else ""
-        L.append(f"    {f['family']:<35} {f['n']:>6}  {f['mean']:>+6.2f}%  {f['t_stat']:>+5.1f}  "
-                 f"[{f['ci_lo']:+.2f}%, {f['ci_hi']:+.2f}%]  {f['win_rate']:.0f}%{flag}")
+        hon = f"{f['mean_honest']:+.2f}%" if f.get("mean_honest") is not None else "   n/a"
+        clt = f"{f['cluster_t_basis']:+.1f}" if f["cluster_t_basis"] == f["cluster_t_basis"] else " n/a"
+        L.append(f"    {f['family']:<28} {f['n']:>6} {f['mean']:>+6.2f}% {f['t_stat']:>+6.1f} {f['mean_net']:>+6.2f}% "
+                 f"{hon:>7} {(f['n_honest'] or 0):>6} {clt:>6} {f['dates_basis']:>5}  {f['label']}")
     if len(ffd) > 12:
-        L.append(f"    ... {len(ffd)-12} more families (all negative)")
-    if sig:
-        L += ["", f"  STATISTICALLY POSITIVE FAMILIES (t > 2.0, n >= 20) — DO NOT PROMOTE YET"]
-        for f in sig:
-            n_needed = int((2 * f["sd"] / max(abs(f["mean"]), 0.001)) ** 2)
-            L.append(f"    {f['family']:<35} mean={f['mean']:+.2f}%  t={f['t_stat']:+.1f}  "
-                     f"CI=[{f['ci_lo']:+.2f}%, {f['ci_hi']:+.2f}%]  n={f['n']:,} (need ~{n_needed:,} for t=2)")
+        worse = sum(1 for f in ffd[12:] if f["mean_basis"] <= 0)
+        L.append(f"    ... {len(ffd)-12} more families ({worse} with a non-positive honest/net mean)")
+    L += ["", f"  FAMILIES POSITIVE AFTER COSTS, NEXT-OPEN FILLS AND DEPENDENCE (cluster t >= 2, >= 20 entry dates, n >= 20): "
+              f"{len(sig)}  — DO NOT PROMOTE: not corrected for how many families were tested"]
+    for f in sig:
+        L.append(f"    {f['family']:<28} mean={f['mean_basis']:+.2f}%  cluster t={f['cluster_t_basis']:+.1f}  "
+                 f"95% bootstrap [{f['boot_lo']:+.2f}%, {f['boot_hi']:+.2f}%]  dates={f['dates_basis']}  n={f['n']:,}  {f['label']}")
+    L.append(f"    (the older trade-level test, iid t > 2 on gross returns, flags {len(sig_iid)} families: "
+             f"{', '.join(f['family'] for f in sig_iid[:6]) or 'none'}; it overstates because trades repeat and share days)")
 
     # §15 Eight questions
     if eqs:
@@ -430,30 +438,73 @@ def backtest_distributions(conn) -> dict:
 
 
 def forward_families(conn) -> list:
-    """§13–§14: per-family forward trade stats — only families with >=20 trades."""
+    """§13–§14: per-family forward trade stats — only families with >=20 trades.
+
+    Legacy keys (mean, sd, t_stat, margin, ci_*, win_rate, significant_iid) keep their meaning: the mean
+    of `pnl_pct`, which is the GROSS price move at the engine's same-close fills, and the iid trade-level t.
+    Addendum F adds what a reader needs to judge them: the mean net of modelled costs, a t with errors
+    clustered by entry date and by ticker, the number of independent entry dates, the effective n, the
+    next-open restatement (`restate_paper.py`) when present, the luck level for 88 families, and
+    `significant`, which now requires a clustered t >= 2 on the honest basis over >= MIN_DATE_CLUSTERS dates.
+    """
+    import pandas as pd
+    import forward_stats as fs
     rows_out = []
+    restated = _has(conn, "paper_trades_restated")
+    luck88 = fs.luck_threshold(88)
     for r in conn.execute("""
         SELECT p.family, COUNT(*) n, AVG(t.pnl_pct) mean,
                SUM(CASE WHEN t.pnl_pct > 0 THEN 1 ELSE 0 END)*100.0/COUNT(*) wr
         FROM paper_trades t JOIN paper_runs p ON t.run_id=p.run_id
         WHERE t.pnl_pct IS NOT NULL AND p.family IS NOT NULL
         GROUP BY p.family HAVING COUNT(*) >= 20
-        ORDER BY mean DESC
-    """):
-        vals = sorted(x[0] for x in conn.execute(
-            "SELECT t.pnl_pct FROM paper_trades t JOIN paper_runs p ON t.run_id=p.run_id "
-            "WHERE p.family=? AND t.pnl_pct IS NOT NULL", (r["family"],)))
+    """).fetchall():
+        fam = r["family"]
+        t = pd.read_sql_query(
+            "SELECT t.pnl_pct, CASE WHEN t.entry_price*t.shares > 0 THEN t.costs_usd/(t.entry_price*t.shares)*100 "
+            "ELSE 0 END AS cost_pct, t.entry_date, t.ticker FROM paper_trades t JOIN paper_runs p ON t.run_id=p.run_id "
+            "WHERE p.family=? AND t.pnl_pct IS NOT NULL", conn, params=(fam,))
+        vals = sorted(t["pnl_pct"])
         if not vals:
             continue
         sd_ = st.pstdev(vals)
         n = len(vals)
         t_stat = r["mean"] / (sd_ / math.sqrt(n)) if sd_ else 0
         margin = 1.96 * sd_ / math.sqrt(n) if sd_ else 0
-        rows_out.append({"family": r["family"], "n": n, "mean": r["mean"],
+        net = t["pnl_pct"] - t["cost_pct"]
+        net_iid = fs.iid_stats(net)
+        cd, ct = fs.cluster_stats(net, t["entry_date"]), fs.cluster_stats(net, t["ticker"])
+        bx, bd, basis_label = net, t["entry_date"], "net of costs, same-close fills"
+        h_mean = h_n = h_dates = None
+        h_t = float("nan")
+        if restated:
+            h = pd.read_sql_query(
+                "SELECT x.net_pct, x.entry_date, x.ticker FROM paper_trades_restated x JOIN paper_runs p ON p.run_id=x.run_id "
+                "WHERE p.family=? AND x.version='v2_next_open'", conn, params=(fam,))
+            if len(h) >= 20:
+                hcd, hct = fs.cluster_stats(h["net_pct"], h["entry_date"]), fs.cluster_stats(h["net_pct"], h["ticker"])
+                h_mean, h_n, h_dates = float(h["net_pct"].mean()), int(len(h)), int(hcd["clusters"])
+                cands = [x for x in (hcd["t"], hct["t"]) if x == x]
+                h_t = min(cands) if cands else float("nan")
+                bx, bd, basis_label = h["net_pct"], h["entry_date"], "net of costs, next-open fills"
+        cands = [x for x in (cd["t"], ct["t"]) if x == x]
+        t_cl = h_t if h_mean is not None else (min(cands) if cands else float("nan"))
+        dates = h_dates if h_mean is not None else cd["clusters"]
+        mean_basis = h_mean if h_mean is not None else net_iid["mean"]
+        boot = fs.bootstrap_by_cluster(bx, bd, reps=1000) if dates >= 2 else {"lo": float("nan"), "hi": float("nan")}
+        label = fs.classify(t_cl, boot["lo"], dates)
+        ok = bool(label.startswith("Promising") or label.startswith("Unresolved: significant"))
+        rows_out.append({"family": fam, "n": n, "mean": r["mean"],
                          "sd": sd_, "t_stat": t_stat, "margin": margin,
                          "ci_lo": r["mean"] - margin, "ci_hi": r["mean"] + margin,
                          "win_rate": r["wr"],
-                         "significant": abs(t_stat) >= 2.0 and r["mean"] > 0})
+                         "significant_iid": abs(t_stat) >= 2.0 and r["mean"] > 0,
+                         "mean_net": net_iid["mean"], "cluster_t_date": cd["t"], "cluster_t_ticker": ct["t"],
+                         "entry_dates": int(cd["clusters"]), "mean_honest": h_mean, "n_honest": h_n,
+                         "cluster_t_basis": t_cl, "dates_basis": dates, "basis": basis_label,
+                         "mean_basis": mean_basis, "boot_lo": boot["lo"], "boot_hi": boot["hi"], "luck_88": luck88,
+                         "significant": ok, "label": label})
+    rows_out.sort(key=lambda f: f["mean_basis"], reverse=True)
     return rows_out
 
 
@@ -467,6 +518,7 @@ def eight_questions(lab_: dict, fac: dict, sv: dict, fw: dict,
     total_trials = lab_info.get("total_trials", 0)
     lab_paper = lab_.get("paper_funds", 0)
     sig = [f for f in fwd_fam if f["significant"]]
+    sig_iid = [f for f in fwd_fam if f.get("significant_iid")]
     forward_trades = fw.get("closed_paper_trades", 0)
     forward_sd = fw.get("per_trade_sd_pct") or 12.0
     need_05 = fw.get("trades_needed_t2", {}).get("0.5%") or 0
@@ -505,26 +557,30 @@ def eight_questions(lab_: dict, fac: dict, sv: dict, fw: dict,
         {"q": "6. What destroys edges — costs/slippage/survivorship/robustness/holdout/forward?",
          "fact": f"Survivorship: {as_is_tot} ranked strategies, {as_is_pos} positive with dead companies ({100*as_is_pos//as_is_tot}%). "
                  f"Lab: in-sample→out-of-sample: 19% of shortlist pass honest validation. "
-                 f"Forward: {forward_trades:,} trades, mean -0.28%/trade overall; "
-                 f"{len(sig)} families statistically positive (t>2): {', '.join(f['family'] for f in sig[:4])}.",
+                 f"Forward: {forward_trades:,} closed paper trades; {len(sig)} families positive after costs, next-open fills and "
+                 f"clustering by entry date ({', '.join(f['family'] for f in sig[:4]) or 'none'}); "
+                 f"{len(sig_iid)} by the older iid test on gross returns.",
          "inference": "Out-of-sample generalisation (Lab validation) is the largest measured gate (~81% attrition). "
                       "Survivorship adds ~20% further reduction. Costs add ~6% in-sample. "
-                      "Forward evidence now large enough to detect an edge: lab_search t=+8.8, momentum t=+4.5, kf_seasonality t=+5.1."},
+                      f"Forward evidence: {len(sig)} of {len(fwd_fam)} families clear the dependence-corrected test; "
+                      f"the largest family has {max((f['entry_dates'] for f in fwd_fam), default=0)} independent entry dates at most."},
         {"q": "7. Any small persistent positive performance?",
-         "fact": f"{len(sig)} families with t>2 and positive mean forward: " +
-                 "; ".join(f"{f['family']} (+{f['mean']:+.2f}%/trade, n={f['n']}, t={f['t_stat']:+.1f})" for f in sig[:4]),
-         "inference": "YES. lab_search, momentum, and kf_seasonality are showing statistically significant "
-                      "positive forward performance. lab_search: 50% of positions share a (ticker, date) with another "
-                      "fund — correlation reduces effective N but t=8.8 survives even halving the sample. "
-                      "Do NOT promote yet. These need longer forward records and correlation-adjusted significance tests."},
+         "fact": f"{len(sig)} families positive after costs, next-open fills and dependence: " +
+                 ("; ".join(f"{f['family']} ({f['mean_basis']:+.2f}%/trade, cluster t={f['cluster_t_basis']:+.1f}, "
+                             f"{f['dates_basis']} dates, n={f['n']})" for f in sig[:4]) or "none") +
+                 f". Older iid-on-gross test: {len(sig_iid)} families.",
+         "inference": ("Candidates exist and must be confirmed over more entry dates, with a correction for the number of "
+                       "families tested (luck among 88 independent tests reaches t ~3.25). Not promoted." if sig else
+                       "None survive the dependence-corrected test yet; the older iid test overstates because trades "
+                       "repeat across funds and share entry days. Absence is not proof of no edge: most families have "
+                       "fewer than 20 independent entry dates.")},
         {"q": "8. Enough tests to call absence meaningful?",
          "fact": f"{forward_trades:,} forward trades total; {need_05:,} needed to show +0.5%/trade at t=2 (sd={forward_sd:.1f}%). "
                  f"Longest record: {fw.get('longest_record_sessions',0)} sessions. "
                  f"lab_search alone has {next((f['n'] for f in fwd_fam if f['family']=='lab_search'),0):,} trades.",
-         "inference": "The forward sample is now large enough to detect a +1%/trade edge (lab_search already shows this). "
-                      "For +0.5%/trade across the whole population, need ~{need_05:,} total trades; "
-                      "we have {forward_trades:,}. The ABSENCE of an edge in most families is meaningful. "
-                      "The PRESENCE of an edge in 3 families requires longer confirmation."},
+         "inference": f"Trade counts are large but entry dates are few, and trades share dates and tickers; the independent "
+                      f"sample is the number of entry dates, not trades. For +0.5%/trade across the whole population ~{need_05:,} "
+                      f"independent trades would be needed (iid assumption); we have {forward_trades:,} trades on a handful of dates."},
     ]
 
 
