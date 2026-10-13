@@ -540,3 +540,31 @@ is the cron schedule plus the one-page report.
 
 **Adopted.** Nothing. Reaffirmed: no model-generated performance numbers anywhere in a
 report; every figure comes from a query or script that can be re-run.
+
+## 2026-10-13 #14 — "Create your own mini hedge fund with Python" (@quantscience_ thread, 19 posts, read in the browser pane)
+
+**What it is.** A beginner overview: what a hedge fund is; set a target return and a
+tolerable drawdown (example: ~20% a year for ~10% drawdown; 100% a year brings 50-70%
+drawdowns); diversify across asset classes (equity futures ES, oil CL); strategy types
+(200-day-SMA momentum, Bollinger mean reversion, long/short pairs); a free Python stack
+(OpenBB, pandas, NumPy, Zipline, Alphalens, VectorBT, Riskfolio, IBAPI); track
+strategies grouped by market or aggressiveness. Ends with a YouTube series and a paid
+live workshop. One reply lists what is missing: cross-validation, regime screening,
+risk management, exit handling.
+
+**Assessment.** Introductory; every item is already built here, usually deeper.
+Nothing is tested or claimed beyond rules of thumb. The "return vs drawdown" pairing
+is the useful habit. Futures (ES, CL) and shorting are unavailable on this account;
+asset-class diversification exists as the ETF-rotation families and the (gated) crypto
+funds. Tool list: Alphalens-style factor analysis is covered by `signal_decay.py` and
+the funnel; portfolio optimisers (Riskfolio) need reliable expected returns we do not
+have, so adding them would optimise noise; a new backtesting library would duplicate
+`simulator.py`. No new dependency.
+
+**Adopted.**
+1. **Drawdown tolerance as an explicit owner input** for Addendum F Phase F: report
+   maximum drawdown beside every return measure (already planned) and ask the owner
+   once for the drawdown they can live with; today the only stated limits are the
+   35% kill switch and $15 / 15% daily loss. No target is set, per the owner's 10-13
+   ruling.
+2. Nothing else. Paid workshop / courses not engaged.
