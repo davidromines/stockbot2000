@@ -603,3 +603,10 @@ report). No news feed here; the headline dates we hold are unverified.
 
 **Adopted.** Nothing. The "conditions for each scenario, no calls" framing is the same
 discipline as pre-declared entry and exit rules.
+
+
+### Correction to entry #4, lead 3 (2026-10-13)
+The "recompute mismatch" lead was wrong. `funnel.forward_families` uses the same formula as a plain recompute and reproduces
+momentum +2.04% (n 416, t +4.2) exactly; the numbers compared had come from a week-old snapshot (momentum n was 331). The
+retraction is recorded in `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`. The honest findings from the first audit pass (paper engine fills
+at the signal-day close; `pnl_pct` is gross; 5-19 independent entry dates per family) are in the same appendix.

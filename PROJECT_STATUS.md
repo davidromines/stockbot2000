@@ -121,13 +121,33 @@ already produced verified leads, none acted on:
 |---|---|
 | Corporate actions | 4 `CTVA` paper trades show about -84% because an unadjusted entry price is compared with a back-adjusted exit (likely a spin-off) |
 | Duplicates | The same ticker-and-date trade appears once per fund (`lab_search`: 8,791 trades in 566 funds) |
-| Funnel vs raw data | A plain recompute gives momentum +2.04% (funnel +2.69%) and `st_uptrend_pullback` +0.36% (funnel +1.13%); cause not yet found |
+| Funnel vs raw data | Checked and **retracted**: the funnel's formula equals a plain recompute; the earlier figures I compared were a week-old snapshot. The reported set did move in a week (see the first-pass table below) |
 | Statistics | The funnel's t-statistic treats trades as independent; deflation / multiple-testing code exists only in the frozen Lab ladder, not in the funnel, ranking or slots |
 | Luck threshold | Noise alone gives a best t of 2.5-4.9 depending on how many independent tests are assumed (88 families to 1M trials); two to three of the seven families (t 2.9-3.4) sit inside that range even at the generous end |
 | Data | No option expiries beyond 77 days, so LEAPS cannot be tested |
 
-Status of the seven families therefore: **unresolved, pending Phase A** — not promoted, not
-dismissed.
+Status of the seven families therefore: **unresolved** — not promoted, not dismissed.
+
+**First pass of the audit (Phase A1-A3, `audit_forward.py`, 2026-10-13; read-only; `reports/audit_forward_2026-10-13.md`).** Two new findings:
+the paper engine **fills at the signal-day close** (entries and exits both; the simulator and backtest were moved to next-open fills on
+2026-09-15, the paper engine was not), and **`pnl_pct` is the gross price move**, so the "net per trade" figures in the funnel and the
+10-12 dossier are gross (modelled costs are 0.15-0.18% of notional per round trip). Recomputed with costs and next-open fills on
+adjusted prices, and with entry dates as the unit of independence:
+
+| family | reported | honest net mean | date-cluster t | independent entry dates | 95% date-block bootstrap |
+|---|---:|---:|---:|---:|---|
+| lab_search | +1.30% (t 18.5) | +0.90% | +2.2 | 10 | [-0.25%, +1.40%] |
+| momentum | +2.04% (t 4.2) | +1.71% | +1.4 | 18 | [-1.03%, +3.78%] |
+| kf_mean_reversion | +1.22% (t 2.2) | +1.71% | +2.4 | 7 | [-0.70%, +3.12%] |
+| bollinger_reversion | +0.39% (t 1.9) | +0.45% | +1.1 | 5 | [+0.03%, +2.45%] |
+| kf_seasonality | +0.46% (t 2.8) | +0.11% | +0.3 | 8 | [-0.70%, +0.62%] |
+| st_uptrend_pullback | +0.36% (t 1.5) | +0.19% | +0.1 | 8 | [-2.58%, +1.99%] |
+| st_momentum_1d | -0.20% (t -1.5) | -0.39% | -0.9 | 10 | [-1.26%, +0.42%] |
+
+All provisionally **Unresolved: fewer than 20 independent entry dates**. `lab_search`'s effective sample is about 270 trades, not
+7,941. Early positives faded (`momentum`: +3.96% before 09-25, -0.16% after). Proposed fixes (not done, need your go-ahead):
+next-open fills in the paper engine as a restatement beside the originals, label `pnl_pct` gross and report net, and run the funnel's
+statistics through the clustered calculation.
 
 ## Housekeeping
 

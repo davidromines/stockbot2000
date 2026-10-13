@@ -255,6 +255,7 @@ work on your local model, per the design goal.
 |---|---|
 | `eod_report.py --mode LIVE [--send]` | The detailed end-of-day text report (17 sections; cron 21:10 UTC weekdays) |
 | `daily_snapshot.py --mode LIVE [--dry-run \| --out F.png \| --send]` | One portrait image: real-account P&L, a card and sparkline per slot, one plain-English line. Needs `matplotlib`. Built and tested; **not yet on cron** pending the owner's design sign-off. Slot figures are scoped to each slot's current assignment |
+| `audit_forward.py [--reported] [--families a,b]` | Read-only audit of forward families from raw `paper_trades` (Addendum F, Phase A1-A3): dedupe, clustered t, bootstrap, next-open honest-fill recompute. Writes `reports/audit_forward_<date>.md/.json` |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is

@@ -821,7 +821,7 @@ honestly (every extra variant or market counts). **Nothing below is built.**
 |---|---|---|---|
 | L1 | **Corporate actions booked as losses.** Paper entry prices are stored as traded; the prices table is later back-adjusted, so a spin-off or split during a hold produces a phantom move | 4 `CTVA` trades in 4 funds, entry 78.5-79.5, exit 12.57 within a week (about -84%); prices table shows 11.7 on 09-28 | A1, A2, D2 |
 | L2 | **Duplicate observations.** One trade per fund for the same ticker and dates | `KOD` +170% (09-24 to 09-28) appears 3 times in `lab_search` alone; `lab_search` is now 8,791 trades in 566 funds | A3 |
-| L3 | **Recompute does not match the funnel.** A plain recompute from `paper_trades` over all history | momentum +2.04% (t 4.2, n 416) vs funnel +2.69%; `st_uptrend_pullback` +0.36% (t 1.5, n 627) vs funnel +1.13%. The cut (window, dedupe, definition) is unknown | A1 |
+| L3 | ~~Recompute does not match the funnel~~ **RETRACTED 2026-10-13.** The funnel's formula is identical to a plain recompute (`funnel.forward_families` reproduces momentum +2.04%, n 416, t +4.2 exactly). The figures first compared were a week-old snapshot (momentum n was 331 then). The real finding: the reported set moved in a week as trades accumulated (kf_seasonality +1.18% t 7.1 -> +0.46% t 2.8; st_uptrend_pullback t 3.7 -> 1.5; bollinger_reversion t 3.2 -> 1.9; st_momentum_1d t 3.4 -> -1.5; turn_of_month new at t 10.3) | A1 |
 | L4 | **No deflation outside the frozen Lab ladder.** `promote.py` and `multiple_testing.py` hold the maths; `funnel.py`, `ranking.py`, `slots.py`, `factory_pipeline.py`, `strategy_health.py` use none | grep, entry #8 | A4, B3 |
 | L5 | **t-statistic assumes independent trades** (`funnel.py` line ~450: mean / (sd / sqrt n)) | code | A3 |
 | L6 | Noise-only 95% t thresholds: 3.25 (N = 88 families), 3.43 (170), 3.97 (1,405), 4.93 (127,652 unique Lab structures), 5.32 (1M). Of the seven reported t (2.9, 3.2, 3.4, 3.7, 4.8, 7.1, 17.2) two or three sit inside the luck range even at N = 88, before the dependence correction | computed, entry #8 | A4 |
@@ -860,3 +860,38 @@ Futures and intraday trading (no futures access; 3 day trades per 5 sessions), l
 2. A4 deflation columns and B3 calibration, then the Phase F reporting framework.
 3. C1 eligibility gate in shadow mode; D1 and the regime reports.
 4. Phase E items only after the audit says which of the reviewer's three outcomes applies.
+
+
+### First pass of Phase A1-A3 (2026-10-13, `audit_forward.py`, read-only; full tables in `reports/audit_forward_2026-10-13.md`)
+
+New verified findings (each reproduced by a query or by reading the code; none acted on):
+
+| # | Finding | Evidence |
+|---|---|---|
+| V1 | **The paper engine fills at the signal-day close.** A position is entered at `row["close"]` of the session that produced the signal and exits are booked at the close that triggers them (`paper_trading.py` lines 616 and 564). The simulator and backtest moved to next-open fills on 2026-09-15; the paper engine did not. Entry price equals that day's close on 88-99% of rows | code; rows |
+| V2 | **`pnl_pct` is the GROSS price move.** It equals (exit / entry - 1) on 100% of rows and net P&L / notional on 0%. Modelled costs (0.15-0.18% of notional per round trip) are stored but not deducted, so every "net per trade" figure in the funnel and the 10-12 dossier is gross | rows |
+| V3 | **Few independent days.** The seven families have 5-19 distinct entry dates (`lab_search` 10, `momentum` 18) in about 16 sessions of one market; with a date-block bootstrap no family supports a label above "unresolved" | script |
+| V4 | **Early positives faded.** `momentum` entries before 09-25: +3.96% (n 204), on or after: -0.16% (n 212); `lab_search` before 10-01: +1.41%, after: +0.52% (net, same-close) | script |
+| V5 | **Corporate actions confirmed, smaller than first feared.** With the corrected check (recorded price vs adjusted close on that date, > 1.5%): `lab_search` 81 of 8,791 rows (CTVA among them; dividend-sized adjustments such as VZ, CMCSA also trip it), `momentum` 9 of 416, others 0-11 | script |
+
+Honest-fill recompute (net of modelled cost, next-open entry and exit on adjusted prices, rows that have a next-open price):
+
+| family | reported (gross, same-close) | honest net, mean | iid t (funnel -> honest) | date-cluster t / ticker-cluster t | independent entry dates | 95% date-block bootstrap |
+|---|---:|---:|---|---|---:|---|
+| lab_search | +1.30% | +0.90% | +18.5 -> +11.9 | +2.2 / +4.4 | 10 | [-0.25%, +1.40%] |
+| momentum | +2.04% | +1.71% | +4.2 -> +2.9 | +1.4 / +2.0 | 18 | [-1.03%, +3.78%] |
+| kf_mean_reversion | +1.22% | +1.71% | +2.2 -> +2.8 | +2.4 / +1.3 | 7 | [-0.70%, +3.12%] |
+| bollinger_reversion | +0.39% | +0.45% | +1.9 -> +2.2 | +1.1 / +0.9 | 5 | [+0.03%, +2.45%] |
+| kf_seasonality | +0.46% | +0.11% | +2.8 -> +0.7 | +0.3 / +0.3 | 8 | [-0.70%, +0.62%] |
+| st_uptrend_pullback | +0.36% | +0.19% | +1.5 -> +0.8 | +0.1 / +0.3 | 8 | [-2.58%, +1.99%] |
+| st_momentum_1d | -0.20% | -0.39% | -1.5 -> -3.3 | -0.9 / -1.3 | 10 | [-1.26%, +0.42%] |
+| turn_of_month (new at t 10.3) | +3.81% | +1.86% | +10.3 -> +5.5 | not meaningful | 2 | not meaningful |
+
+Provisional label for all eight: **Unresolved (fewer than 20 independent entry dates)**. The effective sample for `lab_search` is
+about 270 trades, not 7,941 (design effect ~29), and its t falls from 18.5 to about 2.2 once entry dates are treated as the unit.
+Not a verdict that the families are noise: a result that survives next-open fills, costs and clustering over a longer window would still count.
+
+**Proposed Phase G items from this pass (not done; need the owner's go-ahead because they change how forward records are read):**
+G1 add next-open fills to the paper engine as a restatement beside the originals (accounting version bump), never overwriting;
+G2 label `pnl_pct` as gross everywhere and report net in `funnel.py`, the dossier and the daily report;
+G3 route the funnel's family statistics through the clustered / deduplicated calculation and show the deflation column.

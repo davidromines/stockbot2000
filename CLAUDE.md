@@ -99,15 +99,24 @@ off, no capital-limit change, nothing live without owner approval.
   and Kelly now, crypto, theme picks, LLM-made backtests, nightly self-rewrite of live logic, third-party plugins.
 - **Verified leads for Phase A (queried, NOT fixed; the owner said plan first, action later):**
   (1) corporate actions booked as losses: 4 `CTVA` paper trades ~ -84% (unadjusted entry vs back-adjusted exit);
-  (2) the same ticker/date trade once per fund (`lab_search` 8,791 trades / 566 funds); (3) plain recompute from
-  `paper_trades` gives momentum +2.04% and st_uptrend_pullback +0.36% vs funnel +2.69% / +1.13%, cause unknown;
+  (2) the same ticker/date trade once per fund (`lab_search` 8,791 trades / 566 funds); (3) RETRACTED: the funnel formula
+  equals a plain recompute; the figures compared were a week old;
   (4) `funnel.py` t-stat is iid; deflation exists only in `promote.py` (Lab ladder), not in funnel/ranking/slots;
   (5) noise-only 95% t thresholds 3.25 (N=88) to 5.32 (N=1M), so two or three of the seven families sit in the luck
   range even before the dependence fix; (6) option data has no expiry beyond 77 days (no LEAPS testing).
+- **PHASE A1-A3 FIRST PASS RUN 10-13 (`audit_forward.py`, read-only, 20 checks in `tests/regression/test_audit_forward.py`;
+  report `reports/audit_forward_2026-10-13.md`).** New verified findings: (V1) the paper engine fills entries AND exits at the
+  signal-day close (`paper_trading.py` lines 616, 564) — the simulator/backtest were fixed to next-open on 09-15, the paper engine
+  was not; (V2) `pnl_pct` is the GROSS price move (costs 0.15-0.18% of notional are stored, not deducted), so every "net per trade"
+  figure in the funnel/dossier is gross; (V3) 5-19 independent entry dates per family; (V4) early positives faded (momentum +3.96%
+  before 09-25, -0.16% after). Honest recompute (net, next-open, adjusted prices) with date-clustered t: lab_search +0.90% (t 2.2,
+  10 dates), momentum +1.71% (t 1.4, 18 dates); all eight families provisionally "Unresolved". Proposed, NOT done (owner go-ahead
+  needed because they change how forward records read): G1 next-open fills in the paper engine as a restatement beside the
+  originals; G2 label pnl_pct gross / report net; G3 funnel statistics via the clustered calculation + deflation column.
 - **Housekeeping 10-13:** `backup.py` run and verified (forward 408,131 rows / 62 tables; listings snapshot
   `backups/listings_2026-10-13.sql.gz`); `daily_snapshot.py` still waiting for the owner's look before cron.
-- **Next step recommended to the owner:** Phase A1-A3 for `lab_search` and `momentum` as one read-only script;
-  nothing live changes. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
+- **Next step recommended to the owner:** decide G1-G3 above; then Phase A4-A6 (multiple-testing, enrollment cohort, per-family
+  verdict), B and C. Nothing live has changed. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
 
 ### SESSION HANDOFF — 2026-10-12
 
