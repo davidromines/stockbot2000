@@ -120,3 +120,58 @@ project's own regime test (bear-market entry rule, 2006-2026) found entries belo
 (profitability, Piotroski, debt reduction); $100M market-cap and $1M/day liquidity
 floors that exclude most zombie micro-caps; kill switches at $15 / 15% daily loss and
 35% drawdown.
+
+## 2026-10-13 #4 — "Technical analysis taxonomy: price breaks come before indicators" (social post)
+
+**What it is.** A tour of technical-analysis schools (Dow, candlesticks, chart forms
+such as necklines and head-and-shoulders, Elliott, Wyckoff, Gann, "chip" cost
+clustering, indicator schools). Claim: price itself (a neckline or prior-high break
+on volume) is the fastest signal, KDJ/RSI crosses next, MACD slowest; indicators
+confirm, they do not time. The author left technicals for news and fund-flow
+direction.
+
+**What this tests, and what we already have.** "Breakout on volume" is already
+several paper-tracked families (`breakout_52w`: near 52-week high + volume ratio,
+`volatility_breakout`, `kf_breakout`, `momentum_volume`; Donchian seeds). Forward
+paper record, whole history, plain trade-level t (iid, so overstated):
+
+| family | n | mean net / trade | t |
+|---|---:|---:|---:|
+| breakout_52w | 121 | -4.96% | -7.0 |
+| volatility_breakout | 345 | -4.82% | -8.1 |
+| kf_breakout | 183 | -4.20% | -18.9 |
+| momentum_volume | 207 | -4.02% | -9.4 |
+
+The "fastest signal" is the most negative group in the forward record. Speed of
+confirmation is a latency claim, not an edge claim: arriving earlier at a crowded
+entry costs more, not less. The families that are positive forward are pullback /
+reversal / momentum, the opposite of chasing a break. (Subject to Addendum F audit.)
+
+**Not adopted.** Necklines, head-and-shoulders, Elliott, Wyckoff and Gann have no
+agreed mechanical definition, so each backtest hides many choices (researcher
+degrees of freedom). Only a single pre-declared mechanical definition would be
+admitted, as one hypothesis with no tuned variants. Candlestick patterns likewise.
+
+**Possible, low priority.**
+1. "Chip" cost clustering (volume-at-price, share of volume traded below the current
+   price): computable from daily OHLCV as ONE pre-declared hypothesis in the
+   knowledge library; the exact definition must be written before any result.
+2. Fund flows (ETF share-count changes) as a Stage O data candidate; needs a
+   point-in-time free source first. News is not usable yet: headline dates in the
+   FINSABER set are unverified.
+
+**Data-integrity leads found while checking (for Addendum F Phase A2 / D2; nothing
+changed).**
+1. **Corporate actions booked as losses.** Four paper trades in `CTVA` (four funds)
+   show entry 78.5-79.5 and exit 12.57 within a week, about -84%. The prices table
+   now holds a back-adjusted series (11.7 on 09-28), so an unadjusted entry price was
+   compared with a post-event exit price. Likely a spin-off; the true loss is near
+   zero. Any split or spin-off during a hold can do this. Check how many paper trades
+   span a corporate action and how they move family means.
+2. **Duplicate observations.** The same ticker/date trade appears once per fund (KOD
+   +170% 09-24 to 09-28 appears three times in `lab_search` alone). This is the
+   effective-n problem the audit already names, now with a concrete example.
+3. **Recompute mismatch.** A plain recompute from `paper_trades` over all history
+   gives momentum +2.04% (t 4.2, n 416) and st_uptrend_pullback +0.36% (t 1.5, n 627)
+   against the funnel's +2.69% and +1.13%. The cut (window, dedupe, definition) is
+   unknown. This is exactly the A1 reproduction step; unresolved.
