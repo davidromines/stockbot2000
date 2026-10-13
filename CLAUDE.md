@@ -137,6 +137,14 @@ off, no capital-limit change, nothing live without owner approval.
   **Pre-registered prospective test** `forward_families_prospective` v1 (experiment_registry, REGISTERED 2026-10-13 05:25 UTC, locked): the 8 families, entries from 2026-10-12,
   first 20 pooled independent entry dates, evaluated 15 sessions later (~Dec 2026), pass = >=12 own dates AND excess over SPY > 0 AND max-T adj p <= 0.05 AND bootstrap LB > 0;
   `./venv/bin/python prospective_eval.py` shows progress (INTERIM, decides nothing), `--complete` records the result. Changes nothing live.
+- **PHASES B AND C DONE 2026-10-13 (owner: "Do phase b and c"; read-only / shadow; commit f5ecf32; findings `docs/AUDIT_BC_FINDINGS.md`, reports `audit_pipeline|audit_ranking|capital_gate|audit_portfolio_2026-10-13.md`).**
+  New: `audit_pipeline.py` (B1/B2), `audit_ranking.py` (B3), `capital_gate.py` (C1 shadow gate; daily stage `[9k1]`; append-only `capital_gate_shadow`, in the backup), `audit_portfolio.py` (C2/C3); 22 checks;
+  full suite 155 files pass. **Findings:** (1) 0 strategies have 20 own independent entry dates; pool of honest forward trades nets -0.45%/trade; (2) ranking `n` counts open positions: the top-50 median is 20 trades from ONE entry
+  date; the stored score ranks later returns worse (rho +0.03) than the backtest (+0.21) or a date-counting estimate (+0.29); top quintile predicted +1.62%, realised -0.42%; (3) ONE trade (KOD 09-24, +163.85%) sits in exactly the paper funds
+  of slots 1, 2 and 5 (live positions are different stocks); (4) the five live positions: WDC/INTC/AMD high-beta (2.9-3.2), equal-weight beta to SPY 2.27, diversification ratio 1.41 of 2.24; (5) shadow gate: 0 of 384 eligible, 0 of 5 holders
+  (C4 own dates and C13 prospective test block everyone); (6) shadow top-5 selection (current vs date-counting) is indistinguishable from the pool. **Decisions waiting for the owner (nothing changed):** show the gate verdict in the daily
+  report; enforce do-no-harm criteria after 2 weeks of shadow; a beta/concentration limit for slot selection; non-evidence rule for single-trade-dominated funds. Production deviates from the docs: the prior is the 2023-today unseen result when
+  one exists (21% of rows) and zero for Lab-search funds (41%); `ranking_history.backtest` is not what scores.
 
 ### SESSION HANDOFF — 2026-10-12
 

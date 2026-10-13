@@ -916,3 +916,9 @@ families compared (88 defined, 41 with >= 20 trades, about 28 effective independ
 significant. A5: the Lab survivors were enrolled 09-27 with start date 09-24 (a replay of the 09-24 signals using only data through 09-24); enrollment did not depend on
 outcomes, but 2,886 `lab_search` trades are replay (+1.63 % vs +0.48 % prospective). A6: per-family verdicts in `docs/AUDIT_A6_FAMILY_VERDICTS.md`; the locked prospective
 test is `forward_families_prospective` v1 (`prospective_eval.py`). Full tables: `reports/audit_selection_2026-10-13.md`.
+
+**Phases B and C done 2026-10-13 (owner: "Do phase b and c"; read-only / shadow).** B1/B2 `audit_pipeline.py`: the funnel to real money and ranked causes (too few independent observations first). B3 `audit_ranking.py`:
+production matches the 10:n blend in structure but uses the unseen-window result as the prior for 21 % of rows and zero for the 41 % that are Lab-search funds; `n` counts open positions (median 20 trades from one entry date among the top 50);
+the stored score ranks later returns worse than the backtest or a date-counting estimator; one shared +163.85 % trade (KOD) sits in three slots' paper funds. C1 `capital_gate.py`: a 13-criterion shadow gate, 0 of 384 eligible;
+daily stage `[9k1]`. C2/C3 `audit_portfolio.py`: the 20-session scaling is rank-identical to per-trade return; the five live positions have a beta of 2.27 and a diversification ratio of 1.41; shadow top-five selection
+is indistinguishable from the pool. Findings and the owner's decisions: `docs/AUDIT_BC_FINDINGS.md`.

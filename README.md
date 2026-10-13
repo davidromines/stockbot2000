@@ -259,6 +259,10 @@ work on your local model, per the design goal.
 | `restate_paper.py [--report]` | Restates closed paper trades at next-open fills into `paper_trades_restated` beside the originals (Addendum F G1); daily stage `[9k0]` |
 | `audit_selection.py` | Read-only multiple-testing and enrollment audit (Addendum F, Phase A4-A5): Holm / BH / max-T, effective tests, retroactive-replay split. Writes `reports/audit_selection_<date>.md` |
 | `prospective_eval.py [--register\|--complete]` | The pre-registered prospective test `forward_families_prospective` v1 (Addendum F A6): progress / evaluation of the 8 families on entries from 2026-10-12 |
+| `audit_pipeline.py` | Addendum F B1/B2: funnel from hypothesis to real money, ranked causes. `reports/audit_pipeline_<date>.md` |
+| `audit_ranking.py` | Addendum F B3: ranking formula vs documentation, small-sample behaviour, calibration, single-trade dependence. `reports/audit_ranking_<date>.md` |
+| `capital_gate.py` | Addendum F C1: SHADOW capital-eligibility gate (13 criteria, unknown blocks); daily stage `[9k1]`, table `capital_gate_shadow`. Read by nothing that trades |
+| `audit_portfolio.py` | Addendum F C2/C3: comparable metrics across holding periods and the five-slot portfolio (beta, sectors, correlation, shadow selection) |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is

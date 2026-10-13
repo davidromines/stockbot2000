@@ -168,6 +168,12 @@ dated 09-22 or earlier). No family survives adjustment; none has a max-T adjuste
 (`forward_families_prospective` v1, locked in the experiment registry, entries from 2026-10-12, 20 independent dates + 15 sessions, expected about December) is the
 test that can change this; progress via `./venv/bin/python prospective_eval.py`.
 
+**Phases B and C (2026-10-13, read-only / shadow; `docs/AUDIT_BC_FINDINGS.md`).** Funnel to real money: 2,233 strategy identities, 1,005 positive with the dead companies, 205 positive on the
+unseen window, 168 with >= 20 honest forward trades, 82 positive, **0 with 20 independent entry dates of their own**; the pool of honest forward trades nets -0.45 % per trade; the real account is 16 closed
+trades, +$0.37. Ranking audit: `n` counts open positions (the top-50 median is 20 trades from one entry date), the stored score ranks later returns worse than the backtest or a date-counting estimate, and one
+shared trade (KOD, +163.85 %) sits in the paper funds of three of the five slots. Shadow capital gate (13 criteria, unknown blocks, daily stage `[9k1]`): 0 of 384 eligible, 0 of 5 slot holders. Portfolio: the five live
+positions have an equal-weight beta of 2.27 to SPY (WDC, INTC, AMD at 2.9 to 3.2) and a diversification ratio of 1.41 against 2.24 for five independent bets. Five decisions are waiting for the owner; nothing live changed.
+
 ## Housekeeping
 
 Data backup run 2026-10-13 04:41 UTC and verified (forward records: 408,131 rows, 62 tables;
