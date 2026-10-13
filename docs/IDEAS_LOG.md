@@ -78,3 +78,45 @@ bulk-ingested.
    after-publication window is computed, not typed (partly exists in Stage L).
 3. **Pass-rate sanity line in reports**: show the share of tested strategies that
    pass beside the share a random-rule control passes (`random_control.py`).
+
+## 2026-10-13 #3 — "Rising yields + rising dollar: plan for the worst case" (social post)
+
+**What it is.** A macro-fear post. Claims: 10Y yield and dollar both rising; a -57%
+crash followed a similar setup; "something underneath" is the trigger (private-credit
+withdrawal gates, record auto-loan and office-CMBS delinquencies, 16-year-high
+corporate bankruptcies, a narrow S&P held up by a few mega-caps, six small bank
+failures in 2026). Advice: raise cash gradually, hold short Treasuries or the 10Y,
+watch the mega-cap leaders (NVDA, AAPL, MSFT) for a breakdown, avoid junk / zombie
+companies, favour quality over momentum, do not short the top, write a plan for
+-10/-20/-30% before it happens. **All figures in the post are its own claims and are
+unverified here.** The framing ("most important post you'll ever see",
+"multi-millionaire") is promotional; one remembered crash is one path.
+
+**Not for this system.** Personal portfolio advice (cash, Treasuries, buying the 10Y)
+is not something this project decides or Claude advises on: the system trades $20
+slots in one account and touches none of the owner's other accounts. Narrative
+"triggers" cannot be tested. "Raise cash when leaders crack" is market timing; the
+project's own regime test (bear-market entry rule, 2006-2026) found entries below the
+200-day average did better, not worse.
+
+**Useful as testable questions (all read-only, nothing live).**
+1. **Rate and dollar regimes.** `regimes.py` has SPY, volatility, crisis and a fixed
+   T-bill rate regime but no yield-trend or dollar-trend regime. Add pre-declared
+   10Y-trend and dollar-trend regimes from free FRED series and report forward and
+   backtest results per regime. Descriptive only: few independent episodes, so it
+   gates nothing. (Addendum F Phase F.)
+2. **Credit-event survivability.** Show each live slot holder and the seven positive
+   families under the existing worst-case survivorship mode (`zero`: every death
+   -100%) beside the as-is score, since the post's thesis is more failures.
+   (Addendum F Phase D1.)
+3. **Drawdown playbook + stress replay.** Write down what the system does at SPY
+   -10/-20/-30% (ATR stops, no shorts, daily-loss and drawdown kill switches, idle
+   slots stay cash) and replay the five slots through 2008, 2020 and 2022 with the
+   existing windows. (Phase G.)
+4. **Mega-cap leadership breakdown** as ONE pre-declared hypothesis in the knowledge
+   library (HYPOTHESIS, no parameter variants), tested like any other. Low priority.
+
+**Already in place.** No shorts; quality and low-debt factors in the factory
+(profitability, Piotroski, debt reduction); $100M market-cap and $1M/day liquidity
+floors that exclude most zombie micro-caps; kill switches at $15 / 15% daily loss and
+35% drawdown.
