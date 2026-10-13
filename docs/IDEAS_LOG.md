@@ -568,3 +568,17 @@ have, so adding them would optimise noise; a new backtesting library would dupli
    35% kill switch and $15 / 15% daily loss. No target is set, per the owner's 10-13
    ruling.
 2. Nothing else. Paid workshop / courses not engaged.
+
+## 2026-10-13 #15 — "This guy shared the code for his hedge fund's strategy live" (@quantscience_ video post)
+
+**What it is.** A 2026-01-05 video (a code editor on screen; the video itself cannot be
+read from text) captioned only "shared the code for his hedge fund's algorithmic
+trading strategy live", followed by a workshop sign-up ad from the same account. No
+strategy rules, results or code are in the post text; the one reply jokes that nobody
+copies it.
+
+**Assessment.** Nothing to evaluate: no rules, no numbers, no source. Same account as
+entry #14 (course funnel). If the strategy matters, give the rules or a transcript and
+it will be filed like the others.
+
+**Adopted.** Nothing.
