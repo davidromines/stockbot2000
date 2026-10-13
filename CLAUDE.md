@@ -153,7 +153,7 @@ off, no capital-limit change, nothing live without owner approval.
   title-only and untestable; the rest are ~175 lineages behind 1,281 non-search strategies (7 variants per lineage), so breadth is overstated; scorecard orders experiments, never promotes. E3 `experience_experiment.py` (registry `analog_vs_baseline_2026_10`,
   COMPLETE): analog +0.48 pts over random in test (-0.18 to +1.21), not distinguishable from momentum or the model; does NOT meet the pre-registered bar; no subsystem built (would need ~95 dates). F `profit_report.py`: four denominators side by side;
   real account realised +$0.37, unrealised -$3.97, reconciles to the equity change; research pool -0.45%/trade, per dollar-session -0.14%; no annualised figure (16 sessions). Acceptance criteria A-H all met; no strategy survives as an established edge.
-  Still waiting on the owner: the 5 ranking/eligibility decisions, `daily_snapshot.py` cron design OK, and the owner-gated flips. Tomorrow's first checks: the 07:00 UTC daily run stages [9k0], [9k1], funnel, and `prospective_eval.py` progress.
+  Still waiting on the owner: the 5 ranking/eligibility decisions, `daily_snapshot.py` cron design OK, and the owner-gated flips. The 10-13 07:00 UTC daily run was checked: it completed with no failures, [9k0] restated 20,279 of 23,292 closed trades, the funnel printed the corrected figures and [9k1] wrote 422 shadow verdicts (0 eligible); live reconciled OK with the 5 positions. Next: `prospective_eval.py` accrues entries from 2026-10-12.
 
 ### SESSION HANDOFF — 2026-10-12
 
