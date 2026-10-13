@@ -104,9 +104,19 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
             "latest_date": latest_at[:10],
         }
         out["days_live"] = len({r[1] for r in rows})
+        peak = max(r[2] for r in rows)
+        try:
+            import risk_engine
+            lim = risk_engine.load_limits()
+        except Exception:                                    # noqa: BLE001
+            lim = {}
+        out["drawdown"] = {"equity": latest_equity, "peak": peak, "pct": (peak - latest_equity) / peak * 100 if peak else 0.0,
+                           "notice": lim.get("drawdown_notice_percent"), "review": lim.get("drawdown_review_percent"),
+                           "stop": lim.get("max_drawdown_percent")}
     else:
         out["account"] = None
         out["days_live"] = 0
+        out["drawdown"] = None
 
     cur = slots.current(conn, cfg)
     pnl = live_pnl.compute(conn, cfg, mode)
@@ -257,7 +267,12 @@ def render(data: dict, out_path: str) -> None:
         _slot_card(ax, slot_id, data["slots"].get(slot_id, {"empty": True}))
 
     foot_ax = fig.add_subplot(gs[7]); foot_ax.axis("off")
-    foot_ax.text(0.5, 0.5, _footer_line(data), fontsize=12, color="#555", ha="center",
+    dd = data.get("drawdown")
+    if dd:
+        lv = " · ".join(f"{n} {v:.0f}%" for n, v in (("notice", dd["notice"]), ("review", dd["review"]), ("stop", dd["stop"])) if v)
+        foot_ax.text(0.5, 0.78, f"Below peak: {dd['pct']:.1f}% (${dd['equity']:.2f} vs ${dd['peak']:.2f})" + (f"   ·   {lv}" if lv else ""),
+                    fontsize=12, color="#444", ha="center", va="center", transform=foot_ax.transAxes)
+    foot_ax.text(0.5, 0.28, _footer_line(data), fontsize=12, color="#555", ha="center",
                 va="center", transform=foot_ax.transAxes, wrap=True)
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
