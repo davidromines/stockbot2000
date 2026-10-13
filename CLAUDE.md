@@ -145,6 +145,10 @@ off, no capital-limit change, nothing live without owner approval.
   (C4 own dates and C13 prospective test block everyone); (6) shadow top-5 selection (current vs date-counting) is indistinguishable from the pool. **Decisions waiting for the owner (nothing changed):** show the gate verdict in the daily
   report; enforce do-no-harm criteria after 2 weeks of shadow; a beta/concentration limit for slot selection; non-evidence rule for single-trade-dominated funds. Production deviates from the docs: the prior is the 2023-today unseen result when
   one exists (21% of rows) and zero for Lab-search funds (41%); `ranking_history.backtest` is not what scores.
+- **PHASE D DONE 2026-10-13 (owner: "Phase d go"; read-only; `docs/AUDIT_D_FINDINGS.md`, `audit_survivorship.py`, `audit_execution.py`, 9 checks, suite 156 files).** D1: 37% of a typical strategy's trades are in synthetic dead companies; positive
+  88% as_is vs 55% in the worst case; 409 strategies (33%) flip on that unidentifiable assumption; 21% change sign across generator configurations; paid delisted data NOT recommended yet (forward evidence is the binding constraint). D2: paper fills at
+  the signal-day close, live at the open (restated basis describes live); live fill vs open +0.39% / +0.45% adverse (SE 0.6 / 0.33, inconclusive); paper averages up to 20 names, the slot buys one (fund took the slot's name on 41% of sessions); the
+  ranking's forward basis and the honest basis differ without a consistent direction; no stop has fired live. No new code defect found; nothing changed.
 
 ### SESSION HANDOFF — 2026-10-12
 

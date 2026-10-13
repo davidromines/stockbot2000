@@ -922,3 +922,7 @@ production matches the 10:n blend in structure but uses the unseen-window result
 the stored score ranks later returns worse than the backtest or a date-counting estimator; one shared +163.85 % trade (KOD) sits in three slots' paper funds. C1 `capital_gate.py`: a 13-criterion shadow gate, 0 of 384 eligible;
 daily stage `[9k1]`. C2/C3 `audit_portfolio.py`: the 20-session scaling is rank-identical to per-trade return; the five live positions have a beta of 2.27 and a diversification ratio of 1.41; shadow top-five selection
 is indistinguishable from the pool. Findings and the owner's decisions: `docs/AUDIT_BC_FINDINGS.md`.
+
+**Phase D done 2026-10-13 (owner: "Phase d go"; read-only).** D1 `audit_survivorship.py`: 33 % of ranked strategies are positive as_is and non-positive in the worst case; 21 % change sign across generator configurations; the twin-test pass is not independent
+of the configurations tried; paid delisted data is not yet warranted. D2 `audit_execution.py`: lifecycle compared across simulator, paper engine and live trader; live entries at the open (restated basis correct, original not); fill shortfalls
+inconclusive at 35 trades; the paper fund averages up to 20 names where the slot buys one; no new code defect. `docs/AUDIT_D_FINDINGS.md`.

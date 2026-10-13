@@ -174,6 +174,11 @@ trades, +$0.37. Ranking audit: `n` counts open positions (the top-50 median is 2
 shared trade (KOD, +163.85 %) sits in the paper funds of three of the five slots. Shadow capital gate (13 criteria, unknown blocks, daily stage `[9k1]`): 0 of 384 eligible, 0 of 5 slot holders. Portfolio: the five live
 positions have an equal-weight beta of 2.27 to SPY (WDC, INTC, AMD at 2.9 to 3.2) and a diversification ratio of 1.41 against 2.24 for five independent bets. Five decisions are waiting for the owner; nothing live changed.
 
+**Phase D (2026-10-13, read-only; `docs/AUDIT_D_FINDINGS.md`).** A typical ranked strategy trades synthetic dead companies for 37 % of its trades; 88 % are positive as_is but 55 % in the worst case, and 409 strategies (33 %) change verdict on that
+unidentifiable assumption (21 % change sign across generator configurations). Paid delisted data is not recommended yet: no strategy has 20 independent forward entry dates. Execution: live fills happen at the open (the restated next-open basis
+describes them; the original signal-day-close basis does not); live fills are +0.39 % / +0.45 % worse than the open on entry / exit with standard errors of 0.60 / 0.33 (inconclusive); the paper fund averages up to 20 names while the slot buys one.
+No new code defect found; nothing changed.
+
 ## Housekeeping
 
 Data backup run 2026-10-13 04:41 UTC and verified (forward records: 408,131 rows, 62 tables;

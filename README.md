@@ -263,6 +263,8 @@ work on your local model, per the design goal.
 | `audit_ranking.py` | Addendum F B3: ranking formula vs documentation, small-sample behaviour, calibration, single-trade dependence. `reports/audit_ranking_<date>.md` |
 | `capital_gate.py` | Addendum F C1: SHADOW capital-eligibility gate (13 criteria, unknown blocks); daily stage `[9k1]`, table `capital_gate_shadow`. Read by nothing that trades |
 | `audit_portfolio.py` | Addendum F C2/C3: comparable metrics across holding periods and the five-slot portfolio (beta, sectors, correlation, shadow selection) |
+| `audit_survivorship.py` | Addendum F D1: dependence of verdicts on the synthetic dead companies (modes, generator configurations, families, slot holders) |
+| `audit_execution.py` | Addendum F D2: lifecycle comparison simulator / paper / live, live fills vs open and quote, rule parity, ranking basis |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
