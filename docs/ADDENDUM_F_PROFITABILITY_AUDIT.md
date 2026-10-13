@@ -804,3 +804,59 @@ rather than historical backtest performance.
 The next milestone should not be another completed project phase. It should
 be the first strategy whose positive performance survives independent
 scrutiny and continues to hold up in prospective evaluation.
+
+---
+
+## Appendix — additions from the ideas review (Claude, 2026-10-13; NOT part of the reviewer's text above)
+
+The owner shared sixteen outside posts, papers and prompts on 2026-10-13. Each is
+reviewed in `docs/IDEAS_LOG.md` (numbered #1-#16); most were declined. What was
+adopted is listed here, attached to the phase it belongs to. Everything is read-only
+or shadow-only, gates nothing, changes no live behaviour and consumes the trial ledger
+honestly (every extra variant or market counts). **Nothing below is built.**
+
+### Leads found while reviewing (inputs to Phase A, verified by a query, not yet fixed)
+
+| # | Lead | Evidence | Phase |
+|---|---|---|---|
+| L1 | **Corporate actions booked as losses.** Paper entry prices are stored as traded; the prices table is later back-adjusted, so a spin-off or split during a hold produces a phantom move | 4 `CTVA` trades in 4 funds, entry 78.5-79.5, exit 12.57 within a week (about -84%); prices table shows 11.7 on 09-28 | A1, A2, D2 |
+| L2 | **Duplicate observations.** One trade per fund for the same ticker and dates | `KOD` +170% (09-24 to 09-28) appears 3 times in `lab_search` alone; `lab_search` is now 8,791 trades in 566 funds | A3 |
+| L3 | **Recompute does not match the funnel.** A plain recompute from `paper_trades` over all history | momentum +2.04% (t 4.2, n 416) vs funnel +2.69%; `st_uptrend_pullback` +0.36% (t 1.5, n 627) vs funnel +1.13%. The cut (window, dedupe, definition) is unknown | A1 |
+| L4 | **No deflation outside the frozen Lab ladder.** `promote.py` and `multiple_testing.py` hold the maths; `funnel.py`, `ranking.py`, `slots.py`, `factory_pipeline.py`, `strategy_health.py` use none | grep, entry #8 | A4, B3 |
+| L5 | **t-statistic assumes independent trades** (`funnel.py` line ~450: mean / (sd / sqrt n)) | code | A3 |
+| L6 | Noise-only 95% t thresholds: 3.25 (N = 88 families), 3.43 (170), 3.97 (1,405), 4.93 (127,652 unique Lab structures), 5.32 (1M). Of the seven reported t (2.9, 3.2, 3.4, 3.7, 4.8, 7.1, 17.2) two or three sit inside the luck range even at N = 88, before the dependence correction | computed, entry #8 | A4 |
+| L7 | **No LEAP-length option data**: the longest expiry in `option_quotes` is 77 days | query, entry #9 | D, E |
+| L8 | Breakout-on-volume families are the most negative forward group (-4% to -5% per trade, t -7 to -19, iid so overstated); the closest "tight base" family is also negative (-3.4%) | query, entries #4, #5 | A, E |
+
+### Additions by phase (P1 = fold into the first audit pass; P2 = after the audit; P3 = only if the evidence asks for it)
+
+| Phase | Addition | Source | Priority |
+|---|---|---|---|
+| A1-A2 | Recompute from raw `paper_trades`; check corporate actions (L1), duplicates (L2), and why the funnel differs (L3) | #4 | P1 |
+| A3 | Clustered / block-bootstrap uncertainty; effective n via `multiple_testing.effective`; Monte Carlo reshuffle of each family's trade order | #8 | P1 |
+| A4 | A **deflation column** (not a gate) in funnel and ranking reports for three values of N; deflate on per-period returns with skew and kurtosis from the same series; clean the data first (L1), because the tail terms are meaningless with corporate-action artefacts | #8 | P1 |
+| A4 | **Pass-rate sanity line**: share of strategies passing next to the share a random-rule control passes (`random_control.py`) | #2 | P1 |
+| B3 | **Calibration of the ranking**: predicted per-20-session return vs realised, as reliability bins plus a Brier-style score; extend `degradation.py`, `live_feedback.py`, `model_calibration.py` | #1 | P1 |
+| F | Maximum drawdown beside every return measure; **ask the owner once for the drawdown they can tolerate** (today only the 35% kill switch and $15 / 15% daily loss exist). No return target set, per the 2026-10-13 ruling | #14 | P1 |
+| H | Report rules: every figure with its source query and date; facts, inferences and unknowns in separate labelled sections; a closing **"What could be wrong"** section; nightly review stays measure-only, never auto-rewrites live logic | #1, #12 | P1 |
+| D1 | **Credit-event survivability**: each slot holder and the seven families under the existing worst-case survivorship mode (`zero`) beside the as-is score | #3 | P2 |
+| D2 | Intraday simulation rules for `intraday.py` (limit fills only on a trade-through, adverse move first inside a bar, slippage on stops and market exits) before any same-day result is believed | #7 | P2 |
+| F / regimes | Descriptive regime reports, no gating: 10-year-yield trend and dollar trend (free FRED series); SPY above its 21 and 50 EMA; 15-day Kaufman efficiency ratio (choppy <= 0.35). Few independent episodes: read as description only | #3, #5, #7 | P2 |
+| G | **Drawdown playbook + stress replay**: write what the system does at SPY -10 / -20 / -30% and replay the five slots through 2008, 2020, 2022 with existing windows | #3 | P2 |
+| E | Count each documented strategy's **publication year** in `knowledge_library`; one pre-declared out-of-universe replication per post-publication pass, every market tried added to the trial ledger | #2 | P2 |
+| E | One pre-declared reproduction of a daily-bar momentum-breakout (above 21 and 50 EMA, ATR contraction, close above prior N-day high on volume, exit on a close below the 21 EMA); needs EMA features on the daily panel first | #5 | P3 |
+| E | Closing-basis EMA-trail exits added to `exit_rules`, same adoption rule as P2 | #5 | P3 |
+| E | Limit-entry experiment on the reversion families (prior close - k x ATR, filled only on a trade-through, missed trades counted, one pre-declared k) | #7 | P3 |
+| E | Single pre-declared hypotheses, no variants: "chip" volume-at-price cost clustering; mega-cap leadership breakdown | #3, #4 | P3 |
+| E3 | The Historical Experience Learning Engine: read Stage P's result (AUC 0.523) first; write up rather than rebuild | #1, reviewer | P3 |
+| Data | LEAP-length option chains and an ETF fund-flow source, only after the underlying stock signal has an audited edge | #4, #9 | P3 |
+| If search is ever unfrozen | Niche quotas by structure family, adverse-first intrabar ordering, a one-look holdout instead of a reused split | #11 | P3 |
+
+### Declined (reasons in the ideas log)
+Futures and intraday trading (no futures access; 3 day trades per 5 sessions), limit orders on fractional shares (dollar orders are market-only), LEAPS and Kelly sizing now, crypto research and crypto strategies (`allow_crypto` off, ~1.9% round trip), theme and stock picks, nightly self-rewrite of live logic, LLM-generated backtests or performance numbers, running outside open-source trading code, paid courses, third-party plugins (`tradingkit`, AgentKit).
+
+### Suggested order
+1. Phase A1-A3 for `lab_search` and `momentum` as one read-only script (recompute, dedupe, clustered t, effective n), including L1-L3.
+2. A4 deflation columns and B3 calibration, then the Phase F reporting framework.
+3. C1 eligibility gate in shadow mode; D1 and the regime reports.
+4. Phase E items only after the audit says which of the reviewer's three outcomes applies.
