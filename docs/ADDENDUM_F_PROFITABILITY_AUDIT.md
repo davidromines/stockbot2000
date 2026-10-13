@@ -910,3 +910,9 @@ biased upward until they can be restated (e.g. `earnings_yield`: gross -3.80%, h
 **Drawdown tiers** (owner-approved 10/20/35): `drawdown_tiers.py`, `config/risk.yaml` keys `drawdown_notice_percent` and `drawdown_review_percent`, an entries-only
 check in `risk_engine.py`, a once-a-day-per-tier Telegram message from the LIVE heartbeat in `slot_trader.py`; 22 tests; **merged to main 2026-10-13 05:15 UTC**
 (owner-approved; checks run after the merge; acceptance checklist 27/27). The 35% kill switch is unchanged.
+
+**Phase A4-A6 done 2026-10-13 (owner: "Phase a go"; read-only).** A4: `audit_selection.py` shows the count that applies to a forward family claim is the number of
+families compared (88 defined, 41 with >= 20 trades, about 28 effective independent tests), not the Lab's 1.05 M trials; Holm / Benjamini-Hochberg / max-T leave no family
+significant. A5: the Lab survivors were enrolled 09-27 with start date 09-24 (a replay of the 09-24 signals using only data through 09-24); enrollment did not depend on
+outcomes, but 2,886 `lab_search` trades are replay (+1.63 % vs +0.48 % prospective). A6: per-family verdicts in `docs/AUDIT_A6_FAMILY_VERDICTS.md`; the locked prospective
+test is `forward_families_prospective` v1 (`prospective_eval.py`). Full tables: `reports/audit_selection_2026-10-13.md`.

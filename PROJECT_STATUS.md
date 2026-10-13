@@ -160,6 +160,14 @@ the old iid-on-gross test still flags 6.
 notice at 10% from the peak, new entries refused at 20% (exits still go), the 35% kill switch unchanged; 22 tests; touches
 `risk_engine.py` and `slot_trader.py`. The daily image now shows the drawdown from peak. Acceptance checklist: 27/27.
 
+**Phase A4-A6 (2026-10-13, read-only).** `audit_selection.py` applies multiple-testing adjustments (Holm, Benjamini-Hochberg, max-T sign-flip on excess over SPY;
+about 28 effective independent tests across 31 families) and separates the retroactive replay: the Lab survivors were enrolled 09-27 with start date 09-24, so 2,886 of
+`lab_search`'s 7,941 trades are a replay (+1.63 % vs +0.48 % on the prospective trades, +0.19 % over SPY). Enrollment did not depend on outcomes (all validation passes
+dated 09-22 or earlier). No family survives adjustment; none has a max-T adjusted p below 0.14 once the replay is removed. Verdicts: six Unresolved, two (`st_uptrend_pullback`,
+`st_momentum_1d`) provisionally Not supported, none Promising (`docs/AUDIT_A6_FAMILY_VERDICTS.md`). A pre-registered prospective test
+(`forward_families_prospective` v1, locked in the experiment registry, entries from 2026-10-12, 20 independent dates + 15 sessions, expected about December) is the
+test that can change this; progress via `./venv/bin/python prospective_eval.py`.
+
 ## Housekeeping
 
 Data backup run 2026-10-13 04:41 UTC and verified (forward records: 408,131 rows, 62 tables;

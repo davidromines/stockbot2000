@@ -127,6 +127,16 @@ off, no capital-limit change, nothing live without owner approval.
   `backups/listings_2026-10-13.sql.gz`); `daily_snapshot.py` still waiting for the owner's look before cron.
 - **Next steps:** check tomorrow's [9k0] restate stage and funnel output, then Phase A4-A6 (multiple-testing, enrollment cohort, per-family verdict),
   B and C. Nothing live has changed on main. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
+- **PHASE A4-A6 DONE 2026-10-13 (owner: "Phase a go"; read-only, commit 0ef9841+):** `audit_selection.py` (Holm, Benjamini-Hochberg, Nyholt effective tests ~28 of 31
+  families, max-T sign-flip on excess-over-SPY, retroactive-replay flag), shared `forward_stats.py` additions (`holm`, `benjamini_hochberg`, `nyholt_meff`,
+  `maxt_signflip`; needs scipy, now in requirements.txt), 15+7 regression tests. **Findings:** (1) the 953 Lab survivors were enrolled 09-27 with start 09-24, so the
+  09-24 signals were a replay (2,886 of lab_search's 7,941 trades, +1.63% vs +0.48% prospective); (2) enrollment was outcome-independent (all validation passes dated
+  <= 09-22), so this is look-back inflation, not selection on results; (3) no family survives Holm/BH (smallest adjusted p 0.744, lab_search all trades) and removing the replay
+  leaves no family with a max-T adjusted p below 0.14; (4) the forward luck level is the FAMILY count (N=88 -> t 3.25), not the Lab's trial count (earlier 4.4-4.9 note was wrong for
+  forward claims). **A6 verdicts** (`docs/AUDIT_A6_FAMILY_VERDICTS.md`): six Unresolved, st_uptrend_pullback and st_momentum_1d provisionally Not supported; none Promising.
+  **Pre-registered prospective test** `forward_families_prospective` v1 (experiment_registry, REGISTERED 2026-10-13 05:25 UTC, locked): the 8 families, entries from 2026-10-12,
+  first 20 pooled independent entry dates, evaluated 15 sessions later (~Dec 2026), pass = >=12 own dates AND excess over SPY > 0 AND max-T adj p <= 0.05 AND bootstrap LB > 0;
+  `./venv/bin/python prospective_eval.py` shows progress (INTERIM, decides nothing), `--complete` records the result. Changes nothing live.
 
 ### SESSION HANDOFF — 2026-10-12
 
