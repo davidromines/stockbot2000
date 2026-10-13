@@ -891,7 +891,22 @@ Provisional label for all eight: **Unresolved (fewer than 20 independent entry d
 about 270 trades, not 7,941 (design effect ~29), and its t falls from 18.5 to about 2.2 once entry dates are treated as the unit.
 Not a verdict that the families are noise: a result that survives next-open fills, costs and clustering over a longer window would still count.
 
-**Proposed Phase G items from this pass (not done; need the owner's go-ahead because they change how forward records are read):**
+**Phase G items from this pass — APPROVED and DONE 2026-10-13 (G1-G3), drawdown tiers built on a branch:** see the status line after the list.
+
+**Phase G items proposed from this pass:**
 G1 add next-open fills to the paper engine as a restatement beside the originals (accounting version bump), never overwriting;
 G2 label `pnl_pct` as gross everywhere and report net in `funnel.py`, the dossier and the daily report;
 G3 route the funnel's family statistics through the clustered / deduplicated calculation and show the deflation column.
+
+**Done 2026-10-13 (owner approved):**
+G1 `restate_paper.py` writes `paper_trades_restated` (version `v2_next_open`; next-open entry and exit on the adjusted series, minus the engine's modelled
+round-trip cost) beside the unchanged `paper_trades`; idempotent; wired into `daily.sh` as stage `[9k0/10]`; 18,730 of 20,294 closed trades restated, the rest
+exit on the newest bar and wait. G2/G3 `funnel.py` `forward_families` now returns gross, net, honest, date- and ticker-clustered t, independent entry dates,
+bootstrap interval, the 88-family luck level and a label (statistics in the new `forward_stats.py`, shared with `audit_forward.py`); `significant` requires a
+clustered t >= 2 over >= 20 entry dates; the hard-coded conclusions in `eight_questions` (named families and t-statistics written into the code, plus unformatted
+`{need_05}` placeholders) are replaced by text computed from the data. Result on today's data: 0 of 43 families pass; the iid-on-gross test passes 6.
+Caveat recorded in the report: trades that exit on the newest stored bar have no next-open price yet and are mostly stop-outs, so a thin honest column is
+biased upward until they can be restated (e.g. `earnings_yield`: gross -3.80%, honest +1.34% on 32 of 46 rows).
+**Drawdown tiers** (owner-approved 10/20/35): `drawdown_tiers.py`, `config/risk.yaml` keys `drawdown_notice_percent` and `drawdown_review_percent`, an entries-only
+check in `risk_engine.py`, a once-a-day-per-tier Telegram message from the LIVE heartbeat in `slot_trader.py`; 22 tests; **on branch `risk/drawdown-tiers`, not merged**
+(live trading code; the owner merges outside market hours). The 35% kill switch is unchanged.

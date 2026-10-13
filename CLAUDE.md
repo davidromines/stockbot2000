@@ -110,13 +110,23 @@ off, no capital-limit change, nothing live without owner approval.
   was not; (V2) `pnl_pct` is the GROSS price move (costs 0.15-0.18% of notional are stored, not deducted), so every "net per trade"
   figure in the funnel/dossier is gross; (V3) 5-19 independent entry dates per family; (V4) early positives faded (momentum +3.96%
   before 09-25, -0.16% after). Honest recompute (net, next-open, adjusted prices) with date-clustered t: lab_search +0.90% (t 2.2,
-  10 dates), momentum +1.71% (t 1.4, 18 dates); all eight families provisionally "Unresolved". Proposed, NOT done (owner go-ahead
-  needed because they change how forward records read): G1 next-open fills in the paper engine as a restatement beside the
-  originals; G2 label pnl_pct gross / report net; G3 funnel statistics via the clustered calculation + deflation column.
+  10 dates), momentum +1.71% (t 1.4, 18 dates); all eight families provisionally "Unresolved".
+- **OWNER APPROVED ("Approved go", 10-13) AND DONE:** G1 `restate_paper.py` -> `paper_trades_restated` (v2_next_open) beside the unchanged
+  originals, daily stage [9k0] before the funnel; G2/G3 `funnel.py` `forward_families` now returns gross / net / honest / date- and
+  ticker-clustered t / independent entry dates / bootstrap / 88-family luck level / label (`forward_stats.py`, shared with
+  `audit_forward.py`), `significant` needs clustered t >= 2 over >= 20 dates, and the hard-coded conclusions in `eight_questions`
+  (named families, t-values, unformatted `{need_05}` placeholders) are now computed. Result: 0 of 43 families pass; the old iid-on-gross
+  test passes 6. Caveat: trades exiting on the newest bar are not yet restatable (mostly stop-outs), so a thin honest column is
+  biased upward. `ranking.py` was checked: its forward figure is accounting's net (costs deducted), only fills are same-close.
+- **DRAWDOWN TIERS built, NOT merged:** owner approved notice 10% / review 20% (new entries refused, exits still go) / stop 35%
+  unchanged. Branch `risk/drawdown-tiers`, worktree `~/sb2k-risk`, files `drawdown_tiers.py`, `config/risk.yaml` (2 keys),
+  `risk_engine.py` (entries-only check), `slot_trader.py` (LIVE heartbeat alert), 22 tests. **Owner merges outside market hours**
+  (`git merge --no-ff risk/drawdown-tiers`). GOTCHA: never `git checkout -b` in `~/stockbot2000` for live-path work — cron runs
+  from that tree; use `git worktree add ~/sb2k-<name> -b <branch>`.
 - **Housekeeping 10-13:** `backup.py` run and verified (forward 408,131 rows / 62 tables; listings snapshot
   `backups/listings_2026-10-13.sql.gz`); `daily_snapshot.py` still waiting for the owner's look before cron.
-- **Next step recommended to the owner:** decide G1-G3 above; then Phase A4-A6 (multiple-testing, enrollment cohort, per-family
-  verdict), B and C. Nothing live has changed. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
+- **Next steps:** owner merges `risk/drawdown-tiers`; then Phase A4-A6 (multiple-testing, enrollment cohort, per-family verdict),
+  B and C. Nothing live has changed on main. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
 
 ### SESSION HANDOFF — 2026-10-12
 
@@ -190,7 +200,7 @@ the research-integrity report's first statistically-positive forward families (7
 `lab_search` t=17.2 n=5,560, `momentum` t=4.8 n=331, `kf_seasonality` t=7.1 n=340,
 `st_uptrend_pullback` t=3.7 n=348, `bollinger_reversion` t=3.2 n=150, `kf_mean_reversion` t=2.9
 n=28, `st_momentum_1d` t=3.4 n=683 — none promoted), and the live slot table refreshed to today's
-real positions (account −$1.75 / −2.0% since 09-24, 15 trading days). Old snapshots kept
+real positions (as of the 10-09 close: account −$1.75 / −2.0%; refreshed 10-13 to Monday's close: −$3.59 / −4.1%, $84.12, 16 trading days). Old snapshots kept
 alongside as the historical record, not overwritten. `PROJECT_STATUS.md` and
 `docs/ROADMAP_INTEGRATION.md`'s Stage D/E/R rows refreshed the same way — see those files rather
 than duplicating the numbers here.

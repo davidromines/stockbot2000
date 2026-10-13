@@ -41,8 +41,8 @@ signal below is real or this project's next entry in its own defect ledger
 | Measure | Current reading |
 |---|---|
 | Search | Still frozen by policy (`seed_mode: NONE`); not restarted this period |
-| Live account | **-$1.75 (-2.0%)** since LIVE armed 2026-09-24, 15 trading days; today +$0.11 |
-| Live slots | 5 of 5 filled, cash $0 — WDC, CRS, INTC (+2.8% best), DELL, FDX; 3 of 5 currently negative |
+| Live account | **-$3.59 (-4.1%)** since LIVE armed 2026-09-24, 16 trading days ($84.12 at Monday 2026-10-12's close); peak $90.26, now 6.8% below it, worst 7.2%; Monday -$0.62 |
+| Live slots | 5 of 5 filled, cash $0 — WDC, CRS, INTC, AMD (new 10-12, replaced DELL), FDX; 3 of 5 currently negative |
 | Acceptance checklist (`acceptance.py`) | 25 of 27 passed (last full read 2026-10-06) — the 2 failures are expected: full suite needs `--suite`, SHADOW track record still accruing |
 | Forward families clearing t > 2 | **7, newly observed 2026-10-12** — see below. None promoted; **under independent audit (Addendum F, not yet started)** |
 | Regression suite | 148 of 148 test files pass |
@@ -94,11 +94,11 @@ be a measurement artifact.
 ## Real money
 
 One account (Agentic, `limited_margin`), ~$86 today against ~$88 when LIVE
-was armed on 2026-09-24 — **-$1.75 net, 15 trading days**. The slot trader
+was armed on 2026-09-24 — **-$3.59 net (-4.1%), 16 trading days**, as of Monday's close. The slot trader
 places real orders in it automatically, every 5 minutes in market hours,
 through the risk engine and kill switches. Current slots (each scoped to its
 own assignment — a slot's P&L never carries a previous occupant's trades):
-WDC -10.5%, CRS -0.6%, INTC -2.5%, DELL +2.8%, FDX +0.9%. `touch
+WDC -12.8%, CRS -2.8%, INTC -5.6%, AMD 0.0% (just assigned), FDX +0.9%. `touch
 data/KILL_SWITCH` stops everything and flattens the slots. A second
 real-money path (options, R7) is built and committed but inert — see the
 Stage R row above.
@@ -148,6 +148,18 @@ All provisionally **Unresolved: fewer than 20 independent entry dates**. `lab_se
 7,941. Early positives faded (`momentum`: +3.96% before 09-25, -0.16% after). Proposed fixes (not done, need your go-ahead):
 next-open fills in the paper engine as a restatement beside the originals, label `pnl_pct` gross and report net, and run the funnel's
 statistics through the clustered calculation.
+
+**Approved 2026-10-13 and done:** (G1) `restate_paper.py` stores every closed paper trade at next-open fills in
+`paper_trades_restated` (version `v2_next_open`) beside the unchanged originals, run daily before the funnel (18,730 of 20,294
+restated; the rest exit on the newest bar and wait for a next-session open); (G2/G3) `funnel.py` now reports gross, net,
+next-open and clustered statistics (shared module `forward_stats.py`), requires 20 independent entry dates, and its hard-coded
+conclusions about named families are replaced by data-driven text. Under the corrected test **no family is positive** (0 of 43);
+the old iid-on-gross test still flags 6.
+
+**Drawdown tiers (approved 2026-10-13): built, NOT merged.** Branch `risk/drawdown-tiers` (worktree `~/sb2k-risk`): a Telegram
+notice at 10% from the peak, new entries refused at 20% (exits still go), the 35% kill switch unchanged; 22 tests; touches
+`risk_engine.py` and `slot_trader.py`, so it waits for the owner's merge outside market hours. The daily image now shows the
+drawdown from peak.
 
 ## Housekeeping
 
