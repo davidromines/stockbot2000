@@ -41,3 +41,40 @@ over looking profitable" is the project's standing caution.
    digest, listing the strongest argument against the headline finding.
 3. **Nightly review stays measure-only**: read fills and misses, report; never
    rewrite live logic automatically.
+
+## 2026-10-13 #2 — Quantpedia strategy encyclopedia + "test it" recipe (social post)
+
+**What it is.** Pick a published strategy from Quantpedia (free tier), have an AI
+build and backtest it, re-run only on data after publication, re-run on a market
+the paper never touched (crypto pairs), verify on TradingView, incubate 1-3
+months. Claims 1,368 strategies run in 2 hours, 277 passed.
+
+**Already how we work.** Steps 1, 3, 4 and 6 are Stage O (Knowledge Factory:
+reproduce first, then declared variants), Stage L (post-publication evidence only,
+adopt at t > 3), Stage AA (Chan's Kalman pairs: fail after publication) and paper
+incubation before any slot. Quantpedia is already a rule-description source for a
+few curated entries (calendar effects, payday anomaly: all rejected net); it is not
+bulk-ingested.
+
+**Red flags.**
+- "277 of 1,368 passed" (20%) is a multiple-testing warning, not a result. Here 94%
+  of 1.05M search trials were net positive in backtests and none showed a durable
+  edge; the pass rate says the bar is low.
+- Step 5 (try 3 crypto pairs) is a new search over many markets; "a rule works on a
+  coin nobody applied it to" needs the trial count charged. Crypto here also costs
+  ~1.9% round trip, and buy-and-hold beat every crypto trend variant.
+- TradingView verification is redundant: our simulator already fills at the next
+  open, includes costs and models dead companies.
+- tradingkit.com plugin: unverified third-party tooling; not installed.
+- Quantpedia's paid library and terms: bulk copying may be restricted. Check terms
+  before any scripted ingestion; the free tier is for reading.
+
+**Adopted (attach to Addendum F, Phase E1/E2).**
+1. **Out-of-universe replication as a prior, counted honestly**: when a documented
+   strategy passes after-publication, one pre-declared replication on a different
+   market or period counts as extra evidence, and every market tried is added to
+   the trial ledger.
+2. **Record each strategy's publication year** in `knowledge_library` so the
+   after-publication window is computed, not typed (partly exists in Stage L).
+3. **Pass-rate sanity line in reports**: show the share of tested strategies that
+   pass beside the share a random-rule control passes (`random_control.py`).
