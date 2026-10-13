@@ -90,8 +90,24 @@ off, no capital-limit change, nothing live without owner approval.
 - **Overlap to read first:** Addendum F §E3's "Historical Experience Learning Engine" is close to Stage P already
   built (`analog.py`, `analog_eval.py`: walk-forward AUC 0.523 vs XGBoost 0.626 on matched rows). Do not rebuild
   the experiment from zero; account for that result.
-- Roadmap row AB added to `docs/ROADMAP_INTEGRATION.md`. Reviewer artifacts (tracker, dossier) were updated 10-12 and
-  do not yet mention Addendum F.
+- Roadmap row AB added to `docs/ROADMAP_INTEGRATION.md`; `PROJECT_STATUS.md` refreshed; tracker and dossier artifacts
+  updated 10-13 with Addendum F and the leads below.
+- **Ideas review (owner shared 16 outside posts, papers and prompts; all in `docs/IDEAS_LOG.md`, #1-#16; most declined).**
+  Adopted additions are appended to Addendum F with phase and priority (P1 = first audit pass). Workflow for new
+  ideas: read the link (X needs the browser pane + JS text extraction; WebFetch returns 402), check the claim against
+  our own data, log it in `IDEAS_LOG.md`, adopt only what can be tested. Declined themes: futures/intraday, LEAPS
+  and Kelly now, crypto, theme picks, LLM-made backtests, nightly self-rewrite of live logic, third-party plugins.
+- **Verified leads for Phase A (queried, NOT fixed; the owner said plan first, action later):**
+  (1) corporate actions booked as losses: 4 `CTVA` paper trades ~ -84% (unadjusted entry vs back-adjusted exit);
+  (2) the same ticker/date trade once per fund (`lab_search` 8,791 trades / 566 funds); (3) plain recompute from
+  `paper_trades` gives momentum +2.04% and st_uptrend_pullback +0.36% vs funnel +2.69% / +1.13%, cause unknown;
+  (4) `funnel.py` t-stat is iid; deflation exists only in `promote.py` (Lab ladder), not in funnel/ranking/slots;
+  (5) noise-only 95% t thresholds 3.25 (N=88) to 5.32 (N=1M), so two or three of the seven families sit in the luck
+  range even before the dependence fix; (6) option data has no expiry beyond 77 days (no LEAPS testing).
+- **Housekeeping 10-13:** `backup.py` run and verified (forward 408,131 rows / 62 tables; listings snapshot
+  `backups/listings_2026-10-13.sql.gz`); `daily_snapshot.py` still waiting for the owner's look before cron.
+- **Next step recommended to the owner:** Phase A1-A3 for `lab_search` and `momentum` as one read-only script;
+  nothing live changes. Open owner question: the drawdown they can tolerate (to sit beside the returns in Phase F).
 
 ### SESSION HANDOFF — 2026-10-12
 

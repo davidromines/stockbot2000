@@ -1,6 +1,6 @@
 # PROJECT_STATUS
 
-Updated 2026-10-12.
+Updated 2026-10-13.
 
 Stockbot2000 is a quantitative research system: it ingests prices and
 point-in-time fundamentals, generates and evaluates trading strategies, tracks
@@ -44,7 +44,7 @@ signal below is real or this project's next entry in its own defect ledger
 | Live account | **-$1.75 (-2.0%)** since LIVE armed 2026-09-24, 15 trading days; today +$0.11 |
 | Live slots | 5 of 5 filled, cash $0 — WDC, CRS, INTC (+2.8% best), DELL, FDX; 3 of 5 currently negative |
 | Acceptance checklist (`acceptance.py`) | 25 of 27 passed (last full read 2026-10-06) — the 2 failures are expected: full suite needs `--suite`, SHADOW track record still accruing |
-| Forward families clearing t > 2 | **7, newly observed this period** — see below. None promoted |
+| Forward families clearing t > 2 | **7, newly observed 2026-10-12** — see below. None promoted; **under independent audit (Addendum F, not yet started)** |
 | Regression suite | 148 of 148 test files pass |
 | Options paper record | Best is 3 closed trades per strategy, against the 20 needed to arm real orders |
 
@@ -102,6 +102,37 @@ WDC -10.5%, CRS -0.6%, INTC -2.5%, DELL +2.8%, FDX +0.9%. `touch
 data/KILL_SWITCH` stops everything and flattens the slots. A second
 real-money path (options, R7) is built and committed but inert — see the
 Stage R row above.
+
+## Independent review and the audit that follows (2026-10-13)
+
+An independent reviewer read the 2026-10-12 dossier and asked for an audit before any of
+the seven positive families is trusted (`docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`, Stage AB;
+**entered, not yet built**). Its core points: separate *research ranking* from *live-capital
+eligibility*; recompute the seven families from raw trades with dependence-aware statistics
+and a multiple-testing correction; find where candidates are lost between hypothesis and
+real money; keep live execution, options, crypto and the frozen search untouched.
+Owner ruling: the "1%" target is not tied to one denominator; per-trade, per-deployed-dollar,
+portfolio and monthly/annualized returns are reported side by side, with no target set yet.
+
+Checks made while reviewing sixteen outside ideas (`docs/IDEAS_LOG.md`; most declined)
+already produced verified leads, none acted on:
+
+| Lead | Finding |
+|---|---|
+| Corporate actions | 4 `CTVA` paper trades show about -84% because an unadjusted entry price is compared with a back-adjusted exit (likely a spin-off) |
+| Duplicates | The same ticker-and-date trade appears once per fund (`lab_search`: 8,791 trades in 566 funds) |
+| Funnel vs raw data | A plain recompute gives momentum +2.04% (funnel +2.69%) and `st_uptrend_pullback` +0.36% (funnel +1.13%); cause not yet found |
+| Statistics | The funnel's t-statistic treats trades as independent; deflation / multiple-testing code exists only in the frozen Lab ladder, not in the funnel, ranking or slots |
+| Luck threshold | Noise alone gives a best t of 2.5-4.9 depending on how many independent tests are assumed (88 families to 1M trials); two to three of the seven families (t 2.9-3.4) sit inside that range even at the generous end |
+| Data | No option expiries beyond 77 days, so LEAPS cannot be tested |
+
+Status of the seven families therefore: **unresolved, pending Phase A** — not promoted, not
+dismissed.
+
+## Housekeeping
+
+Data backup run 2026-10-13 04:41 UTC and verified (forward records: 408,131 rows, 62 tables;
+listings snapshot 536,291 rows). Regression suite: 148 test files pass (last full run 2026-10-12).
 
 ## Not yet live: a redesigned daily report
 

@@ -249,6 +249,17 @@ Claude does not read the raw data, features, or model — only the two
 handoff files. This keeps token usage low and keeps the interpretation
 work on your local model, per the design goal.
 
+## Reports
+
+| Script | What it makes |
+|---|---|
+| `eod_report.py --mode LIVE [--send]` | The detailed end-of-day text report (17 sections; cron 21:10 UTC weekdays) |
+| `daily_snapshot.py --mode LIVE [--dry-run \| --out F.png \| --send]` | One portrait image: real-account P&L, a card and sparkline per slot, one plain-English line. Needs `matplotlib`. Built and tested; **not yet on cron** pending the owner's design sign-off. Slot figures are scoped to each slot's current assignment |
+| `digest.py --send` | Weekly Telegram digest (Sundays) |
+
+Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
+`docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`.
+
 ## Research integrity (Phase 6)
 
 Measurements that say whether a result is real. None of them recommends a
