@@ -510,3 +510,33 @@ all audit reports and the weekly digest).
 use this prompt's reporting rules: every figure with its source file or query and
 date, facts / inferences / unknowns in separate labelled sections, and the closing
 "What could be wrong" section. No crypto research is started.
+
+## 2026-10-13 #13 — "ChatGPT is a stock trading genius: 7 prompts to automate stock trading" (@ZunairaSaeedAi thread on X, read in the browser pane)
+
+**What it is.** Seven prompt templates (tails of some cut off by X without a login):
+(1) trading idea generator: "5 high-probability setups" with entry, targets, stop,
+risk/reward; (2) technical analyst: buy / hold / sell from daily and weekly charts;
+(3) news to implications: "expected price variation range, recommended positioning";
+(4) "perform a backtest" of a named strategy and report success rate, profit factor,
+drawdown; (5) portfolio risk manager: weak points, hidden correlations, a hedge for a
+20% fall; (6) journal analyzer: review my last 20 trades, find errors and give three
+rules; (7) a timestamped daily trading-plan checklist. Same genre as entry #6; the one
+reply calls it a scam.
+
+**Assessment.**
+- A chat model asked to "perform a backtest" (4) has no price data and no code run
+  unless it is given both; the success rate and profit factor it returns are invented.
+  Our rule: one backtester (`simulator.py`), real data, costs, next-open fills,
+  dead companies, trial counts. Likewise "high-probability" setups, price ranges and
+  buy / hold / sell calls (1-3) carry no calibration or track record.
+- "Automate trading" is not what these do; they produce text a person then acts on.
+  Here, execution is code behind the risk engine, never a model.
+
+**Maps to what we have / are planning.** (5) correlated holdings: Addendum F C3
+(correlation-aware slots, `strategy_diversity.py`). (6) trade review: `journal.py`,
+`live_feedback.py` (expected vs actual, slippage, exit reason, regime); only ~10
+closed live trades exist, too few to find "recurring errors". (7) the daily checklist
+is the cron schedule plus the one-page report.
+
+**Adopted.** Nothing. Reaffirmed: no model-generated performance numbers anywhere in a
+report; every figure comes from a query or script that can be re-run.
