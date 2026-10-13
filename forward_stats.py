@@ -87,3 +87,88 @@ def corporate_action_flag(df: pd.DataFrame, thr: float = CA_THRESHOLD) -> pd.Ser
     return ((re > thr) | (rx > thr)).fillna(False)
 
 
+
+
+# --- multiple testing across families (Addendum F, A4) -----------------------------------
+def t_pvalue_one_sided(t: float, df: float) -> float:
+    """P(T >= t) for a Student t with df degrees of freedom (df = independent entry dates - 1)."""
+    from scipy import stats
+    return float(stats.t.sf(t, df)) if t == t and df and df > 0 else float("nan")
+
+
+def holm(p: list) -> list:
+    """Holm step-down adjusted p-values; NaN stays NaN and is not counted."""
+    idx = [i for i, x in enumerate(p) if x == x]
+    order = sorted(idx, key=lambda i: p[i])
+    m = len(order)
+    out = [float("nan")] * len(p)
+    run = 0.0
+    for rank, i in enumerate(order):
+        run = max(run, min(1.0, (m - rank) * p[i]))
+        out[i] = run
+    return out
+
+
+def benjamini_hochberg(p: list) -> list:
+    """BH q-values (false-discovery-rate adjusted p-values)."""
+    idx = [i for i, x in enumerate(p) if x == x]
+    order = sorted(idx, key=lambda i: p[i], reverse=True)
+    m = len(idx)
+    out = [float("nan")] * len(p)
+    prev = 1.0
+    for k, i in enumerate(order):
+        rank = m - k
+        prev = min(prev, p[i] * m / rank)
+        out[i] = min(1.0, prev)
+    return out
+
+
+def nyholt_meff(corr) -> float:
+    """Effective number of independent tests from a correlation matrix (Nyholt 2004 eigenvalue form)."""
+    c = np.asarray(corr, dtype=float)
+    m = c.shape[0]
+    if m < 2:
+        return float(m)
+    ev = np.linalg.eigvalsh(np.nan_to_num(c, nan=0.0))
+    return float(1 + (m - 1) * (1 - np.var(ev, ddof=1) / m))
+
+
+def maxt_signflip(date_means: pd.DataFrame, reps: int = 20000, seed: int = SEED, min_dates: int = 3) -> pd.DataFrame:
+    """
+    Westfall-Young style max-T test across families, with the same random sign applied to a date for every family
+    (so cross-family dependence is preserved). `date_means`: index = entry dates, columns = families, NaN where a
+    family has no trades that date. Statistic per family: one-sample t of its date means. Null: date means are
+    symmetric about zero. Returns observed t, the family's own sign-flip p, and the max-T adjusted p, one-sided
+    (large positive t). Absolute-return nulls are rejected by a market drift: use an excess return for edge claims.
+    """
+    X = date_means.to_numpy(dtype=float)
+    M = ~np.isnan(X)
+    X = np.nan_to_num(X, nan=0.0)
+    n = M.sum(axis=0).astype(float)
+    sumsq = (X ** 2).sum(axis=0)
+    ok = n >= min_dates
+
+    def tstat(s):
+        mean = s / np.where(n > 0, n, 1)
+        var = (sumsq - n * mean ** 2) / np.where(n > 1, n - 1, 1)
+        se = np.sqrt(np.where(var > 0, var, np.nan) / np.where(n > 0, n, 1))
+        return mean / se
+
+    obs = tstat(X.sum(axis=0))
+    rng = np.random.default_rng(seed)
+    exceed_own = np.zeros(X.shape[1])
+    exceed_max = np.zeros(X.shape[1])
+    done = 0
+    while done < reps:
+        b = min(2000, reps - done)
+        S = rng.choice([-1.0, 1.0], size=(b, X.shape[0]))
+        tt = tstat(S @ X)                                   # b x F
+        tt = np.where(ok[None, :], tt, -np.inf)
+        mx = np.nanmax(tt, axis=1)
+        exceed_own += (np.nan_to_num(tt, nan=-np.inf) >= np.where(ok, obs, np.inf)[None, :]).sum(axis=0)
+        exceed_max += (mx[:, None] >= np.where(ok, obs, np.inf)[None, :]).sum(axis=0)
+        done += b
+    out = pd.DataFrame({"t": obs, "dates": n.astype(int), "p_own": (exceed_own + 1) / (reps + 1),
+                        "p_maxT": (exceed_max + 1) / (reps + 1)}, index=date_means.columns)
+    out.loc[~ok, ["p_own", "p_maxT"]] = np.nan
+    return out

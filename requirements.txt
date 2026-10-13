@@ -2,6 +2,7 @@ yfinance>=0.2.40
 pandas>=2.0.0
 xgboost>=2.0.0
 scikit-learn>=1.4.0
+scipy>=1.11.0       # forward_stats.py: Student-t p-values (already installed with scikit-learn)
 pyyaml>=6.0
 requests>=2.31.0
 pyarrow>=15.0.0
