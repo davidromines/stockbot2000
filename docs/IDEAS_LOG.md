@@ -267,3 +267,46 @@ mechanical rules and tested like everything else (the `knowledge_extract.py` pat
 with its verification pass); no scheduled job calls an LLM. For the owner's own
 research on individual stocks outside this system, the templates are fine as a
 starting point, with every number checked against the filing.
+
+## 2026-10-13 #7 — NQ 3-minute choppy-market dip-buy rules (screenshot, no source or results shown)
+
+**What it is.** Rules only: Nasdaq-100 futures (NQ), 3-minute candles, 9:00-11:00 CT,
+long only, one position. Trade only when the Kaufman efficiency ratio of the last 15
+closes is <= 0.35 (choppy). One second after each candle closes, rest a buy limit at
+close - 1.0 x ATR(14); fill only if price trades one tick THROUGH the limit; cancel
+after 9 minutes. Target the middle of the signal candle; stop 1.5 x ATR below the
+fill; time stop 15 minutes after the fill; flat at 11:00 CT. Modelled with one tick of
+slippage on stops and market exits, and "the losing move assumed first inside each
+second". No results, sample size or source are in the image.
+
+**Does not fit as written.** NQ is a futures contract: our broker path has no
+futures. Three-minute, two-hour-window trading is day trading: the account is
+limited margin with 3 day trades per 5 sessions. Robinhood dollar (fractional)
+orders are market orders only; a resting limit order needs whole shares, impossible
+at $20 slots in most names. Minute history here is 132,555 bars, 20 names, since
+2026-09-17 (about 16 sessions), too short to test an intraday rule.
+Five parameters (0.35, 1.0, 1.5, 9 min, 15 min) with no stated derivation look
+tuned; without the trial count and out-of-sample result it is a hypothesis, not
+evidence.
+
+**Worth keeping: the modelling honesty.** Fill a limit only on a trade THROUGH the
+price, assume the adverse move happens first inside a bar, charge slippage on stops
+and market exits, cancel unfilled orders. These match this project's stance (next-open
+fills, gaps booked, costs in every trade). A search of `intraday.py` shows no
+equivalent rule for its same-day SHADOW book; confirm when Addendum F audits D2.
+
+**Adopted (attach to Addendum F).**
+1. **Choppiness regime.** There is no efficiency-ratio code in the repo. Add a
+   pre-declared 15-day Kaufman efficiency-ratio regime (<= 0.35 choppy) on daily
+   bars and report each family by it, next to the rate / dollar / SPY-EMA regimes.
+   Our forward-positive families are reversion and pullback types, the kind of
+   strategy this regime is meant to favour. Descriptive only, gates nothing.
+2. **Limit-entry experiment, research only.** For the reversion families, compare the
+   next-open fill with a limit at prior close - k x ATR filled only on a trade-through,
+   counting missed trades (adverse selection: fills cluster on falling days). One
+   pre-declared k, no sweep.
+3. **Intraday simulation rules.** Before any same-day strategy is believed, give
+   `intraday.py` the three rules above (trade-through fills, adverse-move-first,
+   slippage on stops).
+Not adopted: futures, the 3-minute window, live limit orders, the numeric parameters.
+If the original post had a backtest, share it; the numbers matter more than the rules.
