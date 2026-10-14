@@ -73,7 +73,14 @@ DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0,
             # figure is scaled to this many sessions. A year-long ETF trade and a week-long
             # stock trade are different units; per trade, long holds looked many times better.
             # None disables.
-            "normalize_hold_days": 20, "min_hold_for_scaling": 5}
+            "normalize_hold_days": 20, "min_hold_for_scaling": 5,
+            # Owner, 2026-10-14: the slots must hold the best-BACKTESTED ideas. "blend" (the original)
+            # starts from the backtest and lets a few days of paper trades move the score, which put
+            # Lab-search funds with no backtest, and strategies that lose in the worst-case survivorship
+            # mode, into live slots. "backtest_first": a strategy needs a survivorship backtest that is
+            # positive in the worst case and (where tested) positive on the unseen 2023-today window; it
+            # is scored on that evidence alone (per 20 sessions held); paper results are shown, never scored.
+            "evidence_mode": "blend"}
 
 
 def published_factor(conn, family: str | None) -> tuple:
@@ -103,6 +110,20 @@ def score(backtest: float | None, forward: float | None, n: int, s: dict) -> flo
     if forward is None or n <= 0:
         return prior
     return (k * prior + n * float(forward)) / (k + n)
+
+
+def backtest_first_verdict(searched: bool, backtest, sv: dict | None, ok: bool, why: str) -> tuple:
+    """(ok, why) under evidence_mode=backtest_first: needs a backtest, and a positive worst case."""
+    if not ok:
+        return ok, why
+    if searched or backtest is None:
+        return False, "no backtest: Lab-search strategies are scored on paper evidence only and cannot hold a slot in backtest_first mode"
+    wc = (sv or {}).get("worst_case")
+    if wc is None:
+        return False, "no survivorship backtest (worst case unknown): not eligible in backtest_first mode"
+    if wc <= 0:
+        return False, f"loses money in the worst-case survivorship mode ({wc:+.3%} per trade)"
+    return True, why
 
 
 def gate(backtest: float | None, share_deep: float | None = None, limit: float | None = None) -> tuple:
@@ -336,6 +357,9 @@ def rank(conn, cfg: dict) -> list:
                 if ok and (ho["per_trade"] or 0) <= 0:
                     ok, why = False, f"loses on unseen 2023-today data ({ho['per_trade']:+.3%} per trade)"
                 prior_bt = ho["per_trade"]
+        bt_first = s.get("evidence_mode") == "backtest_first"
+        if bt_first:
+            ok, why = backtest_first_verdict(searched, bt, sv, ok, why)
         name = (conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?",
                              (key, ver)).fetchone() or [key])[0]
         out.append({"strategy_key": key, "version": ver, "name": name, "state": state,
@@ -349,7 +373,7 @@ def rank(conn, cfg: dict) -> list:
                     "synthetic_trades": sv.get("synthetic_trades"),
                     "from_search": searched,
                     "score": _per_hold(score(None if searched else (prior_bt * pf if prior_bt is not None else None),
-                                             fw, n, s), hold, s),
+                                             None if bt_first else fw, 0 if bt_first else n, s), hold, s),
                     "hold_days": hold, "hold_source": hold_src,
                     "published_t": pt, "holdout": (ho or {}).get("per_trade"),
                     "holdout_trades": (ho or {}).get("trades"),
