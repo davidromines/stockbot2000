@@ -74,6 +74,10 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-10-14 — Addendum G (Intraday Momentum Runner) entered; plan awaiting the independent reviewer
+
+**Read first:** `docs/ADDENDUM_G_INTRADAY_MOMENTUM_RUNNER.md` (the owner's prompt, verbatim, plus the owner's answers) and `docs/INTRADAY_RUNNER_PLAN.md` (the detailed plan, also at https://claude.ai/artifact/TnFveziKrGRs5gGGjkKiwx). **Nothing is built.** The owner wants it in TWO of the five live slots, after the reviewer has seen the plan. Key facts: free 1-minute data only (collector widened to ~200 names is milestone M1; today 20 names / 18 sessions), resident polling service allowed, day-trade rule to be verified with the broker before `account_rules.py` (still 3 per 5 sessions) is changed, recommendation to reserve slots 3 and 5, no live change without the owner's explicit approval. The same day: `ranking.evidence_mode: backtest_first` was set in `config.yaml` by the owner's instruction ("the live slots must be the best performing ideas") — the edit was UNCOMMITTED when this was written because the auto-mode classifier blocked later shell commands; check `git status` and commit it deliberately.
+
 ### SESSION HANDOFF — 2026-10-13 (START HERE)
 
 **Independent review received and entered as Addendum F (Stage AB) — `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`. NOT yet built; the owner said plan it first, action it after.**
