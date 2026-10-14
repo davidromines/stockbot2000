@@ -486,6 +486,11 @@ ranking:
   # post-publication t (t/3, capped at 1). On, it would demote liquidity, size and
   # profitability, whose published edge is gone or weak after publication.
   published_prior: false
+  # Owner, 2026-10-14 ("the live slots must be the best performing ideas"): slots hold the best-BACKTESTED
+  # strategies. Needs a survivorship backtest positive in the worst case; scored on backtest evidence
+  # alone; Lab-search funds (no backtest) are not slot-eligible; paper results are shown, not scored.
+  # "blend" restores the original (backtest + paper evidence).
+  evidence_mode: backtest_first
 
 # Addendum C Layer A sources (defaults live in universe_layer_a.DEFAULTS).
 # FinanceDatabase, approved by the owner 2026-09-24: sector / industry /
