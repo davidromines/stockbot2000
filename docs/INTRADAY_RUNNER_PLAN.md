@@ -5,6 +5,108 @@ Prepared 2026-10-14 in response to `docs/ADDENDUM_G_INTRADAY_MOMENTUM_RUNNER.md`
 reviewer before any implementation; every item below is *planned* unless marked *verified* (checked in the repository or
 the database on 2026-10-14).
 
+## Revision 2 (2026-10-15): independent review incorporated
+
+The reviewer's comments are in `docs/INTRADAY_RUNNER_REVIEW_1.md` (verbatim). They approve the direction and ask for targeted changes, not a redesign. **Where this section differs from sections 0-10 below, this section governs.** Still plan only: nothing is built, scheduled or armed.
+
+### R2.1 Disposition of every requested change
+
+| # | reviewer request | disposition | where |
+|---|---|---|---|
+| 1 | resolve the validation timeline | accepted: 60 shadow + 20 untouched holdout + 20 paper; overlap rules stated | R2.3 |
+| 2 | broker / account-rule verification before live | **accepted as a pre-live checklist; whether it is a hard gate is the owner's decision** (owner has instructed that the day-trade guard not be a blocker) | R2.2, decision D1 |
+| 3 | quote quality and exit reliability as hard gates | accepted | R2.4 |
+| 4 | simulator timing rules explicit | accepted | R2.5 |
+| 5 | risk accounting: intended vs realised, unrealised, cooldown | accepted | R2.7 |
+| 6 | net-edge sensitivity report | accepted | R2.8 |
+| 7 | keep current holders during SHADOW/PAPER; owner approves any live reallocation | accepted (it was already the plan) | R2.9 |
+| 8 | review `backtest_first` separately | accepted as a separate workstream; the owner set it live on 2026-10-14 and keeps that decision | R2.9, decision D2 |
+| 9 | every stage produces a concrete deliverable | accepted | R2.11 |
+| 10 | LIVE disabled by default | accepted (unchanged) | R2.4 |
+| Q1-Q8 | answers to the plan's questions | adopted as the decisions of record | R2.12 |
+
+### R2.2 Day-trade guard and account rules (conflict surfaced, not hidden)
+
+The owner instructed on 2026-10-14 that the guard be removed and not be treated as a blocker; it is off (`enforce_day_trade_limit: false`, reversible). The reviewer cautions that removing a check on an unverified belief is not sound and asks for verification before LIVE. Both are recorded. **Proposed resolution, owner to decide (D1):** the guard stays off as instructed, and the following read-only checklist is completed and reported before the first LIVE order; it is recommended as a gate, but it is the owner's call whether it blocks.
+
+P1. Read Robinhood's official documentation for this account type and record what it says on day trades, minimum equity, intraday margin, settlement and good-faith rules. P2. Read the account's displayed restrictions through the read-only account tools. P3. Keep software safety controls (our limits) separate from regulatory or broker restrictions in code and in the report. P4. Test, with a simulated broker, that a rejected order or an account restriction stops new intraday entries after the configured number of failures and raises an alert.
+
+### R2.3 Timeline (corrected)
+
+Three separate evidence requirements; assumptions: owner approves the collector job by 2026-10-16, collection starts Monday 2026-10-19, US market holidays observed (Thanksgiving, Christmas, New Year's Day, MLK Day, Presidents' Day).
+
+| stage | length | calendar (approx.) | can overlap with |
+|---|---|---|---|
+| SHADOW assessment (initial research result) | 60 sessions | 2026-10-19 to 2027-01-13 | build milestones M2-M6 run during it |
+| Untouched prospective holdout (rule frozen first) | 20 sessions | 2027-01-14 to 2027-02-11 | paper trading, operations only |
+| PAPER with slot constraints | 20 sessions | strict sequence: 2027-02-12 to 2027-03-12; overlapped: concurrent with the holdout | the holdout, **only if** the paper results are not counted as statistical evidence (they share the market's realisation) and the service is ready by 2027-01-14 |
+| Validation decision (M7) | | strict: about 2027-03-15 (~100 sessions); overlapped: about 2027-02-12 (~80 sessions) | |
+
+An **initial research result** (after the 60 shadow sessions) is not a validation decision: only the holdout plus the operational paper record, evaluated against pre-registered criteria, can produce a continue / revise / stop decision. None of the three periods is shortened.
+
+### R2.4 Hard gates for LIVE (all must hold; LIVE stays disabled by default and is never armed automatically)
+
+G1. **Quote capability verified:** `get_equity_quotes` (or the chosen source) returns usable bid, ask and timestamps for equities, shown in a probe report; if not, SHADOW continues on conservative assumptions but no strategy is reported as passed on last-trade prices. G2. **Execution costs measured:** decision-price to fill difference, spread, slippage and rejected orders, with conservative estimates while samples are small. G3. **Historical data verified:** timestamps, missing bars, split adjustment and universe membership shown free of look-ahead and survivorship effects. G4. **Monitoring cadence proven:** measured quote latency, API response time and throttling under the intended load before 15-30 seconds is adopted. G5. **Exit reliability tested:** restart-and-reconciliation test passes (mandatory before any LIVE order), failed-exit escalation tested, service-health rule tested. G6. **Pre-live account-rule checklist (R2.2)** per decision D1. G7. **Pre-registered SHADOW, holdout and paper criteria met (R2.3, R2.8).** G8. **Owner's explicit approval** after the reallocation report (R2.9), `allow_intraday: true` and `intraday.stage: LIVE` set by the owner.
+
+### R2.5 Simulator specification (explicit)
+
+* **Event order inside a bar is unknown; the rule is conservative and fixed:** for a long position the bar's adverse extreme (low) is assumed to occur before its favourable extreme (high), unless the bar data establishes the order.
+* **The entry bar's pre-entry high never moves the trailing stop.** The highest eligible price starts at the first price observable after the fill; bar highs count only for bars that begin after the fill time. A test pins this.
+* **Latency:** signal observed at bar close `t`; order submitted at `t + L_submit`; fill at the first executable price at or after `t + L_submit + L_fill` (parameters measured in M1, conservative defaults until then: decision-to-fill delay of at least one full bar of data).
+* **Prices:** entries fill at the ask side (quote when available, else last price plus half the modelled spread), exits at the bid side; slippage and fees applied; a stop trigger fills at the next executable price, never at the trigger, and a gap through the stop fills at the gap price.
+* **Triggers and executions are stored separately** (`trigger_price`, `exec_price`, `trigger_time`, `exec_time`) and every report states returns on execution prices; the worked example (entry $100, high $103, 1 % trail, trigger $101.97) is reported as trigger 1.97 % and an actual execution-based return, which may differ (e.g. 1.90 % or 1.50 %).
+* **Capital:** overlapping positions consume capital; rejected, delayed and partial orders are modelled with the rates measured in M1 and tested at higher rates.
+
+### R2.6 Exit reliability (additions)
+
+* **Service-health rule:** if reliable monitoring (fresh quotes for every open position and a successful heartbeat) cannot be restored within 30 seconds, new entries halt and an alert is raised; if it cannot be restored within 90 seconds, the position is exited at market through the engine; the kill switch overrides all of it.
+* **Failed-exit escalation:** retry with the same idempotent ref_id after reconciling outstanding orders; never submit a second sell for an unconfirmed first; after the configured number of failures, escalate to the emergency flatten path and alert the owner by Telegram; an exit is never assumed to have succeeded without a confirmed fill or a reconciled flat position.
+* **Broker-side protection investigation (M1 deliverable):** test, read-only and in review mode, whether a supported order type can protect a position independently of our service, including whole-share positions for lower-priced stocks; the finding goes into the M1 report; nothing is assumed to work with fractional-dollar positions.
+* **Time handling:** forced flattening and all session logic use the US market calendar and America/New_York time, never a fixed UTC hour. The earlier "cron safety sweep at 19:50 UTC" is replaced by a sweep that runs at both 19:45 and 20:45 UTC and acts only when New York time is 15:45-15:55 on a trading day, with a daylight-saving test across both transitions and an early-close (13:00 ET) test.
+* **Mandatory before any LIVE order:** a successful restart-and-reconciliation test with an open position.
+
+### R2.7 Risk accounting (definitions)
+
+* **`intraday_max_loss_per_trade_dollars` ($0.50 proposed) is intended stop risk**: it bounds the stop distance at entry. Reports show intended stop risk and **actual realised loss** side by side, with the excess (gap and slippage) reported as its own statistic.
+* **Daily loss limit counts realised plus unrealised intraday P&L** ($2 proposed): crossing it halts new intraday entries and triggers exits of open intraday positions; in addition the existing account-level limits ($15 / 15 % daily, drawdown tiers 10 / 20 / 35 %) stay authoritative and are not weakened.
+* **Re-entry:** after a stop-out the symbol is locked for the session (and the slot cools down for the configured minutes); a re-entry requires a new independently valid signal that also clears a higher threshold; every blocked and every allowed re-entry is logged and tested.
+
+### R2.8 Pass criteria and net-edge reporting (clearer, not easier)
+
+SHADOW and holdout reports state **signals and independent trading dates side by side**; uncertainty is a date-block bootstrap (observations on the same day are dependent); the configuration is frozen before the holdout; every configuration tried is in the experiment ledger; every control is reported (random entries with the same exits, simple momentum, no-trade, and the reversal counterpart), not only the winner. **Minimum economically meaningful net edge (proposal, reviewer to confirm):** mean net return per trade of at least 0.10 % at the measured round-trip cost, and still greater than zero at 2x the measured cost, with the date-block lower bound above zero; no threshold is lowered for the small account. Every report also shows net expectancy per trade, total net P&L, maximum drawdown, and the sensitivity to higher-than-measured costs; a strategy profitable only under optimistic execution has not passed.
+
+### R2.9 Slots and backtest-first
+
+* The five current holders stay through SHADOW and PAPER; no slot is reserved or reassigned for the Runner until LIVE. Slots 3 and 5 remain the recommendation, to be re-decided from the allocation on the day.
+* **Before LIVE:** a reallocation report shows the proposed slot changes, current holdings, realised and unrealised P&L and the evidence behind each replacement; **selling existing positions to make room needs the owner's explicit approval.**
+* **`backtest_first` review (separate workstream, own deliverable `reports/backtest_first_review.md`, not part of the Runner):** the owner set it live on 2026-10-14 and it stays unless the owner changes it. The review will compare, over the sessions since 2026-10-14, the forward results of the backtest-first holders with the previous allocation, the pool and random picks, restate the earlier finding that backtests ranked later returns weakly (rank correlation about +0.2 with 3 weeks of data), and propose pre-declared criteria under which the owner might revert (decision D2). The Runner does not depend on it and does not use `ranking.py`.
+
+### R2.10 Goals and the entry-condition breakdown
+
+Goal A (a working, safe intraday engine) is an engineering deliverable; Goal B (an intraday strategy that makes money net of costs, shown prospectively) is an empirical result. Passing A says nothing about B. The evaluation report breaks net performance down **by entry condition** and attributes it to **entry selection, exit management or both**: high-volume breakouts vs ordinary short-term momentum; relative strength vs the market; how extended entries are at detection; whether stops cut losers without cutting winners early; profitability after higher costs; and whether profits come from many dates or a few exceptional sessions.
+
+### R2.11 Milestones, with acceptance and a concrete deliverable each
+
+| # | work | acceptance | deliverable |
+|---|---|---|---|
+| M0 | finalise plan | review comments incorporated; scope and gates approved by the owner | this revised plan |
+| M1 | data foundation | collector reliable; quote capability, latency, throttling and broker-side protection verified and reported; data-quality report clean | collector job, `intraday_universe`, M1 report |
+| M2 | stops and simulator | stop, fill, gap, cost and failure tests pass; the R2.5 specification encoded and tested | `intraday_stops.py`, `intraday_sim.py`, stop test suite |
+| M3 | scanner and SHADOW | signals and rejection reasons logged; no-look-ahead (truncation) tests pass | `intraday_momentum.py`, signal log |
+| M4 | evaluation | walk-forward report with controls, all attempted configurations, net results, uncertainty, entry-condition breakdown | `intraday_eval.py`, first report (exploratory until 60 sessions) |
+| M5 | integration | existing trading behaviour intact; new risk controls and slot isolation pass regression tests | branch, tests, shadow allocation report, **owner merge** |
+| M6 | service and PAPER | service survives restart, handles failures safely, completes the required paper period | `intraday_runner.py`, systemd unit, paper report |
+| M7 | validation decision | pre-registered criteria decide continue / revise / stop | decision report |
+| M8 | LIVE-micro | a separate explicit owner decision after reviewing the evidence and the G1-G8 checklist | owner |
+
+### R2.12 Reviewer answers adopted as decisions of record
+
+Q1 keep the pass criteria, defined more clearly (R2.8). Q2 SHADOW logs every qualifying signal, kept separate from paper/live trades, with same-day correlation handled by date-based statistics. Q3 reversal is tracked as a control. Q4 the risk limits are starting values, now with the R2.7 definitions. Q5 free one-minute data for research; not sufficient for live approval by itself; no paid source until a specific limitation is identified. Q6 15-30 s polling only after G4. Q7 holders keep their slots during SHADOW/PAPER; fresh allocation review before LIVE. Q8 `backtest_first` is not treated as validated; reviewed separately (R2.9).
+
+### R2.13 Decisions needed from the owner
+
+D1. Is the pre-live account-rule checklist (R2.2) a hard gate for LIVE (reviewer and Claude recommend yes) or informational (owner's earlier instruction)? D2. Keep `backtest_first` on while its separate review is produced (current state), or switch back to `blend` until then? D3. Approve M1 (the daily collector job, the quote and latency probes) so collection can start; every session not collected now is unrecoverable and moves every date in R2.3. D4. Approve the minimum net edge in R2.8.
+
 ## 0. Summary
 
 | | |
@@ -14,7 +116,7 @@ the database on 2026-10-14).
 | First milestone | Working scanner + explicit entry/exit model + realistic simulator + SHADOW and paper report (no live orders) |
 | Honest prior | Low. The existing same-day SHADOW set (288 trades, 6 rules, 12 sessions) nets **−0.05 % per trade**; its three momentum-type rules are negative (−0.31 %, −0.17 %, −0.14 %), the two reversion rules slightly positive on small samples. Retail intraday momentum rarely survives costs. The plan is built so that a negative result is found quickly and cheaply |
 | Money at stake | Two slots x $20-25 = at most ~$50 deployed. A good strategy would make cents a day; the value of running it is **evidence**, not profit. Scaling is a later, separate owner decision |
-| Earliest honest verdict | About 60 sessions after the widened collector starts (mid-December 2026 to January 2027). Free 1-minute history is ~1 week, ours is 18 sessions for 20 names, so no credible backtest can exist sooner. The plan says so rather than substituting a flattering short backtest |
+| Earliest honest verdict | An initial research result about 60 sessions after the widened collector starts (about 2027-01-13 if collection starts 2026-10-19); the validation decision needs the holdout and paper period as well (about 80-100 sessions, R2.3). Free 1-minute history is ~1 week, ours is 18 sessions for 20 names, so no credible backtest can exist sooner. The plan says so rather than substituting a flattering short backtest |
 | Gates before any live use | (1) the pre-registered SHADOW and paper criteria; (2) the owner's explicit approval to arm. **The day-trade guard is not a blocker:** on 2026-10-14 the owner removed it (`enforce_day_trade_limit: false` in `config/risk.yaml`, switch added to `account_rules.py`) |
 
 ## 1. Owner answers and assumptions
@@ -103,7 +205,7 @@ Hard filters (reject with a logged reason): spread or cost above a cap, extensio
 | partial fill | track remaining quantity in the ledger; the manager keeps managing the remainder with the same stop state |
 | restart with open position | state persisted on every update (`intraday_state`); on start, reconcile with the broker, rebuild the highest price from stored minute bars since entry, resume |
 | duplicate instance / duplicate order | flock + deterministic ref_id (existing idempotency) |
-| near/after close | flatten at 15:45 ET; cron safety sweep at 19:50 UTC closes any `intraday:` position still open; alert if it ever fires |
+| near/after close | flatten at 15:45 ET; a New-York-time safety sweep (R2.6, daylight-saving safe) closes any `intraday:` position still open; alert if it ever fires |
 | reconciliation mismatch | existing behaviour: halt trading, alert |
 
 ### 3.7 Risk limits (new keys in `config/risk.yaml`, enforced in `risk_engine.py`, entries only; branch + owner merge)
@@ -178,7 +280,7 @@ The owner asked that the choice follow the current allocation. After the 07:00 U
 * **Backtest-first selection** (`ranking.evidence_mode`, `config.yaml`, 2026-10-14) applies to the medium-term slots only. The reviewer's note that those assignments rest on backtests despite the audit finding no established edge is a fair concern about that change, not about the Runner; the Runner does not use `ranking.py`. The reviewer is asked to comment on whether the backtest-first switch should stay while the intraday work proceeds. It also means the 07:00 UTC reassessment will sell WDC, CRS, AMD and FDX at the next open and buy four new positions.
 * **Audit conclusions** (`docs/AUDIT_F_FINAL_REPORT.md`) apply: nothing here is evidence of an edge until the pre-registered criteria are met.
 
-## 10. Questions for the reviewer
+## 10. Questions for the reviewer (answered 2026-10-15; the answers are adopted in R2.12)
 
 1. Is the pre-registered pass rule (>= 60 sessions, >= 300 signals on >= 40 dates, date-block lower bound > 0, beats random and momentum controls after a max-T adjustment across <= 12 configurations) strong enough, or too strict for a two-slot, $20-per-position experiment?
 2. Is logging **every** qualifying signal in SHADOW (not just what two slots could trade) a sound way to gather evidence, given the correlation of same-day signals?
