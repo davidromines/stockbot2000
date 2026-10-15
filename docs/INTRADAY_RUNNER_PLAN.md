@@ -15,11 +15,11 @@ the database on 2026-10-14).
 | Honest prior | Low. The existing same-day SHADOW set (288 trades, 6 rules, 12 sessions) nets **−0.05 % per trade**; its three momentum-type rules are negative (−0.31 %, −0.17 %, −0.14 %), the two reversion rules slightly positive on small samples. Retail intraday momentum rarely survives costs. The plan is built so that a negative result is found quickly and cheaply |
 | Money at stake | Two slots x $20-25 = at most ~$50 deployed. A good strategy would make cents a day; the value of running it is **evidence**, not profit. Scaling is a later, separate owner decision |
 | Earliest honest verdict | About 60 sessions after the widened collector starts (mid-December 2026 to January 2027). Free 1-minute history is ~1 week, ours is 18 sessions for 20 names, so no credible backtest can exist sooner. The plan says so rather than substituting a flattering short backtest |
-| Hard blockers before any live use | (1) broker rule for same-day round trips verified, then `account_rules.py` updated (owner-approved); (2) pre-registered SHADOW and paper criteria met; (3) owner's explicit approval to arm |
+| Gates before any live use | (1) the pre-registered SHADOW and paper criteria; (2) the owner's explicit approval to arm. **The day-trade guard is not a blocker:** on 2026-10-14 the owner removed it (`enforce_day_trade_limit: false` in `config/risk.yaml`, switch added to `account_rules.py`) |
 
 ## 1. Owner answers and assumptions
 
-1. **Day trades.** Owner states Robinhood dropped the 3-per-5-days / $25k pattern-day-trader limit on 2026-06-04 (FINRA intraday margin standards). **Unverified by Claude.** Our `account_rules.py` still enforces the old rule for margin-type accounts (`PDT_MAX_DAY_TRADES = 3`), and the account is typed `limited_margin`, which may be treated differently from a full margin account. Verification plan in section 3.8.
+1. **Day trades.** Owner states Robinhood dropped the 3-per-5-days / $25k pattern-day-trader limit on 2026-06-04 (FINRA intraday margin standards) and, on the same day (2026-10-14), instructed that our guard be removed. Done: `account_rules.py` now honours `enforce_day_trade_limit`, and `config/risk.yaml` sets it to `false` (the day-trade count is still recorded; `true` restores the old behaviour). Claude has not independently confirmed the broker's current rule; the broker remains the final authority and will reject anything it does not allow, which the order-failure handling in section 3.6 covers. See 3.8.
 2. **Data.** Free only to start: widen our own 1-minute collector. No paid source, no new account, no credentials.
 3. **Slots.** Choose the two slots from the current allocation; recommendation in section 6.
 4. **Polling.** A resident service during market hours is allowed.
@@ -37,7 +37,7 @@ All *verified* on 2026-10-14 by reading code and querying the database.
 | Stops | `stop_plans.py` has fixed %, ATR, volatility, `trailing_pct` (0.5-50 %) and `trailing_atr` with `high_since_entry`, but built for daily ATR and 5-minute polling | Reuse the plan/validate vocabulary; add a 1-minute-ATR and a monotone trailing-state implementation |
 | Costs | `costs.py`: spread estimated from daily dollar-volume tiers, slippage 0.05 % per side; "we hold no quote data" | Not good enough for 5-30 minute trades; needs a measured spread model |
 | Risk limits | `config/risk.yaml`: $25 per order and symbol, 10 orders a day, 2 per symbol per day (one round trip per symbol), $15 / 15 % daily loss, drawdown tiers 10/20/35 %, min price $5, `allow_*` switches | Intraday limits go in `risk.yaml` and `risk_engine.py` (a strategy edit must not widen a risk limit); new `allow_intraday` switch, default false |
-| Day-trade guard | `account_rules.py` blocks the 4th buy in 5 sessions on margin-type accounts | Stale if the owner's statement is right; blocker until verified |
+| Day-trade guard | `account_rules.py` blocked the 4th buy in 5 sessions on margin-type accounts | Removed by the owner 2026-10-14 (switch `enforce_day_trade_limit: false`); not a blocker |
 | Same-day engine | `intraday.py` is SHADOW-only by design (B8): 6 rules, `intraday_signals` 41,697 rows, `intraday_trades` 288 closed shadow trades over 12 sessions | Reuse its feature vocabulary (vwap, pct_from_open, ret_15m, range) and its results as the first baseline |
 | Intraday history | `minute_bars`: **20 tickers, 140,352 bars, 18 sessions** (2026-09-17 to 10-12), raw/unadjusted, collected after the close | Far too thin to validate anything; the collector must widen now because every missing day is unrecoverable |
 | Paper/backtest | Daily-bar engines (`simulator.py` next-open fills; `paper_trading.py` daily). No intraday simulator | A minute-bar event simulator is new code |
@@ -110,12 +110,11 @@ Hard filters (reject with a logged reason): spread or cost above a cap, extensio
 
 `allow_intraday` (false), `intraday_max_position_dollars`, `intraday_max_loss_per_trade_dollars` (bounds the stop distance), `intraday_max_daily_realized_loss_dollars`, `intraday_max_entries_per_session`, `intraday_max_simultaneous`, `intraday_max_correlated_positions`, `intraday_max_quote_age_seconds`, `intraday_max_order_failures`. Existing limits stay authoritative and are not weakened: $25 per order, 10 orders and 2 per symbol per day, $15 daily loss, drawdown tiers, kill switch. Starting values are set conservatively in the plan review (proposal: $20 position, $0.50 loss per trade, $2 intraday daily loss, 3 entries, 2 simultaneous).
 
-### 3.8 The day-trade rule: verify first, then change code (owner approval)
+### 3.8 The day-trade rule: removed by the owner (2026-10-14)
 
-1. Read-only broker checks (account info, limited-margin info tools) and Robinhood's own documentation, to establish what actually applies to a **limited-margin** account on 2026-10-14: day-trade count limits, minimum equity, intraday margin requirement, settled-funds and good-faith rules for same-day round trips with unsettled proceeds.
-2. Write the finding into the plan and the reviewer pack.
-3. If the old rule is gone for this account type, `account_rules.py` is out of date and over-restrictive: change it on a branch with tests, owner merges. If a different intraday requirement applies, encode that requirement, not "no limit".
-4. Until then the Runner runs SHADOW/PAPER only, where the guard is irrelevant.
+1. **Done:** the 3-per-5-sessions guard is switched off by the owner's instruction: `account_rules.check_buy` skips it when `enforce_day_trade_limit` is false (set false in `config/risk.yaml`); a regression test pins the switch, the default-true behaviour and that the settled-funds rule and every other risk limit are untouched.
+2. **What stays:** any rule the broker itself applies. If Robinhood's intraday margin requirement or a restriction rejects an order, the order fails and is handled as any rejected order (no retry loop, recorded, reconciled, intraday entries halted after the configured number of failures). The first live-micro sessions log every broker rejection reason so a hidden requirement shows up immediately.
+3. **Not a blocker.** It is no longer listed as a gate. (The reviewer may still want a one-line confirmation of the broker's current rule in their notes.)
 
 ### 3.9 Evaluation and success criteria (pre-registered in `experiment_registry` before the verdict window)
 
@@ -146,9 +145,9 @@ Hard filters (reject with a logged reason): spread or cost above a cap, extensio
 | M5 | Slot integration (shadow) | reserved-slot config, `slot_trader` skip logic, risk-limit keys on a branch, shadow allocation report | branch tests pass; **owner merge** |
 | M6 | Service + paper | `intraday_runner.py --serve`, systemd unit, paper trading with slot constraints | 20 paper sessions, no unreconciled state |
 | M7 | Verdict | pre-registered SHADOW/holdout/paper criteria | continue / stop |
-| M8 | LIVE-micro | only on the owner's explicit approval after M7 and section 3.8 | owner |
+| M8 | LIVE-micro | only on the owner's explicit approval after M7 | owner |
 
-New files (planned): `intraday_momentum.py`, `intraday_features.py`, `intraday_stops.py`, `intraday_sim.py`, `intraday_runner.py`, `intraday_eval.py`, `intraday_universe.py`, tests for each, a systemd unit template, `docs/INTRADAY_RUNNER_REPORT.md`. Modified (planned): `minute_bars.py` (universe), `quotes.py` (batch/bid-ask, freshness), `slots.py` and `slot_trader.py` (reserved slots), `risk_engine.py` and `config/risk.yaml` (limits), `account_rules.py` (after 3.8), `accounting.py` (fund kind), `backup.py` (new tables), `daily.sh` (collector/reports), `config.yaml`. New tables (planned, all append-only and in the backup): `intraday_universe`, `intraday_candidates`, `intraday_state`, `intraday_events`, `intraday_experiments`.
+New files (planned): `intraday_momentum.py`, `intraday_features.py`, `intraday_stops.py`, `intraday_sim.py`, `intraday_runner.py`, `intraday_eval.py`, `intraday_universe.py`, tests for each, a systemd unit template, `docs/INTRADAY_RUNNER_REPORT.md`. Modified (planned): `minute_bars.py` (universe), `quotes.py` (batch/bid-ask, freshness), `slots.py` and `slot_trader.py` (reserved slots), `risk_engine.py` and `config/risk.yaml` (limits), `accounting.py` (fund kind), `backup.py` (new tables), `daily.sh` (collector/reports), `config.yaml`. New tables (planned, all append-only and in the backup): `intraday_universe`, `intraday_candidates`, `intraday_state`, `intraday_events`, `intraday_experiments`.
 
 ## 6. Which two slots
 

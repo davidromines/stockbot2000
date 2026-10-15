@@ -149,6 +149,12 @@ def check_buy(portfolio: dict, limits: dict, want: float) -> tuple:
                              f"unsettled): buying with unsettled funds risks a good-faith violation")
         return want, None
     if kind == "margin":
+        if not limits.get("enforce_day_trade_limit", True):
+            # Owner, 2026-10-14: the 3-per-5-sessions pattern-day-trader limit ended with FINRA's
+            # intraday margin standards (Robinhood implemented it 2026-06-04). The operator's switch
+            # (config/risk.yaml enforce_day_trade_limit) turns this guard off; the day-trade COUNT is
+            # still recorded. Default true so a missing key keeps the old behaviour.
+            return want, None
         eq = float(portfolio.get("equity") or 0)
         n = portfolio.get("day_trades_5d")
         if n is None:

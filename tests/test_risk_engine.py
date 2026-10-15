@@ -158,12 +158,18 @@ check("CLOSE sells the whole held quantity", r.approved and abs((r.sized_quantit
 r = E.validate(sig(action="SELL", notional_value=None, quantity=5.0),
                {**PORTFOLIO, "positions": {"AAPL": {"value": 20.0, "quantity": 0.4}}}, GOOD_QUOTE)
 check("SELL never exceeds the held quantity", abs((r.sized_quantity or 0) - 0.4) < 1e-9)
-margin = RiskEngine({**LIMITS, "account_type": "margin"})
+# The guard is the operator's switch (config/risk.yaml enforce_day_trade_limit; owner turned it OFF 2026-10-14):
+# these cases pin the guard's behaviour WHEN enforced, so they set it explicitly.
+margin = RiskEngine({**LIMITS, "account_type": "margin", "enforce_day_trade_limit": True})
 r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 3}, GOOD_QUOTE)
 check("margin under $25k: 3 day trades stops new buys", not r.approved)
 r = margin.validate(sig(), {**PORTFOLIO, "day_trades_5d": 2}, GOOD_QUOTE)
 check("margin under $25k: 2 day trades still buys", r.approved)
-lim = RiskEngine({**LIMITS, "account_type": "limited_margin"})
+lim = RiskEngine({**LIMITS, "account_type": "limited_margin", "enforce_day_trade_limit": True})
+r = RiskEngine({**LIMITS, "account_type": "limited_margin", "enforce_day_trade_limit": False,
+                "limited_margin_settled_funds": False}).validate(
+    sig(), {**PORTFOLIO, "unsettled_proceeds": 0.0, "day_trades_5d": 3}, GOOD_QUOTE)
+check("limited_margin with the guard switched off: 3 day trades still buys", r.approved)
 r = lim.validate(sig(), {**PORTFOLIO, "unsettled_proceeds": 90.0, "day_trades_5d": 0}, GOOD_QUOTE)
 check("limited_margin: settled-funds rule still applies", r.approved and r.sized_notional == 10.0)
 r = lim.validate(sig(), {**PORTFOLIO, "unsettled_proceeds": 0.0, "day_trades_5d": 3}, GOOD_QUOTE)

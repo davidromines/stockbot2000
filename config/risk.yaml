@@ -88,4 +88,5 @@ crypto:
   min_dollar_volume: 5000000.0   # 20-day average daily USD turnover
 robinhood:
   account_number: "403446024"
+enforce_day_trade_limit: false        # owner 2026-10-14: the PDT 3-per-5-sessions limit ended (FINRA intraday margin standards, Robinhood 2026-06-04); true restores the guard
 limited_margin_settled_funds: false   # owner 2026-09-28: Robinhood buying power governs

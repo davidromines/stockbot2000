@@ -13,10 +13,10 @@
 > 1. *Day trades.* The owner states that Robinhood no longer has the 3-day-trade / $25,000 pattern-day-trader limit: FINRA's
 >    new intraday margin standards replaced the PDT rule, and Robinhood implemented the change on 2026-06-04 (no
 >    rolling-5-day limit, no $25k minimum for day trading, existing PDT flags removed from margin accounts; margin accounts
->    are now monitored against intraday margin requirements). **Claude has not independently verified this and our own risk
->    engine still enforces the old rule** (`account_rules.py`, 3 day trades per 5 sessions on a margin-type account); the
->    plan treats verification against the broker, and then an owner-approved change to `account_rules.py`, as a blocker
->    before any live intraday activity.
+>    are now monitored against intraday margin requirements). **Owner instruction, same day: remove the guard and treat it
+>    as no blocker.** Done in code: `account_rules.py` honours `enforce_day_trade_limit` and `config/risk.yaml` sets it to
+>    `false` (switch, not deletion; `true` restores the old behaviour). Claude has not independently confirmed the broker's
+>    current rule; any broker rejection is handled as an ordinary rejected order.
 > 2. *Intraday data.* Free only to start: our own collector (widened), no paid source yet.
 > 3. *Slots.* "What strategy is currently allocated to each slot" — the choice of the two slots is to be made from the
 >    current allocation (plan section 6 does this and gives a recommendation, to be confirmed by the shadow allocation report).
