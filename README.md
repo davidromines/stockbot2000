@@ -268,6 +268,9 @@ work on your local model, per the design goal.
 | `hypothesis_scorecard.py` | Addendum F E1/E2: Knowledge Factory audit (ideas -> lineages -> strategies) and the hypothesis scorecard (table `hypothesis_scorecard`) |
 | `experience_experiment.py` | Addendum F E3: pre-registered chronological baseline vs analog-similarity vs model experiment (`analog_vs_baseline_2026_10`) |
 | `profit_report.py` | Addendum F F/H7: profitability on four denominators (per trade, per deployed dollar, portfolio, monthly), real account vs current occupants vs research families |
+| `intraday_stops.py` | Intraday Runner (Addendum G) M2: initial + monotone trailing stop (percent or ATR), New-York-time flatten with early closes and daylight saving; pure functions |
+| `intraday_sim.py` | Intraday Runner M2: minute-bar trade simulator (adverse-first, latency, ask/bid costs, gap fills, trigger vs execution) and the per-configuration summary |
+| `intraday_manager.py` | Intraday Runner M2: live position state machine (stale-quote health rule, reconciled exits, partial fills, restart recovery); talks to a broker interface only. Not wired to anything yet |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
