@@ -51,7 +51,7 @@ drawdown_review_percent: 20.0    # new entries are refused; exits and stops stil
 # --- throttles -------------------------------------------------------------
 # A runaway loop is far more likely than a runaway strategy. These bound the
 # damage a bug can do in one session.
-max_orders_per_day: 10
+max_orders_per_day: 20                # was 10; the Intraday Runner adds up to 6 orders a day to the medium-term slots (owner 2026-10-15)
 max_orders_per_symbol_per_day: 2
 
 # --- signal quality --------------------------------------------------------
@@ -88,5 +88,6 @@ crypto:
   min_dollar_volume: 5000000.0   # 20-day average daily USD turnover
 robinhood:
   account_number: "403446024"
+allow_intraday: true                  # owner 2026-10-15: the Intraday Momentum Runner may place orders (config.yaml intraday.stage must also be LIVE)
 enforce_day_trade_limit: false        # owner 2026-10-14: the PDT 3-per-5-sessions limit ended (FINRA intraday margin standards, Robinhood 2026-06-04); true restores the guard
 limited_margin_settled_funds: false   # owner 2026-09-28: Robinhood buying power governs

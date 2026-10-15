@@ -373,11 +373,23 @@ def _idle_check(conn, cfg, s):
     return idle
 
 
+def intraday_reserved(cfg: dict | None) -> set:
+    """Slot ids reserved for the Intraday Momentum Runner (empty while intraday.stage is OFF or unset)."""
+    i = (cfg or {}).get("intraday") or {}
+    if str(i.get("stage", "OFF")).upper() == "OFF":
+        return set()
+    return {int(x) for x in (i.get("slots") or [])}
+
+
 def plan(conn, cfg: dict) -> dict:
     """What the slots should be, and the releases and assignments that implies."""
     s = settings(cfg)
     init(conn)
     held = current(conn, cfg)
+    # Slots reserved for the Intraday Momentum Runner (config.yaml intraday.slots, while intraday.stage is not OFF)
+    # are invisible to the medium-term machinery: never released, replaced, filled or counted here.
+    reserved = intraday_reserved(cfg)
+    held = {k: v for k, v in held.items() if k not in reserved}
     ranked = assess(conn, cfg)
     by_key = {(r["strategy_key"], r["version"]): r for r in ranked}
     eligible = [r for r in ranked if r["eligible"]]

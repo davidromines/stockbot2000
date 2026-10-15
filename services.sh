@@ -54,11 +54,15 @@ LINE_TG="* * * * * cd $DIR && flock -n /tmp/stockbot2000_telegram.lock ./venv/bi
 # Weekly research digest to Telegram (digest.py): Sundays 17:00 UTC = 10 AM Pacific.
 LINE_DIGEST="0 17 * * 0 cd $DIR && ./venv/bin/python digest.py --send >> $DIR/logs/digest.log 2>&1"
 LINE_NIGHT="30 22 * * * cd $DIR && ! pgrep -f '[f]actory_pipeline.py --run' >/dev/null && flock -n /tmp/stockbot2000_night.lock timeout 7h ./venv/bin/python factory_pipeline.py --run --budget 70 >> $DIR/logs/factory_night.log 2>&1"
+# Addendum G: the Intraday Momentum Runner service (intraday_runner.py). Started at 13:20 and 14:20 UTC on weekdays so it
+# covers the New York session in both EDT and EST; flock keeps one instance, and the process ends itself at 16:05 New York
+# time. It does nothing unless config.yaml intraday.stage is SHADOW or LIVE (LIVE also needs risk.yaml allow_intraday: true).
+LINE_INTRADAY="20 13,14 * * 1-5 cd $DIR && flock -n /tmp/stockbot2000_intraday.lock ./venv/bin/python intraday_runner.py --serve >> $DIR/logs/intraday_runner.log 2>&1"
 TAG="slot_trader.py --auto"
 TAG_CC="monitor.py --serve"
 case "${1:---status}" in
   --install)
-    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD" "$LINE_TG" "$LINE_NIGHT" "$LINE_DIGEST"; do
+    for L in "$LINE" "$LINE_SHADOW" "$LINE_LIVE" "$LINE_CC" "$LINE_SPREAD" "$LINE_CRYPTO" "$LINE_EOD" "$LINE_TG" "$LINE_NIGHT" "$LINE_DIGEST" "$LINE_INTRADAY"; do
       if crontab -l 2>/dev/null | grep -qF "$L"; then echo "already installed: ${L:0:60}..."; else
         (crontab -l 2>/dev/null; echo "$L") | crontab - && echo "installed: $L"; fi
     done ;;

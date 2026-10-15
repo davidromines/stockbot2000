@@ -87,6 +87,8 @@ class Manager:
             return pos
         if pos.status == EXITING:                                     # reconcile the working order first
             return self._exit(pos, pos.exit_reason or "exit")
+        if now >= st.flatten_at(now.astimezone(st.NY).date(), self.cfg):       # the flatten does not wait for a good quote
+            return self._exit(pos, "end-of-session flatten")
         good = price is not None and quote_ts is not None and (now - quote_ts).total_seconds() <= self.max_quote_age_s
         if not good:
             silent = (now - datetime.fromisoformat(pos.last_good_quote)).total_seconds()
@@ -102,8 +104,6 @@ class Manager:
         ts.highest, ts._stop = pos.highest, pos.stop                  # restore the monotone state, then observe
         ts.observe(price, quote_ts)
         pos.highest, pos.stop = ts.highest, ts.stop_price
-        if now >= st.flatten_at(now.astimezone(st.NY).date(), self.cfg):
-            return self._exit(pos, "end-of-session flatten")
         if self.cfg.max_hold_minutes and now - fill >= timedelta(minutes=self.cfg.max_hold_minutes):
             return self._exit(pos, "maximum holding time")
         if ts.breached(price):

@@ -382,6 +382,13 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     held = slots.current(conn, cfg)
     for slot, pos in open_positions(conn, mode).items():
         holder = held.get(slot)
+        if str(pos["strategy_key"]).startswith("intraday:"):
+            # An Intraday Momentum Runner position is managed by intraday_runner.py (stops, flatten, exits), never by
+            # this 5-minute pass. This is only the backstop: if one is still open at 15:55 New York time the runner
+            # has failed, and it is closed here so an intraday trade can never become a multiday holding.
+            if datetime.now(qt.NY).strftime("%H%M") >= "1555":
+                _exit(conn, engine, mode, slot, pos, "intraday safety sweep at 15:55 ET", ok, results)
+            continue
         if holder is None or not _belongs(pos, holder):
             _exit(conn, engine, mode, slot, pos, "slot released or reassigned", ok, results)
             continue
@@ -543,6 +550,8 @@ def trade(conn, cfg, mode: str, provider) -> list:
     for slot, h in held.items():
         if h is None:
             continue
+        if str(h["strategy_key"]).startswith("intraday:"):
+            continue                        # intraday slots trade in intraday_runner.py, never here
         g = slots.genome_for(conn, h["strategy_key"], h["version"])
         if not g or g.get("crypto"):
             continue                        # crypto slots trade in crypto_slot_trader.py
@@ -743,7 +752,8 @@ def main(argv=None) -> int:
         if last:
             held_now = slots.current(conn, cfg)
             open_now = open_positions(conn, args.mode)
-            idle = [s_ for s_, h_ in held_now.items() if h_ is not None and s_ not in open_now]
+            idle = [s_ for s_, h_ in held_now.items() if h_ is not None and s_ not in open_now
+                    and not str(h_["strategy_key"]).startswith("intraday:")]
             age = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 60
             retry = bool(idle) and age >= int(slots.settings(cfg).get("entry_retry_minutes", 60))
         if last and not (changed and changed > last) and not retry:

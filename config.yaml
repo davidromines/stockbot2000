@@ -492,6 +492,32 @@ ranking:
   # "blend" restores the original (backtest + paper evidence).
   evidence_mode: backtest_first
 
+# Addendum G: the Intraday Momentum Runner (intraday_runner.py), owner 2026-10-15: "built and active for tomorrow's
+# opening bell". Two of the five slots, $20 each. stage: OFF | SHADOW (scan and log, no orders) | LIVE (orders; also needs
+# config/risk.yaml allow_intraday: true). To stop it: stage: SHADOW or OFF here, or touch data/KILL_SWITCH.
+# The v0 entry rule is PRE-DECLARED and UNCALIBRATED (intraday_momentum.py); the plan's evidence gates are waived by the owner.
+intraday:
+  stage: LIVE
+  slots: [3, 5]
+  position_dollars: 20.0
+  max_entries_per_session: 3
+  max_simultaneous: 2
+  max_daily_loss_dollars: 2.0          # realised + unrealised, intraday slots only (account-wide $15 stays in risk.yaml)
+  max_loss_per_trade_dollars: 0.50     # INTENDED stop risk; gaps and slippage can make the realised loss larger
+  entry_start: "09:50"                 # New York time
+  entry_end: "14:30"
+  scan_every_s: 60
+  poll_every_s: 15
+  max_price_drift: 0.005
+  max_order_failures: 3
+  universe_size: 200
+  stop:
+    mode: pct
+    initial_pct: 1.0
+    trail_pct: 1.0
+    max_hold_minutes: 60
+    flatten_hhmm: "15:45"
+
 # Addendum C Layer A sources (defaults live in universe_layer_a.DEFAULTS).
 # FinanceDatabase, approved by the owner 2026-09-24: sector / industry /
 # identifiers and a delisted flag, NO dates — so it attaches to a company only

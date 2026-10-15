@@ -231,10 +231,14 @@ class RiskEngine:
         if not sig.is_actionable():
             return res.reject(f"{sig.action} places no order")
 
+        # An EXIT is never refused for hitting an order-count throttle or a loss limit: a limit that can block a sale
+        # traps capital in a losing position, the opposite of risk control (found 2026-10-15 while building the
+        # Intraday Runner, whose protective exits must always be able to go). Entries are gated as before.
+        is_exit = sig.action in ("SELL", "CLOSE")
         for check in (self._check_instrument(sig),
                       self._check_confidence(sig),
-                      self._check_throttles(sig, today),
-                      self._check_losses(portfolio)):
+                      None if is_exit else self._check_throttles(sig, today),
+                      None if is_exit else self._check_losses(portfolio)):
             if check:
                 res.reject(check)
 
