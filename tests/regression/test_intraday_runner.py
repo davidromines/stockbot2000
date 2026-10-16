@@ -187,8 +187,8 @@ runner = ir.Runner(c, CFG2, CycleEngine(), quote_fn, lambda tk, now: {"AAA": str
                    universe_fn=lambda: ["AAA"], meta_fn=lambda ts: META)
 out = runner.tick(T[0])
 check("the leader is bought for a free slot", out["entered"] == ["AAA"] and len(runner.positions) == 1)
-check("the fill is in the slot ledger as an OPEN under the Runner's key", c.execute(
-    "SELECT action, strategy_key, symbol FROM slot_trades WHERE slot_id=3").fetchall() == [("OPEN", ir.KEY, "AAA")])
+check("the fill is in the slot ledger as an OPEN under the Runner's key", [tuple(r) for r in c.execute(
+    "SELECT action, strategy_key, symbol FROM slot_trades WHERE slot_id=3").fetchall()] == [("OPEN", ir.KEY, "AAA")])
 check("the position is persisted and the signal is logged TRADED", c.execute("SELECT COUNT(*) FROM intraday_state").fetchone()[0] == 1
       and c.execute("SELECT action FROM intraday_runner_signals WHERE ticker='AAA'").fetchone()[0] == "TRADED")
 check("bars were stored for the evaluation history", c.execute("SELECT COUNT(*) FROM minute_bars WHERE ticker='AAA'").fetchone()[0] == 40)
@@ -224,7 +224,7 @@ shadow = ir.Runner(sc, SH, CycleEngine(), quote_fn, lambda tk, now: {"AAA": stro
 T[0] = datetime(2026, 10, 14, 14, 10, 20, tzinfo=UTC)
 shadow.tick(T[0])
 check("SHADOW logs the qualifying signal and places no order", state["fills"] == [] and not shadow.positions
-      and sc.execute("SELECT action FROM intraday_runner_signals").fetchall() == [("QUALIFIED",)])
+      and [tuple(r) for r in sc.execute("SELECT action FROM intraday_runner_signals").fetchall()] == [("QUALIFIED",)])
 oc = sqlite3.connect(":memory:")
 slots.init(oc); stx.init(oc); mb.init(oc); ir.init(oc)
 off = ir.Runner(oc, {"intraday": {"stage": "OFF"}}, CycleEngine(), quote_fn, lambda tk, now: {"AAA": strong()},

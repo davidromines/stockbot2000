@@ -381,7 +381,7 @@ class Runner:
         h = self.holders[slot]
         self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                           "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                          (_now_iso(), self.mode, slot, KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
+                          (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
                            f"intraday: {pos.exit_reason}", pos.exit_ref))
         self.conn.commit()
         pnl = (avg - pos.entry_price) * pos.exited_qty
@@ -469,7 +469,7 @@ class Runner:
             plan = [{"type": "trailing_pct", "pct": self.stop_cfg.trail_pct}, {"type": "fixed_pct", "pct": self.stop_cfg.initial_pct}]
             self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                               "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                              (_now_iso(), self.mode, slot, KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
+                              (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
                                float(o.avg_fill_price), None, json.dumps(plan), sig.reason, res["signal_id"]))
             self.conn.commit()
             pos = self._mgr(slot).open(sym, float(o.filled_quantity), float(o.avg_fill_price), now)

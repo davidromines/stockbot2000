@@ -90,7 +90,7 @@ r = E.validate(sig(), {**PORTFOLIO, "drawdown_percent": 40.0}, GOOD_QUOTE, {})
 check("drawdown limit blocks new orders", not r.approved, str(r.reasons))
 
 # --- throttles --------------------------------------------------------------
-r = E.validate(sig(), PORTFOLIO, GOOD_QUOTE, {"orders_today": 10})
+r = E.validate(sig(), PORTFOLIO, GOOD_QUOTE, {"orders_today": int(LIMITS["max_orders_per_day"])})      # the cap is configuration (20 since 2026-10-15)
 check("daily order cap enforced", not r.approved, str(r.reasons))
 
 r = E.validate(sig(), PORTFOLIO, GOOD_QUOTE, {"orders_for_symbol": 2})
