@@ -136,11 +136,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def ledger_rows_today(conn, slots_: list, day: str) -> list:
+def ledger_rows_today(conn, slots_: list, day: str, mode: str = "LIVE") -> list:
     if not slots_:
         return []
     q = ",".join("?" * len(slots_))
-    cur = conn.execute(f"SELECT * FROM slot_trades WHERE mode='LIVE' AND slot_id IN ({q}) ORDER BY id", slots_)
+    cur = conn.execute(f"SELECT * FROM slot_trades WHERE mode=? AND slot_id IN ({q}) ORDER BY id", [mode, *slots_])
     cols = [c[0] for c in cur.description]
     rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     return [r for r in rows if datetime.fromisoformat(r["at"]).astimezone(NY).date().isoformat() == day]
@@ -165,8 +165,8 @@ class SellAdapter:
     suffix so a retry is a new decision (the signal id is session-scoped), while order_status() always asks the orders
     table what happened to the previous attempt."""
 
-    def __init__(self, conn, engine, slot: int, reconciled_fn):
-        self.conn, self.engine, self.slot, self.reconciled = conn, engine, slot, reconciled_fn
+    def __init__(self, conn, engine, slot: int, reconciled_fn, mode: str = "LIVE"):
+        self.conn, self.engine, self.slot, self.reconciled, self.mode = conn, engine, slot, reconciled_fn, mode
 
     def _strategy(self, n: int) -> str:
         return f"slot{self.slot}:{KEY}" + (f":x{n}" if n > 1 else "")
@@ -208,7 +208,7 @@ class SellAdapter:
         n = self._attempt(ref_id)
         symbol = self._parse(ref_id)[0]
         sig = sg.Signal(symbol=symbol, action="SELL", strategy=self._strategy(n), reason="", session=self.engine.session)
-        row = ex.already_submitted(self.conn, sig.signal_id, "LIVE")
+        row = ex.already_submitted(self.conn, sig.signal_id, self.mode)
         if not row:
             return None
         return self._map(row["state"], row.get("filled_quantity"), row.get("avg_fill_price"))
@@ -265,7 +265,11 @@ def fetch_bars(tickers: list, now: datetime) -> dict:
 # --- the runner ----------------------------------------------------------------------------------------------
 class Runner:
     def __init__(self, conn, cfg, engine, quote_fn, bars_fn, notify_fn=None, reconcile_fn=None, stage_ok_fn=None,
-                 kill_fn=None, universe_fn=None, meta_fn=None):
+                 kill_fn=None, universe_fn=None, meta_fn=None, mode: str = "LIVE"):
+        # ExecutionEngine reads rows by column name (row["n"]); a plain connection made every entry fail with
+        # "tuple indices must be integers" on 2026-10-15 (the fake-engine tests could not see it). Always Row.
+        conn.row_factory = sqlite3.Row
+        self.mode = mode
         self.conn, self.cfg, self.s = conn, cfg, settings(cfg)
         self.engine, self.quote, self.bars_fn = engine, quote_fn, bars_fn
         self.notify = notify_fn or (lambda t, m: None)
@@ -295,7 +299,7 @@ class Runner:
         import slot_trader as stx
         cur = stx.slots.current(self.conn, self.cfg)
         self.holders = {sl: h for sl, h in cur.items() if sl in slots_of(self.cfg) and h and h["strategy_key"] == KEY}
-        opens = stx.open_positions(self.conn, "LIVE")
+        opens = stx.open_positions(self.conn, self.mode)
         for sl, p in opens.items():
             if sl not in self.holders or p["strategy_key"] != KEY:
                 continue
@@ -312,7 +316,7 @@ class Runner:
             log.info(f"recovered slot {sl}: {pos.symbol} status {pos.status}")
 
     def _mgr(self, slot: int) -> im.Manager:
-        return im.Manager(SellAdapter(self.conn, self.engine, slot, lambda: self.last_reconcile[1]), self.stop_cfg,
+        return im.Manager(SellAdapter(self.conn, self.engine, slot, lambda: self.last_reconcile[1], self.mode), self.stop_cfg,
                           alert=lambda m: self.notify("Intraday runner", m))
 
     # --- helpers ------------------------------------------------------------------------------------------
@@ -320,7 +324,7 @@ class Runner:
         return now.astimezone(NY).date().isoformat()
 
     def daily_pnl(self, now) -> tuple:
-        rows = ledger_rows_today(self.conn, slots_of(self.cfg), self.today(now))
+        rows = ledger_rows_today(self.conn, slots_of(self.cfg), self.today(now), self.mode)
         realised, entries, syms = realised_today(rows)
         unreal = 0.0
         for sl, pos in self.positions.items():
@@ -377,7 +381,7 @@ class Runner:
         h = self.holders[slot]
         self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                           "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                          (_now_iso(), "LIVE", slot, KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
+                          (_now_iso(), self.mode, slot, KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
                            f"intraday: {pos.exit_reason}", pos.exit_ref))
         self.conn.commit()
         pnl = (avg - pos.entry_price) * pos.exited_qty
@@ -465,7 +469,7 @@ class Runner:
             plan = [{"type": "trailing_pct", "pct": self.stop_cfg.trail_pct}, {"type": "fixed_pct", "pct": self.stop_cfg.initial_pct}]
             self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                               "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                              (_now_iso(), "LIVE", slot, KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
+                              (_now_iso(), self.mode, slot, KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
                                float(o.avg_fill_price), None, json.dumps(plan), sig.reason, res["signal_id"]))
             self.conn.commit()
             pos = self._mgr(slot).open(sym, float(o.filled_quantity), float(o.avg_fill_price), now)
