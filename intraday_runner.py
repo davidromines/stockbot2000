@@ -614,6 +614,12 @@ def status() -> int:
     for sl in slots_of(cfg):
         h = cur.get(sl)
         print(f"  slot {sl}: {h['strategy_key'] if h else 'cash'}")
+    import intraday_twin as tw
+    ts = tw.settings(cfg)
+    print(f"twin-ETF stage {ts['stage']}  slots {ts['slots']}")
+    for sl in slots_of(cfg, tw.BLOCK):
+        h = cur.get(sl)
+        print(f"  slot {sl}: {h['strategy_key'] if h else 'cash'}")
     for r in conn.execute("SELECT slot_id, symbol, updated_at FROM intraday_state"):
         print("  open", r)
     for r in conn.execute("SELECT at, session, scanned, candidates, open_positions, note FROM intraday_heartbeat ORDER BY id DESC LIMIT 3"):
