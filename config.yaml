@@ -498,7 +498,7 @@ ranking:
 # The v0 entry rule is PRE-DECLARED and UNCALIBRATED (intraday_momentum.py); the plan's evidence gates are waived by the owner.
 intraday:
   stage: LIVE
-  slots: [3, 5]
+  slots: [3]                           # slot 5 moved to the twin-ETF Runner (owner 2026-10-16); the stock Runner keeps slot 3
   position_dollars: 20.0
   max_entries_per_session: 3
   max_simultaneous: 2
@@ -515,6 +515,28 @@ intraday:
     mode: pct
     initial_pct: 1.0
     trail_pct: 1.0
+    max_hold_minutes: 60
+    flatten_hhmm: "15:45"
+
+# The twin-ETF Runner (intraday_twin.py), owner 2026-10-16: the same Runner on the bull/inverse ETF pairs. It goes long
+# whichever leg of a pair is trending (the bull leg when the index breaks up, the inverse leg when it breaks down) and never
+# shorts. v0, pre-declared, uncalibrated. Same stage switch: OFF | SHADOW | LIVE (LIVE also needs risk.yaml allow_intraday).
+intraday_twin:
+  stage: LIVE
+  slots: [5]
+  position_dollars: 20.0
+  max_entries_per_session: 3
+  max_simultaneous: 1
+  max_daily_loss_dollars: 1.0
+  entry_start: "09:50"
+  entry_end: "14:30"
+  scan_every_s: 60
+  poll_every_s: 15
+  max_price_drift: 0.005
+  stop:
+    mode: pct
+    initial_pct: 0.35                  # x leverage of the leg: 0.35% for a 1x ETF, 0.70% for a 2x ETF, on the ETF's price
+    trail_pct: 0.35
     max_hold_minutes: 60
     flatten_hhmm: "15:45"
 

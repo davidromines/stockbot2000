@@ -375,10 +375,12 @@ def _idle_check(conn, cfg, s):
 
 def intraday_reserved(cfg: dict | None) -> set:
     """Slot ids reserved for the Intraday Momentum Runner (empty while intraday.stage is OFF or unset)."""
-    i = (cfg or {}).get("intraday") or {}
-    if str(i.get("stage", "OFF")).upper() == "OFF":
-        return set()
-    return {int(x) for x in (i.get("slots") or [])}
+    out = set()
+    for block in ("intraday", "intraday_twin"):
+        i = (cfg or {}).get(block) or {}
+        if str(i.get("stage", "OFF")).upper() != "OFF":
+            out |= {int(x) for x in (i.get("slots") or [])}
+    return out
 
 
 def plan(conn, cfg: dict) -> dict:

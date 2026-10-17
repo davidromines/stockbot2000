@@ -77,6 +77,8 @@ def features(bars: pd.DataFrame, spy: pd.DataFrame | None, daily_atr_pct: float 
         "vwap_slope": float(vwap / vwap10 - 1) if vwap10 == vwap10 and vwap10 else float("nan"),
         "vol_accel": float(v[-15:].sum() / (tot / (n / 15.0))) if tot > 0 else float("nan"),
         "breakout": float(price / h[-31:-3].max() - 1),
+        "breakdown": float(price / l[-31:-3].min() - 1),          # negative when price is below the lowest low of t-30..t-4
+        "momentum_down": bool(price <= c[-4]),
         "orb_break": bool(n > 30 and price > h[:30].max()),
         "atr1m_pct": float(np.mean((h[-14:] - l[-14:]) / c[-14:])),
         "momentum_intact": bool(price >= c[-4]),

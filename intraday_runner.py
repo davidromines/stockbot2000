@@ -55,9 +55,9 @@ DEFAULTS = {
 }
 
 
-def settings(cfg: dict) -> dict:
-    s = {**DEFAULTS, **((cfg or {}).get("intraday") or {})}
-    s["stop"] = {**DEFAULTS["stop"], **(((cfg or {}).get("intraday") or {}).get("stop") or {})}
+def settings(cfg: dict, block: str = "intraday") -> dict:
+    s = {**DEFAULTS, **((cfg or {}).get(block) or {})}
+    s["stop"] = {**DEFAULTS["stop"], **(((cfg or {}).get(block) or {}).get("stop") or {})}
     return s
 
 
@@ -74,28 +74,28 @@ def init(conn) -> None:
 
 
 # --- reserved slots ------------------------------------------------------------------------------------------
-def slots_of(cfg: dict) -> list:
-    return [int(x) for x in (settings(cfg).get("slots") or [])]
+def slots_of(cfg: dict, block: str = "intraday") -> list:
+    return [int(x) for x in (settings(cfg, block).get("slots") or [])]
 
 
-def assign(conn, cfg: dict, actor: str = "owner 2026-10-15") -> list:
-    """Hand the configured slots to the Runner. Idempotent. The medium-term holders there are RELEASED; slot_trader's
+def assign(conn, cfg: dict, actor: str = "owner 2026-10-15", block: str = "intraday", key: str = KEY) -> list:
+    """Hand the configured slots to a Runner. Idempotent. The previous holders there are RELEASED; slot_trader's
     next pass sells their positions ('slot released or reassigned') exactly as it does for any reassignment."""
     import slots
     slots.init(conn)
     at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     cur, done = slots.current(conn, cfg), []
-    for sl in slots_of(cfg):
+    for sl in slots_of(cfg, block):
         h = cur.get(sl)
-        if h and h["strategy_key"] == KEY:
+        if h and h["strategy_key"] == key:
             continue
         if h:
             conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, capital_usd, mode, reason) "
                          "VALUES (?,?,?,?,?,?,?,?)", (at, sl, "RELEASE", h["strategy_key"], h["version"], None, "LIVE",
-                                                      f"reserved for the Intraday Momentum Runner ({actor})"))
+                                                      f"reserved for {key} ({actor})"))
         conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, capital_usd, mode, reason, evidence) "
-                     "VALUES (?,?,?,?,?,?,?,?,?)", (at, sl, "ASSIGN", KEY, 1, settings(cfg)["position_dollars"], "LIVE",
-                                                    f"Intraday Momentum Runner v0 ({actor})", json.dumps({"stage": settings(cfg)["stage"]})))
+                     "VALUES (?,?,?,?,?,?,?,?,?)", (at, sl, "ASSIGN", key, 1, settings(cfg, block)["position_dollars"], "LIVE",
+                                                    f"{key} v0 ({actor})", json.dumps({"stage": settings(cfg, block)["stage"]})))
         done.append(sl)
     conn.commit()
     return done
@@ -165,11 +165,11 @@ class SellAdapter:
     suffix so a retry is a new decision (the signal id is session-scoped), while order_status() always asks the orders
     table what happened to the previous attempt."""
 
-    def __init__(self, conn, engine, slot: int, reconciled_fn, mode: str = "LIVE"):
-        self.conn, self.engine, self.slot, self.reconciled, self.mode = conn, engine, slot, reconciled_fn, mode
+    def __init__(self, conn, engine, slot: int, reconciled_fn, mode: str = "LIVE", key: str = KEY):
+        self.conn, self.engine, self.slot, self.reconciled, self.mode, self.key = conn, engine, slot, reconciled_fn, mode, key
 
     def _strategy(self, n: int) -> str:
-        return f"slot{self.slot}:{KEY}" + (f":x{n}" if n > 1 else "")
+        return f"slot{self.slot}:{self.key}" + (f":x{n}" if n > 1 else "")
 
     @staticmethod
     def _parse(ref_id: str) -> tuple:
@@ -264,13 +264,16 @@ def fetch_bars(tickers: list, now: datetime) -> dict:
 
 # --- the runner ----------------------------------------------------------------------------------------------
 class Runner:
+    BLOCK = "intraday"          # which config.yaml block configures this runner
+    KEY = KEY                   # the strategy key its slots carry
+
     def __init__(self, conn, cfg, engine, quote_fn, bars_fn, notify_fn=None, reconcile_fn=None, stage_ok_fn=None,
                  kill_fn=None, universe_fn=None, meta_fn=None, mode: str = "LIVE"):
         # ExecutionEngine reads rows by column name (row["n"]); a plain connection made every entry fail with
         # "tuple indices must be integers" on 2026-10-15 (the fake-engine tests could not see it). Always Row.
         conn.row_factory = sqlite3.Row
         self.mode = mode
-        self.conn, self.cfg, self.s = conn, cfg, settings(cfg)
+        self.conn, self.cfg, self.s = conn, cfg, settings(cfg, self.BLOCK)
         self.engine, self.quote, self.bars_fn = engine, quote_fn, bars_fn
         self.notify = notify_fn or (lambda t, m: None)
         self.reconcile = reconcile_fn or (lambda: True)
@@ -298,13 +301,13 @@ class Runner:
     def recover(self) -> None:
         import slot_trader as stx
         cur = stx.slots.current(self.conn, self.cfg)
-        self.holders = {sl: h for sl, h in cur.items() if sl in slots_of(self.cfg) and h and h["strategy_key"] == KEY}
+        self.holders = {sl: h for sl, h in cur.items() if sl in slots_of(self.cfg, self.BLOCK) and h and h["strategy_key"] == self.KEY}
         opens = stx.open_positions(self.conn, self.mode)
         for sl, p in opens.items():
-            if sl not in self.holders or p["strategy_key"] != KEY:
+            if sl not in self.holders or p["strategy_key"] != self.KEY:
                 continue
             r = self.conn.execute("SELECT state FROM intraday_state WHERE slot_id=?", (sl,)).fetchone()
-            mgr = self._mgr(sl)
+            mgr = self._mgr(sl, p["symbol"])
             if r:
                 pos = mgr.restore(json.loads(r[0]))
             else:
@@ -315,16 +318,24 @@ class Runner:
             self.positions[sl] = pos
             log.info(f"recovered slot {sl}: {pos.symbol} status {pos.status}")
 
-    def _mgr(self, slot: int) -> im.Manager:
-        return im.Manager(SellAdapter(self.conn, self.engine, slot, lambda: self.last_reconcile[1], self.mode), self.stop_cfg,
-                          alert=lambda m: self.notify("Intraday runner", m))
+    def stop_for(self, symbol: str | None) -> st.StopConfig:
+        """The stop rules for a symbol. The stock Runner uses one configuration; the twin-ETF Runner scales by leverage."""
+        return self.stop_cfg
+
+    def scan(self, bars: dict, spy, now) -> dict:
+        """The entry model. The stock Runner uses intraday_momentum.scan; the twin-ETF Runner overrides this."""
+        return mom.scan({t: b for t, b in bars.items() if t != "SPY"}, spy, self.meta, now=now, cfg=self.s)
+
+    def _mgr(self, slot: int, symbol: str | None = None) -> im.Manager:
+        return im.Manager(SellAdapter(self.conn, self.engine, slot, lambda: self.last_reconcile[1], self.mode, self.KEY),
+                          self.stop_for(symbol), alert=lambda m: self.notify("Intraday runner", m))
 
     # --- helpers ------------------------------------------------------------------------------------------
     def today(self, now) -> str:
         return now.astimezone(NY).date().isoformat()
 
     def daily_pnl(self, now) -> tuple:
-        rows = ledger_rows_today(self.conn, slots_of(self.cfg), self.today(now), self.mode)
+        rows = ledger_rows_today(self.conn, slots_of(self.cfg, self.BLOCK), self.today(now), self.mode)
         realised, entries, syms = realised_today(rows)
         unreal = 0.0
         for sl, pos in self.positions.items():
@@ -365,7 +376,7 @@ class Runner:
                 log.error(f"quote {pos.symbol}: {type(e).__name__}: {e}")
             price, qts = (q[0], q[1]) if q else (None, None)
             kill = self.kill()
-            mgr = self._mgr(sl)
+            mgr = self._mgr(sl, pos.symbol)
             if kill and pos.status == im.OPEN:
                 mgr._exit(pos, f"kill switch: {kill}")
             else:
@@ -381,7 +392,7 @@ class Runner:
         h = self.holders[slot]
         self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                           "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                          (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
+                          (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, self.KEY, h["version"], pos.symbol, "CLOSE", pos.exited_qty, avg, None, None,
                            f"intraday: {pos.exit_reason}", pos.exit_ref))
         self.conn.commit()
         pnl = (avg - pos.entry_price) * pos.exited_qty
@@ -401,17 +412,17 @@ class Runner:
             self.halted = self.halted or "intraday daily loss limit"
             for sl, pos in list(self.positions.items()):
                 if pos.status == im.OPEN:
-                    self._mgr(sl)._exit(pos, "intraday daily loss limit")
+                    self._mgr(sl, pos.symbol)._exit(pos, "intraday daily loss limit")
                     self.persist(sl, pos)
         if self.s["stage"] == "OFF" or not (time(9, 35) <= ny.time() <= time(16, 0)):
             return {"scanned": 0, "note": why or "idle"}
-        tickers = self.universe + ["SPY"]
+        tickers = list(dict.fromkeys(self.universe + ["SPY"]))
         bars = self.bars_fn(tickers, now)
         self.store(bars)                                   # the whole session is kept: the history the evaluation needs
         if not in_window(ny, self.s):
             return {"scanned": len(bars), "candidates": 0, "note": why or "outside the entry window"}
         spy = bars.get("SPY")
-        res = mom.scan({t: b for t, b in bars.items() if t != "SPY"}, spy, self.meta, now=now, cfg=self.s)
+        res = self.scan(bars, spy, now)
         cands = res["candidates"]
         for c in cands:
             key = (self.today(now), c["ticker"])
@@ -459,25 +470,26 @@ class Runner:
         if abs(q[0] / c["price"] - 1) > self.s["max_price_drift"]:
             self._log_skip(now, c, f"quote ${q[0]:.2f} drifted from the signal price ${c['price']:.2f}")
             return False
-        sig = sg.Signal(symbol=sym, action="BUY", strategy=f"slot{slot}:{KEY}",
+        sig = sg.Signal(symbol=sym, action="BUY", strategy=f"slot{slot}:{self.KEY}",
                         reason=f"intraday momentum v0 (uncalibrated) score {c['score']:.2f}",
                         notional_value=float(self.s["position_dollars"]), session=self.engine.session)
         res = self.engine.execute(sig, reconciled=self.last_reconcile[1])
         o = res.get("order")
         if res.get("status") in ("filled", "partially_filled") and o is not None and o.filled_quantity:
             h = self.holders[slot]
-            plan = [{"type": "trailing_pct", "pct": self.stop_cfg.trail_pct}, {"type": "fixed_pct", "pct": self.stop_cfg.initial_pct}]
+            sc = self.stop_for(sym)
+            plan = [{"type": "trailing_pct", "pct": sc.trail_pct}, {"type": "fixed_pct", "pct": sc.initial_pct}]
             self.conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, price, "
                               "atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                              (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
+                              (now.astimezone(timezone.utc).isoformat(timespec="seconds"), self.mode, slot, self.KEY, h["version"], sym, "OPEN", float(o.filled_quantity),
                                float(o.avg_fill_price), None, json.dumps(plan), sig.reason, res["signal_id"]))
             self.conn.commit()
-            pos = self._mgr(slot).open(sym, float(o.filled_quantity), float(o.avg_fill_price), now)
+            pos = self._mgr(slot, sym).open(sym, float(o.filled_quantity), float(o.avg_fill_price), now)
             self.positions[slot] = pos
             self.persist(slot, pos)
             self.failures = 0
             self.notify("Intraday entry", f"slot {slot} BUY {sym} {o.filled_quantity:.6f} @ ${float(o.avg_fill_price):.2f}; "
-                                          f"stop ${pos.stop:.2f} (trailing {self.stop_cfg.trail_pct}%)")
+                                          f"stop ${pos.stop:.2f} (trailing {sc.trail_pct}%)")
             self.conn.execute("UPDATE intraday_runner_signals SET action='TRADED' WHERE session=? AND ticker=?", (self.today(now), sym))
             self.conn.commit()
             return True
@@ -516,7 +528,7 @@ class Runner:
 
 
 # --- wiring --------------------------------------------------------------------------------------------------
-def build_live(conn, cfg) -> Runner:
+def build_live(conn, cfg, cls=None, block: str = "intraday") -> Runner:
     import killswitch as ks
     import risk_engine
     import robinhood_live
@@ -540,7 +552,7 @@ def build_live(conn, cfg) -> Runner:
 
     def stage_ok():
         lim = risk_engine.load_limits()
-        return (settings(cfg)["stage"] == "LIVE" and bool(lim.get("allow_intraday")) and
+        return (str((cfg.get(block) or {}).get("stage", "OFF")).upper() == "LIVE" and bool(lim.get("allow_intraday")) and
                 str(lim.get("execution_mode", "")).upper() == "LIVE")
 
     def notify_fn(title, msg):
@@ -550,21 +562,23 @@ def build_live(conn, cfg) -> Runner:
         except Exception as e:                                      # noqa: BLE001
             log.warning(f"alert failed: {type(e).__name__}")
 
-    return Runner(conn, cfg, engine, quote_fn, fetch_bars, notify_fn=notify_fn,
-                  reconcile_fn=lambda: stx.reconcile(conn, broker, "LIVE")[0], stage_ok_fn=stage_ok,
-                  kill_fn=lambda: ks.global_engaged())
+    return (cls or Runner)(conn, cfg, engine, quote_fn, fetch_bars, notify_fn=notify_fn,
+                           reconcile_fn=lambda: stx.reconcile(conn, broker, "LIVE")[0], stage_ok_fn=stage_ok,
+                           kill_fn=lambda: ks.global_engaged())
 
 
 def serve(poll_s: int | None = None) -> int:
     import robinhood_mcp as rh
     cfg = load_config()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=120)
-    s = settings(cfg)
-    if s["stage"] == "OFF":
-        log.info("intraday.stage is OFF: nothing to do")
+    import intraday_twin as tw
+    blocks = [("intraday", Runner), (tw.BLOCK, tw.TwinRunner)]
+    active = [(b, c) for b, c in blocks if str((cfg.get(b) or {}).get("stage", "OFF")).upper() != "OFF"]
+    if not active:
+        log.info("every intraday stage is OFF: nothing to do")
         return 0
-    runner = None
-    poll = poll_s or s["poll_every_s"]
+    runners: dict = {}
+    poll = poll_s or settings(cfg)["poll_every_s"]
     while True:
         now = datetime.now(timezone.utc)
         ny = now.astimezone(NY)
@@ -573,14 +587,19 @@ def serve(poll_s: int | None = None) -> int:
         if ny.weekday() < 5 and ny.time() >= time(9, 25):
             try:
                 with rh.session():
-                    if runner is None:
-                        runner = build_live(conn, cfg)
-                    runner.tick(now)
+                    for block, cls in active:
+                        try:
+                            if block not in runners:
+                                runners[block] = build_live(conn, cfg, cls, block)
+                            runners[block].tick(now)
+                        except Exception as e:                      # noqa: BLE001  — one runner's failure never stops the other
+                            log.error(f"{block} failed: {type(e).__name__}: {e}")
             except Exception as e:                                  # noqa: BLE001
                 log.error(f"loop error: {type(e).__name__}: {e}")
         _time.sleep(poll)
-    if runner and runner.positions:
-        runner.notify("Intraday runner", f"session over with {len(runner.positions)} intraday position(s) not closed - check the account")
+    for block, r in runners.items():
+        if r.positions:
+            r.notify("Intraday runner", f"{block}: session over with {len(r.positions)} intraday position(s) not closed - check the account")
     return 0
 
 
@@ -612,7 +631,10 @@ def main(argv=None) -> int:
     if a.assign:
         cfg = load_config()
         conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=120)
+        import intraday_twin as tw
         print("assigned slots:", assign(conn, cfg) or "already assigned")
+        if str((cfg.get(tw.BLOCK) or {}).get("stage", "OFF")).upper() != "OFF":
+            print("twin-ETF slots:", assign(conn, cfg, block=tw.BLOCK, key=tw.KEY_TWIN) or "already assigned")
         return 0
     if a.status:
         return status()
