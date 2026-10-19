@@ -72,8 +72,9 @@ def honest_forward(conn, run_id) -> tuple:
     if not run_id:
         return None, 0
     try:
-        r = conn.execute("SELECT AVG(net_pct), COUNT(DISTINCT entry_date) FROM paper_trades_restated WHERE run_id=?",
-                         (run_id,)).fetchone()
+        import restate_paper
+        r = conn.execute("SELECT AVG(net_pct), COUNT(DISTINCT entry_date) FROM paper_trades_restated WHERE run_id=? "
+                         "AND version=?", (run_id, restate_paper.VERSION)).fetchone()
     except sqlite3.Error:
         return None, 0
     if not r or r[0] is None:
