@@ -74,6 +74,25 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-10-19 later — Stage AD BUILD in progress (owner: "go ahead and build"); usage limit hit mid-build
+
+**On main (live-safe, tested):** Runners $5/trade; H2 config (no score-based replacement); backup covers Runner tables;
+Robinhood sign-in watchdog fixed (refresh erased the login stamp; alert called a missing function; seed file
+`~/.config/stockbot2000/robinhood_login_at.txt` = 10-05); strategy-review alert tier at 15% (`risk.yaml
+strategy_review_percent`); research/reporting modules `live_attribution.py`, `intraday_replay.py`,
+`external_benchmark.py`, `alpha_bench.py`, `predict_service.py`, `integrity_report.py`, `earnings_study.py`,
+`stop_study.py` (each with a test). Results: v0 Runner replay stock -0.11%/signal (t -3.3, worse than random entry),
+twin -0.14%; JKP spread correlation 0.86 momentum / 0.73 value; live fills +0.03% vs decision quote; 17 of 23 live exits
+were reassignments. **NOT YET RUN:** `alpha_bench.py --register` then `--run --write` (one look, pre-registered),
+`predict_service.py --fit --write`, earnings_study result (was running at cut-off; report not committed).
+**Unmerged branch `ad/live-equals-tested`, worktree `~/sb2k-ad`** (all its tests pass; 4 suite failures there are
+DB-less environment only): monthly review + hard/soft releases + rules-fingerprint grandfathering (slots.py), ranking
+risk terms + fund_id, basket slots (SIMULATION only) + beta cap 1.3 + entry-timing gate (off) (slot_trader.py),
+allocator.py shadow, survivorship `--refill`, funnel open-position columns, daily.sh [9k2]-[9k4], backup additions,
+config (`slots.review` monthly, `basket`, `book`, `entry_timing`). **To finish:** merge outside market hours
+(`git merge --no-ff ad/live-equals-tested`), `./run_tests.sh` in main, then `survivorship_backtest.py --refill`
+(bounded), `allocator.py --record`, the two research runs above, then remove the worktree. Plan build log not yet written.
+
 ### 2026-10-19 — Addendum H + Stage AD profitability plan entered (PLAN ONLY; START HERE for what to build next)
 
 Independent review of the 10-19 dossier entered verbatim as `docs/ADDENDUM_H_ALPHA_RESEARCH_ENGINE.md`; Claude's
