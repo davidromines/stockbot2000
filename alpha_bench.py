@@ -217,15 +217,30 @@ def load(conn, start: str, end: str) -> dict:
     """Wide close/open matrices (dates x tickers) for common stock, SPY, and the sample dates' attached columns."""
     lo = (pd.Timestamp(start) - pd.Timedelta(days=400)).strftime("%Y-%m-%d")
     hi = (pd.Timestamp(end) + pd.Timedelta(days=120)).strftime("%Y-%m-%d")
-    px = pd.read_sql("SELECT p.ticker, p.date, p.open, p.close FROM prices p JOIN symbols s ON s.ticker=p.ticker "
-                     "WHERE s.security_type='common_stock' AND (s.data_quality IS NULL OR s.data_quality='') "
-                     "AND p.date >= ? AND p.date <= ?", conn, params=(lo, hi))
     spy = pd.read_sql("SELECT date, open, close FROM prices WHERE ticker='SPY' AND date >= ? AND date <= ? ORDER BY date",
                       conn, params=(lo, hi)).set_index("date")
     dates = list(spy.index)
-    close = px.pivot(index="date", columns="ticker", values="close").reindex(dates).astype("float32")
-    opn = px.pivot(index="date", columns="ticker", values="open").reindex(dates).astype("float32")
-    del px
+    tick = [r[0] for r in conn.execute("SELECT ticker FROM symbols WHERE security_type='common_stock' AND "
+                                       "(data_quality IS NULL OR data_quality='') ORDER BY ticker")]
+    di, ti = {d: i for i, d in enumerate(dates)}, {t: j for j, t in enumerate(tick)}
+    # Streamed straight into float32 matrices: a DataFrame of ~20M rows with string columns needs several GB.
+    C = np.full((len(dates), len(tick)), np.nan, dtype="float32")
+    O = np.full((len(dates), len(tick)), np.nan, dtype="float32")
+    cur = conn.execute("SELECT ticker, date, open, close FROM prices WHERE date >= ? AND date <= ?", (lo, hi))
+    while True:
+        rows = cur.fetchmany(500_000)
+        if not rows:
+            break
+        for t, d, o, c_ in rows:
+            j, i = ti.get(t), di.get(d)
+            if j is not None and i is not None:
+                O[i, j] = o if o is not None else np.nan
+                C[i, j] = c_ if c_ is not None else np.nan
+    keep = ~np.isnan(C).all(axis=0)
+    cols = [t for t, k in zip(tick, keep) if k]
+    close = pd.DataFrame(C[:, keep], index=dates, columns=cols)
+    opn = pd.DataFrame(O[:, keep], index=dates, columns=cols)
+    del C, O
     return {"dates": dates, "close": close, "open": opn, "spy": spy}
 
 
