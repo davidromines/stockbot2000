@@ -90,6 +90,9 @@ def render(s: pd.DataFrame) -> str:
     L = [f"# Stop study — {date.today().isoformat()} (Stage AD3.6)", "",
          "From the restated forward record (next-open fills; corporate-action trades excluded). Excursions in ATR(14) at entry; "
          "negative = against the position.", "",
+         "**Read the win column with care: it counts CLOSED trades only.** After a few weeks, a medium-term family's closed "
+         "trades are mostly its stop-outs; its winners are still open and are not here. These are not the strategies' win "
+         "rates, and the loss columns describe the trades that were stopped, not the strategy.", "",
          "| family | trades | win | winners' MAE p50 | winners' MAE p90 | losers' MFE p50 | configured stop (ATR) | losers beyond p90 | their mean loss |",
          "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
     f = lambda v, s_="{:+.2f}": "n/a" if v != v else s_.format(v)       # noqa: E731
