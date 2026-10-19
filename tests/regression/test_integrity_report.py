@@ -17,6 +17,7 @@ CREATE TABLE survivorship_backtests (strategy_key TEXT, trades INT, sd_per_trade
 c.executemany("INSERT INTO paper_trades VALUES ('r','T',?,1.0)", [(f"2026-10-{d:02d}",) for d in range(1, 11)])
 c.executemany("INSERT INTO paper_trades_restated VALUES ('v2','r',?,'2026-10-01',1.0,?)", [("VZ", 1), ("A", 0), ("B", 0), ("C", 0)])
 c.executemany("INSERT INTO survivorship_backtests VALUES ('s', ?, ?)", [(10, None), (10, 0.05), (1, None)])
+c.commit()          # pandas rolls the connection back when a read fails (no slot_trades here): commit the fixture first
 d = ir.collect(c)
 check("restatement coverage = restated / closed", d["restated"]["restated"] == 4 and abs(d["restated"]["share"] - 0.4) < 1e-12)
 check("corporate-action flags are counted with their tickers", d["restated"]["corporate_action"] == 1
