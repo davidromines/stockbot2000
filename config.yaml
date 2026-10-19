@@ -417,6 +417,21 @@ slots:
   entry_retry_minutes: 20   # owner 2026-09-28: retry the buying pass every 20 min while a slot is empty
   standins: 10              # stand-in strategies recorded daily for idle slots (was 5)
   max_replacements_per_day: 0   # owner 2026-10-19 (H2): no score-based replacement until the monthly review (AD2.3); was 2. Ineligibility releases still happen
+  # Stage AD2.3 (owner H2, 2026-10-19): the monthly review. Score-based replacement only on the month's first session,
+  # by more than the switching cost plus one standard error of the score difference; between reviews only HARD failures
+  # release a holder (kill switch, accounting, stale data, stop plan, arming, a gate failed under the CURRENT rules).
+  # Score drift, an idle entry rule, or a gate failed because the rules changed since assignment wait for the review.
+  # With cadence monthly the two settings above are not used.
+  review:
+    cadence: monthly
+    max_replacements: 2
+    min_hold_sessions: 20
+    switching_cost: 0.004       # sale + purchase, per 20 sessions held
+    se_multiple: 1.0
+    se_fallback: 0.01           # score standard error assumed where the dispersion is not yet measured
+  # Stage AD3.3 (owner H7b): "raw" until the risk-adjusted order has run 20 sessions in shadow (allocator.py), then
+  # "risk_adjusted". Changing it is a rule change: holders assigned before it are grandfathered to the next review.
+  score_mode: raw
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
   # slot must have a price stop (§15), so this one is added and is the slot's
