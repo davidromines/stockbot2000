@@ -118,6 +118,9 @@ GROUPS = {
         "hypothesis_scorecard",     # Addendum F E2: lineage scorecard, by date
         "holdout_results",          # one look per strategy at 2023 -> today: the record IS the rule
         "market_checks",            # bull-market checks per strategy (recomputable, kept for history)
+        # Addendum G: the Intraday Runners' decision record — every qualifying signal (traded or
+        # refused), the service heartbeat and open-position state. Added 2026-10-19 (Stage AD1.4).
+        "intraday_runner_signals", "intraday_heartbeat", "intraday_state",
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
