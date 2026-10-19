@@ -273,6 +273,16 @@ work on your local model, per the design goal.
 | `intraday_stops.py` | Intraday Runner (Addendum G) M2: initial + monotone trailing stop (percent or ATR), New-York-time flatten with early closes and daylight saving; pure functions |
 | `intraday_sim.py` | Intraday Runner M2: minute-bar trade simulator (adverse-first, latency, ask/bid costs, gap fills, trigger vs execution) and the per-configuration summary |
 | `intraday_manager.py` | Intraday Runner M2: live position state machine (stale-quote health rule, reconciled exits, partial fills, restart recovery); talks to a broker interface only. Not wired to anything yet |
+| `intraday_twin.py` | Addendum G: the twin-ETF Runner (index ETF direction picks the bull or inverse leg, bought long), block `intraday_twin:` |
+| `live_attribution.py [--write]` | Stage AD9: each live trade against SPY over the same days, how it ended, volatility at entry, fill vs quote, ledger gap; daily stage `[9k3]` |
+| `intraday_replay.py --fetch\|--runners\|--mim\|--prospective\|--register` | Stage AD7: v0 Runner rules replayed on free 1-minute history with random-time and SPY controls; market intraday momentum (30m/60m); the live Runners' logged signals against the pre-registered rule `intraday_runner_v0_prospective` (daily `[9k4]`) |
+| `external_benchmark.py [--write]` | Stage AD8: our momentum and book-to-market terciles against JKP's published series, judged on the spread |
+| `alpha_bench.py --register\|--run [--write]` | Stage AD4: signal registry (`alpha_signals`, append-only `alpha_trials`), twelve published signals, IC / basket / volatility screen / ablation / dependence; classifier timing-dial test |
+| `predict_service.py --fit\|--score\|--calibration` | Stage AD5: per-horizon model ladder (mean -> ridge -> XGBoost), frozen models (`prediction_models`), dated shadow forecasts with abstention (`prediction_log`) |
+| `allocator.py [--record]` | Stage AD6: evidence-gated allocator in SHADOW (skeptical posterior), daily stage `[9k2]`, table `allocator_shadow`. Places nothing |
+| `integrity_report.py [--write]` | Stage AD1: one-page data-integrity report (fill conventions, restatement coverage, corporate actions, ledger gap, backups, dispersion coverage, prospective test, fills, sign-in) |
+| `earnings_study.py [--write]` | Stage AD3.5: holding across 8-K 2.02 announcements vs same-stock controls |
+| `stop_study.py [--write]` | Stage AD3.6: MAE/MFE in ATR units from the restated forward record against the configured stops |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
