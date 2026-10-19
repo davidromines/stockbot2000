@@ -93,7 +93,33 @@ def init(conn) -> None:
             computed_at      TEXT NOT NULL,
             PRIMARY KEY (strategy_key, version, mode, generator, window)
         )""")
+    # Stage AD3.2 (2026-10-19): per-trade dispersion, holding period and independent entry dates, so the
+    # ranking can score return per unit of risk and weigh evidence by dates, not trades. Older rows read NULL.
+    have = {r[1] for r in conn.execute("PRAGMA table_info(survivorship_backtests)")}
+    for col in EXTRA_COLS:
+        if col not in have:
+            conn.execute(f"ALTER TABLE survivorship_backtests ADD COLUMN {col} REAL")
     conn.commit()
+
+
+EXTRA_COLS = ("sd_per_trade", "avg_hold_days", "entry_dates")
+
+
+def dispersion(r: dict, size: float, dates=None) -> dict:
+    """sd of net return per trade, mean holding days and distinct entry dates from a simulator result."""
+    pnl = np.asarray(r.get("pnl_series", []), dtype=float)
+    n = len(pnl)
+    rows = np.asarray(r.get("entry_rows", []), dtype=int)
+    return {"sd_per_trade": float(np.std(pnl / size, ddof=1)) if n > 1 else None,
+            "avg_hold_days": float(r.get("avg_hold_days") or 0) or None if n else None,
+            "entry_dates": float(len(np.unique(np.asarray(dates)[rows]))) if (n and dates is not None) else None}
+
+
+def write_row(conn, row: dict) -> None:
+    """One result row by column name (the table gained columns; positional inserts would break)."""
+    cols = list(row)
+    conn.execute(f"INSERT OR REPLACE INTO survivorship_backtests ({', '.join(cols)}) VALUES "
+                 f"({', '.join('?' * len(cols))})", [row[c] for c in cols])
 
 
 def synth_id() -> str | None:
@@ -330,13 +356,15 @@ def run(conn, cfg, only: list | None = None) -> dict:
                     continue
                 n = int(r.get("n_trades") or 0)
                 rows = np.asarray(r.get("entry_rows", []), dtype=int)
-                conn.execute("INSERT OR REPLACE INTO survivorship_backtests VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                             (key, ver, mode, gen, wkey, n, int(is_syn[rows].sum()) if n else 0,
-                              float(r.get("gross_pnl_usd") or 0), float(r.get("costs_usd") or 0),
-                              float(r.get("net_pnl_usd") or 0),
-                              (float(r["net_pnl_usd"]) / n / size) if n else None,
-                              bias.exposure(r, dd)["share_deep"] if n else None,
-                              datetime.now(timezone.utc).isoformat(timespec="seconds")))
+                write_row(conn, {
+                    "strategy_key": key, "version": ver, "mode": mode, "generator": gen, "window": wkey,
+                    "trades": n, "synthetic_trades": int(is_syn[rows].sum()) if n else 0,
+                    "gross_usd": float(r.get("gross_pnl_usd") or 0), "costs_usd": float(r.get("costs_usd") or 0),
+                    "net_usd": float(r.get("net_pnl_usd") or 0),
+                    "per_trade": (float(r["net_pnl_usd"]) / n / size) if n else None,
+                    "share_deep": bias.exposure(r, dd)["share_deep"] if n else None,
+                    "computed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    **dispersion(r, size, panel.dates)})
                 conn.commit()
                 wrote += 1
                 log.info(f"{key} v{ver} {mode}: {n:,} trades ({int(is_syn[rows].sum()) if n else 0} synthetic) "
