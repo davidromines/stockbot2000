@@ -129,10 +129,97 @@ def open_positions(conn, mode: str) -> dict:
     return out
 
 
-def reconcile(conn, broker, mode: str) -> tuple:
+def basket_cfg(cfg: dict | None, mode: str) -> dict | None:
+    """Stage AD2.1/AD3.1 (owner H6/H7a, 2026-10-19): the basket settings when `mode` trades slots as baskets, else None.
+    config.yaml slots.basket: {k, weighting: inverse_vol | equal, min_dollars, modes: [...]}. A mode not listed keeps
+    the original one-position-per-slot path unchanged."""
+    b = ((cfg or {}).get("slots") or {}).get("basket") or {}
+    if not b or mode.upper() not in [str(m).upper() for m in (b.get("modes") or [])]:
+        return None
+    return {"k": max(1, int(b.get("k", 4))), "weighting": str(b.get("weighting", "inverse_vol")),
+            "min_dollars": float(b.get("min_dollars", 1.0))}
+
+
+def positions_list(conn, mode: str) -> list:
+    """Every open position: an OPEN without a later CLOSE for the same slot AND symbol (a basket holds several)."""
+    book = {}
+    cur = conn.execute("SELECT * FROM slot_trades WHERE mode=? ORDER BY id", (mode,))
+    cols = [c[0] for c in cur.description]
+    for r in cur.fetchall():
+        r = dict(zip(cols, r))
+        k = (r["slot_id"], r["symbol"])
+        if r["action"] == "OPEN":
+            r["stop_plan"] = json.loads(r["stop_plan"] or "[]")
+            book[k] = r
+        else:
+            book.pop(k, None)
+    out = list(book.values())
+    for p in out:
+        h = conn.execute("SELECT MAX(high) FROM slot_marks WHERE mode=? AND slot_id=? AND symbol=? "
+                         "AND at >= ?", (mode, p["slot_id"], p["symbol"], p["at"])).fetchone()[0]
+        p["high_since_entry"] = max(float(h or 0), float(p["price"]))
+    return out
+
+
+def _positions(conn, cfg, mode: str) -> list:
+    """(slot, position) pairs: every basket member in a basket mode, else one per slot (the original rule)."""
+    if basket_cfg(cfg, mode):
+        return [(p["slot_id"], p) for p in positions_list(conn, mode)]
+    return list(open_positions(conn, mode).items())
+
+
+def _beta(conn, symbol: str) -> float | None:
+    try:
+        r = conn.execute("SELECT beta FROM risk_metrics WHERE ticker=? AND beta IS NOT NULL ORDER BY date DESC LIMIT 1",
+                         (symbol,)).fetchone()
+    except sqlite3.Error:
+        return None
+    return float(r[0]) if r else None
+
+
+def beta_block(conn, cfg, held_positions: list, symbol: str, dollars: float) -> str | None:
+    """Stage AD3.4 (owner H7b): the reason a purchase would push the medium-term book's dollar-weighted beta above
+    `slots.book.beta_cap`, else None. Intraday positions are not counted. An unknown beta is taken as
+    `assume_unknown_beta` (1.5): an unmeasured name is not treated as a calm one."""
+    b = ((cfg or {}).get("slots") or {}).get("book") or {}
+    cap = b.get("beta_cap")
+    if not cap:
+        return None
+    unknown = float(b.get("assume_unknown_beta", 1.5))
+    rows = [(p["symbol"], float(p["quantity"]) * float(p["price"])) for p in held_positions
+            if not str(p.get("strategy_key", "")).startswith("intraday:")]
+    rows.append((symbol, float(dollars)))
+    tot = sum(d for _, d in rows)
+    if tot <= 0:
+        return None
+    book = sum((_beta(conn, s_) if _beta(conn, s_) is not None else unknown) * d for s_, d in rows) / tot
+    if book > float(cap):
+        return f"book beta with {symbol} would be {book:.2f}, above the {float(cap):.2f} cap"
+    return None
+
+
+def weights(conn, picks: list, provider, how: str = "inverse_vol") -> dict:
+    """Weights summing to 1: inverse of each name's ATR(14)/price (equal risk per name at an ATR stop), or equal."""
+    if how != "inverse_vol":
+        return {p: 1.0 / len(picks) for p in picks}
+    inv = {}
+    for p in picks:
+        a = _atr(conn, p)
+        q = provider.get(p)
+        px = (q or {}).get("price")
+        inv[p] = (float(px) / float(a)) if a and px else None
+    known = [v for v in inv.values() if v]
+    fill = (sum(known) / len(known)) if known else 1.0       # a name with no ATR gets the average weight
+    inv = {p: (v or fill) for p, v in inv.items()}
+    tot = sum(inv.values())
+    return {p: v / tot for p, v in inv.items()}
+
+
+def reconcile(conn, broker, mode: str, cfg: dict | None = None) -> tuple:
     """(ok, differences) between the slot trade log and the broker's positions."""
     want = {}
-    for p in open_positions(conn, mode).values():
+    held = positions_list(conn, mode) if basket_cfg(cfg, mode) else list(open_positions(conn, mode).values())
+    for p in held:
         want[p["symbol"]] = want.get(p["symbol"], 0.0) + float(p["quantity"])
     have = {s: float(p["quantity"]) for s, p in broker.get_positions().items()}
     if mode == "LIVE":
@@ -376,11 +463,11 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     broker, engine = _build(conn, cfg, mode, provider)
     if mode == "LIVE":
         resolve_pending(conn, cfg, broker, mode)
-    ok, diffs = reconcile(conn, broker, mode)
+    ok, diffs = reconcile(conn, broker, mode, cfg)
     if not ok:
         log.error(f"reconciliation failed, trading halts: {diffs}")
     held = slots.current(conn, cfg)
-    for slot, pos in open_positions(conn, mode).items():
+    for slot, pos in _positions(conn, cfg, mode):
         holder = held.get(slot)
         if str(pos["strategy_key"]).startswith("intraday:"):
             # An Intraday Momentum Runner position is managed by intraday_runner.py (stops, flatten, exits), never by
@@ -398,7 +485,8 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
         v = stop_plans.check(_plan_now(conn, pos), {"entry_price": pos["price"], "atr": pos["atr"],
                                                 "high_since_entry": high},
                              price, _sessions_held(conn, pos["at"]),
-                             strategy_exit=pos["symbol"] in (strategy_exits or {}).get(slot, set()))
+                             strategy_exit=pos["symbol"] in (strategy_exits or {}).get(
+                                 (slot, pos["strategy_key"]), (strategy_exits or {}).get(slot, set())))
         conn.execute("INSERT INTO slot_marks (at, mode, slot_id, symbol, price, high, stop, verdict) "
                      "VALUES (?,?,?,?,?,?,?,?)", (_now(), mode, slot, pos["symbol"], price, high,
                                                   v["stop_price"], v["reason"]))
@@ -434,7 +522,7 @@ def emergency(conn, cfg, mode: str, provider, why: str) -> list:
         results.append({"slot": "-", "action": "CANCEL", "symbol": cid, "reason": why,
                         "status": "cancelled" if done else "cancel_failed"})
     if ks.emergency_policy(risk_engine.load_limits()) == "flatten":
-        for slot, pos in open_positions(conn, mode).items():
+        for slot, pos in _positions(conn, cfg, mode):
             sig = sg.Signal(symbol=pos["symbol"], action="CLOSE", strategy=f"slot{slot}:EMERGENCY",
                             reason=f"emergency policy: {why}", quantity=float(pos["quantity"]),
                             session=engine.session)
@@ -547,6 +635,8 @@ def trade(conn, cfg, mode: str, provider) -> list:
     held = slots.current(conn, cfg)
     exits_by_slot, cands_by_slot = {}, {}
     open_now = open_positions(conn, mode)
+    bk = basket_cfg(cfg, mode)
+    open_list = _positions(conn, cfg, mode) if bk else []
     for slot, h in held.items():
         if h is None:
             continue
@@ -557,6 +647,15 @@ def trade(conn, cfg, mode: str, provider) -> list:
             continue                        # crypto slots trade in crypto_slot_trader.py
         cands, exits = _signals(conn, cfg, g, slot)
         cands_by_slot[slot] = (cands, g)
+        if bk:
+            # A basket can hold names bought by the holder and by stand-ins: each exits on the rule of the strategy that
+            # bought it (keyed by slot and strategy).
+            exits_by_slot[(slot, h["strategy_key"])] = exits
+            for ok_, ov in {(p["strategy_key"], p["version"]) for s_, p in open_list if s_ == slot} - {
+                    (h["strategy_key"], h["version"])}:
+                pg = slots.genome_for(conn, ok_, ov)
+                exits_by_slot[(slot, ok_)] = _signals(conn, cfg, pg, slot)[1] if pg and not pg.get("crypto") else set()
+            continue
         pos = open_now.get(slot)
         if pos and (pos["strategy_key"], pos["version"]) != (h["strategy_key"], h["version"]):
             # A stand-in's position (or one bought before a reassignment) exits on the rule
@@ -571,7 +670,9 @@ def trade(conn, cfg, mode: str, provider) -> list:
         return results                      # emergency handled in monitor(); no entries
 
     broker, engine = _build(conn, cfg, mode, provider)
-    ok, diffs = reconcile(conn, broker, mode)
+    ok, diffs = reconcile(conn, broker, mode, cfg)
+    if bk:
+        return _basket_entries(conn, cfg, mode, provider, engine, ok, held, cands_by_slot, bk, results)
     positions = open_positions(conn, mode)
     taken = {p["symbol"] for p in positions.values()}
     # Portfolio-level bear-market rule (regime_filter.py): in ON mode, no NEW long entries
@@ -616,6 +717,10 @@ def trade(conn, cfg, mode: str, provider) -> list:
                 results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": "no live quote",
                                 "status": "skipped"})
                 continue
+            blocked = beta_block(conn, cfg, list(positions.values()), pick, float(h["capital_usd"]))
+            if blocked:
+                results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": blocked, "status": "skipped"})
+                continue
             why = f"entry rule of {buyer['strategy_key']} v{buyer['version']}" + (
                 f" (stand-in for {h['strategy_key']})" if buyer is not h else "")
             sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{buyer['strategy_key']}",
@@ -640,6 +745,93 @@ def trade(conn, cfg, mode: str, provider) -> list:
     return results
 
 
+def _basket_entries(conn, cfg, mode, provider, engine, ok, held, cands_by_slot, bk, results) -> list:
+    """Stage AD2.1 entries for basket modes: each slot holds up to k of its strategy's top candidates, the slot's capital
+    split by inverse volatility (equal risk per name at an ATR stop). Vacancies are refilled on later passes, as the
+    paper fund refills its own. Stand-ins, the regime filter, the cash refusal and the beta cap apply as on the
+    original path."""
+    import regime_filter
+    positions = positions_list(conn, mode)
+    taken = {p["symbol"] for p in positions}
+    # A name traded earlier this session (bought, or stopped out and sold) is not re-entered the same day: the
+    # decision would repeat an existing order id (suppressed as a duplicate) and the vacancy would stay empty.
+    if _has_table(conn, "orders"):
+        taken |= {r[0] for r in conn.execute("SELECT DISTINCT symbol FROM orders WHERE mode=? AND session=?",
+                                             (mode, _session(conn))).fetchall()}
+    in_slot = {}
+    for p in positions:
+        in_slot.setdefault(p["slot_id"], []).append(p)
+    waiting = [s_ for s_, h_ in held.items() if h_ is not None and s_ in cands_by_slot
+               and len(in_slot.get(s_, [])) < bk["k"]]
+    rf = regime_filter.check(conn, cfg, slots_waiting=waiting) if waiting else {"block": False}
+    used_standins = set()
+    for slot, h in held.items():
+        if h is None or slot not in cands_by_slot:
+            continue
+        mine = in_slot.get(slot, [])
+        need = bk["k"] - len(mine)
+        if need <= 0:
+            continue
+        budget = float(h["capital_usd"]) - sum(float(p["quantity"]) * float(p["price"]) for p in mine)
+        if budget < bk["min_dollars"]:
+            continue
+        if rf.get("block"):
+            results.append({"slot": slot, "action": "NONE", "reason": rf["reason"], "status": "blocked"})
+            continue
+        cands, g = cands_by_slot[slot]
+        picks = [str(t) for t in cands["ticker"] if str(t) not in taken][:MAX_TRIES * 2] if len(cands) else []
+        buyer = h
+        if not picks:
+            sb_ = _standin(conn, cfg, held, taken, slot, mode, used_standins)
+            if sb_:
+                buyer, cands, g, picks = sb_
+                used_standins.add((buyer["strategy_key"], buyer["version"]))
+        chosen = []
+        for pick in picks:
+            if len(chosen) >= need:
+                break
+            if provider.get(pick) is None:
+                results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": "no live quote",
+                                "status": "skipped"})
+                continue
+            blocked = beta_block(conn, cfg, positions, pick, budget / need)
+            if blocked:
+                results.append({"slot": slot, "action": "NONE", "symbol": pick, "reason": blocked, "status": "skipped"})
+                continue
+            chosen.append(pick)
+        if not chosen:
+            results.append({"slot": slot, "action": "NONE", "reason": "entry rule fired on nothing new",
+                            "status": "no_action"})
+            continue
+        w = weights(conn, chosen, provider, bk["weighting"])
+        while True:                                           # drop names below the broker's minimum, re-weight
+            small = [p for p in chosen if budget * w[p] < bk["min_dollars"]]
+            if not small or len(chosen) == 1:
+                break
+            chosen = [p for p in chosen if p not in small]
+            w = weights(conn, chosen, provider, bk["weighting"])
+        for pick in chosen:
+            dollars = round(budget * w[pick], 2)
+            why = f"entry rule of {buyer['strategy_key']} v{buyer['version']}" + (
+                f" (stand-in for {h['strategy_key']})" if buyer is not h else "") + \
+                f" (basket {len(mine) + 1}/{bk['k']}, {w[pick]:.0%} of ${budget:.2f})"
+            sig = sg.Signal(symbol=pick, action="BUY", strategy=f"slot{slot}:{buyer['strategy_key']}",
+                            reason=why, notional_value=dollars, session=engine.session)
+            res = engine.execute(sig, reconciled=ok)
+            results.append({"slot": slot, "action": "BUY", "symbol": pick, "reason": sig.reason,
+                            "status": res["status"], "why": res.get("reasons")})
+            row = cands[cands["ticker"].astype(str) == pick].iloc[0].to_dict() if len(cands) else None
+            if _record_trade(conn, mode, slot, buyer, pick, "OPEN", res, sig.reason, plan=_entry_plan(conn, g, pick, row),
+                             atr=_atr(conn, pick)):
+                taken.add(pick)
+                mine.append({"symbol": pick})
+                positions.append({"symbol": pick, "quantity": res["order"].filled_quantity,
+                                  "price": res["order"].avg_fill_price, "strategy_key": buyer["strategy_key"]})
+            elif res["status"] == "rejected" and _account_level(res.get("reasons")):
+                return results                          # out of cash: every other name and slot would be refused too
+    return results
+
+
 def pnl(conn, cfg, mode: str) -> dict:
     """
     The slot account's gross / costs / net (I13, B5). Realised round trips at
@@ -654,9 +846,9 @@ def pnl(conn, cfg, mode: str) -> dict:
                           "WHERE mode=? ORDER BY id", (mode,)).fetchall():
         slot, sym, action, q, px = r[0], r[1], r[2], float(r[3]), float(r[4])
         if action == "OPEN":
-            opens[slot] = (sym, q, px)
-        elif slot in opens:
-            _, q0, p0 = opens.pop(slot)
+            opens[(slot, sym)] = (sym, q, px)       # (slot, symbol): a basket slot holds several names
+        elif (slot, sym) in opens:
+            _, q0, p0 = opens.pop((slot, sym))
             gross += (px - p0) * q0
             costs += cm.round_trip(q0 * p0, None, q0)
             trades += 1
@@ -751,8 +943,12 @@ def main(argv=None) -> int:
         retry = False
         if last:
             held_now = slots.current(conn, cfg)
-            open_now = open_positions(conn, args.mode)
-            idle = [s_ for s_, h_ in held_now.items() if h_ is not None and s_ not in open_now
+            bk = basket_cfg(cfg, args.mode)
+            counts = {}
+            for s_, _p in _positions(conn, cfg, args.mode):
+                counts[s_] = counts.get(s_, 0) + 1
+            idle = [s_ for s_, h_ in held_now.items() if h_ is not None
+                    and counts.get(s_, 0) < (bk["k"] if bk else 1)
                     and not str(h_["strategy_key"]).startswith("intraday:")]
             age = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 60
             retry = bool(idle) and age >= int(slots.settings(cfg).get("entry_retry_minutes", 60))
@@ -802,13 +998,13 @@ def main(argv=None) -> int:
             print(f"  slot {r['slot']}: {r['action']:<5} {r.get('symbol', ''):<7} {r['status']:<14} "
                   f"{r['reason']}" + (f"  [{'; '.join(r['why'])}]" if r.get("why") else ""))
         if args.status or not out:
-            pos = open_positions(conn, args.mode)
+            pos = _positions(conn, cfg, args.mode)
             broker, _ = _build(conn, cfg, args.mode, provider if args.mode == "LIVE" else qt.DatabaseQuotes(conn))
-            ok, diffs = reconcile(conn, broker, args.mode)
+            ok, diffs = reconcile(conn, broker, args.mode, cfg)
             cash = broker.get_buying_power() if args.mode == "LIVE" else broker.cash
             print(f"  {args.mode}: {len(pos)} open slot position(s), cash ${cash:,.2f}, "
                   f"reconciled {'OK' if ok else 'FAILED: ' + '; '.join(diffs)}")
-            for slot, p in sorted(pos.items()):
+            for slot, p in sorted(pos, key=lambda x: (x[0], x[1]["symbol"])):
                 print(f"    slot {slot}: {p['symbol']} {p['quantity']:.6f} @ {p['price']:.2f} "
                       f"({p['strategy_key']})")
             acct = {}
