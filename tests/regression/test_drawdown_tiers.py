@@ -86,6 +86,22 @@ def main():
           shipped.get("drawdown_notice_percent") == 10.0 and shipped.get("drawdown_review_percent") == 20.0, shipped)
     check("...and leaves the 35% stop unchanged", shipped.get("max_drawdown_percent") == 35.0)
 
+    # --- the strategy-review tier (owner 2026-10-19, Stage AD H10): 15%, tells only
+    L2 = {**LIM, "strategy_review_percent": 15.0}
+    check("14.9% is still NOTICE", dtier.tier(14.9, L2) == dtier.NOTICE)
+    check("15% is STRATEGY_REVIEW", dtier.tier(15.0, L2) == dtier.STRATEGY)
+    check("20% is still REVIEW (entries pause) and 35% still HALT", dtier.tier(20.0, L2) == dtier.REVIEW
+          and dtier.tier(35.0, L2) == dtier.HALT)
+    check("the strategy review never pauses entries", dtier.entry_pause_reason(19.9, L2) is None)
+    sent2 = []
+    t2 = dtier.alert_if_new(c, L2, lambda a, b: sent2.append((a, b)), equity=84.0, today="2026-10-21")
+    check("a 16% drawdown alerts the strategy review, once a day",
+          t2 == dtier.STRATEGY and len(sent2) == 1
+          and dtier.alert_if_new(c, L2, lambda a, b: sent2.append((a, b)), equity=84.0, today="2026-10-21") is None)
+    check("its message says the review is due, points at the pack, and changes nothing",
+          "review" in sent2[0][1] and "live_attribution" in sent2[0][1] and "No trading change" in sent2[0][1], sent2)
+    check("the shipped risk.yaml sets the strategy review at 15%", shipped.get("strategy_review_percent") == 15.0)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

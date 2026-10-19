@@ -2,6 +2,9 @@
 Drawdown tiers (owner, 2026-10-13): notice, review, stop.
 
     notice   `drawdown_notice_percent`  (10)  a Telegram message once a day; nothing else changes
+    strategy `strategy_review_percent`  (15)  owner 2026-10-19 (Stage AD H10): a written review of the whole approach
+                                              (prediction, execution, turnover, allocation) is due, with the
+                                              attribution pack from live_attribution.py; nothing else changes
     review   `drawdown_review_percent`  (20)  NEW ENTRIES are refused by the risk engine; exits still go
     stop     `max_drawdown_percent`     (35)  the existing kill switch (killswitch.py), unchanged
 
@@ -12,7 +15,7 @@ the stop is in killswitch.py.
 """
 import datetime as dt
 
-OK, NOTICE, REVIEW, HALT = "OK", "NOTICE", "REVIEW", "HALT"
+OK, NOTICE, STRATEGY, REVIEW, HALT = "OK", "NOTICE", "STRATEGY_REVIEW", "REVIEW", "HALT"
 
 
 def levels(limits: dict) -> tuple:
@@ -26,6 +29,9 @@ def tier(dd: float, limits: dict) -> str:
         return HALT
     if review and dd >= review:
         return REVIEW
+    strategy = float(limits.get("strategy_review_percent") or 0)
+    if strategy and dd >= strategy:
+        return STRATEGY
     if notice and dd >= notice:
         return NOTICE
     return OK
@@ -54,11 +60,17 @@ def current(conn, equity: float | None = None) -> tuple:
 def message(equity: float, peak: float, dd: float, limits: dict) -> tuple:
     notice, review, halt = levels(limits)
     t = tier(dd, limits)
-    head = {NOTICE: "Drawdown notice", REVIEW: "Drawdown review level reached"}.get(t, "Drawdown")
+    strategy = float(limits.get("strategy_review_percent") or 0)
+    head = {NOTICE: "Drawdown notice", STRATEGY: "Strategy review due",
+            REVIEW: "Drawdown review level reached"}.get(t, "Drawdown")
     body = (f"Account ${equity:,.2f} is {dd:.1f}% below its ${peak:,.2f} peak. "
-            f"Levels: notice {notice:.0f}%, review {review:.0f}%, stop {halt:.0f}%.")
+            f"Levels: notice {notice:.0f}%, strategy review {strategy:.0f}%, entries pause {review:.0f}%, "
+            f"stop {halt:.0f}%.")
     if t == REVIEW:
         body += " New entries are paused; open positions are still managed and can be sold."
+    elif t == STRATEGY:
+        body += (" The written review you asked for at this level is due (prediction, execution, turnover or "
+                 "allocation?). The attribution pack is in reports/live_attribution_<date>.md. No trading change.")
     else:
         body += " No action taken."
     return head, body
@@ -69,7 +81,7 @@ def alert_if_new(conn, limits: dict, send, equity: float | None = None, today: s
     import killswitch
     eq, peak, dd = current(conn, equity)
     t = tier(dd, limits)
-    if t not in (NOTICE, REVIEW):
+    if t not in (NOTICE, STRATEGY, REVIEW):
         return None
     day = today or dt.datetime.now(dt.timezone.utc).date().isoformat()
     killswitch.init(conn)

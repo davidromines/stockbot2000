@@ -46,6 +46,7 @@ max_drawdown_percent: 35.0
 # Drawdown tiers (owner, 2026-10-13; see drawdown_tiers.py), measured from the highest equity in
 # live_equity. The stop above is unchanged. 0 or absent turns a tier off.
 drawdown_notice_percent: 10.0    # a Telegram message once a day; nothing else changes
+strategy_review_percent: 15.0    # owner 2026-10-19 (Stage AD H10): a written review of the whole approach is due; no trading change
 drawdown_review_percent: 20.0    # new entries are refused; exits and stops still go
 
 # --- throttles -------------------------------------------------------------
