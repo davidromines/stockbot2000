@@ -499,7 +499,7 @@ ranking:
 intraday:
   stage: LIVE
   slots: [3]                           # slot 5 moved to the twin-ETF Runner (owner 2026-10-16); the stock Runner keeps slot 3
-  position_dollars: 20.0
+  position_dollars: 5.0                # owner 2026-10-19: $5 a trade (was $20) so ~$21 of buying power funds several Runner trades
   max_entries_per_session: 3
   max_simultaneous: 2
   max_daily_loss_dollars: 2.0          # realised + unrealised, intraday slots only (account-wide $15 stays in risk.yaml)
@@ -524,7 +524,7 @@ intraday:
 intraday_twin:
   stage: LIVE
   slots: [5]
-  position_dollars: 20.0
+  position_dollars: 5.0                # owner 2026-10-19: $5 a trade (was $20)
   max_entries_per_session: 3
   max_simultaneous: 1
   max_daily_loss_dollars: 1.0
