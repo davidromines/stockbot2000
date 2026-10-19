@@ -155,7 +155,22 @@ def survivorship(conn, key: str, version: int) -> dict:
                     "used until survivorship_backtest.py recomputes it")
     return {"backtest": s["per_trade"], "worst_case": (w or {}).get("per_trade"),
             "share_deep": s.get("share_deep"), "synthetic_trades": s.get("synthetic_trades"),
-            "stale": bool(s.get("stale"))}
+            "stale": bool(s.get("stale")),
+            # Stage AD3.2: dispersion of net return per trade and independent entry dates (NULL until recomputed)
+            "sd_per_trade": s.get("sd_per_trade"), "entry_dates": s.get("entry_dates")}
+
+
+def risk_terms(score_: float | None, sd_per_trade: float | None, entry_dates: float | None, hold: float | None,
+               s: dict) -> dict:
+    """Stage AD3.3: the score per unit of risk and its standard error, on the same per-20-sessions scale as the score.
+    The per-trade sd is scaled to `normalize_hold_days` by the square root of time (a random-walk approximation); the
+    standard error divides by the independent entry dates, not by trades. None where the dispersion is unknown."""
+    if score_ is None or not sd_per_trade or not hold:
+        return {"risk_adj": None, "score_se": None, "sd_20": None}
+    n = float(s.get("normalize_hold_days") or 20)
+    sd20 = float(sd_per_trade) * (n / max(float(hold), float(s.get("min_hold_for_scaling", 5)))) ** 0.5
+    se = sd20 / float(entry_dates) ** 0.5 if entry_dates else None
+    return {"risk_adj": float(score_) / sd20 if sd20 > 0 else None, "score_se": se, "sd_20": sd20}
 
 
 # --- evidence ------------------------------------------------------------------
@@ -375,12 +390,15 @@ def rank(conn, cfg: dict) -> list:
                     "score": _per_hold(score(None if searched else (prior_bt * pf if prior_bt is not None else None),
                                              None if bt_first else fw, 0 if bt_first else n, s), hold, s),
                     "hold_days": hold, "hold_source": hold_src,
+                    "sd_per_trade": sv.get("sd_per_trade"), "entry_dates": sv.get("entry_dates"),
                     "published_t": pt, "holdout": (ho or {}).get("per_trade"),
                     "holdout_trades": (ho or {}).get("trades"),
                     # Bull-market checks (market_checks.py): recorded and shown, never a gate.
                     "checks": _market_checks(conn, key, ver), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
-                                              "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
+                                              "max_drawdown_pct", "as_of", "recon_status", "fund_kind", "fund_id")}})
+    for r in out:
+        r.update(risk_terms(r["score"], r.get("sd_per_trade"), r.get("entry_dates"), r.get("hold_days"), s))
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))
     return out
 

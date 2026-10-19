@@ -417,6 +417,40 @@ slots:
   entry_retry_minutes: 20   # owner 2026-09-28: retry the buying pass every 20 min while a slot is empty
   standins: 10              # stand-in strategies recorded daily for idle slots (was 5)
   max_replacements_per_day: 0   # owner 2026-10-19 (H2): no score-based replacement until the monthly review (AD2.3); was 2. Ineligibility releases still happen
+  # Stage AD2.3 (owner H2, 2026-10-19): the monthly review. Score-based replacement only on the month's first session,
+  # by more than the switching cost plus one standard error of the score difference; between reviews only HARD failures
+  # release a holder (kill switch, accounting, stale data, stop plan, arming, a gate failed under the CURRENT rules).
+  # Score drift, an idle entry rule, or a gate failed because the rules changed since assignment wait for the review.
+  # With cadence monthly the two settings above are not used.
+  review:
+    cadence: monthly
+    max_replacements: 2
+    min_hold_sessions: 20
+    switching_cost: 0.004       # sale + purchase, per 20 sessions held
+    se_multiple: 1.0
+    se_fallback: 0.01           # score standard error assumed where the dispersion is not yet measured
+  # Stage AD3.3 (owner H7b): "raw" until the risk-adjusted order has run 20 sessions in shadow (allocator.py), then
+  # "risk_adjusted". Changing it is a rule change: holders assigned before it are grandfathered to the next review.
+  score_mode: raw
+  # Stage AD2.1 / AD3.1 (owner H6 + H7a, 2026-10-19): a slot holds a basket of its strategy's top k names, the slot's
+  # capital split by inverse volatility (equal risk per name at an ATR stop). Runs in the modes listed. SIMULATION is the
+  # shadow; LIVE is added after the 20-session freeze (H4) and the basket's shadow record, by the owner. Reports that read
+  # one position per slot (live_pnl, daily_snapshot, eod_report) must be checked before LIVE is listed.
+  basket:
+    k: 4
+    weighting: inverse_vol
+    min_dollars: 1.0            # Robinhood's fractional minimum
+    modes: [SIMULATION]
+  # Stage AD3.4 (owner H7b): no purchase may lift the medium-term book's dollar-weighted beta to SPY above this (all
+  # modes, LIVE included: a risk limit that only ever refuses a purchase). Intraday Runner positions are not counted.
+  book:
+    beta_cap: 1.3
+    assume_unknown_beta: 1.5    # an unmeasured name is not treated as a calm one
+  # Stage AD2.5: the pre-registered entry-timing experiment (open vs 10:00 ET on alternating sessions, judged on the
+  # price obtained against the decision-time quote). OFF during the 20-session freeze (owner H4); exits never wait.
+  entry_timing:
+    experiment: false
+    delay_until: "10:00"
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
   # slot must have a price stop (§15), so this one is added and is the slot's

@@ -298,6 +298,13 @@ run "[9k/10] Strategy funnel" bounded $PY funnel.py
 # Addendum F C1: the SHADOW capital-eligibility gate (capital_gate.py). Reads the slots and the paper record,
 # writes capital_gate_shadow and reports/capital_gate_<date>.md. Nothing trades on it.
 run "[9k1/10] Capital gate (shadow)" bounded $PY capital_gate.py
+# Stage AD6: the evidence-gated allocator in SHADOW (allocator.py): what a skeptical, evidence-weighted choice would
+# hold against what does, appended to allocator_shadow. After [9k0] so it reads today's restated record. Places nothing.
+run "[9k2/10] Allocator (shadow)" bounded $PY allocator.py --record
+# Stage AD9: the live account trade by trade against SPY over the same days (reports/live_attribution_<date>.md).
+run "[9k3/10] Live attribution" $PY live_attribution.py --write
+# Stage AD7.4: the live Runners' logged signals against the pre-registered decision rule (INTERIM until the sample).
+run "[9k4/10] Runner signals (prospective)" bounded $PY intraday_replay.py --prospective --write
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().

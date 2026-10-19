@@ -64,6 +64,23 @@ def main():
     check("rows are ranked by the basis mean, best first", [r["mean_basis"] for r in funnel.forward_families(c)] == sorted(
         [r["mean_basis"] for r in funnel.forward_families(c)], reverse=True))
 
+    check("without a positions table: no open positions, +open equals the closed basis",
+          few["open_n"] == 0 and abs(few["mean_incl_open"] - few["mean_basis"]) < 1e-12)
+    # Stage AD1.5: open positions marked at the newest close weigh in beside the closed trades
+    c.execute("CREATE TABLE paper_positions (run_id TEXT, ticker TEXT, entry_date TEXT, entry_price REAL, shares REAL, "
+              "stop_price REAL, days_held INT)")
+    c.execute("CREATE TABLE prices (ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL)")
+    c.execute("INSERT INTO prices VALUES ('Z1','2026-10-15',1,1,1,15.0,1)")
+    for f in range(3):
+        c.execute("INSERT INTO paper_positions VALUES (?, 'Z1', '2026-10-01', 20.0, 1, 18, 5)", (f"few_dates{f}",))
+    c.commit()
+    few2 = {f["family"]: f for f in funnel.forward_families(c)}["few_dates"]
+    exp = (few2["mean_basis"] * few2["n"] + (-25.0) * 3) / (few2["n"] + 3)
+    check("open positions are marked at the newest close (-25% here) and counted", few2["open_n"] == 3
+          and abs(few2["open_mean"] - (-25.0)) < 1e-9, (few2["open_n"], few2["open_mean"]))
+    check("+open = the closed basis weighted with the marked open positions", abs(few2["mean_incl_open"] - exp) < 1e-9,
+          (few2["mean_incl_open"], exp))
+
     q = funnel.eight_questions({}, {}, {}, {}, list(rows.values()), {})
     prose = " ".join(x["inference"] + x["fact"] for x in q)
     check("the eight-questions prose has no hardcoded family t-statistics", "t=+8.8" not in prose and "t=+4.5" not in prose and "t=+5.1" not in prose)

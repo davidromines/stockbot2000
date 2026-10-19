@@ -440,7 +440,8 @@ def main(argv=None) -> int:
         text = render(rr, mm, pv)
         print(text)
         if a.write:
-            p = ROOT / "reports" / f"intraday_replay_{date.today().isoformat()}.md"
+            stem = "intraday_prospective" if (pv is not None and not rr and not mm) else "intraday_replay"
+            p = ROOT / "reports" / f"{stem}_{date.today().isoformat()}.md"
             p.write_text(text)
             print(f"written {p}")
     return 0

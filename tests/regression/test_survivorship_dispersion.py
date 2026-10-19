@@ -41,5 +41,15 @@ got = c.execute("SELECT per_trade, sd_per_trade, avg_hold_days, entry_dates FROM
 check("rows are written by column name, new columns included", got[0] == 0.0375 and abs(got[1] - d["sd_per_trade"]) < 1e-12
       and got[2] == 12.5 and got[3] == 3.0, got)
 
+import json as _json
+w = _json.dumps(["a", "b"])
+for k, n, sd in (("pre", 10, None), ("post", 10, 0.05), ("single", 1, None)):
+    c.execute("INSERT INTO survivorship_backtests (strategy_key, version, mode, generator, window, trades, sd_per_trade, "
+              "computed_at) VALUES (?,1,'as_is','g2',?,?,?,'x')", (k, w, n, sd))
+plain, refill = sb._done(c, "g2", ["a", "b"]), sb._done(c, "g2", ["a", "b"], refill=True)
+check("normally every computed row counts as done", {x[0] for x in plain} == {"pre", "post", "single"})
+check("--refill recomputes rows from before the dispersion columns (2+ trades, sd NULL), once",
+      {x[0] for x in refill} == {"post", "single"}, refill)
+
 print("\n  ALL PASS" if not FAILS else f"\n  FAILED: {FAILS}")
 raise SystemExit(1 if FAILS else 0)

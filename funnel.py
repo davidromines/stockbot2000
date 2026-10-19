@@ -305,13 +305,17 @@ def render(r: dict) -> str:
           "    gross = pnl_pct as stored (price move at same-close fills, costs NOT deducted); net = minus modelled costs;",
           "    honest = net at next-open fills (restate_paper.py); cluster t = errors clustered by entry date and ticker, the smaller used;",
           "    dates = independent entry dates (a label above 'unresolved' needs 20+); hon n < n because trades that exit on the",
-          "    newest stored bar have no next-open price yet - those are mostly stop-outs, so a thin honest column is biased upward"]
-    L.append(f"    {'family':<28} {'n':>6} {'gross':>7} {'iid t':>6} {'net':>7} {'honest':>7} {'hon n':>6} {'cl t':>6} {'dates':>5}  label")
+          "    newest stored bar have no next-open price yet - those are mostly stop-outs, so a thin honest column is biased upward;",
+          "    open = positions still held, marked at the newest close (gross); +open = the honest mean including them, so a",
+          "    medium-term family is not judged only on the trades that stopped out early (shown, not scored)"]
+    L.append(f"    {'family':<28} {'n':>6} {'gross':>7} {'iid t':>6} {'net':>7} {'honest':>7} {'hon n':>6} {'cl t':>6} {'dates':>5} "
+             f"{'open':>5} {'+open':>7}  label")
     for f in ffd[:12]:
         hon = f"{f['mean_honest']:+.2f}%" if f.get("mean_honest") is not None else "   n/a"
         clt = f"{f['cluster_t_basis']:+.1f}" if f["cluster_t_basis"] == f["cluster_t_basis"] else " n/a"
+        inc = f"{f['mean_incl_open']:+.2f}%" if f.get("mean_incl_open") is not None else "   n/a"
         L.append(f"    {f['family']:<28} {f['n']:>6} {f['mean']:>+6.2f}% {f['t_stat']:>+6.1f} {f['mean_net']:>+6.2f}% "
-                 f"{hon:>7} {(f['n_honest'] or 0):>6} {clt:>6} {f['dates_basis']:>5}  {f['label']}")
+                 f"{hon:>7} {(f['n_honest'] or 0):>6} {clt:>6} {f['dates_basis']:>5} {f.get('open_n', 0):>5} {inc:>7}  {f['label']}")
     if len(ffd) > 12:
         worse = sum(1 for f in ffd[12:] if f["mean_basis"] <= 0)
         L.append(f"    ... {len(ffd)-12} more families ({worse} with a non-positive honest/net mean)")
@@ -487,6 +491,16 @@ def forward_families(conn) -> list:
                 cands = [x for x in (hcd["t"], hct["t"]) if x == x]
                 h_t = min(cands) if cands else float("nan")
                 bx, bd, basis_label = h["net_pct"], h["entry_date"], "net of costs, next-open fills"
+        # Stage AD1.5: closed trades of medium-term strategies are mostly early exits (stops); open positions marked at
+        # the newest close are the counterweight. Gross price move from the stored entry; shown beside, never scored.
+        op = conn.execute("SELECT COUNT(*), AVG((SELECT close FROM prices x WHERE x.ticker=pp.ticker ORDER BY x.date DESC "
+                          "LIMIT 1) / pp.entry_price - 1) FROM paper_positions pp JOIN paper_runs p ON p.run_id=pp.run_id "
+                          "WHERE p.family=? AND pp.entry_price > 0", (fam,)).fetchone() if _has(conn, "paper_positions") else (0, None)
+        open_n, open_mean = int(op[0] or 0), (float(op[1]) * 100 if op[1] is not None else None)
+        closed_basis = h_mean if h_mean is not None else net_iid["mean"]
+        closed_n = h_n if h_mean is not None else n
+        incl_open = ((closed_basis * closed_n + open_mean * open_n) / (closed_n + open_n)
+                     if open_n and open_mean is not None and closed_n else closed_basis)
         cands = [x for x in (cd["t"], ct["t"]) if x == x]
         t_cl = h_t if h_mean is not None else (min(cands) if cands else float("nan"))
         dates = h_dates if h_mean is not None else cd["clusters"]
@@ -503,7 +517,8 @@ def forward_families(conn) -> list:
                          "entry_dates": int(cd["clusters"]), "mean_honest": h_mean, "n_honest": h_n,
                          "cluster_t_basis": t_cl, "dates_basis": dates, "basis": basis_label,
                          "mean_basis": mean_basis, "boot_lo": boot["lo"], "boot_hi": boot["hi"], "luck_88": luck88,
-                         "significant": ok, "label": label})
+                         "significant": ok, "label": label, "open_n": open_n, "open_mean": open_mean,
+                         "mean_incl_open": incl_open})
     rows_out.sort(key=lambda f: f["mean_basis"], reverse=True)
     return rows_out
 
