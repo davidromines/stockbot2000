@@ -83,7 +83,7 @@ about +1%) is mostly implementation: 17 of 23 live exits forced by slot reassign
 vs designed 21–252), a ranking with no risk term that picks volatile names (9 of 14 held in the top volatility quartile,
 beta 2.27, 3-ATR stops 16–33% wide), one name per slot vs up to 20 in the paper fund. Plan order: AD0 stop the churn
 (owner decisions H1–H5) → AD1 integrity, AD2 live = tested, AD3 risk sizing → AD4–AD6 the reviewer's evidence engine →
-AD7 intraday replays + SHADOW → AD8/AD9. Waiting on the owner: decisions H1–H10 (§8 of the plan). Also 10-19:
+AD7 intraday replays + SHADOW → AD8/AD9. **Owner answered H1–H10 on 10-19** (§8 of the plan): Runners stay LIVE at $5 a trade (done, 3b40aa1); monthly review, holders kept until their own exit; idle cash stays cash; 20-session rule freeze; keep backtest_first; basket slots 4 x ~$5 with inverse-volatility weights; risk-adjusted ranking + book beta cap 1.3; published-data check before LEAN; no data purchases; written review at 15% below the peak (~$76.70). Also 10-19:
 `prospective_eval.py` crash fixed (column named `pass`); dossier republished (version 13).
 
 ### 2026-10-17 — TWIN-ETF RUNNER added (owner: "make it a runner that focuses on the twin ETFs"); first Runner results

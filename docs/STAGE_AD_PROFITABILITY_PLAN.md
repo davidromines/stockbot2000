@@ -1,6 +1,7 @@
 # Stage AD — Making Stockbot2000 profitable: system review and plan
 
-**Entered 2026-10-19. PLAN ONLY — nothing built, nothing changed live.** Owner: "review the current system in its
+**Entered 2026-10-19. PLAN ONLY — nothing built, nothing changed live** except the owner's separate instruction the same
+day to size Runner trades at $5. **Owner decisions H1–H10 answered 2026-10-19 (§8).** Owner: "review the current system in its
 entirety … make recommendations and add them to the project plan. Do not action yet."
 Inputs: Addendum H (independent reviewer, verbatim in `docs/ADDENDUM_H_ALPHA_RESEARCH_ENGINE.md`), the live ledger
 (`slot_trades`, `live_equity`), the funnel of 2026-10-16, the Addendum F audit reports, and the queries recorded in §9.
@@ -284,18 +285,23 @@ not per hope.
 
 ## 8. Decisions for the owner
 
-| # | Decision | Recommendation |
-|---|---|---|
-| H1 | Runners: SHADOW both / stock Runner at $5 as an execution probe / keep LIVE | SHADOW both, plus the replays; a $5 probe only if fill data is wanted |
-| H2 | Daily replacement off; grandfather holders; monthly review | Yes |
-| H3 | Idle capital (empty slots, Runner slots in SHADOW) in a broad index ETF (SPY or VTI) | Yes. It keeps the market's return instead of cash and sets the hurdle every strategy must clear |
-| H4 | 20-session freeze on live selection rules | Yes |
-| H5 | Keep `backtest_first` as the eligibility rule until AD6 | Yes, without daily rotation |
-| H6 | Basket slots (k = 4) | Yes, after verifying the broker's minimum order size |
-| H7 | Risk budget per position (proposal 0.75% of equity) and book beta cap (proposal 1.3) | Yes; the numbers are the owner's |
-| H8 | LEAN | Defer until the JKP comparison shows an unexplained gap |
-| H9 | Data purchases | None now; only through a value-of-information test |
-| H10 | Drawdown at which the whole approach is reviewed, not just paused | Owner to state (open since 10-13) |
+| # | Decision | Recommendation | **Owner's answer (2026-10-19)** |
+|---|---|---|---|
+| H1 | Runners: SHADOW both / stock Runner at $5 as an execution probe / keep LIVE | SHADOW both, plus the replays; a $5 probe only if fill data is wanted | **Both stay LIVE at $5 a trade** (was $20; done, commit 3b40aa1). The replays (AD7.1–7.2) and the logging of every qualifying signal still apply; the pre-registered AD7.4 rule decides paper/retire |
+| H2 | Daily replacement off; grandfather holders; monthly review | Yes | **Monthly review.** Between reviews a slot is released only on a hard-gate failure; rule changes apply to new assignments only |
+| H3 | Idle capital (empty slots, Runner slots in SHADOW) in a broad index ETF (SPY or VTI) | Yes | **No: idle cash stays in cash.** AD2.6 dropped; an empty or ineligible slot holds cash. SPY stays the reporting benchmark (AD9.1) |
+| H4 | 20-session freeze on live selection rules | Yes | **Yes, 20 sessions** (safety fixes allowed). Starts when AD0/AD2.3 take effect |
+| H5 | Keep `backtest_first` as the eligibility rule until AD6 | Yes, without daily rotation | **Yes** |
+| H6 | Basket slots (k = 4) | Yes, after verifying the broker's minimum order size | **Yes: 4 stocks × ~$5 per medium-term slot**; the paper fund runs the same 4 |
+| H7 | Risk sizing and a book limit | Yes; the numbers are the owner's | **H7a: inverse-volatility weights within each slot's basket** (full $20 invested, equal risk per name). **H7b: risk-adjusted ranking plus a book beta cap of 1.3** |
+| H8 | LEAN | Defer until the JKP comparison shows an unexplained gap | **Published data first**; LEAN only if a gap stays unexplained |
+| H9 | Data purchases | None now; only through a value-of-information test | **Nothing now** |
+| H10 | Drawdown at which the whole approach is reviewed, not just paused | Owner to state | **15% from the peak (~$76.70 against $90.26)**: a written review of prediction, execution, turnover and allocation; separate from the automatic 10/20/35% tiers |
+
+**Plan changes from these answers:** AD0.3 (Runners) is replaced by H1: LIVE at $5. AD2.6 (default sleeve) is
+dropped; §4's index-fund point stands as the *benchmark* only. AD3.1 becomes inverse-volatility weighting inside each
+slot's basket rather than a per-position risk budget with idle remainder. AD3.4 beta cap = 1.3. AD9.4's review trigger
+is 15% from the peak (plus the 20-session underperformance test).
 
 ## 9. What not to do
 
