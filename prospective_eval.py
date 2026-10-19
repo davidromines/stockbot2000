@@ -180,12 +180,13 @@ def report(conn, complete: bool = False) -> str:
         t = decide(d, sp["families"])
         L += ["", "| family | trades | own dates | mean net % | mean excess vs SPY % | max-T adj p | boot lower % | open share | pass | why not |",
               "|---|---:|---:|---:|---:|---:|---:|---:|---|---|"]
-        for r in t.itertuples():
+        rows = t.rename(columns={"pass": "passed_rule"})            # "pass" is a keyword: itertuples would rename it to _N
+        for r in rows.itertuples():
             fm = lambda x, s="{:+.2f}": "n/a" if x != x else s.format(x)
             L.append(f"| {r.family} | {r.n:,} | {r.dates} | {fm(r.mean_net)} | {fm(r.mean_excess)} | {fm(r.p_maxT, '{:.3f}')} | {fm(r.boot_lo)} | "
-                     f"{fm(r.open_share, '{:.2f}')} | {'PASS' if (r.__getattribute__('pass') and ready) else ('(interim)' if not ready else 'fail')} | {r.why} |")
+                     f"{fm(r.open_share, '{:.2f}')} | {'PASS' if (r.passed_rule and ready) else ('(interim)' if not ready else 'fail')} | {r.why} |")
         if ready:
-            passed = [r.family for r in t.itertuples() if r.__getattribute__("pass")]
+            passed = [r.family for r in rows.itertuples() if r.passed_rule]
             L += ["", f"**Result: {len(passed)} of {len(sp['families'])} families pass** ({', '.join(passed) or 'none'}). "
                   "A pass is evidence worth a longer test, not proof of profitability."]
             if complete and e["status"] != "COMPLETE":
