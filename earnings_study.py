@@ -71,7 +71,7 @@ def windows(conn, ev: pd.DataFrame, spy: pd.Series, panel_open: dict, dv: dict) 
         d_a, d_b, d_ca, d_cb = days[a], days[b], days[ca], days[cb]
         if not all(x in o.index for x in (d_a, d_b, d_ca, d_cb)):
             continue
-        if (dv.get(r.ticker, {}).get(d_a) or 0) < 1e6 or o[d_a] < 5:
+        if (dv.get(r.ticker) or 0) < 1e6 or o[d_a] < 5:
             continue
         spy_ev = spy[d_b] / spy[d_a] - 1
         spy_c = spy[d_cb] / spy[d_ca] - 1
@@ -84,18 +84,18 @@ def windows(conn, ev: pd.DataFrame, spy: pd.Series, panel_open: dict, dv: dict) 
 def load(conn, tickers: list, start: str, end: str) -> tuple:
     spy = pd.read_sql("SELECT date, open FROM prices WHERE ticker='SPY' AND date >= ? AND date <= ? ORDER BY date", conn,
                       params=(start, end)).set_index("date")["open"]
-    opens, dvs = {}, {}
+    opens = {}
     for k in range(0, len(tickers), 400):
         chunk = tickers[k:k + 400]
         q = ",".join("?" * len(chunk))
         px = pd.read_sql(f"SELECT ticker, date, open FROM prices WHERE ticker IN ({q}) AND date >= ? AND date <= ?", conn,
                          params=(*chunk, start, end))
         for t, g in px.groupby("ticker"):
-            opens[t] = g.set_index("date")["open"]
-        f = pd.read_sql(f"SELECT ticker, date, dollar_volume_20 FROM features WHERE ticker IN ({q}) AND date >= ? AND date <= ?",
-                        conn, params=(*chunk, start, end))
-        for t, g in f.groupby("ticker"):
-            dvs[t] = dict(zip(g["date"], g["dollar_volume_20"]))
+            opens[t] = g.set_index("date")["open"].astype("float32")
+    # One liquidity figure per stock: its newest 20-day dollar volume (a coarse screen; it favours survivors, which this
+    # database already does). A per-day dictionary for ~4,000 stocks x 12 years would need several GB.
+    dvs = dict(conn.execute("SELECT ticker, dollar_volume_20 FROM features WHERE date = (SELECT MAX(date) FROM features)"
+                            ).fetchall())
     return spy, opens, dvs
 
 
