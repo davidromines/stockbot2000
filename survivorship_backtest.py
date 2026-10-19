@@ -254,9 +254,12 @@ def strategies(conn) -> list:
     return out
 
 
-def _done(conn, gen, window) -> set:
+def _done(conn, gen, window, refill: bool = False) -> set:
+    """(strategy, version, mode) already computed for this build and window. With `refill`, a row computed before the
+    dispersion columns existed (sd_per_trade NULL with 2+ trades) counts as not done, so it is recomputed once."""
+    extra = " AND NOT (sd_per_trade IS NULL AND trades > 1)" if refill else ""
     return {(k, v, m) for k, v, m in conn.execute(
-        "SELECT strategy_key, version, mode FROM survivorship_backtests WHERE generator=? AND window=?",
+        "SELECT strategy_key, version, mode FROM survivorship_backtests WHERE generator=? AND window=?" + extra,
         (gen, json.dumps(list(window))))}
 
 
@@ -301,7 +304,7 @@ def _combine(a: pd.DataFrame, b: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values(["ticker", "date"], ignore_index=True)
 
 
-def run(conn, cfg, only: list | None = None) -> dict:
+def run(conn, cfg, only: list | None = None, refill: bool = False) -> dict:
     """Compute every missing (strategy, mode) for the current generator and window. Resumable."""
     import bias_exposure as bias
     import costs as costs_mod
@@ -313,7 +316,7 @@ def run(conn, cfg, only: list | None = None) -> dict:
     window = window_of(cfg)
     wkey = json.dumps(list(window))
     todo = [s for s in (only or strategies(conn))]
-    done = _done(conn, gen, window)
+    done = _done(conn, gen, window, refill)
     size = float(cfg["risk"]["position_size_usd"])
     cap = int((cfg.get("factory") or {}).get("max_entries_per_backtest", 5000))
     cm = costs_mod.CostModel(cfg)
@@ -432,6 +435,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Backtests including synthetic dead companies.")
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--refill", action="store_true",
+                    help="also recompute rows from before the dispersion columns (Stage AD3.2), once")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     from universe import load_config
@@ -439,8 +444,8 @@ def main(argv=None) -> int:
     runtime.be_nice()
     conn = sqlite3.connect(cfg["database"]["market_data_path"], timeout=60)
     conn.row_factory = sqlite3.Row
-    if a.run:
-        print(json.dumps(run(conn, cfg), indent=1))
+    if a.run or a.refill:
+        print(json.dumps(run(conn, cfg, refill=a.refill), indent=1))
     if a.report or not a.run:
         print(render(conn))
     return 0
