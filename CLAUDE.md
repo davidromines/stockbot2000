@@ -74,6 +74,18 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-10-19 — Addendum H + Stage AD profitability plan entered (PLAN ONLY; START HERE for what to build next)
+
+Independent review of the 10-19 dossier entered verbatim as `docs/ADDENDUM_H_ALPHA_RESEARCH_ENGINE.md`; Claude's
+whole-system review and staged plan in `docs/STAGE_AD_PROFITABILITY_PLAN.md` (roadmap Stage AD). **Owner: "Do not
+action yet. Just add to the plan."** Nothing built, nothing live changed. Headline finding: the live loss (−6.9%, SPY
+about +1%) is mostly implementation: 17 of 23 live exits forced by slot reassignment (mean −3.30%, median hold 3 days
+vs designed 21–252), a ranking with no risk term that picks volatile names (9 of 14 held in the top volatility quartile,
+beta 2.27, 3-ATR stops 16–33% wide), one name per slot vs up to 20 in the paper fund. Plan order: AD0 stop the churn
+(owner decisions H1–H5) → AD1 integrity, AD2 live = tested, AD3 risk sizing → AD4–AD6 the reviewer's evidence engine →
+AD7 intraday replays + SHADOW → AD8/AD9. Waiting on the owner: decisions H1–H10 (§8 of the plan). Also 10-19:
+`prospective_eval.py` crash fixed (column named `pass`); dossier republished (version 13).
+
 ### 2026-10-17 — TWIN-ETF RUNNER added (owner: "make it a runner that focuses on the twin ETFs"); first Runner results
 
 `intraday_twin.py` + `config.yaml intraday_twin:` (stage LIVE, slot 5, $20, 1 position, $1 daily loss, stop 0.35% x leverage on the ETF's own price). Same service, same engine/risk/broker path as the stock Runner (`intraday.slots` is now [3]): **the INDEX ETF (bull leg) of each pair (SPY/SH, SSO/SDS, QQQ/PSQ, QLD/QID, IWM/RWM) sets the direction (owner 10-17: "buy long when momentum is going up and buy the short when momentum is going down"): momentum UP buys the bull ETF, momentum DOWN buys the inverse ETF as an ordinary long; never sold short, never both legs.** The bought leg only has to be tradeable (fresh, cost, move capacity). v0 uncalibrated. Replay of the index-driven rule on the last 5 sessions: 9 signals, mean 30-minute return -0.037%, 60-minute +0.119% (noise at that size; the earlier per-leg rule was +0.006%/+0.095%). Activation: `./venv/bin/python intraday_runner.py --assign` (assigns slot 5 to `intraday:twin_etf_runner`), then commit; cron already starts the service. Stock Runner history: 2026-10-15 every entry crashed (sqlite3.Row bug, fixed 10-16); 2026-10-16 first live trade NVDA +/-0 (-$0.09, trailing stop); second slot could not buy (buying power $0.97 after NVDA). Suite 165 files pass.
@@ -2073,7 +2085,9 @@ which resolves their open decisions — see the table at the end of
 | D | Live Growth & Continuous Improvement — entered 2026-09-25; N1 Control Center built 09-25, N2-N9 open (§20 order) | `docs/ADDENDUM_D_LIVE_GROWTH.md`, Stage N |
 | E | Knowledge Strategy Factory — entered 2026-09-25, O1-O4 + templates + O9 built; revision 2 entered 2026-09-27, recorded not built (`docs/ADDENDUM_E_REVISION_2.md`); the spec says "Stage N", tracked as Stage O (O1–O13) | `docs/ADDENDUM_E_KNOWLEDGE_FACTORY.md`, Stage O |
 | T | Diagnostic: why no durable edge? — entered 2026-09-27, recorded not built; the strategy funnel, distinct hypotheses, near misses | `docs/STAGE_T_DIAGNOSTIC_FUNNEL.md` |
-| F | Independent Profitability Audit (Stage AB) — entered 2026-10-13 from the independent review; an audit of the 7 forward-positive families, not a build; NOT yet built | `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md` |
+| F | Independent Profitability Audit (Stage AB) — entered 2026-10-13 from the independent review; an audit of the 7 forward-positive families, not a build; built 2026-10-13 (phases A–H) | `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md` |
+| G | Intraday Momentum Runner (Stage AC) — built and live in slots 3 and 5 from 2026-10-15 / 10-19, evidence gates waived by the owner | `docs/ADDENDUM_G_INTRADAY_MOMENTUM_RUNNER.md`, `docs/INTRADAY_RUNNER_PLAN.md` |
+| H | Alpha Research and Validation Engine (Stage AD) + Claude's profitability plan — entered 2026-10-19, PLAN ONLY | `docs/ADDENDUM_H_ALPHA_RESEARCH_ENGINE.md`, `docs/STAGE_AD_PROFITABILITY_PLAN.md` |
 
 Integration analysis — dependencies, module reuse, gaps, schema, risks, ordering
 — in `docs/ROADMAP_INTEGRATION.md`.
