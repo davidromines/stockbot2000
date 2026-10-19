@@ -13,6 +13,8 @@ check("the Runners' signal log, heartbeat and state are backed up",
       {"intraday_runner_signals", "intraday_heartbeat", "intraday_state"} <= set(T))
 check("minute bars stay in the backup (free history ages out of the source)", "minute_bars" in T)
 check("the live slot record is backed up", {"slot_assignments", "slot_trades", "slot_marks", "live_equity", "orders"} <= set(T))
+check("the signal registry, its trial ledger and the allocator shadow are backed up",
+      {"alpha_signals", "alpha_trials", "allocator_shadow"} <= set(T))
 check("no table is listed twice", len(T) == len(set(T)))
 
 print("\n  ALL PASS" if not FAILS else f"\n  FAILED: {FAILS}")
