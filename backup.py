@@ -124,6 +124,7 @@ GROUPS = {
         # Stage AD4 / AD6: the signal registry, its append-only trial ledger (the multiple-testing denominator) and
         # the allocator's daily shadow decisions.
         "alpha_signals", "alpha_trials", "allocator_shadow",
+        "paper_trades_restated",    # Addendum F G1: the next-open restatement the decision layers now read
     ],
     "listings": [
         # a missed day of the directory loses that day's delistings permanently,
