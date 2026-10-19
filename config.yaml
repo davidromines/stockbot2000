@@ -446,6 +446,11 @@ slots:
   book:
     beta_cap: 1.3
     assume_unknown_beta: 1.5    # an unmeasured name is not treated as a calm one
+  # Stage AD2.5: the pre-registered entry-timing experiment (open vs 10:00 ET on alternating sessions, judged on the
+  # price obtained against the decision-time quote). OFF during the 20-session freeze (owner H4); exits never wait.
+  entry_timing:
+    experiment: false
+    delay_until: "10:00"
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
   # slot must have a price stop (§15), so this one is added and is the slot's

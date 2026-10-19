@@ -118,6 +118,20 @@ check("on the original path the cap skips the high-beta pick for the next candid
       [x["symbol"] for x in r6 if x["action"] == "BUY"] == ["AAA"]
       and any("beta" in str(x.get("reason")) and x.get("symbol") == "CCC" for x in r6), r6)
 
+# --- the entry-timing experiment (AD2.5): off unless switched on; delays entries only, on even sessions --------------
+from datetime import datetime
+ON = {"slots": {"entry_timing": {"experiment": True, "delay_until": "10:00"}}}
+even, odd = datetime(2026, 10, 21, 9, 35, tzinfo=qt.NY), datetime(2026, 10, 20, 9, 35, tzinfo=qt.NY)
+check("timing experiment off by default: never waits", st.entry_wait({}, even) is None)
+check("on an even session entries wait until 10:00 ET; odd sessions and after 10:00 do not",
+      st.entry_wait(ON, even) and st.entry_wait(ON, odd) is None and st.entry_wait(ON, even.replace(hour=10, minute=1)) is None)
+c5 = fixture()
+pt._genome_signals = lambda conn, cfg, g: (pd.DataFrame({"ticker": ["AAA", "BBB"]}), set())
+st._ny_now = lambda: even
+r7 = st.trade(c5, ON, "SIMULATION", qt.FixedQuotes(quotes, conn=c5))
+check("a waiting entry pass buys nothing and says why", not [x for x in r7 if x["action"] == "BUY"]
+      and any(x.get("status") == "waiting" for x in r7), r7)
+
 print()
 print("  ALL PASS" if not FAILED else f"  {len(FAILED)} FAILED: {FAILED}")
 sys.exit(1 if FAILED else 0)

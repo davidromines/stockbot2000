@@ -238,6 +238,24 @@ def _session(conn) -> str:
     return datetime.now(qt.NY).date().isoformat()
 
 
+def _ny_now() -> datetime:
+    return datetime.now(qt.NY)
+
+
+def entry_wait(cfg: dict, now: datetime | None = None) -> str | None:
+    """Stage AD2.5 (pre-registered entry-timing experiment, OFF unless slots.entry_timing.experiment is true): on
+    sessions whose ordinal day is even, medium-term ENTRIES wait until `delay_until` New York time; odd sessions buy at
+    the open as before. Exits and stops are never delayed. Returns the reason to wait, or None."""
+    et = ((cfg or {}).get("slots") or {}).get("entry_timing") or {}
+    if not et.get("experiment"):
+        return None
+    ny = now or _ny_now()
+    until = str(et.get("delay_until", "10:00"))
+    if ny.date().toordinal() % 2 == 0 and ny.strftime("%H:%M") < until:
+        return f"entry-timing experiment: entries wait until {until} ET on even sessions"
+    return None
+
+
 def _sessions_held(conn, entry_at: str) -> int:
     return int(conn.execute("SELECT COUNT(DISTINCT date) FROM prices WHERE ticker='SPY' AND date >= ?",
                             (entry_at[:10],)).fetchone()[0] or 0)
@@ -668,6 +686,10 @@ def trade(conn, cfg, mode: str, provider) -> list:
     import killswitch as ks
     if ks.global_engaged():
         return results                      # emergency handled in monitor(); no entries
+    wait = entry_wait(cfg)
+    if wait:
+        results.append({"slot": "-", "action": "NONE", "reason": wait, "status": "waiting"})
+        return results                      # the hourly/20-minute entry retry picks it up after the delay
 
     broker, engine = _build(conn, cfg, mode, provider)
     ok, diffs = reconcile(conn, broker, mode, cfg)
