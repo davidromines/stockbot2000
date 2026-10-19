@@ -50,6 +50,24 @@ def main() -> int:
     before = st._read()["tokens"]
     check("refused refresh -> False, tokens untouched",
           rh.refresh(True, "u", st, lambda data: (400, "invalid_grant")) is False and st._read()["tokens"] == before)
+    # 10-19: refresh() erased the login stamp, so the renewal warning could never fire.
+    d2 = st._read(); d2["tokens"]["login_at"] = 1_000_000.0; d2["tokens"]["issued_at"] = 0; st._write(d2)
+    check("a refresh keeps the last full-login stamp", rh.refresh(True, "u", st, post_ok)
+          and st._read()["tokens"].get("login_at") == 1_000_000.0)
+    check("login_at reads the token record's stamp first", rh.login_at(st, Path(d) / "none.txt") == 1_000_000.0)
+    seed = Path(d) / "seed.txt"; seed.write_text("2026-10-05T00:50:00Z  last known --login\n")
+    d2 = st._read(); d2["tokens"].pop("login_at"); st._write(d2)
+    check("without a stamp, login_at falls back to the seed file",
+          abs(rh.login_at(st, seed) - 1791161400.0) < 1)
+    check("no stamp and no seed: unknown (0), and no warning", rh.login_at(st, Path(d) / "none.txt") == 0.0
+          and rh.login_age_message(0.0) is None)
+    now = 1791161400.0
+    check("no warning before 20 days", rh.login_age_message(now, now + 19 * 86400) is None)
+    m = rh.login_age_message(now, now + 22 * 86400)
+    check("warning from 20 days, with the days left and the fix", m and "22 days old" in m and "≤8 days left" in m
+          and "--login" in m)
+    import notify
+    check("the alert uses a notify function that exists", hasattr(notify, "notify") and callable(notify.notify))
     tok = asyncio.run(st.get_tokens())
     check("get_tokens strips issued_at for the MCP client", tok.access_token == "A2" and not hasattr(tok, "issued_at")
           or "issued_at" not in tok.model_dump())

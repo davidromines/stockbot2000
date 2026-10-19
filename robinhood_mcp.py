@@ -174,6 +174,8 @@ def refresh(force: bool = False, url: str | None = None, storage: "FileTokenStor
         new = {k: v for k, v in body.items() if v is not None}
         new.setdefault("refresh_token", t["refresh_token"])  # RFC 6749 §6: may be omitted = unchanged
         new["issued_at"] = time.time()
+        if t.get("login_at"):
+            new["login_at"] = t["login_at"]   # the last full --login; a refresh must not erase it (found 10-19)
         d["tokens"] = new
         st._write(d)
         log.info("Robinhood token refreshed (old one %s)"
@@ -421,27 +423,49 @@ LOGIN_WARN_DAYS = 20   # alert when the last full --login is this many days old
 LOGIN_MAX_DAYS  = 30   # assumed max lifetime of a Robinhood refresh token
 
 
+LOGIN_SEED = TOKEN_FILE.with_name("robinhood_login_at.txt")   # ISO time of the last known full --login
+
+
+def login_at(storage: "FileTokenStorage | None" = None, seed: Path | None = None) -> float:
+    """Epoch seconds of the last full --login: the token record's own stamp, else the seed file (written by
+    hand for sign-ins made before refresh() kept the stamp), else 0 = unknown."""
+    t = (storage or FileTokenStorage())._read().get("tokens") or {}
+    if t.get("login_at"):
+        return float(t["login_at"])
+    try:
+        from datetime import datetime
+        txt = (seed or LOGIN_SEED).read_text().split()[0]
+        return datetime.fromisoformat(txt.replace("Z", "+00:00")).timestamp()
+    except (OSError, ValueError, IndexError):
+        return 0.0
+
+
+def login_age_message(at: float, now: float | None = None) -> str | None:
+    """The renewal warning once the last full login is LOGIN_WARN_DAYS old; None before that or when unknown."""
+    if not at:
+        return None
+    days = ((now or time.time()) - at) / 86400
+    if days < LOGIN_WARN_DAYS:
+        return None
+    days_left = max(0, LOGIN_MAX_DAYS - int(days))
+    return (f"Robinhood sign-in is {int(days)} days old (estimated ≤{days_left} days left). "
+            f"Run: ./venv/bin/python robinhood_mcp.py --login")
+
+
 def _check_login_age() -> None:
     """Alert via Telegram/desktop when the last full login is approaching its expiry.
-    Runs during --refresh (called every 6 h from daily.sh) so the owner is warned
-    before trading halts.  No-ops silently when notify is unavailable."""
+    Runs during --refresh (daily.sh [3c2], before the trading window) so the owner is warned
+    before trading halts. Never raises. Until 2026-10-19 this could not fire: refresh() erased
+    the login stamp and the alert called a notify function that does not exist."""
     try:
-        st = FileTokenStorage()
-        t = st._read().get("tokens") or {}
-        login_at = float(t.get("login_at") or 0)
-        if not login_at:
-            return  # no login_at recorded yet — will be set on next --login
-        days = (time.time() - login_at) / 86400
-        if days < LOGIN_WARN_DAYS:
+        msg = login_age_message(login_at())
+        if not msg:
             return
-        days_left = max(0, LOGIN_MAX_DAYS - int(days))
         import notify
-        msg = (f"Robinhood sign-in is {int(days):.0f} days old (estimated ≤{days_left} days left). "
-               f"Run: ./venv/bin/python robinhood_mcp.py --login")
-        notify.send(msg, title="Robinhood sign-in renewal due")
+        notify.notify("Robinhood sign-in renewal due", msg)
         log.warning(msg)
-    except Exception:       # noqa: BLE001 — never interrupt the refresh flow
-        pass
+    except Exception as e:  # noqa: BLE001 — never interrupt the refresh flow
+        log.warning(f"login-age check failed: {type(e).__name__}: {e}")
 
 
 def agentic_account(accounts) -> dict | None:
@@ -484,6 +508,12 @@ def main(argv=None) -> int:
             ok = refresh(force=False)
             if not ok:
                 print("refresh failed — run --login")
+                try:                                           # the 10-01 outage went unnoticed for days
+                    import notify
+                    notify.notify("Robinhood sign-in", "Token refresh failed. LIVE trading halts when the current "
+                                  "token expires. Run: ./venv/bin/python robinhood_mcp.py --login")
+                except Exception as e:                         # noqa: BLE001
+                    log.warning(f"refresh-failure alert failed: {type(e).__name__}")
                 return 3
             _check_login_age()
             if not getattr(args, "quiet", False):
