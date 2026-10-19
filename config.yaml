@@ -413,10 +413,10 @@ slots:
   # replaced when a challenger's score beats it by min_advantage_score (net
   # return per trade), after min_hold_sessions, at most max_replacements_per_day.
   min_advantage_score: 0.002
-  min_hold_sessions: 3
+  min_hold_sessions: 999    # owner 2026-10-19 (Stage AD H2): holders keep their slot until their own stop/time/exit; was 3
   entry_retry_minutes: 20   # owner 2026-09-28: retry the buying pass every 20 min while a slot is empty
   standins: 10              # stand-in strategies recorded daily for idle slots (was 5)
-  max_replacements_per_day: 2
+  max_replacements_per_day: 0   # owner 2026-10-19 (H2): no score-based replacement until the monthly review (AD2.3); was 2. Ineligibility releases still happen
   # A pair-fund slot (bull/bear ETF switching) holds the ETF the fund holds and
   # sells it when the fund switches. The fund's forward record has NO stop; a
   # slot must have a price stop (§15), so this one is added and is the slot's
