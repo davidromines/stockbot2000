@@ -66,6 +66,28 @@ def posterior(backtest: float | None, forward: float | None, n: int, sd20: float
             "w_backtest": w_b / prec, "w_forward": w_f / prec}
 
 
+def honest_forward(conn, run_id) -> tuple:
+    """(mean net return per trade, independent entry dates) from paper_trades_restated (next-open fills, costs
+    deducted) for one paper fund; (None, 0) where nothing is restated. Entry dates, not trades, are the sample size."""
+    if not run_id:
+        return None, 0
+    try:
+        r = conn.execute("SELECT AVG(net_pct), COUNT(DISTINCT entry_date) FROM paper_trades_restated WHERE run_id=?",
+                         (run_id,)).fetchone()
+    except sqlite3.Error:
+        return None, 0
+    if not r or r[0] is None:
+        return None, 0
+    return float(r[0]) / 100.0, int(r[1] or 0)
+
+
+def per20(x: float | None, hold: float | None, n: float = 20.0, floor: float = 5.0):
+    """A per-trade figure on the per-20-sessions-held scale the ranking score uses."""
+    if x is None or not hold:
+        return x
+    return x * n / max(float(hold), floor)
+
+
 def plan(rows: list, holders: dict, n_slots: int, s: dict, too_similar=None) -> dict:
     """rows: slots.assess output (eligible flag, score, forward, forward_trades, sd_20, family, keys).
     holders: {slot: {strategy_key, version}} for the medium-term slots. Returns the shadow choice and the comparison."""
@@ -73,7 +95,8 @@ def plan(rows: list, holders: dict, n_slots: int, s: dict, too_similar=None) -> 
     for r in rows:
         if not r.get("eligible"):
             continue
-        p = posterior(r.get("score"), r.get("forward"), r.get("forward_trades") or 0, r.get("sd_20"), s)
+        fwd, n = r.get("honest_forward", r.get("forward")), r.get("honest_dates", r.get("forward_trades") or 0)
+        p = posterior(r.get("score"), per20(fwd, r.get("hold_days")), n, r.get("sd_20"), s)
         scored.append({**{k: r.get(k) for k in ("strategy_key", "version", "family", "score", "forward",
                                                 "forward_trades")}, **p})
     scored.sort(key=lambda x: -x["post_risk_adj"])
@@ -119,6 +142,10 @@ def run(conn, cfg: dict, record: bool = False) -> dict:
     import slots
     s = settings(cfg)
     rows = slots.assess(conn, cfg)
+    for r in rows:              # the restated (next-open, net) record, by fund, where one exists
+        if r.get("fund_kind") in (None, "paper") and r.get("fund_id"):
+            f, d = honest_forward(conn, r["fund_id"])
+            r["honest_forward"], r["honest_dates"] = f, d
     reserved = slots.intraday_reserved(cfg)
     held = {k: v for k, v in slots.current(conn, cfg).items() if k not in reserved}
     try:

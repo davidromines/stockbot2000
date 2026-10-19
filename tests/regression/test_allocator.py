@@ -54,6 +54,15 @@ check("the shadow table exists and the module has no trading or assignment code"
       and "slot_assignments" not in open(al.__file__).read().split("def init")[1].split("def run")[0]
       and "execute(sig" not in open(al.__file__).read())
 check("render works", "ALLOCATOR" in al.render({**p, "held": holders}))
+c.execute("CREATE TABLE paper_trades_restated (version TEXT, run_id TEXT, ticker TEXT, entry_date TEXT, net_pct REAL)")
+c.executemany("INSERT INTO paper_trades_restated VALUES ('v2_next_open','r1',?,?,?)",
+              [("A", "2026-10-01", 1.0), ("B", "2026-10-01", 3.0), ("C", "2026-10-02", -1.0)])
+check("forward evidence = the restated record (net, next-open), counted by independent entry dates",
+      al.honest_forward(c, "r1") == (0.01, 2) and al.honest_forward(c, "none") == (None, 0))
+check("per-trade forward is put on the score's per-20-sessions scale", abs(al.per20(0.01, 60) - 0.01 / 3) < 1e-12
+      and al.per20(0.01, 2) == 0.04)
+hr = [{**row("h", 0.02), "honest_forward": -0.02, "honest_dates": 30, "hold_days": 20}]
+check("a restated losing record overrides the paper figure", al.plan(hr, {}, 1, S)["shadow"] == [])
 
 print("\n  ALL PASS" if not FAILS else f"\n  FAILED: {FAILS}")
 raise SystemExit(1 if FAILS else 0)

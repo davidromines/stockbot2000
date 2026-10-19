@@ -396,7 +396,7 @@ def rank(conn, cfg: dict) -> list:
                     # Bull-market checks (market_checks.py): recorded and shown, never a gate.
                     "checks": _market_checks(conn, key, ver), "passes_gate": ok, "gate": why,
                     **{k: ev.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
-                                              "max_drawdown_pct", "as_of", "recon_status", "fund_kind")}})
+                                              "max_drawdown_pct", "as_of", "recon_status", "fund_kind", "fund_id")}})
     for r in out:
         r.update(risk_terms(r["score"], r.get("sd_per_trade"), r.get("entry_dates"), r.get("hold_days"), s))
     out.sort(key=lambda r: (not r["passes_gate"], -r["score"]))
