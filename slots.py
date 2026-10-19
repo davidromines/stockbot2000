@@ -42,11 +42,13 @@ the same rule league.py follows for lifecycle state.
 """
 import runtime  # noqa: F401  — must precede numpy/pandas
 import argparse
+import hashlib
 import json
 import logging
 import sqlite3
 import sys
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import factory_pipeline
 import killswitch
@@ -92,12 +94,71 @@ DEFAULTS = {
     # rule held slot 1 in September). Fund-type strategies are not measured. 0 = off.
     "min_active_sessions": 1,
     "activity_sessions": 60,
+    # Stage AD2.3 (owner H2, 2026-10-19). cadence "daily" = the original rule (any day, by min_advantage_score after
+    # min_hold_sessions). "monthly": score-based replacement only on the month's first session, by a margin of the
+    # switching cost plus `se_multiple` standard errors of the score difference; between reviews a holder is released
+    # only on a HARD failure, and a ranking gate it fails because the RULES changed since its assignment waits for the
+    # review (grandfathering).
+    "review": {"cadence": "daily", "max_replacements": 2, "min_hold_sessions": 20,
+               "switching_cost": 0.004, "se_multiple": 1.0, "se_fallback": 0.01},
+    # Stage AD3.3 (owner H7b): order holders and challengers by "raw" score or "risk_adjusted" (score per unit of risk).
+    "score_mode": "raw",
 }
+NY = ZoneInfo("America/New_York")
+# Settings whose change is a change of the RULES (grandfathering compares a holder's assignment against these).
+RULE_KEYS = ("min_score", "max_per_family", "family_caps", "max_correlation", "min_active_sessions",
+             "activity_sessions", "max_evidence_lag_sessions", "score_mode")
+SOFT_PREFIXES = ("predicted to lose", "entry rule fired on")
+FALLBACK_SD20 = 0.10        # risk_adjusted ordering for a row with no measured dispersion: 10% per 20 sessions
 MODES = ("SIMULATION", "SHADOW", "LIVE")
 
 
 def settings(cfg: dict) -> dict:
-    return {**DEFAULTS, **(cfg.get("slots") or {})}
+    out = {**DEFAULTS, **(cfg.get("slots") or {})}
+    out["review"] = {**DEFAULTS["review"], **((cfg.get("slots") or {}).get("review") or {})}
+    return out
+
+
+def rules_fingerprint(cfg: dict) -> str:
+    """A short hash of the rules that decide eligibility and order: ranking, survivorship and the slot gates."""
+    s = settings(cfg)
+    blob = {"ranking": cfg.get("ranking") or {}, "survivorship": cfg.get("survivorship") or {},
+            "slots": {k: s.get(k) for k in RULE_KEYS}}
+    return hashlib.sha256(json.dumps(blob, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def _today() -> str:
+    return datetime.now(NY).date().isoformat()
+
+
+def review_month(conn, cfg: dict, today: str | None = None) -> str | None:
+    """'YYYY-MM' when today is the month's review (its first session, not yet reviewed), else None. Always the month
+    under the original daily cadence."""
+    r = settings(cfg)["review"]
+    day = today or _today()
+    month = day[:7]
+    if r.get("cadence") == "daily":
+        return month
+    bars = conn.execute("SELECT COUNT(*) FROM prices WHERE ticker='SPY' AND date >= ? AND date < ?",
+                        (month + "-01", day)).fetchone()[0]
+    if bars:
+        return None
+    done = conn.execute("SELECT 1 FROM slot_reviews WHERE summary LIKE ? LIMIT 1",
+                        (f'%"review_month": "{month}"%',)).fetchone()
+    return None if done else month
+
+
+def release_kind(reason: str, holder: dict, fp: str, gate: str | None) -> str:
+    """'hard' (releases any day) or 'soft' (waits for the review). Score drift and an idle entry rule are soft; a
+    ranking gate is hard only if the holder was assigned under the current rules (otherwise grandfathered)."""
+    if reason.startswith("no longer in the forward pool"):
+        return "hard"
+    text = reason.replace("no longer eligible: ", "", 1)
+    if text.startswith(SOFT_PREFIXES):
+        return "soft"
+    if gate and text == gate:
+        return "hard" if holder.get("rules") == fp else "soft"
+    return "hard"
 
 
 def _now() -> str:
@@ -141,9 +202,13 @@ def current(conn, cfg: dict | None = None) -> dict:
     for r in cur.fetchall():
         r = dict(zip(cols, r))
         if r["action"] == "ASSIGN":
+            try:
+                rules = (json.loads(r.get("evidence") or "{}") or {}).get("rules")
+            except (TypeError, ValueError):
+                rules = None
             out[r["slot_id"]] = {"strategy_key": r["strategy_key"], "version": r["version"],
                                  "capital_usd": r["capital_usd"], "since": r["at"],
-                                 "mode": r["mode"]}
+                                 "mode": r["mode"], "rules": rules}
         else:
             out[r["slot_id"]] = None
     return out
@@ -295,7 +360,7 @@ def assess(conn, cfg: dict) -> list:
             reasons.append(f"not tradeable in a slot — stop plan: {why[0]}")
         out.append({**r, "eligible": not reasons, "reasons": reasons, "stop_plan": plan})
     # Rank on the score; more forward trades breaks ties — more evidence wins.
-    out.sort(key=lambda x: (-_rank_value(x), -(x.get("forward_trades") or 0)))
+    out.sort(key=lambda x: (-_rank_value(x, s["score_mode"]), -(x.get("forward_trades") or 0)))
     return out
 
 
@@ -328,9 +393,14 @@ def _options_armed() -> bool:
         return False
 
 
-def _rank_value(r: dict) -> float:
-    """The ranking score where one exists, else net P&L (older callers and tests)."""
+def _rank_value(r: dict, mode: str = "raw") -> float:
+    """The ranking score where one exists, else net P&L (older callers and tests). In "risk_adjusted" mode, the score
+    per unit of risk (ranking.risk_terms), with a conservative assumed dispersion where none is measured."""
     if r.get("score") is not None:
+        if mode == "risk_adjusted":
+            if r.get("risk_adj") is not None:
+                return float(r["risk_adj"])
+            return float(r["score"]) / FALLBACK_SD20
         return float(r["score"])
     return float(r["net_usd"]) if r.get("net_usd") is not None else -1e9
 
@@ -397,18 +467,29 @@ def plan(conn, cfg: dict) -> dict:
     eligible = [r for r in ranked if r["eligible"]]
 
     idle = _idle_check(conn, cfg, s)
-    releases, keep = [], {}
+    month = review_month(conn, cfg)
+    fp = rules_fingerprint(cfg)
+    releases, keep, deferred = [], {}, []
     for slot, h in held.items():
         if h is None:
             continue
         r = by_key.get((h["strategy_key"], h["version"]))
         if r is None:
             releases.append((slot, h, "no longer in the forward pool"))
-        elif not r["eligible"]:
-            releases.append((slot, h, f"no longer eligible: {r['reasons'][0]}"))
-        elif idle(r):
-            releases.append((slot, h, f"no longer eligible: {idle(r)}"))
+            continue
+        why = [f"no longer eligible: {x}" for x in (r["reasons"] if not r["eligible"] else [])]
+        if r["eligible"] and idle(r):
+            why.append(f"no longer eligible: {idle(r)}")
+        if not why:
+            keep[slot] = {**h, "row": r}
+            continue
+        gate = None if r.get("passes_gate", True) else r.get("gate")
+        hard = [w for w in why if release_kind(w, h, fp, gate) == "hard"]
+        if month or hard:
+            releases.append((slot, h, (hard or why)[0]))
         else:
+            # Stage AD2.3: score drift, an idle rule or a gate the rules changed under wait for the monthly review.
+            deferred.append((slot, h["strategy_key"], why[0]))
             keep[slot] = {**h, "row": r}
 
     held_keys = {(h["strategy_key"], h["version"]) for h in keep.values()}
@@ -458,16 +539,28 @@ def plan(conn, cfg: dict) -> dict:
     done_today = int(conn.execute("SELECT COUNT(*) FROM slot_assignments WHERE action='RELEASE' "
                                   "AND reason LIKE 'replaced%' AND substr(at,1,10)=?",
                                   (today,)).fetchone()[0])
+    rv = s["review"]
+    daily = rv.get("cadence") == "daily"
+    max_rep = s["max_replacements_per_day"] if daily else (int(rv["max_replacements"]) if month else 0)
+    min_hold = s["min_hold_sessions"] if daily else int(rv["min_hold_sessions"])
+    mode = s["score_mode"]
     for r in challengers:
         if (r["strategy_key"], r["version"]) in taken:
             continue
-        if replacements + done_today >= s["max_replacements_per_day"] or not keep:
+        if replacements + done_today >= max_rep or not keep:
             break
-        weakest_slot = min(keep, key=lambda k: _rank_value(keep[k]["row"]))
+        weakest_slot = min(keep, key=lambda k: _rank_value(keep[k]["row"], mode))
         w = keep[weakest_slot]
         scored = r.get("score") is not None and w["row"].get("score") is not None
-        adv = _rank_value(r) - _rank_value(w["row"])
+        adv = _rank_value(r, mode) - _rank_value(w["row"], mode)
         need = s["min_advantage_score"] if scored else s["min_advantage_usd"]
+        if scored and not daily:
+            # the switching cost plus the uncertainty of the difference (score units; risk_adjusted mode divides both
+            # by the challenger's dispersion so the margin stays on the ordering's scale)
+            se = lambda x: x.get("score_se") if x.get("score_se") is not None else rv["se_fallback"]   # noqa: E731
+            need = rv["switching_cost"] + rv["se_multiple"] * (se(r) ** 2 + se(w["row"]) ** 2) ** 0.5
+            if mode == "risk_adjusted":
+                need /= (r.get("sd_20") or FALLBACK_SD20)
         others = Counter(h["row"]["family"] for sl, h in keep.items() if sl != weakest_slot)
         sim = too_similar(r, [h for sl, h in keep.items() if sl != weakest_slot] + [a[1] for a in assigns])
         if sim:
@@ -478,11 +571,13 @@ def plan(conn, cfg: dict) -> dict:
             and sum(1 for sl, h in keep.items() if sl != weakest_slot and is_crypto(h["strategy_key"]))
             >= s["max_crypto_slots"])
         held_for = _sessions_since(conn, w["since"])
-        if adv < need or family_clash or held_for < s["min_hold_sessions"] or idle(r):
+        if adv < need or family_clash or held_for < min_hold or idle(r):
             continue
-        unit = (lambda v: f"{v:+.2%}/trade") if scored else (lambda v: f"${v:+.2f} net")
+        unit = (lambda v: f"{v:+.2%}/trade") if scored and mode == "raw" else (
+            (lambda v: f"{v:+.2f} per unit of risk") if scored else (lambda v: f"${v:+.2f} net"))
         releases.append((weakest_slot, w, f"replaced by {r['strategy_key']}: "
-                                          f"{unit(_rank_value(r))} vs {unit(_rank_value(w['row']))}"))
+                                          f"{unit(_rank_value(r, mode))} vs {unit(_rank_value(w['row'], mode))}"
+                                          + ("" if daily else f" (monthly review {month}, margin {need:+.2%})")))
         assigns.append((weakest_slot, r, f"replaces {w['strategy_key']} "
                                          f"({unit(adv)} better, holder had {held_for} sessions)"))
         del keep[weakest_slot]
@@ -519,7 +614,8 @@ def plan(conn, cfg: dict) -> dict:
     cash = [slot for slot in held if slot not in keep and slot not in {a[0] for a in assigns}]
     return {"held": held, "keep": {k: {kk: vv for kk, vv in v.items() if kk != "row"} for k, v in keep.items()},
             "release": releases, "assign": assigns, "cash_slots": cash, "skipped_correlated": skipped_corr,
-            "standins": standins,
+            "standins": standins, "review_month": None if daily else month, "deferred": deferred,
+            "rules": fp,
             "eligible": len(eligible), "assessed": len(ranked), "ranked": ranked,
             "settings": s}
 
@@ -537,7 +633,8 @@ def apply(conn, cfg: dict, mode: str = "SIMULATION", actor: str = "slots") -> di
                      (at, slot, "RELEASE", h["strategy_key"], h["version"], None, mode, why))
     for slot, r, why in p["assign"]:
         ev = {k: r.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
-                                    "max_drawdown_pct", "tier", "family", "league")}
+                                    "max_drawdown_pct", "tier", "family", "league", "score", "risk_adj", "score_se")}
+        ev["rules"] = p["rules"]
         conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, "
                      "capital_usd, mode, reason, evidence) VALUES (?,?,?,?,?,?,?,?,?)",
                      (at, slot, "ASSIGN", r["strategy_key"], r["version"], s["capital_per_slot"],
@@ -549,7 +646,9 @@ def apply(conn, cfg: dict, mode: str = "SIMULATION", actor: str = "slots") -> di
                       classification="LIVE", actor=actor)
     summary = {"released": len(p["release"]), "assigned": len(p["assign"]),
                "cash_slots": p["cash_slots"], "eligible": p["eligible"], "assessed": p["assessed"],
-               "standins": p["standins"]}
+               "standins": p["standins"], "deferred": p["deferred"]}
+    if p.get("review_month"):
+        summary["review_month"] = p["review_month"]       # the month's review is done; once per month
     conn.execute("INSERT INTO slot_reviews (at, mode, summary) VALUES (?,?,?)",
                  (at, mode, json.dumps(summary)))
     conn.commit()
@@ -596,6 +695,7 @@ def owner_replace(conn, cfg: dict, slot: int, key: str, version: int, reason: st
                       f"replaced by owner: {reason}"))
     ev = {k: r.get(k) for k in ("net_usd", "gross_usd", "costs_usd", "sessions", "closed_trades",
                                 "max_drawdown_pct", "tier", "family", "league", "score")}
+    ev["rules"] = rules_fingerprint(cfg)
     conn.execute("INSERT INTO slot_assignments (at, slot_id, action, strategy_key, version, "
                  "capital_usd, mode, reason, evidence) VALUES (?,?,?,?,?,?,?,?,?)",
                  (at, slot, "ASSIGN", key, version, s["capital_per_slot"], mode,
