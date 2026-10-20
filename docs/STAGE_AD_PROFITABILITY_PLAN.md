@@ -333,3 +333,65 @@ sample and count it as validation; change live selection rules after a bad week.
 - Stop widths: 3 × ATR at entry ÷ entry price from `slot_trades.stop_plan` / `atr`.
 - Runner signals: `intraday_runner_signals` (21) against `minute_bars` (New York time), entry at the next bar's open.
 - Per-trade dispersion: `paper_trades_restated` net_pct, SD 8.59%, median hold 4 days.
+
+---
+
+## 11. Build log (owner: "go ahead and build", 2026-10-19; "go", 2026-10-20)
+
+| Item | State | Where | Result / note |
+|---|---|---|---|
+| AD0 H1 Runners at $5 | **LIVE** | config.yaml | 5 trades on 10-19 (1 on 10-16); no signal refused for cash |
+| AD0/AD2.3 monthly review, hard/soft releases, grandfathering | **LIVE** | slots.py, config `slots.review` | first review 2026-11-02; margin = switching cost + 1 SE |
+| AD1.3 ledger to the cent | **daily [9k7]** | ledger_check.py | 12 days match Robinhood's realised P&L; account gap +$0.02 (the $0.23 was mark timing) |
+| AD1.4 backups | done | backup.py | Runner tables, restated trades, alpha registry, allocator, timing, forecasts |
+| AD1.5 open positions in the funnel | done | funnel.py | `open` and `+open` columns |
+| AD1.6 sign-in watchdog | **fixed** | robinhood_mcp.py | could never fire before (stamp erased by refresh; missing notify function) |
+| AD1 integrity report | done | integrity_report.py | one page; corporate-action text corrected 10-20 |
+| Item 4 corporate actions | **LIVE in the paper engine** | paper_trading.adjusted_entry | open positions re-anchored to the adjusted series (entry, stop, take-profit); 1,472 of 34,098 open positions affected, no stop verdict changed. Restated record was already right (both legs on one series) |
+| AD2.1 basket slots | SIMULATION (shadow) | slot_trader.py, config `slots.basket` | LIVE after the freeze; reports now basket-aware (item 1) |
+| AD2.5 entry-timing experiment | built, OFF | slot_trader.entry_wait | switch on after the freeze |
+| AD3.2 dispersion | done | survivorship_backtest.py (+ `--refill`) | 4,188 rows of the current build carry it |
+| AD3.3 risk-adjusted order | shadow | ranking.risk_terms, `slots.score_mode: raw` | flip after 20 sessions of shadow |
+| AD3.4 beta cap 1.3 | **LIVE** | slot_trader.beta_block | refuses a purchase only |
+| AD3.5 earnings | studied | earnings_study.py | 1.64x dispersion, no reward -> backtest a skip rule (open) |
+| AD3.6 stops | studied | stop_study.py | closed-trade win rates are early stop-outs; backtest stop widths (open) |
+| AD4 alpha bench v1 (one look) | done | alpha_bench.py | 0 validated, 8 replicated; volatility screen helps momentum/reversal baskets |
+| AD4 timing dial v1 (one look) | **PASS** | alpha_bench.py | corr +0.355, NW t +6.45, 94% of folds; no fold-boundary leakage (purged) |
+| Timing dial, prospective | **shadow daily [9k5]** | timing_shadow.py | `market_timing_dial_shadow_v1`: 120 sessions, corr > 0 and NW t >= 2 (~April 2027) |
+| AD5 prediction service | **shadow daily [9k6]** | predict_service.py | ridge kept at 5/20/60 (val IC +0.04/+0.06/+0.09); XGBoost negative within a date |
+| AD6 allocator | **shadow daily [9k2]** | allocator.py | overlap 1 of 3; no swap beats the switching cost |
+| AD7 Runner replays | done | intraday_replay.py | stock -0.11%/signal (t -3.3), twin -0.14%; MIM absent; prospective rule registered 10-19 23:45 UTC |
+| AD8 JKP check | done | external_benchmark.py | spread corr 0.86 (momentum), 0.73 (value): partial |
+| AD9 attribution + evidence in the daily report | **LIVE (Telegram)** | live_attribution.py, eod_report `VS THE MARKET / EVIDENCE` | account vs SPY today and since start; test progress |
+| Item 1 basket-aware reports | done | live_pnl, eod_report, control_center(_extra), telegram_bot, daily_snapshot | pre-existing defect fixed: Control Center `max_hold_days` was inside a comment |
+
+### Item 3 — next-open fills inside the paper engine: design (not built; decision layers already read the restated record)
+
+Why not tonight: about twenty modules read `paper_trades` / `paper_positions`, and several (restate_paper, audit_forward,
+audit_execution, prospective_eval's open marks) shift entries to the next open themselves. Converting the engine without
+changing them would shift those trades twice and alter inputs to a locked experiment.
+
+Design, in the order it must land (one branch, outside market hours, full suite, a dry run on a database copy):
+1. `paper_pending` table (run_id, ticker, side, decided_on, reason, stop rule inputs). A step on day D decides on the
+   close of D and writes pending orders; the next step fills them at the open of the first session after D (entries
+   sized at that open; exits booked at that open, gaps included); an order with no open for 3 sessions is cancelled.
+   Cash is debited at the fill, not at the decision (accounting stays on a liquidation basis).
+2. Keep `entry_date` / `exit_date` as the DECISION dates and add `fill_basis` ('close' | 'next_open') and `fill_date`
+   columns. Downstream code that keys on decision dates (funnel, the locked prospective test, audit dates) is then
+   unchanged.
+3. `restate_paper`: rows with fill_basis 'next_open' are copied as they are (no second shift); rows with 'close' are
+   restated as today.
+4. `audit_forward`, `audit_execution`, `prospective_eval` (open marks): skip their own next-open shift for
+   'next_open' rows.
+5. Equity and marks unchanged (close of D); a position pending exit is still marked until it fills.
+6. Conviction, rotation and Kalman steps keep their own conventions (documented).
+Acceptance: the same strategy and dates give the same trades in the simulator, the paper engine and the restated record.
+
+### Still open after this build
+- Item 3 (above).
+- Earnings skip rule and stop widths as backtests (AD3.5, AD3.6), through exit_sweep / the simulator.
+- Re-anchoring for the conviction and rotation steps and `paper_trading.close()` (they still use the recorded entry).
+- LIVE positions and splits: Robinhood adjusts the share count on a split, the slot ledger does not; reconciliation would
+  halt LIVE (fail-closed) until a ledger adjustment row is written by hand. A split handler for the slot ledger is open.
+- After the 20-session freeze (~2026-11-16): baskets in LIVE, risk-adjusted order, entry-timing experiment, allocator
+  from shadow to deciding — each an owner decision on its shadow record.
