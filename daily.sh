@@ -305,6 +305,10 @@ run "[9k2/10] Allocator (shadow)" bounded $PY allocator.py --record
 run "[9k3/10] Live attribution" $PY live_attribution.py --write
 # Stage AD7.4: the live Runners' logged signals against the pre-registered decision rule (INTERIM until the sample).
 run "[9k4/10] Runner signals (prospective)" bounded $PY intraday_replay.py --prospective --write
+# Stage AD4 follow-up: the live classifier as a market-timing dial, SHADOW (pre-registered market_timing_dial_shadow_v1).
+run "[9k5/10] Timing dial (shadow)" bounded $PY timing_shadow.py --log
+# Stage AD5: dated shadow forecasts from the frozen per-horizon models (prediction_log). Nothing trades on them.
+run "[9k6/10] Forecasts (shadow)" bounded $PY predict_service.py --score
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().
