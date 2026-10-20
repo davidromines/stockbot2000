@@ -283,6 +283,7 @@ work on your local model, per the design goal.
 | `integrity_report.py [--write]` | Stage AD1: one-page data-integrity report (fill conventions, restatement coverage, corporate actions, ledger gap, backups, dispersion coverage, prospective test, fills, sign-in) |
 | `earnings_study.py [--write]` | Stage AD3.5: holding across 8-K 2.02 announcements vs same-stock controls |
 | `stop_study.py [--write]` | Stage AD3.6: MAE/MFE in ATR units from the restated forward record against the configured stops |
+| `risk_sweep.py --register \| --run \| --report [--write]` | Stage AD3.5/AD3.6: registered backtests of an earnings-skip rule and ATR stop widths on the ranking's basis (run with `run_bounded.sh`, after a daily run) |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is
