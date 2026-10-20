@@ -691,18 +691,23 @@ def _step_next_open(conn, cfg, run, today, prices, dv, candidates, exits_today, 
         reason = None
         if px is None:
             if held_days >= horizon * 4:
-                # Unpriceable for a long time: nothing will ever fill it. Booked at its entry, as the close path does.
+                # No bar at all for a long time: nothing will ever fill it. Booked at its LAST REAL CLOSE — the close
+                # path books these at the entry price, which recorded 35 losses of -15% to -96% as 0.00% (found
+                # 2026-10-20) — and at entry only when the stock never printed after it.
                 notional = pos["shares"] * pos["entry_price"]
+                xp = float(stale[t]) if stale.get(t) else e_adj
+                gross = notional * (xp / e_adj - 1)
                 cost = float(cost_model.round_trip(notional, dv.get(t, 0), notional / e_adj))
                 conn.execute("""
                     INSERT OR REPLACE INTO paper_trades
                         (run_id, ticker, entry_date, exit_date, entry_price, exit_price, shares, gross_pnl_usd,
                          costs_usd, net_pnl_usd, pnl_pct, exit_reason, fill_basis, fill_date, exit_fill_date)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, (rid, t, pos["entry_date"], today, e_adj, e_adj, notional / e_adj, 0.0, cost, -cost, 0.0,
-                      "unpriceable", pos.get("fill_basis") or "close", pos.get("fill_date"), None))
+                """, (rid, t, pos["entry_date"], today, e_adj, xp, notional / e_adj, gross, cost, gross - cost,
+                      (xp / e_adj - 1) * 100, "unpriceable", pos.get("fill_basis") or "close", pos.get("fill_date"),
+                      None))
                 conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (rid, t))
-                cash += notional - cost
+                cash += notional + gross - cost
                 open_pos.remove(pos)
                 sold += 1
                 continue

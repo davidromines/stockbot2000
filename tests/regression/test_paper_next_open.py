@@ -205,5 +205,24 @@ check("rollback: next-open positions keep their open anchor (BBB 98, CCC 101): n
       abs(equity(F1, "2026-10-08")["positions_usd"] - (SIZE * 99 / 98 + SIZE * 103 / 101)) < 1e-9, equity(F1, "2026-10-08"))
 check("rollback: BBB not stopped by a mis-anchored stop", "BBB" in positions(F1))
 
+# --- a stock that stops printing is booked at its LAST REAL CLOSE, never at its entry ---------------------------
+c2 = sqlite3.connect(":memory:")
+c2.row_factory = sqlite3.Row
+c2.execute("CREATE TABLE prices (ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL)")
+pt.init(c2)
+for d_ in pd.bdate_range("2026-08-03", "2026-10-01").strftime("%Y-%m-%d"):      # the session calendar (~44 sessions)
+    c2.execute("INSERT INTO prices VALUES ('SPY',?,100,100,100,100,1)", (d_,))
+c2.execute("INSERT INTO prices VALUES ('GONE','2026-08-03',100,100,100,100,1)")
+c2.execute("INSERT INTO prices VALUES ('GONE','2026-08-04',30,30,30,30,1)")       # its last print
+G6 = pt.start(c2, cfg, "f6", strategy=genome("f6"))
+c2.execute("INSERT INTO paper_positions (run_id, ticker, entry_date, entry_price, shares, stop_price, days_held) "
+           "VALUES (?,?,?,?,?,?,?)", (G6, "GONE", "2026-08-03", 100.0, SIZE / 100.0, None, 100))
+c2.commit()
+state.update(day="2026-10-01", px={"SPY": 100.0}, cands={})
+pt.step(c2, cfg)
+g = dict(c2.execute("SELECT * FROM paper_trades WHERE run_id=? AND ticker='GONE'", (G6,)).fetchone())
+check("no bar for 4 holding periods: booked at the last real close (30, -70%), not at the entry (0%)",
+      g["exit_reason"] == "unpriceable" and g["exit_price"] == 30 and abs(g["pnl_pct"] + 70) < 1e-9, g)
+
 print("\n  ALL PASS" if not FAILS else f"\n  FAILED: {FAILS}")
 raise SystemExit(1 if FAILS else 0)
