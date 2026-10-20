@@ -219,6 +219,21 @@ def main():
           remaining == conv.count("INSERT OR REPLACE INTO paper_positions"),
           f"{remaining} occurrence(s) in the file")
 
+    # --- v2: an open position after a split is valued on the adjusted series (no phantom P&L) -----------------
+    print("\naccounting.py — v2: open positions on the adjusted series")
+    conn = _paper_db(positions_usd=24.0, cash=81.9)
+    # BBB was bought on 09-15 at a recorded 10.0; a 2-for-1 split since then back-adjusted that close to 5.0.
+    conn.execute("INSERT INTO prices VALUES (?,?,?,?,?,?,?,?)", ("BBB", "2026-09-15", 5.0, 5.0, 5.0, 5.0, 1.0, "test"))
+    conn.execute("DELETE FROM prices WHERE ticker='BBB' AND date='2026-09-22'")
+    conn.execute("INSERT INTO prices VALUES (?,?,?,?,?,?,?,?)", ("BBB", "2026-09-22", 6.0, 6.0, 6.0, 6.0, 1.0, "test"))
+    conn.commit()
+    r = accounting.paper_funds(conn, StubCost(0.0))[0]
+    check("v2: $20 paid, marked 6 on an adjusted entry of 5 -> open gross +$4.00 (v1 booked -$8.00)",
+          abs(r["gross_usd"] - (2.0 + 4.0)) < 1e-9, r["gross_usd"])
+    check("v2: the engine's re-anchored mark ($24) agrees: no mark difference", abs(r["mark_diff_usd"]) < 1e-9,
+          r["mark_diff_usd"])
+    check("v2: the version is stamped", accounting.ACCOUNTING_VERSION == 2)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED: {', '.join(FAILED)}")

@@ -68,7 +68,10 @@ from universe import load_config
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("accounting")
 
-ACCOUNTING_VERSION = 1
+# 2 (2026-10-20, Stage AD item 4/3): open paper positions are valued on the ADJUSTED series, as the engine marks
+# them (dollars paid x mark / entry on the same series) — v1 compared the recorded entry with a back-adjusted mark,
+# booking splits, spin-offs and dividends as P&L (CTVA). Rows of v1 stay as they were.
+ACCOUNTING_VERSION = 2
 TOLERANCE_USD = 0.05          # engines mark at slightly different closes; cents, not dollars
 
 
@@ -161,17 +164,22 @@ def paper_funds(conn, cm) -> list:
         n_open = unpriced = 0
         net_closed = conn.execute("SELECT COALESCE(SUM(net_pnl_usd),0) FROM paper_trades "
                                   "WHERE run_id=?", (r["run_id"],)).fetchone()[0]
-        for p in conn.execute("SELECT ticker, entry_price, shares FROM paper_positions "
-                              "WHERE run_id=?", (r["run_id"],)):
+        import paper_trading as pt
+        for p in conn.execute("SELECT * FROM paper_positions WHERE run_id=?", (r["run_id"],)):
+            p = dict(p)
             n_open += 1
-            basis_open += p["shares"] * p["entry_price"]
+            notional = p["shares"] * p["entry_price"]                  # dollars paid
+            basis_open += notional
             px, dv = _mark(conn, p["ticker"], as_of)
             if px is None:
                 unpriced += 1
-                px = p["entry_price"]          # stated in the note, never silent
-            gross_open += p["shares"] * (px - p["entry_price"])
-            mtm_open += p["shares"] * px
-            costs_open += float(cm.round_trip(p["shares"] * px, dv, p["shares"]))
+                value = notional                   # at entry: stated in the note, never silent
+            else:
+                value = pt._mark_value(conn, p, px)                    # on the adjusted series, as the engine marks
+            e_adj = pt._anchored(conn, p)
+            gross_open += value - notional
+            mtm_open += value
+            costs_open += float(cm.round_trip(value, dv, notional / e_adj if e_adj else p["shares"]))
         # Decompose any disagreement with the engine's own curve. Cash drift:
         # engine cash vs capital - open cost basis + net of closed trades.
         # Mark difference: engine's position value vs shares x last real close.
