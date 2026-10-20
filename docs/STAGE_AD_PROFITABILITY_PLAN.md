@@ -347,14 +347,15 @@ sample and count it as validation; change live selection rules after a bad week.
 | AD1.5 open positions in the funnel | done | funnel.py | `open` and `+open` columns |
 | AD1.6 sign-in watchdog | **fixed** | robinhood_mcp.py | could never fire before (stamp erased by refresh; missing notify function) |
 | AD1 integrity report | done | integrity_report.py | one page; corporate-action text corrected 10-20 |
-| Item 4 corporate actions | **LIVE in the paper engine** | paper_trading.adjusted_entry | open positions re-anchored to the adjusted series (entry, stop, take-profit); 1,472 of 34,098 open positions affected, no stop verdict changed. Restated record was already right (both legs on one series) |
+| Item 4 corporate actions | **LIVE in the paper engine** | paper_trading.adjusted_entry, `_exit_values`, `_mark_value` | open positions re-anchored to the adjusted series (entry, stop, take-profit); 1,472 of 34,098 open positions affected, no stop verdict changed. Extended 10-20 to the rotation and conviction steps. Restated record was already right (both legs on one series) |
+| LIVE splits | **LIVE (trader, from the 10-20 13:00 UTC run)** | slot_trader.split_adjust | broker/ledger a clean split ratio AND yfinance confirms -> zero-P&L CLOSE + restated OPEN (qty x k, price and ATR / k, remaining time limit, reason kept); unconfirmed left to reconciliation. Reports, ranking, attribution, feedback, digest and discovery treat it as one continuing position, not a trade |
 | AD2.1 basket slots | SIMULATION (shadow) | slot_trader.py, config `slots.basket` | LIVE after the freeze; reports now basket-aware (item 1) |
 | AD2.5 entry-timing experiment | built, OFF | slot_trader.entry_wait | switch on after the freeze |
 | AD3.2 dispersion | done | survivorship_backtest.py (+ `--refill`) | 4,188 rows of the current build carry it |
 | AD3.3 risk-adjusted order | shadow | ranking.risk_terms, `slots.score_mode: raw` | flip after 20 sessions of shadow |
 | AD3.4 beta cap 1.3 | **LIVE** | slot_trader.beta_block | refuses a purchase only |
-| AD3.5 earnings | studied | earnings_study.py | 1.64x dispersion, no reward -> backtest a skip rule (open) |
-| AD3.6 stops | studied | stop_study.py | closed-trade win rates are early stop-outs; backtest stop widths (open) |
+| AD3.5 earnings | studied; **backtest registered** | earnings_study.py, risk_sweep.py | 1.64x dispersion, no reward -> `earnings_skip_v1` registered 10-20 (skip within 5 sessions of a report; covered ticker-years; predicted-date check) |
+| AD3.6 stops | studied; **backtest registered** | stop_study.py, risk_sweep.py | `stop_width_slots_v1` registered 10-20 (ATR 1.5-6, paired by trade, t >= 2.58 and most years); 23 strategies frozen |
 | AD4 alpha bench v1 (one look) | done | alpha_bench.py | 0 validated, 8 replicated; volatility screen helps momentum/reversal baskets |
 | AD4 timing dial v1 (one look) | **PASS** | alpha_bench.py | corr +0.355, NW t +6.45, 94% of folds; no fold-boundary leakage (purged) |
 | Timing dial, prospective | **shadow daily [9k5]** | timing_shadow.py | `market_timing_dial_shadow_v1`: 120 sessions, corr > 0 and NW t >= 2 (~April 2027) |
@@ -389,9 +390,9 @@ Acceptance: the same strategy and dates give the same trades in the simulator, t
 
 ### Still open after this build
 - Item 3 (above).
-- Earnings skip rule and stop widths as backtests (AD3.5, AD3.6), through exit_sweep / the simulator.
-- Re-anchoring for the conviction and rotation steps and `paper_trading.close()` (they still use the recorded entry).
-- LIVE positions and splits: Robinhood adjusts the share count on a split, the slot ledger does not; reconciliation would
-  halt LIVE (fail-closed) until a ledger adjustment row is written by hand. A split handler for the slot ledger is open.
+- Run `risk_sweep.py --run` (after a daily run, bounded), then `--report --write`; either result is recorded, and a
+  passing one is a candidate for a paper variant, not a live change.
+- (Closed 10-20: re-anchoring now covers the rotation and conviction steps; `paper_trading.close()` books no exits, so
+  there is nothing to re-anchor. The LIVE split handler is built; see the table.)
 - After the 20-session freeze (~2026-11-16): baskets in LIVE, risk-adjusted order, entry-timing experiment, allocator
   from shadow to deciding — each an owner decision on its shadow record.
