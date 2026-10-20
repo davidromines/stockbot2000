@@ -338,15 +338,15 @@ def _rotation_step(conn, cfg, run, today, cost_model) -> bool:
             px = close(pos["ticker"])
             if px is None:
                 continue
-            gross = pos["shares"] * (px - pos["entry_price"])
-            cost = float(cost_model.round_trip(pos["shares"] * pos["entry_price"], 1e9, pos["shares"]))
+            e, sh, gross, notional = _exit_values(conn, pos, px)       # on the adjusted series (corporate actions)
+            cost = float(cost_model.round_trip(notional, 1e9, sh))
             conn.execute("""INSERT OR REPLACE INTO paper_trades (run_id,ticker,entry_date,exit_date,entry_price,
                 exit_price,shares,gross_pnl_usd,costs_usd,net_pnl_usd,pnl_pct,exit_reason)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (run["run_id"], pos["ticker"], pos["entry_date"], today, pos["entry_price"], px, pos["shares"],
-                 gross, cost, gross - cost, (px / pos["entry_price"] - 1) * 100, "rotated_out"))
+                (run["run_id"], pos["ticker"], pos["entry_date"], today, e, px, sh,
+                 gross, cost, gross - cost, (px / e - 1) * 100, "rotated_out"))
             conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (run["run_id"], pos["ticker"]))
-            cash += pos["shares"] * px - cost
+            cash += notional + gross - cost
             open_pos.remove(pos)
         held = {p["ticker"] for p in open_pos}
         for t in target:
@@ -359,7 +359,7 @@ def _rotation_step(conn, cfg, run, today, cost_model) -> bool:
             cash -= size
             open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
         conn.execute("UPDATE paper_runs SET last_review=? WHERE run_id=?", (today, run["run_id"]))
-    pv = sum(p["shares"] * (close(p["ticker"]) or p["entry_price"]) for p in open_pos)
+    pv = sum(_mark_value(conn, p, close(p["ticker"])) for p in open_pos)
     conn.execute("""INSERT OR REPLACE INTO paper_equity (run_id,date,cash_usd,positions_usd,equity_usd,open_positions)
         VALUES (?,?,?,?,?,?)""", (run["run_id"], today, cash, pv, cash + pv, len(open_pos)))
     conn.execute("UPDATE paper_runs SET cash_usd=?, last_step_on=? WHERE run_id=?", (cash, today, run["run_id"]))
@@ -427,19 +427,18 @@ def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
         if px is None or r is None:
             continue                      # unpriceable or unscoreable: revisit next week
         if r < 0.60:                      # fell out of the wide band
-            gross = pos["shares"] * (px - pos["entry_price"])
-            notional = pos["shares"] * pos["entry_price"]
-            cost = float(cost_model.round_trip(notional, dv.get(pos["ticker"], 0), pos["shares"]))
+            e, sh, gross, notional = _exit_values(conn, pos, px)   # on the adjusted series (corporate actions)
+            cost = float(cost_model.round_trip(notional, dv.get(pos["ticker"], 0), sh))
             conn.execute("""INSERT OR REPLACE INTO paper_trades
                 (run_id,ticker,entry_date,exit_date,entry_price,exit_price,shares,
                  gross_pnl_usd,costs_usd,net_pnl_usd,pnl_pct,exit_reason)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (run["run_id"], pos["ticker"], pos["entry_date"], today,
-                 pos["entry_price"], px, pos["shares"], gross, cost, gross - cost,
-                 (px / pos["entry_price"] - 1) * 100, "fundamentals_deteriorated"))
+                 e, px, sh, gross, cost, gross - cost,
+                 (px / e - 1) * 100, "fundamentals_deteriorated"))
             conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?",
                          (run["run_id"], pos["ticker"]))
-            cash += pos["shares"] * px - cost
+            cash += notional + gross - cost
             open_pos.remove(pos); sold += 1
 
     held = {p["ticker"] for p in open_pos}
@@ -459,7 +458,7 @@ def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
         open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
         held.add(t); bought += 1
 
-    pv = sum(p["shares"] * prices.get(p["ticker"], p["entry_price"]) for p in open_pos)
+    pv = sum(_mark_value(conn, p, prices.get(p["ticker"])) for p in open_pos)
     equity = cash + pv
     conn.execute("""INSERT OR REPLACE INTO paper_equity
         (run_id,date,cash_usd,positions_usd,equity_usd,open_positions)
@@ -489,6 +488,24 @@ def adjusted_entry(conn, ticker: str, entry_date: str, entry_price: float) -> fl
         return float(entry_price)
     k = a / float(entry_price)
     return a if ANCHOR_RANGE[0] <= k <= ANCHOR_RANGE[1] else float(entry_price)
+
+
+def _exit_values(conn, pos: dict, px: float) -> tuple:
+    """(entry on the adjusted series, shares on that series, gross $, dollars paid) for booking an exit at `px`."""
+    e = adjusted_entry(conn, pos["ticker"], pos.get("entry_date"), pos["entry_price"]) if pos.get("entry_date") \
+        else float(pos["entry_price"])
+    notional = float(pos["shares"]) * float(pos["entry_price"])
+    return e, notional / e, notional * (px / e - 1), notional
+
+
+def _mark_value(conn, pos: dict, px: float | None) -> float:
+    """A position's value at `px` on the adjusted series (dollars paid x px / adjusted entry); at cost without a price."""
+    notional = float(pos["shares"]) * float(pos["entry_price"])
+    if px is None:
+        return notional
+    e = adjusted_entry(conn, pos["ticker"], pos.get("entry_date"), pos["entry_price"]) if pos.get("entry_date") \
+        else float(pos["entry_price"])
+    return notional * px / e
 
 
 def step(conn, cfg: dict) -> None:

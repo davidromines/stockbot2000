@@ -82,5 +82,16 @@ check("an unadjusted name is unaffected (BBB still held, marked 105/100)",
       c.execute("SELECT COUNT(*) FROM paper_positions WHERE run_id=? AND ticker='BBB'", (run,)).fetchone()[0] == 1)
 check("a data defect (factor outside the range) leaves the recorded price", pt.adjusted_entry(c, "BBB", "2026-10-01", 1e6) == 1e6)
 
+# the shared helpers the rotation and conviction steps now use
+put("2026-10-01", "CCC", 50.0)                 # back-adjusted from a recorded 100 (2-for-1)
+p = {"ticker": "CCC", "entry_date": "2026-10-01", "entry_price": 100.0, "shares": 0.2}
+e, sh, g, notional = pt._exit_values(c, p, 55.0)
+check("exit helper: entry 50 on the adjusted series, 0.4 shares, +$2.00 on $20", (e, round(sh, 9), round(g, 9), notional)
+      == (50.0, 0.4, 2.0, 20.0), (e, sh, g, notional))
+check("mark helper: $20 x 55/50 = $22; at cost without a price", abs(pt._mark_value(c, p, 55.0) - 22.0) < 1e-9
+      and pt._mark_value(c, p, None) == 20.0)
+check("a position bought today (no entry date yet) marks on its own price",
+      pt._mark_value(c, {"ticker": "CCC", "entry_price": 50.0, "shares": 0.4}, 55.0) == 22.0)
+
 print("\n  ALL PASS" if not FAILS else f"\n  FAILED: {FAILS}")
 raise SystemExit(1 if FAILS else 0)
