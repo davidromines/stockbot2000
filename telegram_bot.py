@@ -124,7 +124,8 @@ def _send(creds, text):
 
 def _positions(conn):
     try:
-        rows = slot_trader.open_positions(conn, "LIVE")
+        from universe import load_config
+        rows = [p for _, p in slot_trader._positions(conn, load_config(), "LIVE")]   # every basket member too
     except Exception as exc:  # a status command must never take the bot down
         return ["positions unavailable: %s" % exc]
     out = []

@@ -132,13 +132,21 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
         open_ = [t for t in pnl["open"] if t["slot"] == slot_id and t["opened"] >= since]
         realized_net = sum(t["net"] for t in closed)
         symbol = entry = qty = mark = unreal_gross = ret_pct = opened_at = None
-        if open_:
+        if len(open_) == 1:
             o = open_[0]
             symbol, entry, qty, mark = o["symbol"], o["entry"], o["quantity"], o["mark"]
             unreal_gross, ret_pct, opened_at = o["gross"], o["ret_pct"], o["opened"]
+        elif open_:
+            # a basket slot (Stage AD2.1): its names and the combined result of the marked members; no single sparkline
+            symbol = "+".join(o["symbol"] for o in open_)
+            marked = [o for o in open_ if o["gross"] is not None]
+            unreal_gross = sum(o["gross"] for o in marked) if marked else None
+            stake = sum(o["stake"] for o in marked)
+            ret_pct = (unreal_gross / stake * 100) if marked and stake else None
+            opened_at = min(o["opened"] for o in open_)
         total_net = realized_net + (unreal_gross or 0.0)
         spark = []
-        if symbol and entry:
+        if symbol and entry and len(open_) == 1:
             mark_rows = conn.execute(
                 "SELECT price FROM slot_marks WHERE slot_id=? AND mode=? AND at>=? AND symbol=? "
                 "AND price IS NOT NULL ORDER BY at", (slot_id, mode, since, symbol)).fetchall()

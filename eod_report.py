@@ -94,14 +94,22 @@ def _open_positions(conn, mode):
         "SELECT * FROM slot_trades WHERE mode=? ORDER BY at, id",
         (mode,),
     )
-    open_by_slot = {}
-    for row in rows:
-        slot = row["slot_id"]
+    out = {}
+    for row in _open_positions_all(conn, mode):
+        out[row["slot_id"]] = row               # one per slot (the last), for callers that read a single position
+    return out
+
+
+def _open_positions_all(conn, mode):
+    """Every open position: an OPEN with no later CLOSE for the same slot AND symbol (a basket slot holds several)."""
+    book = {}
+    for row in _rows(conn, "SELECT * FROM slot_trades WHERE mode=? ORDER BY at, id", (mode,)):
+        k = (row["slot_id"], row["symbol"])
         if row["action"] == "OPEN":
-            open_by_slot[slot] = row
+            book[k] = row
         elif row["action"] == "CLOSE":
-            open_by_slot.pop(slot, None)
-    return open_by_slot
+            book.pop(k, None)
+    return list(book.values())
 
 
 def _latest_marks(conn, mode):
@@ -112,6 +120,7 @@ def _latest_marks(conn, mode):
         (mode,),
     ):
         marks[row["slot_id"]] = row
+        marks[(row["slot_id"], row["symbol"])] = row     # by slot and symbol too (basket slots)
     return marks
 
 
@@ -148,11 +157,11 @@ def _realized_gross(conn, day, mode):
     total = 0.0
     n_closed = 0
     for row in rows:
-        slot = row["slot_id"]
+        k = (row["slot_id"], row["symbol"])
         if row["action"] == "OPEN":
-            last_open[slot] = row
+            last_open[k] = row
         elif row["action"] == "CLOSE" and row["at"][:10] == day:
-            entry = last_open.get(slot)
+            entry = last_open.get(k)
             if entry is None or entry["price"] is None or row["price"] is None:
                 continue
             total += (row["price"] - entry["price"]) * row["quantity"]
@@ -230,9 +239,9 @@ def _section_trades(conn, day, mode):
 def _section_positions(conn, mode):
     marks = _latest_marks(conn, mode)
     out = []
-    for slot in sorted(_open_positions(conn, mode)):
-        row = _open_positions(conn, mode)[slot]
-        mark_row = marks.get(slot)
+    for row in sorted(_open_positions_all(conn, mode), key=lambda r: (r["slot_id"], r["symbol"])):
+        slot = row["slot_id"]
+        mark_row = marks.get((slot, row["symbol"]))
         mark = mark_row["price"] if mark_row else None
         stop = mark_row["stop"] if mark_row else None
         entry = row["price"]
@@ -284,7 +293,7 @@ def _section_slots(conn, mode, ranking):
     the real fill, and its strategy's predicted return (ranking score per 20 sessions)."""
     by_key = {r.get("strategy_key"): r for r in ranking}
     assigned = _assigned_slots(conn, mode)
-    positions = _open_positions(conn, mode)
+    all_pos = _open_positions_all(conn, mode)
     marks = _latest_marks(conn, mode)
     out = []
     for slot in SLOTS:
@@ -295,17 +304,30 @@ def _section_slots(conn, mode, ranking):
                "predicted": (by_key.get(key) or {}).get("score"),
                "symbol": None, "stand_in": None, "entry": None, "mark": None,
                "current_pct": None, "current_usd": None}
-        pos = positions.get(slot)
+        held = [p for p in all_pos if p["slot_id"] == slot]
+        pos = held[0] if len(held) == 1 else None
         if pos:
             entry, qty = pos["price"], pos["quantity"]
-            m = marks.get(slot)
-            mark = m["price"] if m and m["symbol"] == pos["symbol"] else None
+            m = marks.get((slot, pos["symbol"]))
+            mark = m["price"] if m else None
             row.update(symbol=pos["symbol"], entry=_money(entry), mark=_money(mark))
             if pos["strategy_key"] != key:
                 row["stand_in"] = (by_key.get(pos["strategy_key"]) or {}).get("name") or pos["strategy_key"]
             if mark is not None and entry:
                 row["current_pct"] = _pct((mark - entry) / entry * 100.0)
                 row["current_usd"] = _money((mark - entry) * qty)
+        elif held:
+            # A basket slot (Stage AD2.1): its names, and the combined result of the marked ones.
+            row["symbol"] = "+".join(p["symbol"] for p in held)
+            stake = gain = 0.0
+            for p in held:
+                m = marks.get((slot, p["symbol"]))
+                if m and m["price"] is not None and p["price"]:
+                    stake += p["price"] * p["quantity"]
+                    gain += (m["price"] - p["price"]) * p["quantity"]
+            if stake:
+                row["current_pct"] = _pct(gain / stake * 100.0)
+                row["current_usd"] = _money(gain)
         out.append(row)
     return out
 

@@ -45,16 +45,17 @@ def sell_fees(notional: float, quantity: float, cfg: dict) -> float:
 
 
 def compute(conn, cfg: dict, mode: str = "LIVE") -> dict:
-    """Closed and open slot trades for `mode`, each OPEN paired with the next CLOSE of its slot."""
+    """Closed and open slot trades for `mode`, each OPEN paired with the next CLOSE of its slot and symbol."""
     rows = conn.execute("SELECT at, slot_id, strategy_key, symbol, action, quantity, price FROM slot_trades "
                         "WHERE mode=? ORDER BY at, id", (mode,)).fetchall()
     opened, closed = {}, []
     for at, slot, key, sym, action, qty, price in rows:
+        # Paired by slot AND symbol (Stage AD2.1): a basket slot holds several names; one per slot is the same thing.
         if action == "OPEN":
-            opened[slot] = {"slot": slot, "strategy": _name(conn, key), "symbol": sym, "quantity": float(qty),
-                            "entry": float(price), "opened": at}
-        elif action == "CLOSE" and slot in opened:
-            o = opened.pop(slot)
+            opened[(slot, sym)] = {"slot": slot, "strategy": _name(conn, key), "symbol": sym, "quantity": float(qty),
+                                   "entry": float(price), "opened": at}
+        elif action == "CLOSE" and (slot, sym) in opened:
+            o = opened.pop((slot, sym))
             q = min(float(qty), o["quantity"])
             gross = (float(price) - o["entry"]) * q
             costs = sell_fees(float(price) * q, q, cfg)

@@ -127,18 +127,19 @@ def live_positions(c):
     """Open LIVE slot positions from the append-only trade log, marked at the latest monitor price."""
     opens, closed = {}, []
     for t in _rows(c, "SELECT * FROM slot_trades WHERE mode='LIVE' ORDER BY id"):
+        # paired by slot AND symbol (Stage AD2.1: a basket slot holds several names)
         if t["action"] == "OPEN":
-            opens[t["slot_id"]] = t
+            opens[(t["slot_id"], t["symbol"])] = t
         else:
-            o = opens.pop(t["slot_id"], None)
+            o = opens.pop((t["slot_id"], t["symbol"]), None)
             if o:
                 q = float(t["quantity"])
                 gross = (float(t["price"]) - float(o["price"])) * q
                 cost = (_spread(c, t["symbol"]) / 2) * (float(o["price"]) + float(t["price"])) * q
                 closed.append({**t, "entry_price": o["price"], "entry_at": o["at"], "gross": gross,
                                "cost": cost, "net": gross - cost, "strategy_key": o["strategy_key"]})
-    pos = {}
-    for slot, o in opens.items():
+    each = {}
+    for (slot, _sym), o in opens.items():
         m = _one(c, "SELECT price, stop, verdict, at FROM slot_marks WHERE mode='LIVE' AND slot_id=? "
                     "AND symbol=? ORDER BY id DESC LIMIT 1", (slot, o["symbol"]))
         q, entry = float(o["quantity"]), float(o["price"])
@@ -149,15 +150,34 @@ def live_positions(c):
         spread = _spread(c, o["symbol"])
         gross = (px - entry) * q if px else None
         cost = spread / 2 * (entry + (px or entry)) * q
-        pos[slot] = {"slot": slot, "symbol": o["symbol"], "quantity": q, "entry_price": entry,
+        each[(slot, o["symbol"])] = {"slot": slot, "symbol": o["symbol"], "quantity": q, "entry_price": entry,
                      "entry_at": o["at"], "price": px, "price_at": m.get("at"), "stop": m.get("stop"),
                      "verdict": m.get("verdict"), "take_profit_pct": tp,
-                     "take_profit_price": entry * (1 + float(tp) / 100) if tp else None,   # pct, as stop_plans "max_hold_days": max_hold,
+                     "take_profit_price": entry * (1 + float(tp) / 100) if tp else None,   # pct, as stop_plans
+                     "max_hold_days": max_hold,      # was inside the comment above, so the dashboard never showed it
                      "cost_basis": entry * q, "market_value": px * q if px else None,
                      "unrealized_gross": gross, "est_costs": cost,
                      "unrealized_net": gross - cost if gross is not None else None,
                      "strategy_key": o["strategy_key"], "version": o["version"], "stop_plan": plan,
                      "reason": o["reason"]}
+    pos = {}
+    for slot in sorted({k[0] for k in each}):
+        members = [v for k, v in sorted(each.items()) if k[0] == slot]
+        if len(members) == 1:
+            pos[slot] = members[0]
+            continue
+        # a basket slot: one combined card (names, total value, combined result); members listed underneath
+        add = lambda key: sum(m[key] for m in members if m.get(key) is not None)       # noqa: E731
+        known = all(m.get("market_value") is not None for m in members)
+        pos[slot] = {"slot": slot, "symbol": f"{len(members)} names: " + ", ".join(m["symbol"] for m in members),
+                     "quantity": float(len(members)), "entry_price": None, "entry_at": min(m["entry_at"] for m in members),
+                     "price": None, "price_at": max((m["price_at"] or "") for m in members) or None, "stop": None,
+                     "verdict": None, "take_profit_pct": None, "take_profit_price": None, "max_hold_days": None,
+                     "cost_basis": add("cost_basis"), "market_value": add("market_value") if known else None,
+                     "unrealized_gross": add("unrealized_gross") if known else None, "est_costs": add("est_costs"),
+                     "unrealized_net": add("unrealized_net") if known else None,
+                     "strategy_key": members[0]["strategy_key"], "version": members[0]["version"], "stop_plan": [],
+                     "reason": "basket", "members": members}
     return pos, closed
 
 

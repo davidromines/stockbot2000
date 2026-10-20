@@ -320,10 +320,11 @@ def analog_view(conn, top=10):
         if _table_exists(conn, "slot_trades"):
             opens = {}
             for r in _rows(conn, "SELECT slot_id, symbol, action FROM slot_trades WHERE mode='LIVE' ORDER BY id"):
+                k = (_get(r, "slot_id"), _get(r, "symbol"))          # by slot and symbol (basket slots)
                 if _get(r, "action") == "OPEN":
-                    opens[_get(r, "slot_id")] = _get(r, "symbol")
+                    opens[k] = _get(r, "symbol")
                 else:
-                    opens.pop(_get(r, "slot_id"), None)
+                    opens.pop(k, None)
             held = sorted(set(opens.values()))
         s = pd.read_parquet(path)
         day = s["date"].max()
