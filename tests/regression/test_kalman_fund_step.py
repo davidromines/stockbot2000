@@ -563,10 +563,12 @@ def test_main_stepper_skips_fund():
     check("main stepper: and its cash and last_step_on are untouched",
           near(k_row["cash_usd"], 100.0) and k_row["last_step_on"] is None, tuple(k_row))
     c_pos = conn.execute("SELECT ticker FROM paper_positions WHERE run_id='ctl'").fetchall()
+    c_ord = conn.execute("SELECT ticker FROM paper_pending WHERE run_id='ctl' AND side='BUY'").fetchall()
     c_row = conn.execute("SELECT last_step_on FROM paper_runs WHERE run_id='ctl'").fetchone()
+    # Next-open fills (Stage AD item 3, the default): the first step orders ZZZ for the next open; close fills hold it.
     check("main stepper: still trades and steps an ordinary fund",
-          [r["ticker"] for r in c_pos] == ["ZZZ"] and c_row["last_step_on"] == "2026-10-02",
-          ([r["ticker"] for r in c_pos], tuple(c_row)))
+          [r["ticker"] for r in c_pos] + [r["ticker"] for r in c_ord] == ["ZZZ"] and c_row["last_step_on"] == "2026-10-02",
+          ([r["ticker"] for r in c_pos], [r["ticker"] for r in c_ord], tuple(c_row)))
 
 
 def main():

@@ -75,7 +75,7 @@ OUT_DIR = Path("backups")
 GROUPS = {
     "forward": [
         # accrues only in calendar time; cannot be recomputed at any price
-        "paper_runs", "paper_equity", "paper_positions", "paper_trades",
+        "paper_runs", "paper_equity", "paper_positions", "paper_trades", "paper_pending",
         "pair_funds", "pair_fund_equity",
         "picks", "claude_fund", "claude_fund_meta",
         # what the system decided, and why, for money that actually moved

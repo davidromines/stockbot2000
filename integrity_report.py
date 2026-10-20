@@ -91,13 +91,15 @@ def render(d: dict) -> str:
          "## 1. Fill conventions", "",
          "| layer | entry fill | exit fill |", "|---|---|---|",
          "| simulator / backtests | next open | next open after the triggering close |",
-         "| paper engine (original record) | signal-day close | triggering close |",
+         "| paper engine (original record) | signal-day close until 2026-10-20; next open after (`fill_basis`) | "
+         "triggering close until 2026-10-20; next open after |",
          "| paper record, restated (`paper_trades_restated`) | next open | next open |",
          "| live slots | market order at or after the open | market order when a 5-minute check fires |", "",
          f"Restated: {r['restated']:,} of {r['closed']:,} closed paper trades ({f(r['share'], '{:.0%}')}); the rest exit on "
          "the newest bar and have no next open yet. Decision layers (allocator, prospective test, funnel honest column) read "
-         "the restated record. The paper engine's own convention is unchanged (a separate, careful change: it must defer "
-         "orders across daily runs).", "",
+         "the restated record. From 2026-10-20 the paper engine itself decides on the close and fills at the next open "
+         "(Stage AD item 3, `paper.fills`); its rows keep the decision dates, so the restatement of a new row is the same "
+         "fill.", "",
          "## 2. Corporate actions", "",
          f"{r['corporate_action']:,} restated trades ({f(r['ca_share'], '{:.2%}')}) carry the corporate-action flag: the price "
          "history was adjusted after the trade (a split, spin-off or dividend of 1.5% or more). Most frequent: "

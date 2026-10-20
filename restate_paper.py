@@ -1,9 +1,11 @@
 """
 Restate closed paper trades at NEXT-OPEN fills (Addendum F, G1) — beside the originals, never over them.
 
-The paper engine prices an entry at the close of the session that produced the signal and an exit at the
-close that triggers it (`paper_trading.py`); the simulator and backtest have used next-open fills since
-2026-09-15. A close fill is a price nobody could have traded, so forward records read that way flatter the
+Until 2026-10-20 the paper engine priced an entry at the close of the session that produced the signal and an
+exit at the close that triggers it (`paper_trading.py`); the simulator and backtest have used next-open fills since
+2026-09-15. From Stage AD item 3 the engine fills at the next open itself (`fill_basis` 'next_open') and keeps the
+DECISION dates in entry_date / exit_date, so the restatement below — the open of the session after each date — is the
+same fill, on today's adjusted series; no second shift happens. A close fill is a price nobody could have traded, so forward records read that way flatter the
 strategy by roughly the amount the 09-15 finding measured. This does not touch `paper_trades`. For every
 closed trade it stores, in `paper_trades_restated` under an accounting version, what the same trade returns
 if it enters at the open of the session AFTER the entry date and exits at the open of the session AFTER the
@@ -56,9 +58,10 @@ def init(conn) -> None:
 
 def pending(conn) -> pd.DataFrame:
     """Closed paper trades with no restatement row yet under this version."""
+    from forward_stats import fill_basis_sql
     return pd.read_sql_query(
-        """SELECT t.run_id, t.ticker, t.entry_date, t.exit_date, t.entry_price, t.exit_price, t.shares,
-                  t.costs_usd AS costs
+        f"""SELECT t.run_id, t.ticker, t.entry_date, t.exit_date, t.entry_price, t.exit_price, t.shares,
+                  t.costs_usd AS costs, {fill_basis_sql(conn)}
            FROM paper_trades t
            LEFT JOIN paper_trades_restated r ON r.version = ? AND r.run_id = t.run_id
                 AND r.ticker = t.ticker AND r.entry_date = t.entry_date

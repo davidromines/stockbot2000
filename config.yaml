@@ -512,6 +512,9 @@ regime_filter:
 # still applies below this; funds that had already stepped keep their $100.
 paper:
   positions: 20
+  # Stage AD item 3 (2026-10-20): decide on the close, fill at the next open (the simulator's convention).
+  # 'close' is the old engine, kept so this one line rolls it back.
+  fills: next_open
 
 ranking:
   prior_trades: 10

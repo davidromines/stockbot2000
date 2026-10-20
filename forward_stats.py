@@ -80,10 +80,30 @@ def classify(t_cluster: float, ci_lo: float, date_clusters: int) -> str:
     return "Promising but unproven: survives dependence and the 88-family luck bar"
 
 
+def fill_basis_sql(conn, alias: str = "t") -> str:
+    """SQL selecting a paper trade's `fill_basis` (the ENTRY leg: NULL = 'close') and `exit_basis` ('next_open' when the
+    exit was filled at an open, `exit_fill_date` set; else 'close'). Constants where paper_trading.init has not added
+    the columns yet — a reader of an older table must not fail because the engine has not run. A trade opened before
+    2026-10-20 and closed after it is mixed: a close entry and a next-open exit."""
+    have = {r[1] for r in conn.execute("PRAGMA table_info(paper_trades)")}
+    e = f"COALESCE({alias}.fill_basis, 'close')" if "fill_basis" in have else "'close'"
+    x = (f"CASE WHEN {alias}.exit_fill_date IS NOT NULL THEN 'next_open' ELSE 'close' END"
+         if "exit_fill_date" in have else "'close'")
+    return f"{e} AS fill_basis, {x} AS exit_basis"
+
+
 def corporate_action_flag(df: pd.DataFrame, thr: float = CA_THRESHOLD) -> pd.Series:
-    """The engine records the close it saw; the prices table is back-adjusted later. A gap means an adjustment."""
-    re = (df["entry_price"] / df["close_entry"] - 1).abs()
-    rx = (df["exit_price"] / df["close_exit"] - 1).abs()
+    """The engine records the price it paid; the prices table is back-adjusted later. A gap means an adjustment.
+    A close fill paid the close of its decision date; a next-open fill (`fill_basis` 'next_open', Stage AD item 3)
+    paid the open of the session after it, so it is compared with that open — against the decision-day close every
+    overnight gap above the threshold would read as a corporate action."""
+    ce, cx = df["close_entry"], df["close_exit"]
+    if "fill_basis" in df.columns and {"open_next_entry", "open_next_exit"} <= set(df.columns):
+        nxt = df["fill_basis"].eq("next_open")
+        nxt_x = df["exit_basis"].eq("next_open") if "exit_basis" in df.columns else nxt     # per leg (mixed rows)
+        ce, cx = ce.where(~nxt, df["open_next_entry"]), cx.where(~nxt_x, df["open_next_exit"])
+    re = (df["entry_price"] / ce - 1).abs()
+    rx = (df["exit_price"] / cx - 1).abs()
     return ((re > thr) | (rx > thr)).fillna(False)
 
 

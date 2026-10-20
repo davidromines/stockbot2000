@@ -15,8 +15,10 @@ What it found about the paper engine (verified against `paper_trading.py` and th
 entered at the CLOSE of the session that produced the signal and exits are booked at the close that
 triggers them (entry price equals that day's close on ~99% of rows); `pnl_pct` is the GROSS price move,
 not net of the modelled costs. The simulator and backtest use next-open fills since 2026-09-15; the paper
-engine does not. The "honest fills" basis below re-prices each trade at the next session's open, from the
-adjusted price series, minus the modelled round-trip cost.
+engine did not until Stage AD item 3 (2026-10-20), from which it fills at the next open itself (`fill_basis`
+'next_open', decision dates kept in entry_date / exit_date). Bases A-C read the RECORDED fills (a mix of both from
+that date); the "honest fills" basis D re-prices each trade at the open of the session after each decision date, from
+the adjusted price series, minus the modelled round-trip cost — the same price a next-open row already recorded.
 
 Method notes
   iid t          mean / (sd / sqrt n): what funnel.py reports (sample sd here, population sd there)
@@ -51,10 +53,11 @@ EXTRA = ["turn_of_month"]
 
 # --- loading -------------------------------------------------------------------------
 def load_trades(conn, family: str) -> pd.DataFrame:
+    from forward_stats import fill_basis_sql
     df = pd.read_sql_query(
-        """SELECT t.run_id, t.ticker, t.entry_date, t.exit_date, t.entry_price, t.exit_price, t.shares,
+        f"""SELECT t.run_id, t.ticker, t.entry_date, t.exit_date, t.entry_price, t.exit_price, t.shares,
                   t.gross_pnl_usd AS gross, t.costs_usd AS costs, t.net_pnl_usd AS net, t.pnl_pct,
-                  t.exit_reason, r.created_at, r.capital_usd
+                  t.exit_reason, r.created_at, r.capital_usd, {fill_basis_sql(conn)}
            FROM paper_trades t JOIN paper_runs r ON r.run_id = t.run_id
            WHERE r.family = ? AND t.pnl_pct IS NOT NULL""", conn, params=(family,))
     return df
@@ -133,9 +136,9 @@ def audit_family(conn, family: str) -> dict:
     out["ca_flagged_tickers"] = sorted(d.loc[d["flag_ca"], "ticker"].unique().tolist())[:12]
     out["honest_rows"] = int(len(honest))
     out["bases"] = {
-        "A. as reported: GROSS, same-close fills, all rows": _stats_block(d, "r_gross_sameclose"),
-        "B. net of modelled costs, same-close fills, all rows": _stats_block(d, "r_net_sameclose"),
-        "C. net, same-close fills, rows that have a next-open price": _stats_block(honest, "r_net_sameclose") if len(honest) > 5 else None,
+        "A. as reported: GROSS, recorded fills, all rows": _stats_block(d, "r_gross_sameclose"),
+        "B. net of modelled costs, recorded fills, all rows": _stats_block(d, "r_net_sameclose"),
+        "C. net, recorded fills, rows that have a next-open price": _stats_block(honest, "r_net_sameclose") if len(honest) > 5 else None,
         "D. net, NEXT-OPEN fills on adjusted prices, same rows as C": _stats_block(honest, "r_net_honest") if len(honest) > 5 else None,
     }
     dd = out["bases"]["D. net, NEXT-OPEN fills on adjusted prices, same rows as C"]
@@ -171,10 +174,10 @@ def render(results: list, funnel_rows: dict, as_of: str) -> str:
          "(the simulator and backtest were fixed to next-open on 2026-09-15; the paper engine was not); (2) `pnl_pct`, which the funnel "
          "and the dossier call net, is the GROSS price move: modelled costs are stored but not deducted from it.", "",
          "## Summary (basis D unless stated)", "",
-         "| family | trades | funds | unique entries | dup factor | funnel t (iid, gross, same-close) | t after costs + next-open fills (iid) | cluster t D: date / ticker | independent entry dates | n_eff | mean D | 95% boot CI D | provisional label |",
+         "| family | trades | funds | unique entries | dup factor | funnel t (iid, gross, recorded fills) | t after costs + next-open fills (iid) | cluster t D: date / ticker | independent entry dates | n_eff | mean D | 95% boot CI D | provisional label |",
          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|"]
-    K = ("A. as reported: GROSS, same-close fills, all rows", "B. net of modelled costs, same-close fills, all rows",
-         "C. net, same-close fills, rows that have a next-open price", "D. net, NEXT-OPEN fills on adjusted prices, same rows as C")
+    K = ("A. as reported: GROSS, recorded fills, all rows", "B. net of modelled costs, recorded fills, all rows",
+         "C. net, recorded fills, rows that have a next-open price", "D. net, NEXT-OPEN fills on adjusted prices, same rows as C")
     for r in results:
         if r["n"] == 0:
             L.append(f"| {r['family']} | 0 | | | | | | | | | | | no trades |")
@@ -218,9 +221,9 @@ def render(results: list, funnel_rows: dict, as_of: str) -> str:
                      f"{fnum(ct['t'], '{:+.1f}')} ({ct['clusters']}) | {fnum(s_['design_effect'], '{:.1f}')} | {fnum(s_['n_eff'], '{:.0f}')} | "
                      f"[{fnum(bt['lo'])}, {fnum(bt['hi'])}] | {bt['p_le_zero']:.3f} |")
         h = r["halves"]
-        L += ["", f"- Stability (net, same-close): entries before {h['split_date']}: mean {fnum(h['first']['mean'])}% (n {h['first']['n']:,}); "
+        L += ["", f"- Stability (net, recorded fills): entries before {h['split_date']}: mean {fnum(h['first']['mean'])}% (n {h['first']['n']:,}); "
               f"on or after: {fnum(h['second']['mean'])}% (n {h['second']['n']:,}).",
-              "- Fund cohorts (net, same-close): " + "; ".join(f"{k}: mean {fnum(v['mean'])}% (n {v['n']:,})" for k, v in r["cohorts"].items()) + ".",
+              "- Fund cohorts (net, recorded fills): " + "; ".join(f"{k}: mean {fnum(v['mean'])}% (n {v['n']:,})" for k, v in r["cohorts"].items()) + ".",
               f"- Exit reasons: {r['exit_reasons']}.", f"- **Provisional label:** {r['classification']}", ""]
     L += ["## What could be wrong with this audit", "",
           "- The window is about 16 sessions of one market; any family's mean can move with the next week of trades, and the entry dates "

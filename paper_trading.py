@@ -105,7 +105,37 @@ def init(conn) -> None:
     for col in ("last_review", "label", "family"):
         if col not in have:
             conn.execute(f"ALTER TABLE paper_runs ADD COLUMN {col} TEXT")
+    # Stage AD item 3 — next-open fills. A step decides on the close of D and writes an order here; the next step
+    # fills it at the open of the stock's first bar after D (entries sized at that open, exits gapping through).
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS paper_pending (
+            run_id     TEXT NOT NULL,
+            ticker     TEXT NOT NULL,
+            side       TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+            decided_on TEXT NOT NULL,
+            reason     TEXT,
+            atr        REAL,
+            stop_mult  REAL,
+            stop_pct   REAL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (run_id, ticker, side)
+        ) STRICT, WITHOUT ROWID
+    """)
+    # entry_date / exit_date stay the DECISION dates (every consumer that shifts to the next open keeps working);
+    # the fill basis and the session actually filled are recorded beside them. NULL = the old close fills.
+    for table, cols in (("paper_positions", ("fill_basis", "fill_date")),
+                        ("paper_trades", ("fill_basis", "fill_date", "exit_fill_date"))):
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for col in cols:
+            if col not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
     conn.commit()
+
+
+def fill_mode(cfg: dict) -> str:
+    """`paper.fills`: 'next_open' (Stage AD item 3, the simulator's convention) or 'close' (the old engine, kept so a
+    config edit rolls it back)."""
+    return str(((cfg.get("paper") or {}).get("fills")) or "next_open")
 
 
 def research_positions(cfg: dict) -> int:
@@ -475,14 +505,15 @@ def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
 ANCHOR_RANGE = (0.02, 50.0)   # adjustment factors outside this are data defects, not corporate actions
 
 
-def adjusted_entry(conn, ticker: str, entry_date: str, entry_price: float) -> float:
+def adjusted_entry(conn, ticker: str, entry_date: str, entry_price: float, col: str = "close") -> float:
     """Stage AD item 4: a position's entry price on TODAY's adjusted series. The engine records the close it paid; the
     prices table is back-adjusted later for splits, spin-offs and dividends, so comparing the recorded price with a
     later adjusted price books the adjustment as profit or loss (CTVA: four trades near -84%) and puts a stored stop on
     the wrong scale (a 2-for-1 split would stop the position at once). The adjusted close of the entry date is the
     entry on the same series as every later price. A factor outside ANCHOR_RANGE is treated as a data defect: the
     recorded price stands."""
-    r = conn.execute("SELECT close FROM prices WHERE ticker=? AND date=?", (ticker, str(entry_date)[:10])).fetchone()
+    col = "open" if col == "open" else "close"                 # a next-open fill is anchored on its session's open
+    r = conn.execute(f"SELECT {col} FROM prices WHERE ticker=? AND date=?", (ticker, str(entry_date)[:10])).fetchone()
     a = float(r[0]) if r and r[0] else None
     if not a or a <= 0 or not entry_price:
         return float(entry_price)
@@ -490,10 +521,19 @@ def adjusted_entry(conn, ticker: str, entry_date: str, entry_price: float) -> fl
     return a if ANCHOR_RANGE[0] <= k <= ANCHOR_RANGE[1] else float(entry_price)
 
 
+def _anchored(conn, pos: dict) -> float:
+    """A position's entry on today's adjusted series: the open of its fill session for a next-open fill, else the
+    close of its entry date; its own recorded price when it has neither (bought this step)."""
+    if pos.get("fill_basis") == "next_open" and pos.get("fill_date"):
+        return adjusted_entry(conn, pos["ticker"], pos["fill_date"], pos["entry_price"], col="open")
+    if pos.get("entry_date"):
+        return adjusted_entry(conn, pos["ticker"], pos["entry_date"], pos["entry_price"])
+    return float(pos["entry_price"])
+
+
 def _exit_values(conn, pos: dict, px: float) -> tuple:
     """(entry on the adjusted series, shares on that series, gross $, dollars paid) for booking an exit at `px`."""
-    e = adjusted_entry(conn, pos["ticker"], pos.get("entry_date"), pos["entry_price"]) if pos.get("entry_date") \
-        else float(pos["entry_price"])
+    e = _anchored(conn, pos)
     notional = float(pos["shares"]) * float(pos["entry_price"])
     return e, notional / e, notional * (px / e - 1), notional
 
@@ -503,9 +543,212 @@ def _mark_value(conn, pos: dict, px: float | None) -> float:
     notional = float(pos["shares"]) * float(pos["entry_price"])
     if px is None:
         return notional
-    e = adjusted_entry(conn, pos["ticker"], pos.get("entry_date"), pos["entry_price"]) if pos.get("entry_date") \
-        else float(pos["entry_price"])
-    return notional * px / e
+    return notional * px / _anchored(conn, pos)
+
+
+FILL_WAIT_SESSIONS = 3      # an order whose stock shows no bar for this many sessions is cancelled (BUY) or booked at its
+                            # last real close (SELL: a position must be able to leave)
+
+
+def _next_bar(conn, ticker: str, after: str, upto: str):
+    """(date, open) of the stock's first bar after `after`, on or before `upto`; None when it has none yet."""
+    r = conn.execute("SELECT date, open FROM prices WHERE ticker=? AND date>? AND date<=? AND open > 0 "
+                     "ORDER BY date LIMIT 1", (ticker, str(after)[:10], upto)).fetchone()
+    return (str(r[0])[:10], float(r[1])) if r else None
+
+
+def _entry_stop(cfg, px: float, atr, mult, pct) -> float:
+    """The stop a fill at `px` carries: mult x the decision bar's ATR below it (the config rule without a multiple),
+    tightened by a per-trade percentage stop where the genome has one (Stage P4). Same rule as the close path."""
+    if mult and atr and atr == atr and atr > 0:
+        stop = px - float(mult) * float(atr)
+    else:
+        stop = calculate_stop_loss(px, atr, cfg)
+    if pct is not None and pct == pct:
+        stop = max(stop, px * (1 + min(max(float(pct), -0.5), -0.01)))
+    return float(stop)
+
+
+def _step_next_open(conn, cfg, run, today, prices, dv, candidates, exits_today, genome, run_cap, run_horizon,
+                    horizon, size, cost_model, days_since) -> None:
+    """
+    One run, one day, at NEXT-OPEN fills (Stage AD item 3) — the simulator's convention since 2026-09-15.
+
+    1. Fill yesterday's decisions at the open of each stock's first bar after the decision: SELLs first (an exit gaps
+       through its stop exactly as the simulator charges it), then BUYs, sized at that open, while a slot and the cash
+       are there. Cash moves at the fill, never at the decision.
+    2. Decide on today's close: exits (stop, take-profit, exit rule, holding limit) and entries become orders for the
+       next step. A position waiting to sell is still held and marked.
+    3. Mark at today's close, as before.
+    entry_date / exit_date record the DECISION dates; fill_date / exit_fill_date the sessions filled.
+    """
+    rid = run["run_id"]
+    open_pos = [dict(r) for r in conn.execute("SELECT * FROM paper_positions WHERE run_id = ?", (rid,))]
+    orders = [dict(r) for r in conn.execute("SELECT * FROM paper_pending WHERE run_id=? ORDER BY created_at, ticker",
+                                            (rid,))]
+    stale = _stale_marks(conn, [p["ticker"] for p in open_pos], prices, today)
+    cash = run["cash_usd"]
+    sold = bought = cancelled = 0
+    rk = (genome or {}).get("risk", {})
+
+    # --- 1a. SELL fills -----------------------------------------------------------------------
+    by_ticker = {p["ticker"]: p for p in open_pos}
+    for o in [o for o in orders if o["side"] == "SELL"]:
+        pos = by_ticker.get(o["ticker"])
+        if pos is None:
+            conn.execute("DELETE FROM paper_pending WHERE run_id=? AND ticker=? AND side='SELL'", (rid, o["ticker"]))
+            continue
+        bar = _next_bar(conn, o["ticker"], o["decided_on"], today)
+        reason = o["reason"]
+        if bar is None:
+            if 0 <= days_since(o["decided_on"]) < FILL_WAIT_SESSIONS:
+                continue                                   # no open yet: still pending, still held
+            last = conn.execute("SELECT date, close FROM prices WHERE ticker=? AND date<=? AND close > 0 "
+                                "ORDER BY date DESC LIMIT 1", (o["ticker"], today)).fetchone()
+            bar = (None, float(last[1])) if last else (None, _anchored(conn, pos))   # not an open: no exit_fill_date
+            reason = f"{reason} (no open: last close)"
+        fdate, px = bar
+        e_adj, shares_adj, gross, notional = _exit_values(conn, pos, px)
+        cost = float(cost_model.round_trip(notional, dv.get(pos["ticker"], 0), shares_adj))
+        conn.execute("""
+            INSERT OR REPLACE INTO paper_trades
+                (run_id, ticker, entry_date, exit_date, entry_price, exit_price, shares, gross_pnl_usd, costs_usd,
+                 net_pnl_usd, pnl_pct, exit_reason, fill_basis, fill_date, exit_fill_date)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (rid, pos["ticker"], pos["entry_date"], o["decided_on"], e_adj, px, shares_adj, gross, cost,
+              gross - cost, (px / e_adj - 1) * 100, reason, pos.get("fill_basis") or "close", pos.get("fill_date"),
+              fdate))
+        conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (rid, pos["ticker"]))
+        conn.execute("DELETE FROM paper_pending WHERE run_id=? AND ticker=? AND side='SELL'", (rid, pos["ticker"]))
+        cash += notional + gross - cost
+        open_pos.remove(pos)
+        sold += 1
+
+    # --- 1b. BUY fills ------------------------------------------------------------------------
+    held = {p["ticker"] for p in open_pos}
+    for o in [o for o in orders if o["side"] == "BUY"]:
+        t = o["ticker"]
+        bar = None if t in held else _next_bar(conn, t, o["decided_on"], today)
+        if bar is None and t not in held and 0 <= days_since(o["decided_on"]) < FILL_WAIT_SESSIONS:
+            continue                                       # no open yet: try again next step
+        if bar is None or len(open_pos) >= run_cap or cash < size:
+            why = ("already held" if t in held else "no bar" if bar is None else "no free slot at the open"
+                   if len(open_pos) >= run_cap else "not enough cash at the open")
+            log.info(f"'{run['name']}' {t}: order of {o['decided_on']} cancelled ({why})")
+            conn.execute("DELETE FROM paper_pending WHERE run_id=? AND ticker=? AND side='BUY'", (rid, t))
+            cancelled += 1
+            continue
+        fdate, px = bar
+        stop = _entry_stop(cfg, px, o["atr"], o["stop_mult"], o["stop_pct"])
+        try:
+            conn.execute("""
+                INSERT INTO paper_positions
+                    (run_id, ticker, entry_date, entry_price, shares, stop_price, days_held, fill_basis, fill_date)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (rid, t, o["decided_on"], px, size / px, stop, max(days_since(o["decided_on"]), 0), "next_open", fdate))
+        except sqlite3.IntegrityError:
+            log.warning(f"'{run['name']}' already holds {t}; not overwriting")
+            conn.execute("DELETE FROM paper_pending WHERE run_id=? AND ticker=? AND side='BUY'", (rid, t))
+            continue
+        conn.execute("DELETE FROM paper_pending WHERE run_id=? AND ticker=? AND side='BUY'", (rid, t))
+        cash -= size
+        open_pos.append({"ticker": t, "entry_date": o["decided_on"], "entry_price": px, "shares": size / px,
+                         "stop_price": stop, "days_held": 0, "fill_basis": "next_open", "fill_date": fdate})
+        held.add(t)
+        bought += 1
+
+    # --- 2a. exit decisions on today's close ----------------------------------------------------
+    waiting = {r[0] for r in conn.execute("SELECT ticker FROM paper_pending WHERE run_id=? AND side='SELL'", (rid,))}
+    eff, to_sell = {}, 0
+    for pos in open_pos[:]:
+        t = pos["ticker"]
+        px = prices.get(t)
+        elapsed = days_since(pos["entry_date"])
+        held_days = elapsed if elapsed >= 0 else pos["days_held"] + 1
+        e_adj = _anchored(conn, pos)
+        eff[t] = e_adj
+        if t in waiting:
+            continue
+        k = e_adj / float(pos["entry_price"]) if pos["entry_price"] else 1.0
+        stop_adj = pos["stop_price"] * k if pos["stop_price"] else None
+        reason = None
+        if px is None:
+            if held_days >= horizon * 4:
+                # Unpriceable for a long time: nothing will ever fill it. Booked at its entry, as the close path does.
+                notional = pos["shares"] * pos["entry_price"]
+                cost = float(cost_model.round_trip(notional, dv.get(t, 0), notional / e_adj))
+                conn.execute("""
+                    INSERT OR REPLACE INTO paper_trades
+                        (run_id, ticker, entry_date, exit_date, entry_price, exit_price, shares, gross_pnl_usd,
+                         costs_usd, net_pnl_usd, pnl_pct, exit_reason, fill_basis, fill_date, exit_fill_date)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (rid, t, pos["entry_date"], today, e_adj, e_adj, notional / e_adj, 0.0, cost, -cost, 0.0,
+                      "unpriceable", pos.get("fill_basis") or "close", pos.get("fill_date"), None))
+                conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?", (rid, t))
+                cash += notional - cost
+                open_pos.remove(pos)
+                sold += 1
+                continue
+        elif stop_adj and px <= stop_adj:
+            reason = "stop_loss"
+        elif rk.get("take_profit_pct") and px >= e_adj * (1 + float(rk["take_profit_pct"]) / 100):
+            reason = "take_profit"
+        elif t in exits_today:
+            reason = "exit_rule"
+        elif held_days >= run_horizon:
+            reason = "horizon_timeout"
+        if reason:
+            conn.execute("INSERT OR IGNORE INTO paper_pending (run_id, ticker, side, decided_on, reason, created_at) "
+                         "VALUES (?,?,?,?,?,?)", (rid, t, "SELL", today, reason, storage._now()))
+            waiting.add(t)
+            to_sell += 1
+        conn.execute("UPDATE paper_positions SET days_held=? WHERE run_id=? AND ticker=?", (held_days, rid, t))
+        pos["days_held"] = held_days
+
+    # --- 2b. entry decisions --------------------------------------------------------------------
+    # A slot that a pending sale frees at the next open may be refilled at that same open (sells fill first);
+    # the cash it brings is counted at today's mark. Pending buys that have not filled yet hold their slot and cash.
+    buys = [r[0] for r in conn.execute("SELECT ticker FROM paper_pending WHERE run_id=? AND side='BUY'", (rid,))]
+    free = run_cap - (len(open_pos) - len(waiting & {p["ticker"] for p in open_pos})) - len(buys)
+    proj = cash - size * len(buys) + sum(
+        _mark_value(conn, p, prices.get(p["ticker"], stale.get(p["ticker"]))) for p in open_pos if p["ticker"] in waiting)
+    taken = {p["ticker"] for p in open_pos} | set(buys)
+    to_buy = 0
+    for _, row in candidates.iterrows():
+        if free <= 0 or proj < size:
+            break
+        t = str(row["ticker"])
+        if t in taken or not float(row["close"]) > 0:
+            continue
+        atr = row.get("atr_14")
+        pcol = rk.get("stop_pct_col")
+        pv = row.get(pcol) if pcol else None
+        conn.execute("INSERT OR IGNORE INTO paper_pending (run_id, ticker, side, decided_on, reason, atr, stop_mult, "
+                     "stop_pct, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                     (rid, t, "BUY", today, "entry rule" if genome else "classifier",
+                      float(atr) if atr is not None and atr == atr else None,
+                      float(rk["stop_atr_multiple"]) if rk.get("stop_atr_multiple") else None,
+                      float(pv) if pv is not None and pv == pv else None, storage._now()))
+        taken.add(t)
+        free -= 1
+        proj -= size
+        to_buy += 1
+
+    # --- 3. mark at today's close (positions waiting to sell included) ---------------------------
+    positions_value = sum(p["shares"] * p["entry_price"]
+                          * prices.get(p["ticker"], stale.get(p["ticker"], eff.get(p["ticker"], p["entry_price"])))
+                          / eff.get(p["ticker"], p["entry_price"])
+                          for p in open_pos)
+    equity = cash + positions_value
+    conn.execute("""
+        INSERT OR REPLACE INTO paper_equity (run_id, date, cash_usd, positions_usd, equity_usd, open_positions)
+        VALUES (?,?,?,?,?,?)
+    """, (rid, today, cash, positions_value, equity, len(open_pos)))
+    conn.execute("UPDATE paper_runs SET cash_usd=?, last_step_on=? WHERE run_id=?", (cash, today, rid))
+    conn.commit()
+    log.info(f"'{run['name']}' {today}: filled {bought} buys / {sold} sells at the open ({cancelled} cancelled); "
+             f"ordered {to_buy} buys / {to_sell} sells for the next open | {len(open_pos)} held | equity "
+             f"${equity:,.2f} | NET P&L ${equity - run['capital_usd']:+,.2f}")
 
 
 def step(conn, cfg: dict) -> None:
@@ -587,6 +830,15 @@ def step(conn, cfg: dict) -> None:
         if run["last_step_on"] == today:
             log.info(f"'{run['name']}' already stepped to {today}")
             continue
+        if fill_mode(cfg) == "next_open":
+            _step_next_open(conn, cfg, run, today, prices, dv, candidates, exits_today, genome, run_cap, run_horizon,
+                            horizon, size, cost_model, days_since)
+            continue
+        # The old close fills (paper.fills: close — kept as the rollback). Orders left by the next-open path would
+        # never fill here; they are dropped, and every position is re-decided on today's close below.
+        n_drop = conn.execute("DELETE FROM paper_pending WHERE run_id=?", (run["run_id"],)).rowcount
+        if n_drop:
+            log.info(f"'{run['name']}': {n_drop} next-open orders dropped (paper.fills is 'close')")
 
         open_pos = [dict(r) for r in conn.execute(
             "SELECT * FROM paper_positions WHERE run_id = ?", (run["run_id"],))]
@@ -600,7 +852,7 @@ def step(conn, cfg: dict) -> None:
             px = prices.get(pos["ticker"])
             elapsed = days_since(pos["entry_date"])
             held = elapsed if elapsed >= 0 else pos["days_held"] + 1
-            e_adj = adjusted_entry(conn, pos["ticker"], pos["entry_date"], pos["entry_price"])
+            e_adj = _anchored(conn, pos)          # a next-open fill (if the switch was rolled back) anchors on its open
             k = e_adj / float(pos["entry_price"]) if pos["entry_price"] else 1.0
             eff[pos["ticker"]] = e_adj
             stop_adj = pos["stop_price"] * k if pos["stop_price"] else None

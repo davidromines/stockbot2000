@@ -302,7 +302,8 @@ def render(r: dict) -> str:
     sig = [f for f in ffd if f.get("significant")]
     sig_iid = [f for f in ffd if f.get("significant_iid")]
     L += ["", "  FORWARD PERFORMANCE BY FAMILY (families with >=20 trades; ranked on the honest basis)",
-          "    gross = pnl_pct as stored (price move at same-close fills, costs NOT deducted); net = minus modelled costs;",
+          "    gross = pnl_pct as stored (price move at the recorded fills: same-close until 2026-10-20, next-open after;",
+          "    costs NOT deducted); net = minus modelled costs;",
           "    honest = net at next-open fills (restate_paper.py); cluster t = errors clustered by entry date and ticker, the smaller used;",
           "    dates = independent entry dates (a label above 'unresolved' needs 20+); hon n < n because trades that exit on the",
           "    newest stored bar have no next-open price yet - those are mostly stop-outs, so a thin honest column is biased upward;",
@@ -445,7 +446,8 @@ def forward_families(conn) -> list:
     """§13–§14: per-family forward trade stats — only families with >=20 trades.
 
     Legacy keys (mean, sd, t_stat, margin, ci_*, win_rate, significant_iid) keep their meaning: the mean
-    of `pnl_pct`, which is the GROSS price move at the engine's same-close fills, and the iid trade-level t.
+    of `pnl_pct`, which is the GROSS price move at the engine's recorded fills (same-close until 2026-10-20,
+    next-open after, Stage AD item 3), and the iid trade-level t.
     Addendum F adds what a reader needs to judge them: the mean net of modelled costs, a t with errors
     clustered by entry date and by ticker, the number of independent entry dates, the effective n, the
     next-open restatement (`restate_paper.py`) when present, the luck level for 88 families, and
@@ -478,7 +480,7 @@ def forward_families(conn) -> list:
         net = t["pnl_pct"] - t["cost_pct"]
         net_iid = fs.iid_stats(net)
         cd, ct = fs.cluster_stats(net, t["entry_date"]), fs.cluster_stats(net, t["ticker"])
-        bx, bd, basis_label = net, t["entry_date"], "net of costs, same-close fills"
+        bx, bd, basis_label = net, t["entry_date"], "net of costs, recorded fills"
         h_mean = h_n = h_dates = None
         h_t = float("nan")
         if restated:

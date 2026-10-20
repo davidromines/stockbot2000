@@ -17,6 +17,7 @@ def check(name, ok, detail=""):
     if not ok: FAILS.append(name)
 
 cfg = copy.deepcopy(load_config())
+cfg.setdefault("paper", {})["fills"] = "close"   # the close path's re-anchoring; next-open: test_paper_next_open.py
 c = sqlite3.connect(":memory:")
 c.row_factory = sqlite3.Row
 c.execute("CREATE TABLE prices (ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL)")

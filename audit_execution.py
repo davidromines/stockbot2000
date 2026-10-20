@@ -137,7 +137,7 @@ def render(conn, cfg, as_of: str) -> str:
           f"rank correlation {rb['rho']:+.2f}; {rb['pos_rank_nonpos_honest']} of the {rb['pos_rank']} funds that look positive on the ranking basis are non-positive on the honest basis.", ""]
     L += ["## Defects found, status", "",
           "| # | defect | evidence | status |", "|---|---|---|---|",
-          "| 1 | Paper engine fills at the signal-day close and its `pnl_pct` is gross | A1; E1 | restated beside the originals (`paper_trades_restated`, daily); the engine itself is unchanged because the forward record is frozen on entry |",
+          "| 1 | Paper engine fills at the signal-day close and its `pnl_pct` is gross | A1; E1 | restated beside the originals (`paper_trades_restated`, daily); from 2026-10-20 the engine itself fills at the next open (Stage AD item 3); earlier rows stay as recorded |",
           "| 2 | The ranking reads the same-close basis and counts open positions in `n` | E4; B3 | **not changed**: E4 shows the two bases differ without a consistent direction (open marks and pending stop-outs push opposite ways), so swapping would reorder rather than uniformly correct; it is owner decision 3 (replace the ranking estimate) after the prospective test |",
           "| 3 | Live buys one name per rule; paper measures the rule over up to 20 | E3 | design difference, recorded; no code change |",
           "| 4 | No price stop has fired live yet | slot trade reasons | stop behaviour (intraday check, gaps) is untested in the real account: unknown |", "",
