@@ -531,6 +531,15 @@ def _anchored(conn, pos: dict) -> float:
     return float(pos["entry_price"])
 
 
+def as_recorded(run: dict, pos: dict) -> dict:
+    """The position with its fill basis explicit, for readers outside this engine (accounting): a Kalman fund
+    (kalman_pair.step_fund) buys at the session's OPEN and records that session as entry_date, so it anchors on that
+    open; every other fund here records a close fill or carries its own fill_basis."""
+    if _kalman_of(run) and not pos.get("fill_basis"):
+        return {**pos, "fill_basis": "next_open", "fill_date": pos.get("entry_date")}
+    return pos
+
+
 def _exit_values(conn, pos: dict, px: float) -> tuple:
     """(entry on the adjusted series, shares on that series, gross $, dollars paid) for booking an exit at `px`."""
     e = _anchored(conn, pos)

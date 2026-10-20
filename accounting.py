@@ -166,7 +166,7 @@ def paper_funds(conn, cm) -> list:
                                   "WHERE run_id=?", (r["run_id"],)).fetchone()[0]
         import paper_trading as pt
         for p in conn.execute("SELECT * FROM paper_positions WHERE run_id=?", (r["run_id"],)):
-            p = dict(p)
+            p = pt.as_recorded(dict(r), dict(p))          # Kalman funds anchor on the open they paid
             n_open += 1
             notional = p["shares"] * p["entry_price"]                  # dollars paid
             basis_open += notional
