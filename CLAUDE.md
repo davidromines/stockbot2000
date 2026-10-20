@@ -90,8 +90,16 @@ dial one-look PASS (corr +0.36, t +6.5); Runner v0 replay negative (stock -0.11%
 position; every report and the ranking read it as one continuing position, not a trade); re-anchoring extended to the
 rotation and conviction steps; `risk_sweep.py` registered `earnings_skip_v1` and `stop_width_slots_v1` (23 strategies
 frozen) — **run it after a daily run**: `./run_bounded.sh ./venv/bin/python risk_sweep.py --run`, then `--report --write`.
-[9k2]-[9k7] first ran on the schedule 10-20. **Open:** item 3 (next-open fills inside the paper engine; design in §11),
-the risk_sweep run, and the post-freeze decisions (~11-16). Worktree `~/sb2k-ad` removed.
+[9k2]-[9k7] first ran on the schedule 10-20, all clean (ledger gap +$0.02). **Item 3 MERGED 10-20 (3c55442, suite 186
+pass):** the paper engine decides on the close and fills at the next open (`paper_pending`; `paper.fills: close` rolls
+back); exits are decided on the stock's real close, so held stocks below the $5 purchase floor are finally stopped;
+a stock with no bar is booked at its last real close; accounting v2 values open positions on the adjusted series.
+Rehearsed on a full copy of the database (two steps, 1,463 fills all at their open, accounting 2,700 of 2,711
+reconciled, mark difference $191 -> $0). **Finding:** the old engine hid losses — 35 closed trades booked at 0.00%
+(true -15% to -96%) and 701 open positions in 63 sub-$5 names (median -44%) that could never stop. **Expect** the
+10-21 run to order those sales and the 10-22 run to book them: a one-off drop in the paper record's closed-trade
+figures, which is the real loss arriving, not a new one. **Open:** the risk_sweep run, the Kalman restatement
+(2 trades), and the post-freeze decisions (~11-16).
 
 ### 2026-10-19 — Addendum H + Stage AD profitability plan entered (PLAN ONLY; START HERE for what to build next)
 

@@ -393,6 +393,12 @@ Acceptance: the same strategy and dates give the same trades in the simulator, t
 ### Still open after this build
 - Run `risk_sweep.py --run` (after a daily run, bounded), then `--report --write`; either result is recorded, and a
   passing one is a candidate for a paper variant, not a live change.
+- Found by the item 3 rehearsal (2026-10-20): the close-fill engine never stopped a held stock below the $5 purchase
+  floor and booked it at its ENTRY after 4 holding periods — 35 closed trades at 0.00% whose true move was -15% to
+  -96% (mean -38%; the restated record already has the real figures), and 701 open positions in 63 such names
+  (median -44%) waiting to be booked the same way. Fixed in the next-open path; the 10-21/10-22 runs book the sales.
+  The original rows stay as recorded (restatements beside originals); accounting still reads their 0.00% — a v3 that
+  takes closed-trade P&L from the restated record is the follow-up.
 - Kalman trades record FILL dates (they buy at the session's open), so the restatement prices them one session late
   (2 trades, none flagged). Small; fix in kalman_pair (record the decision date) when that family is touched.
 - (Closed 10-20: re-anchoring now covers the rotation and conviction steps; `paper_trading.close()` books no exits, so
