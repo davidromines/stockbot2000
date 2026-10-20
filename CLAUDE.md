@@ -74,24 +74,20 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### 2026-10-19 later — Stage AD BUILD in progress (owner: "go ahead and build"); usage limit hit mid-build
+### 2026-10-20 — Stage AD BUILT (owner "go ahead and build" 10-19, "go" 10-20); START HERE
 
-**On main (live-safe, tested):** Runners $5/trade; H2 config (no score-based replacement); backup covers Runner tables;
-Robinhood sign-in watchdog fixed (refresh erased the login stamp; alert called a missing function; seed file
-`~/.config/stockbot2000/robinhood_login_at.txt` = 10-05); strategy-review alert tier at 15% (`risk.yaml
-strategy_review_percent`); research/reporting modules `live_attribution.py`, `intraday_replay.py`,
-`external_benchmark.py`, `alpha_bench.py`, `predict_service.py`, `integrity_report.py`, `earnings_study.py`,
-`stop_study.py` (each with a test). Results: v0 Runner replay stock -0.11%/signal (t -3.3, worse than random entry),
-twin -0.14%; JKP spread correlation 0.86 momentum / 0.73 value; live fills +0.03% vs decision quote; 17 of 23 live exits
-were reassignments. **NOT YET RUN:** `alpha_bench.py --register` then `--run --write` (one look, pre-registered),
-`predict_service.py --fit --write`, earnings_study result (was running at cut-off; report not committed).
-**Unmerged branch `ad/live-equals-tested`, worktree `~/sb2k-ad`** (all its tests pass; 4 suite failures there are
-DB-less environment only): monthly review + hard/soft releases + rules-fingerprint grandfathering (slots.py), ranking
-risk terms + fund_id, basket slots (SIMULATION only) + beta cap 1.3 + entry-timing gate (off) (slot_trader.py),
-allocator.py shadow, survivorship `--refill`, funnel open-position columns, daily.sh [9k2]-[9k4], backup additions,
-config (`slots.review` monthly, `basket`, `book`, `entry_timing`). **To finish:** merge outside market hours
-(`git merge --no-ff ad/live-equals-tested`), `./run_tests.sh` in main, then `survivorship_backtest.py --refill`
-(bounded), `allocator.py --record`, the two research runs above, then remove the worktree. Plan build log not yet written.
+Branch merged (5dec7c1), full suite 178+ files pass. Build log and what is open: `docs/STAGE_AD_PROFITABILITY_PLAN.md` §11.
+**LIVE changes:** Runners $5/trade; monthly slot review (first 2026-11-02; between reviews only hard failures release;
+rule changes grandfathered); book beta cap 1.3 (refuses purchases only); paper engine re-anchors open positions to the
+adjusted series (splits/dividends no longer book phantom P&L or false stops); end-of-day Telegram leads with
+VS THE MARKET / EVIDENCE. **Shadow / SIMULATION only:** basket slots (SIMULATION), allocator [9k2], timing dial [9k5]
+(`market_timing_dial_shadow_v1`, ~April 2027), ridge forecasts [9k6], Runner prospective test [9k4]
+(`intraday_runner_v0_prospective`, registered 10-19 23:45 UTC). **Daily checks:** [9k3] live attribution, [9k7]
+ledger vs Robinhood (10-20: 12 days match, gap +$0.02). **Results:** alpha bench v1 0 validated / 8 replicated; timing
+dial one-look PASS (corr +0.36, t +6.5); Runner v0 replay negative (stock -0.11%/signal t -3.3); JKP spread corr
+0.86 / 0.73; earnings 1.64x dispersion, no reward. **Open:** item 3 (next-open fills inside the paper engine; design in
+§11), earnings-skip and stop-width backtests, re-anchoring in conviction/rotation steps, a split handler for the LIVE
+slot ledger, and the post-freeze decisions (~11-16). Worktree `~/sb2k-ad` removed.
 
 ### 2026-10-19 — Addendum H + Stage AD profitability plan entered (PLAN ONLY; START HERE for what to build next)
 
