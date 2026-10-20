@@ -309,6 +309,8 @@ run "[9k4/10] Runner signals (prospective)" bounded $PY intraday_replay.py --pro
 run "[9k5/10] Timing dial (shadow)" bounded $PY timing_shadow.py --log
 # Stage AD5: dated shadow forecasts from the frozen per-horizon models (prediction_log). Nothing trades on them.
 run "[9k6/10] Forecasts (shadow)" bounded $PY predict_service.py --score
+# Stage AD1.3: the slot ledger against Robinhood's own realised P&L by day and its account value (read-only broker calls).
+run "[9k7/10] Ledger check" $PY ledger_check.py --write
 # The pre-LIVE acceptance checklist, daily. Informational: it exits 1 until
 # every item passes (including a SHADOW track record), which is not a failure
 # of the capture, so it is not run through run().
