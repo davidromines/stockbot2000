@@ -365,8 +365,10 @@ sample and count it as validation; change live selection rules after a bad week.
 | AD8 JKP check | done | external_benchmark.py | spread corr 0.86 (momentum), 0.73 (value): partial |
 | AD9 attribution + evidence in the daily report | **LIVE (Telegram)** | live_attribution.py, eod_report `VS THE MARKET / EVIDENCE` | account vs SPY today and since start; test progress |
 | Item 1 basket-aware reports | done | live_pnl, eod_report, control_center(_extra), telegram_bot, daily_snapshot | pre-existing defect fixed: Control Center `max_hold_days` was inside a comment |
+| Item 3 next-open fills in the paper engine | **built; first daily step 2026-10-21** | paper_trading._step_next_open, `paper_pending`, config `paper.fills` | decide on the close, fill at the next open (sells first, gaps through stops; buys sized at the open); decision dates kept, so restate/audits/prospective test price the same fill (no second shift); corporate-action flag per leg; held stocks below the purchase floors are stopped on their real close (they were not, before); `paper.fills: close` rolls back. Rehearsed on a copy of the database before the merge |
+| accounting v2 | built | accounting.py, paper_trading.as_recorded | open paper positions valued on the adjusted series (v1 booked splits/dividends as open P&L); Kalman positions anchor on the open they paid |
 
-### Item 3 — next-open fills inside the paper engine: design (not built; decision layers already read the restated record)
+### Item 3 — next-open fills inside the paper engine: BUILT 2026-10-20 (branch `paper/next-open-fills`; design kept below)
 
 Why not tonight: about twenty modules read `paper_trades` / `paper_positions`, and several (restate_paper, audit_forward,
 audit_execution, prospective_eval's open marks) shift entries to the next open themselves. Converting the engine without
@@ -389,9 +391,10 @@ Design, in the order it must land (one branch, outside market hours, full suite,
 Acceptance: the same strategy and dates give the same trades in the simulator, the paper engine and the restated record.
 
 ### Still open after this build
-- Item 3 (above).
 - Run `risk_sweep.py --run` (after a daily run, bounded), then `--report --write`; either result is recorded, and a
   passing one is a candidate for a paper variant, not a live change.
+- Kalman trades record FILL dates (they buy at the session's open), so the restatement prices them one session late
+  (2 trades, none flagged). Small; fix in kalman_pair (record the decision date) when that family is touched.
 - (Closed 10-20: re-anchoring now covers the rotation and conviction steps; `paper_trading.close()` books no exits, so
   there is nothing to re-anchor. The LIVE split handler is built; see the table.)
 - After the 20-session freeze (~2026-11-16): baskets in LIVE, risk-adjusted order, entry-timing experiment, allocator
