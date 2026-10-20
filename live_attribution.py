@@ -45,8 +45,12 @@ def trades(conn, mode: str = "LIVE") -> pd.DataFrame:
     opens, out = {}, []
     for r in rows.itertuples():
         k = (r.slot_id, r.symbol)
+        corp = str(r.reason or "").startswith("corporate action")
         if r.action == "OPEN":
-            opens[k] = r
+            # a split restatement continues the position on the new basis: same opening time, new price and quantity
+            opens[k] = r._replace(at=opens[k].at) if corp and k in opens else r
+        elif r.action == "CLOSE" and corp:
+            continue
         elif r.action == "CLOSE" and k in opens:
             o = opens.pop(k)
             out.append(_pair(o, r))

@@ -30,7 +30,7 @@ CREATE TABLE strategy_decisions (at TEXT, strategy_key TEXT, version INTEGER,
     decision TEXT, from_state TEXT, to_state TEXT, reason TEXT);
 CREATE TABLE slot_trades (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, mode TEXT,
     slot_id INTEGER, strategy_key TEXT, version INTEGER, symbol TEXT, action TEXT,
-    quantity REAL, price REAL);
+    quantity REAL, price REAL, reason TEXT);
 CREATE TABLE slot_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT,
     slot_id INTEGER, action TEXT, strategy_key TEXT, version INTEGER, reason TEXT);
 CREATE TABLE ranking_history (date TEXT, strategy_key TEXT, version INTEGER,

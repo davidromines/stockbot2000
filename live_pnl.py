@@ -46,16 +46,23 @@ def sell_fees(notional: float, quantity: float, cfg: dict) -> float:
 
 def compute(conn, cfg: dict, mode: str = "LIVE") -> dict:
     """Closed and open slot trades for `mode`, each OPEN paired with the next CLOSE of its slot and symbol."""
-    rows = conn.execute("SELECT at, slot_id, strategy_key, symbol, action, quantity, price FROM slot_trades "
+    rows = conn.execute("SELECT at, slot_id, strategy_key, symbol, action, quantity, price, reason FROM slot_trades "
                         "WHERE mode=? ORDER BY at, id", (mode,)).fetchall()
-    opened, closed = {}, []
-    for at, slot, key, sym, action, qty, price in rows:
+    opened, closed, restated = {}, [], {}
+    for at, slot, key, sym, action, qty, price, reason in rows:
         # Paired by slot AND symbol (Stage AD2.1): a basket slot holds several names; one per slot is the same thing.
+        corp = str(reason or "").startswith("corporate action")
         if action == "OPEN":
-            opened[(slot, sym)] = {"slot": slot, "strategy": _name(conn, key), "symbol": sym, "quantity": float(qty),
-                                   "entry": float(price), "opened": at}
+            o = {"slot": slot, "strategy": _name(conn, key), "symbol": sym, "quantity": float(qty),
+                 "entry": float(price), "opened": at}
+            if corp and (slot, sym) in restated:
+                o["opened"] = restated.pop((slot, sym))["opened"]   # a split restatement continues the position
+            opened[(slot, sym)] = o
         elif action == "CLOSE" and (slot, sym) in opened:
             o = opened.pop((slot, sym))
+            if corp:
+                restated[(slot, sym)] = o           # not a trade: the position goes on, on the split basis
+                continue
             q = min(float(qty), o["quantity"])
             gross = (float(price) - o["entry"]) * q
             costs = sell_fees(float(price) * q, q, cfg)

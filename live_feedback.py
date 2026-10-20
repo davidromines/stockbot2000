@@ -78,7 +78,8 @@ def _slippage_bps(action, fill, expected):
 def trades(conn, mode="LIVE"):
     rows = conn.execute(
         "SELECT id, at, slot_id, strategy_key, symbol, action, quantity, price, "
-        "signal_id FROM slot_trades WHERE mode = ? ORDER BY at, id",
+        "signal_id FROM slot_trades WHERE mode = ? AND COALESCE(reason, '') NOT LIKE 'corporate action%' "
+        "ORDER BY at, id",
         (mode,),
     ).fetchall()
     out = []
@@ -132,8 +133,12 @@ def round_trips(conn, mode="LIVE"):
         if action not in _ACTIONS:
             continue
         k = (slot_id, key)
+        corp = str(reason or "").startswith("corporate action")
         if action == "OPEN":
-            open_by_key[k] = (at, price, symbol)
+            # a split restatement keeps the original opening time on the new price basis
+            open_by_key[k] = (open_by_key[k][0] if corp and k in open_by_key else at, price, symbol)
+            continue
+        if corp:
             continue
         opened = open_by_key.pop(k, None)
         if not opened:

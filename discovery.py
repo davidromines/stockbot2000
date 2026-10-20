@@ -162,7 +162,8 @@ def weak_spots(conn) -> dict:
     try:
         rows = conn.execute(
             "SELECT strategy_key, reason, COUNT(*) n FROM slot_trades "
-            "WHERE mode='LIVE' AND action='CLOSE' GROUP BY strategy_key, reason"
+            "WHERE mode='LIVE' AND action='CLOSE' AND COALESCE(reason, '') NOT LIKE 'corporate action%' "
+            "GROUP BY strategy_key, reason"
         ).fetchall()
         exits_by_key: dict = {}
         for key, reason, n in rows:

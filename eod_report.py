@@ -160,6 +160,9 @@ def _realized_gross(conn, day, mode):
         k = (row["slot_id"], row["symbol"])
         if row["action"] == "OPEN":
             last_open[k] = row
+        elif row["action"] == "CLOSE" and str((row["reason"] if "reason" in row.keys() else "") or "").startswith(
+                "corporate action"):
+            continue                                    # a split restatement, not a trade
         elif row["action"] == "CLOSE" and row["at"][:10] == day:
             entry = last_open.get(k)
             if entry is None or entry["price"] is None or row["price"] is None:

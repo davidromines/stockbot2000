@@ -26,7 +26,7 @@ def check(name, cond, detail=""):
 def main():
     c = sqlite3.connect(":memory:")
     c.execute("CREATE TABLE slot_trades (id INTEGER PRIMARY KEY, at TEXT, mode TEXT, slot_id INT, strategy_key TEXT,"
-              " version INT, symbol TEXT, action TEXT, quantity REAL, price REAL)")
+              " version INT, symbol TEXT, action TEXT, quantity REAL, price REAL, reason TEXT)")
     c.execute("CREATE TABLE slot_marks (id INTEGER PRIMARY KEY, at TEXT, mode TEXT, slot_id INT, symbol TEXT, price REAL)")
     c.execute("CREATE TABLE paper_runs (run_id TEXT, name TEXT, label TEXT)")
     c.execute("INSERT INTO paper_runs VALUES ('abc', 'n', 'Value Book')")

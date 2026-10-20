@@ -56,7 +56,8 @@ def _collect_live(conn, start):
     rows = _rows(
         conn,
         "SELECT at, slot_id, symbol, action, quantity, price FROM slot_trades "
-        "WHERE mode='LIVE' AND at >= ? ORDER BY at, id",
+        "WHERE mode='LIVE' AND at >= ? AND NOT (action='CLOSE' AND COALESCE(reason, '') LIKE 'corporate action%') "
+        "ORDER BY at, id",
         (start,),
     )
     if rows is None:

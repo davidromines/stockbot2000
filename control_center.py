@@ -384,7 +384,8 @@ def feed(c, mode="LIVE", limit=150):
                            + fill + (f" — {r['note']}" if r.get("note") else "")})
     for r in _rows(c, "SELECT at, slot_id, symbol, action, quantity, price, reason, stop_plan FROM slot_trades "
                       "WHERE mode=? ORDER BY id DESC LIMIT ?", (mode, limit)):
-        kind = "POSITION OPENED" if r["action"] == "OPEN" else "TRADE CLOSED"
+        kind = ("SPLIT RESTATED" if str(r["reason"] or "").startswith("corporate action")
+                else "POSITION OPENED" if r["action"] == "OPEN" else "TRADE CLOSED")
         ev.append({"at": r["at"], "kind": kind, "sev": "good" if r["action"] == "OPEN" else "info",
                    "text": f"SLOT {r['slot_id']} {r['symbol']} {r['quantity']:.6f} @ ${r['price']:.2f} — {r['reason']}"})
     for r in _rows(c, "SELECT at, symbol, decision, reasons FROM risk_events ORDER BY id DESC LIMIT ?", (limit,)):

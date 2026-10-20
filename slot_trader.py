@@ -215,6 +215,90 @@ def weights(conn, picks: list, provider, how: str = "inverse_vol") -> dict:
     return {p: v / tot for p, v in inv.items()}
 
 
+SPLIT_TOL = 0.002          # broker / ledger quantity within 0.2% of a split ratio (fractional shares round to 6 places)
+CORP_ACTION = "corporate action"
+
+
+def _yf_splits(symbol: str, since: str) -> list:
+    """[(date, ratio)] from yfinance for `symbol` on or after `since`; [] when unavailable (then nothing is adjusted)."""
+    try:
+        import yfinance as yf
+        s = yf.Ticker(symbol).splits
+        return [(d.strftime("%Y-%m-%d"), float(r)) for d, r in s.items() if d.strftime("%Y-%m-%d") >= since[:10] and r]
+    except Exception as e:                                     # noqa: BLE001 — unconfirmed means unadjusted (fail closed)
+        log.warning(f"split lookup for {symbol} failed: {type(e).__name__}")
+        return []
+
+
+def split_adjust(conn, broker, mode: str, cfg: dict | None = None, splits_fn=None) -> list:
+    """
+    A stock split leaves the slot ledger on the old basis while the broker's share count changes. A REVERSE split
+    shows as fewer shares than the ledger (reconciliation halts: safe). A FORWARD split shows as more shares, which a
+    LIVE reconciliation accepts (the account may hold hand-placed shares) — and the next stop check would read the
+    halved quote against the old entry and sell part of the holding on a false stop.
+
+    When the broker's quantity is the ledger's times a split ratio AND an independent source (yfinance) confirms a split
+    of that ratio on or after the position's entry, the position is restated: a CLOSE at the entry price (zero P&L,
+    reason 'corporate action ...') and an OPEN with quantity x ratio, price and ATR / ratio, the remaining time limit,
+    and the original reason kept (so a stand-in still belongs to its holder). Anything unconfirmed is left alone.
+    Returns [(symbol, ratio)] adjusted.
+    """
+    splits_fn = splits_fn or _yf_splits
+    held = positions_list(conn, mode) if basket_cfg(cfg, mode) else list(open_positions(conn, mode).values())
+    try:
+        have = {s_: float(p["quantity"]) for s_, p in broker.get_positions().items()}
+    except Exception as e:                                     # noqa: BLE001
+        log.warning(f"split check skipped: positions unavailable ({type(e).__name__})")
+        return []
+    by_sym = {}
+    for p in held:
+        by_sym.setdefault(p["symbol"], []).append(p)
+    out = []
+    for sym, rows in by_sym.items():
+        want = sum(float(p["quantity"]) for p in rows)
+        h = have.get(sym)
+        if not want or not h or abs(h / want - 1) <= SPLIT_TOL:
+            continue
+        ratio = h / want
+        k = round(ratio) if ratio >= 1 else 1 / round(1 / ratio)
+        if ratio >= 1 and round(ratio) < 2 or ratio < 1 and round(1 / ratio) < 2 or abs(ratio / k - 1) > SPLIT_TOL:
+            continue                                            # not a clean split ratio: leave it to reconciliation
+        since = min(p["at"] for p in rows)
+        confirmed = [d for d, r in splits_fn(sym, since) if abs(r / k - 1) <= 0.01]
+        if not confirmed:
+            log.warning(f"{sym}: broker {h:.6f} vs ledger {want:.6f} looks like a {k:g}:1 split, not confirmed — unchanged")
+            continue
+        for p in rows:
+            held_sessions = _sessions_held(conn, p["at"])
+            plan = []
+            for r in (p["stop_plan"] or []):
+                r = dict(r)
+                if r.get("type") == "time" and r.get("max_hold_days"):
+                    r["max_hold_days"] = max(1, int(r["max_hold_days"]) - held_sessions)
+                plan.append(r)
+            note = f"{CORP_ACTION}: {k:g}-for-1 split on {confirmed[0]}"
+            for action, q, px, atr, reason, sp in (
+                    ("CLOSE", float(p["quantity"]), float(p["price"]), None, f"{note} (position restated)", None),
+                    ("OPEN", float(p["quantity"]) * k, float(p["price"]) / k,
+                     (float(p["atr"]) / k) if p.get("atr") else None,
+                     f"{note}; restated from the position opened {p['at']}: {p.get('reason') or ''}", json.dumps(plan))):
+                conn.execute("INSERT INTO slot_trades (at, mode, slot_id, strategy_key, version, symbol, action, quantity, "
+                             "price, atr, stop_plan, reason, signal_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (_now(), mode, p["slot_id"], p["strategy_key"], p["version"], sym, action, q, px, atr, sp,
+                              reason, f"split:{sym}:{confirmed[0]}:{p['slot_id']}:{action}"))
+        conn.commit()
+        out.append((sym, k))
+        log.warning(f"{sym}: {k:g}-for-1 split confirmed ({confirmed[0]}); slot ledger restated")
+        if mode == "LIVE":
+            try:
+                import notify
+                notify.notify("Stockbot2000 split handled", f"{sym}: {k:g}-for-1 split on {confirmed[0]}. Slot ledger "
+                              f"restated ({want:.6f} -> {h:.6f} shares); stops and entry moved to the new basis.")
+            except Exception:                                   # noqa: BLE001
+                pass
+    return out
+
+
 def reconcile(conn, broker, mode: str, cfg: dict | None = None) -> tuple:
     """(ok, differences) between the slot trade log and the broker's positions."""
     want = {}
@@ -481,6 +565,7 @@ def monitor(conn, cfg, mode: str, provider, results=None, strategy_exits=None) -
     broker, engine = _build(conn, cfg, mode, provider)
     if mode == "LIVE":
         resolve_pending(conn, cfg, broker, mode)
+        split_adjust(conn, broker, mode, cfg)            # before any stop is checked against post-split quotes
     ok, diffs = reconcile(conn, broker, mode, cfg)
     if not ok:
         log.error(f"reconciliation failed, trading halts: {diffs}")

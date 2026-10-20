@@ -239,12 +239,14 @@ def live_per_trade(conn, key: str, ver: int) -> tuple:
     """(mean return per dollar per closed LIVE slot trade, count) for one strategy version,
     from the append-only slot_trades log (OPEN then CLOSE per slot)."""
     try:
-        rows = conn.execute("SELECT slot_id, action, quantity, price, strategy_key, version FROM slot_trades "
+        rows = conn.execute("SELECT slot_id, action, quantity, price, strategy_key, version, reason FROM slot_trades "
                             "WHERE mode='LIVE' ORDER BY id").fetchall()
     except sqlite3.Error:
         return None, 0
     opens, rets = {}, []
-    for slot, action, q, px, k, v in rows:
+    for slot, action, q, px, k, v, why in rows:
+        if action == "CLOSE" and str(why or "").startswith("corporate action"):
+            continue                    # a split restatement is not a trade; the restated OPEN replaces the entry
         if action == "OPEN":
             opens[slot] = (k, v, float(px))
         else:
