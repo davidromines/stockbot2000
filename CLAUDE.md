@@ -85,9 +85,13 @@ VS THE MARKET / EVIDENCE. **Shadow / SIMULATION only:** basket slots (SIMULATION
 (`intraday_runner_v0_prospective`, registered 10-19 23:45 UTC). **Daily checks:** [9k3] live attribution, [9k7]
 ledger vs Robinhood (10-20: 12 days match, gap +$0.02). **Results:** alpha bench v1 0 validated / 8 replicated; timing
 dial one-look PASS (corr +0.36, t +6.5); Runner v0 replay negative (stock -0.11%/signal t -3.3); JKP spread corr
-0.86 / 0.73; earnings 1.64x dispersion, no reward. **Open:** item 3 (next-open fills inside the paper engine; design in
-§11), earnings-skip and stop-width backtests, re-anchoring in conviction/rotation steps, a split handler for the LIVE
-slot ledger, and the post-freeze decisions (~11-16). Worktree `~/sb2k-ad` removed.
+0.86 / 0.73; earnings 1.64x dispersion, no reward. **Added later 10-20:** LIVE split handler
+(`slot_trader.split_adjust`, in monitor() before reconcile: a clean broker/ledger ratio confirmed by yfinance restates the
+position; every report and the ranking read it as one continuing position, not a trade); re-anchoring extended to the
+rotation and conviction steps; `risk_sweep.py` registered `earnings_skip_v1` and `stop_width_slots_v1` (23 strategies
+frozen) — **run it after a daily run**: `./run_bounded.sh ./venv/bin/python risk_sweep.py --run`, then `--report --write`.
+[9k2]-[9k7] first ran on the schedule 10-20. **Open:** item 3 (next-open fills inside the paper engine; design in §11),
+the risk_sweep run, and the post-freeze decisions (~11-16). Worktree `~/sb2k-ad` removed.
 
 ### 2026-10-19 — Addendum H + Stage AD profitability plan entered (PLAN ONLY; START HERE for what to build next)
 
