@@ -354,8 +354,8 @@ sample and count it as validation; change live selection rules after a bad week.
 | AD3.2 dispersion | done | survivorship_backtest.py (+ `--refill`) | 4,188 rows of the current build carry it |
 | AD3.3 risk-adjusted order | shadow | ranking.risk_terms, `slots.score_mode: raw` | flip after 20 sessions of shadow |
 | AD3.4 beta cap 1.3 | **LIVE** | slot_trader.beta_block | refuses a purchase only |
-| AD3.5 earnings | studied; **backtest registered** | earnings_study.py, risk_sweep.py | 1.64x dispersion, no reward -> `earnings_skip_v1` registered 10-20 (skip within 5 sessions of a report; covered ticker-years; predicted-date check) |
-| AD3.6 stops | studied; **backtest registered** | stop_study.py, risk_sweep.py | `stop_width_slots_v1` registered 10-20 (ATR 1.5-6, paired by trade, t >= 2.58 and most years); 23 strategies frozen |
+| AD3.5 earnings | **done: FAIL** | earnings_study.py, risk_sweep.py | `earnings_skip_v1`: the skipped pre-report trades did BETTER (+2.53% vs +1.98%/trade); no skip rule (report `reports/risk_sweep_2026-10-20.md`) |
+| AD3.6 stops | **done: wider stops win** | stop_study.py, risk_sweep.py | `stop_width_slots_v1`: every tighter stop loses; 6x ATR adoptable for 19 of 23, 4x for 12; still wins per 20 sessions held for 20 of 23 (fewer stop-outs: 15-48% -> 4-21%). Slot 1 holder gains, slot 2 holder (kf_fundamental) does not, slot 4 holder gains at 4x and 6x. Not live: owner decision below |
 | AD4 alpha bench v1 (one look) | done | alpha_bench.py | 0 validated, 8 replicated; volatility screen helps momentum/reversal baskets |
 | AD4 timing dial v1 (one look) | **PASS** | alpha_bench.py | corr +0.355, NW t +6.45, 94% of folds; no fold-boundary leakage (purged) |
 | Timing dial, prospective | **shadow daily [9k5]** | timing_shadow.py | `market_timing_dial_shadow_v1`: 120 sessions, corr > 0 and NW t >= 2 (~April 2027) |
@@ -391,8 +391,11 @@ Design, in the order it must land (one branch, outside market hours, full suite,
 Acceptance: the same strategy and dates give the same trades in the simulator, the paper engine and the restated record.
 
 ### Still open after this build
-- Run `risk_sweep.py --run` (after a daily run, bounded), then `--report --write`; either result is recorded, and a
-  passing one is a candidate for a paper variant, not a live change.
+- **Owner decision (new, 10-20): wider stops.** Paper-track 6x (or 4x) stop variants of the adoptable strategies? As
+  rankable strategies their higher backtests would let them take slots at the 2026-11-02 review, which is a live stop
+  change by another route — so either (a) paper-track them excluded from slot selection until they have their own
+  record (AD6), or (b) let them compete at the review, or (c) leave stops as they are. Nothing is built for any of
+  these yet.
 - Found by the item 3 rehearsal (2026-10-20): the close-fill engine never stopped a held stock below the $5 purchase
   floor and booked it at its ENTRY after 4 holding periods — 35 closed trades at 0.00% whose true move was -15% to
   -96% (mean -38%; the restated record already has the real figures), and 701 open positions in 63 such names
