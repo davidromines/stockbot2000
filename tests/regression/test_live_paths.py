@@ -41,6 +41,16 @@ def quote_response(symbol, price, age_seconds):
                                             "venue_last_trade_time": ts}}]}}
 
 
+def book_response(symbol, last, trade_age, bid, ask, book_age):
+    """The shape Robinhood returned for SWKS on 2026-10-20: nanosecond timestamps, last trade and book separately."""
+    now = datetime.now(timezone.utc)
+    ns = lambda a: (now - timedelta(seconds=a)).strftime("%Y-%m-%dT%H:%M:%S.%f") + "123Z"     # noqa: E731
+    return {"data": {"results": [{"quote": {
+        "symbol": symbol, "last_trade_price": f"{last:.6f}", "venue_last_trade_time": ns(trade_age),
+        "bid_price": None if bid is None else f"{bid:.6f}", "venue_bid_time": ns(book_age),
+        "ask_price": None if ask is None else f"{ask:.6f}", "venue_ask_time": ns(book_age), "price": "80.23"}}]}}
+
+
 def with_quote_env(fn):
     """Run fn with market_open and _db_fields patched; always restore them."""
     orig_open, orig_fields = rl.qt.market_open, rl.qt._db_fields
@@ -67,9 +77,26 @@ def test_quotes():
         q = rl.RobinhoodQuotes(conn(), call=lambda n, a: quote_response("AAA", 50.0, 5)).get("AAA")
         check("quote outside market hours refused", q is None, str(q))
 
+    def book(name, trade_age, bid, ask, book_age, want):
+        def run():
+            rl.qt.market_open = lambda *a, **kw: True
+            q = rl.RobinhoodQuotes(conn(), call=lambda n, a: book_response("SWKS", 81.02, trade_age, bid, ask, book_age),
+                                   max_age_seconds=20).get("SWKS")
+            ok = (q is None) if want is None else (q is not None and abs(q["price"] - want[0]) < 1e-9
+                                                   and q["source"] == want[1])
+            check(name, ok, str(q))
+        with_quote_env(run)
+
     with_quote_env(stale)
     with_quote_env(fresh)
     with_quote_env(closed)
+    book("last trade 50 s old, book 2 s old and tight: the midpoint stands in (SWKS 10-20)", 50, 80.98, 81.06, 2,
+         (81.02, "robinhood_book"))
+    book("a fresh last trade is still the price (the book is not consulted)", 5, 80.0, 82.0, 2, (81.02, "robinhood"))
+    book("stale trade and stale book: refused", 50, 80.98, 81.06, 45, None)
+    book("stale trade, fresh but WIDE book (2% spread): refused", 50, 80.2, 81.82, 2, None)
+    book("stale trade, fresh but CROSSED book: refused", 50, 81.10, 81.00, 2, None)
+    book("stale trade, one-sided book (no bid): refused", 50, None, 81.06, 2, None)
 
 
 def order(signal_id, symbol, side, notional=None, quantity=None, filled=0.0, price=None):

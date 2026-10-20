@@ -110,8 +110,24 @@ def _init(conn) -> None:
     conn.commit()
 
 
+BOOK_MAX_SPREAD = 0.01        # a book stands in for a stale last trade only while ask - bid <= 1% of the midpoint
+
+
+def _age(ts) -> float | None:
+    if not ts:
+        return None
+    return (datetime.now(timezone.utc) - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))).total_seconds()
+
+
 class RobinhoodQuotes(qt.QuoteProvider):
-    """Real-time quotes from the Robinhood MCP, refused when stale or outside the session."""
+    """Real-time quotes from the Robinhood MCP, refused when stale or outside the session.
+
+    Freshness is the last trade's time. Robinhood's `venue_last_trade_time` can lag the market by a minute on a
+    liquid name while its bid and ask update every few seconds (SWKS 2026-10-20: last trade 50 s old, book 2 s old),
+    which made the intraday Runner refuse live quotes and halt its entries. When the last trade is too old but the
+    book is fresh, two-sided and tight (spread <= BOOK_MAX_SPREAD of the midpoint), the midpoint stands in, marked
+    source 'robinhood_book'. A stale trade with a stale, one-sided, crossed or wide book is still refused.
+    """
 
     def __init__(self, conn, call=None, max_age_seconds: int = 300):
         self.conn, self.max_age = conn, max_age_seconds
@@ -132,15 +148,22 @@ class RobinhoodQuotes(qt.QuoteProvider):
                 raise rh.RobinhoodError(f"no quote for {symbol} in response")
             px = num(find(rec, "last_trade_price", "last_price"))
             ts = find(rec, "venue_last_trade_time", "updated_at", "last_trade_time")
+            source = "robinhood"
             if px and px > 0 and qt.market_open():
-                if ts:
-                    age = (datetime.now(timezone.utc) - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-                           ).total_seconds()
-                    if age > self.max_age:
+                age = _age(ts)
+                if age is not None and age > self.max_age:
+                    bid, ask = num(find(rec, "bid_price")), num(find(rec, "ask_price"))
+                    book_ts = max((t for t in (find(rec, "venue_bid_time"), find(rec, "venue_ask_time")) if t),
+                                  key=lambda t: datetime.fromisoformat(str(t).replace("Z", "+00:00")), default=None)
+                    book_age = _age(book_ts)
+                    mid = (bid + ask) / 2 if bid and ask and bid > 0 and ask >= bid else None
+                    if mid and book_age is not None and book_age <= self.max_age and (ask - bid) / mid <= BOOK_MAX_SPREAD:
+                        px, ts, source = mid, book_ts, "robinhood_book"
+                    else:
                         log.warning(f"{symbol}: quote {age:.0f}s old — stale, refused")
                         px = None
                 if px:
-                    q = {"symbol": symbol, "price": px, "as_of": ts, "source": "robinhood",
+                    q = {"symbol": symbol, "price": px, "as_of": ts, "source": source,
                          **qt._db_fields(self.conn, symbol, "robinhood", call=self.call)}
         except rh.NeedsLogin:
             raise
