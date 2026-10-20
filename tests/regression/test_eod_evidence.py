@@ -24,7 +24,16 @@ c.executemany("INSERT INTO timing_shadow VALUES (?,?,?,?,?,?,?,?)", [("2026-10-1
                                                                     ("2026-09-01", "x", "h", 1, 0.3, None, None, "baseline")])
 c.executemany("INSERT INTO paper_trades_restated VALUES ('v2','r','T',?,1.0)", [("2026-10-12",), ("2026-10-13",), ("2026-10-01",)])
 c.commit()
-check("SPY's move today comes from the collected minute bars", abs(er._spy_today(c, "2026-10-19") - 0.005) < 1e-12)
+check("SPY's move today comes from the collected minute bars (open stands in without a stored close)",
+      abs(er._spy_today(c, "2026-10-19") - 0.005) < 1e-12)
+c2 = sqlite3.connect(":memory:")
+c2.executescript("CREATE TABLE minute_bars (ticker TEXT, ts TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL);"
+                 "CREATE TABLE prices (ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL, volume REAL);")
+c2.execute("INSERT INTO minute_bars VALUES ('SPY','2026-10-19 09:30',700,700,700,700,1)")
+c2.execute("INSERT INTO minute_bars VALUES ('SPY','2026-10-19 15:59',703.5,703.5,703.5,703.5,1)")
+c2.execute("INSERT INTO prices VALUES ('SPY','2026-10-16',1,1,1,690,1)")
+check("with a stored previous close, SPY's move is measured from it (the account's base)",
+      abs(er._spy_today(c2, "2026-10-19") - (703.5 / 690 - 1)) < 1e-12)
 lines = er._section_evidence(c, "2026-10-19", "LIVE")
 txt = " | ".join(lines)
 check("today's account move is measured from the previous close, beside SPY", "today: account +1.00%, SPY +0.50%" in txt, txt)

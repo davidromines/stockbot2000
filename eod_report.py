@@ -487,13 +487,20 @@ def _section_real_account(conn, mode):
 
 
 def _spy_today(conn, day):
-    """SPY's move today from the collected minute bars (first open to last close), or None."""
+    """SPY's move today: the previous session's stored close (the account's base too) to the last collected minute
+    bar; the day's first minute open stands in when no previous close is stored. None without minute bars."""
     r = _one(conn, "SELECT (SELECT open FROM minute_bars WHERE ticker='SPY' AND substr(ts,1,10)=? ORDER BY ts LIMIT 1), "
                    "(SELECT close FROM minute_bars WHERE ticker='SPY' AND substr(ts,1,10)=? ORDER BY ts DESC LIMIT 1)",
              (day, day))
     if not r or not r[0] or not r[1]:
         return None
-    return float(r[1]) / float(r[0]) - 1
+    base = None
+    try:
+        p = _one(conn, "SELECT close FROM prices WHERE ticker='SPY' AND date < ? ORDER BY date DESC LIMIT 1", (day,))
+        base = float(p[0]) if p and p[0] else None
+    except sqlite3.Error:
+        base = None
+    return float(r[1]) / (base or float(r[0])) - 1
 
 
 def _section_evidence(conn, day, mode):
