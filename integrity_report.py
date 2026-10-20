@@ -99,10 +99,12 @@ def render(d: dict) -> str:
          "the restated record. The paper engine's own convention is unchanged (a separate, careful change: it must defer "
          "orders across daily runs).", "",
          "## 2. Corporate actions", "",
-         f"{r['corporate_action']:,} restated trades ({f(r['ca_share'], '{:.2%}')}) carry the corporate-action flag (an implausible "
-         "one-trade move consistent with an adjusted/unadjusted price mismatch). Most frequent: "
-         + (", ".join(f"{t} {n}" for t, n in r["ca_top"]) or "none") + ". Flagged trades are excluded from the restated "
-         "statistics; the originals are kept.", "",
+         f"{r['corporate_action']:,} restated trades ({f(r['ca_share'], '{:.2%}')}) carry the corporate-action flag: the price "
+         "history was adjusted after the trade (a split, spin-off or dividend of 1.5% or more). Most frequent: "
+         + (", ".join(f"{t} {n}" for t, n in r["ca_top"]) or "none") + ". The restated record prices both legs on the same "
+         "adjusted series, so these trades are correct there (a dividend is part of the return) and are kept. The ORIGINAL "
+         "record compared a recorded price with later adjusted prices (CTVA near -84%); from 2026-10-20 the paper engine "
+         "re-anchors open positions to the adjusted series, so new originals no longer carry that error.", "",
          "## 3. Live ledger", "",
          (f"Equity change {f(lg.get('change'))}; ledger realised {f(lg.get('realised'))} + unrealised "
           f"{f(lg.get('unrealised'))}; gap {f(lg.get('gap'))} (dividends, cash interest and fractional rounding are not in "
