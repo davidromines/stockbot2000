@@ -26,6 +26,7 @@ LINE_WIDTH = 60
 DISCOVERY_TARGET_CAP = 5
 
 HEADINGS = [
+    ("evidence", "VS THE MARKET / EVIDENCE"),
     ("account", "ACCOUNT"),
     ("real_account", "REAL ACCOUNT SINCE START"),
     ("pnl", "P&L"),
@@ -485,6 +486,67 @@ def _section_real_account(conn, mode):
         return []
 
 
+def _spy_today(conn, day):
+    """SPY's move today from the collected minute bars (first open to last close), or None."""
+    r = _one(conn, "SELECT (SELECT open FROM minute_bars WHERE ticker='SPY' AND substr(ts,1,10)=? ORDER BY ts LIMIT 1), "
+                   "(SELECT close FROM minute_bars WHERE ticker='SPY' AND substr(ts,1,10)=? ORDER BY ts DESC LIMIT 1)",
+             (day, day))
+    if not r or not r[0] or not r[1]:
+        return None
+    return float(r[1]) / float(r[0]) - 1
+
+
+def _section_evidence(conn, day, mode):
+    """Stage AD9 (owner 2026-10-19: prove a simple profit before adding capital): the account against the market, and
+    how far each pre-registered test is from a verdict. Each line fails alone; the section never raises."""
+    out = []
+    try:
+        import live_attribution as la
+        r = la.build(conn, mode)
+        a = r.get("account") or {}
+        if a:
+            out.append("since %s: account %+.1f%%, SPY %+.1f%% same days" % (
+                a["first_at"][:10], 100 * a["change"] / a["first"], 100 * (a.get("spy_since_first") or 0)))
+    except Exception:                                     # noqa: BLE001
+        pass
+    try:
+        first = _one(conn, "SELECT equity FROM live_equity WHERE session=? ORDER BY at LIMIT 1", (day,))
+        last = _one(conn, "SELECT equity FROM live_equity WHERE session=? ORDER BY at DESC LIMIT 1", (day,))
+        prev = _one(conn, "SELECT equity FROM live_equity WHERE session<? ORDER BY at DESC LIMIT 1", (day,))
+        base = (prev or first)
+        spy = _spy_today(conn, day)
+        if base and last and base[0]:
+            out.append("today: account %+.2f%%%s" % (100 * (float(last[0]) / float(base[0]) - 1),
+                                                    "" if spy is None else ", SPY %+.2f%%" % (100 * spy)))
+    except Exception:                                     # noqa: BLE001
+        pass
+    try:
+        import intraday_replay as ir_
+        v = ir_.verdict(ir_.prospective(conn, load_config()))
+        for k in ("stock", "twin"):
+            x = v.get(k)
+            if x:
+                out.append("Runner %s: %d signals / %d sessions, mean %+.2f%% (needs 300 / 30) %s" % (
+                    k, x["signals"], x["sessions"], 100 * x["mean_net"], x["call"]))
+        if not v:
+            out.append("Runners: no logged signals since 10-20 yet (needs 300 over 30 sessions)")
+    except Exception:                                     # noqa: BLE001
+        pass
+    try:
+        r = _one(conn, "SELECT COUNT(DISTINCT x.entry_date) FROM paper_trades_restated x WHERE x.entry_date >= '2026-10-12'")
+        if r:
+            out.append("strategy-family test: %d of 20 entry dates" % min(int(r[0] or 0), 20))
+    except Exception:                                     # noqa: BLE001
+        pass
+    try:
+        r = _one(conn, "SELECT COUNT(*) FROM timing_shadow WHERE kind='prospective'")
+        if r:
+            out.append("timing dial (shadow): %d of 120 sessions logged" % int(r[0] or 0))
+    except Exception:                                     # noqa: BLE001
+        pass
+    return out
+
+
 def _section_research_books(conn):
     """Options, same-day and short-term books (control_center_extra views), as short lines."""
     try:
@@ -526,6 +588,7 @@ def build(conn, day, mode="LIVE", rank_fn=None, now=None):
     return {
         **books,
         "slots": _section_slots(conn, mode, ranking),
+        "evidence": _section_evidence(conn, day, mode),
         "account": account,
         "real_account": _section_real_account(conn, mode),
         "pnl": _section_pnl(conn, day, mode, account, positions),
@@ -585,6 +648,10 @@ def render(report):
         else:
             _emit(lines, "  cash")
         _emit(lines, "  predicted %s per 20 days" % pred)
+
+    head("evidence", "VS THE MARKET / EVIDENCE")
+    for line in report.get("evidence") or ["no data"]:
+        _emit(lines, line)
 
     head("account", "ACCOUNT")
     a = report["account"]
