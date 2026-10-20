@@ -473,6 +473,24 @@ def _conviction_step(conn, cfg, run, today, prices, dv, cost_model) -> bool:
     return True
 
 
+ANCHOR_RANGE = (0.02, 50.0)   # adjustment factors outside this are data defects, not corporate actions
+
+
+def adjusted_entry(conn, ticker: str, entry_date: str, entry_price: float) -> float:
+    """Stage AD item 4: a position's entry price on TODAY's adjusted series. The engine records the close it paid; the
+    prices table is back-adjusted later for splits, spin-offs and dividends, so comparing the recorded price with a
+    later adjusted price books the adjustment as profit or loss (CTVA: four trades near -84%) and puts a stored stop on
+    the wrong scale (a 2-for-1 split would stop the position at once). The adjusted close of the entry date is the
+    entry on the same series as every later price. A factor outside ANCHOR_RANGE is treated as a data defect: the
+    recorded price stands."""
+    r = conn.execute("SELECT close FROM prices WHERE ticker=? AND date=?", (ticker, str(entry_date)[:10])).fetchone()
+    a = float(r[0]) if r and r[0] else None
+    if not a or a <= 0 or not entry_price:
+        return float(entry_price)
+    k = a / float(entry_price)
+    return a if ANCHOR_RANGE[0] <= k <= ANCHOR_RANGE[1] else float(entry_price)
+
+
 def step(conn, cfg: dict) -> None:
     """Advance every open run by one trading day."""
     runs = conn.execute("SELECT * FROM paper_runs WHERE status = 'open'").fetchall()
@@ -560,20 +578,26 @@ def step(conn, cfg: dict) -> None:
         closed = 0
 
         # --- exits first, so freed slots can be refilled the same day ---------
+        eff = {}                                         # ticker -> entry on today's adjusted series
         for pos in open_pos[:]:
             px = prices.get(pos["ticker"])
             elapsed = days_since(pos["entry_date"])
             held = elapsed if elapsed >= 0 else pos["days_held"] + 1
+            e_adj = adjusted_entry(conn, pos["ticker"], pos["entry_date"], pos["entry_price"])
+            k = e_adj / float(pos["entry_price"]) if pos["entry_price"] else 1.0
+            eff[pos["ticker"]] = e_adj
+            stop_adj = pos["stop_price"] * k if pos["stop_price"] else None
+            notional = pos["shares"] * pos["entry_price"]          # dollars paid: unchanged by any adjustment
             reason = None
             if px is None:
                 # No current price. Not necessarily wrong — it may have stopped
                 # trading — but a position we cannot price cannot be managed.
                 if held >= horizon * 4:
-                    reason, px = "unpriceable", pos["entry_price"]
-            elif pos["stop_price"] and px <= pos["stop_price"]:
+                    reason, px = "unpriceable", e_adj
+            elif stop_adj and px <= stop_adj:
                 reason = "stop_loss"
             elif (genome and genome.get("risk", {}).get("take_profit_pct")
-                  and px >= pos["entry_price"] * (1 + float(
+                  and px >= e_adj * (1 + float(
                       genome["risk"]["take_profit_pct"]) / 100)):
                 reason = "take_profit"
             elif pos["ticker"] in exits_today:
@@ -582,21 +606,21 @@ def step(conn, cfg: dict) -> None:
                 reason = "horizon_timeout"
 
             if reason:
-                notional = pos["shares"] * pos["entry_price"]
-                gross = pos["shares"] * (px - pos["entry_price"])
+                gross = notional * (px / e_adj - 1)
+                shares_adj = notional / e_adj
                 cost = cost_model.round_trip(notional, dv.get(pos["ticker"], 0),
-                                             pos["shares"])
+                                             shares_adj)
                 conn.execute("""
                     INSERT OR REPLACE INTO paper_trades
                         (run_id, ticker, entry_date, exit_date, entry_price, exit_price,
                          shares, gross_pnl_usd, costs_usd, net_pnl_usd, pnl_pct, exit_reason)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (run["run_id"], pos["ticker"], pos["entry_date"], today,
-                      pos["entry_price"], px, pos["shares"], gross, float(cost),
-                      gross - float(cost), (px / pos["entry_price"] - 1) * 100, reason))
+                      e_adj, px, shares_adj, gross, float(cost),
+                      gross - float(cost), (px / e_adj - 1) * 100, reason))
                 conn.execute("DELETE FROM paper_positions WHERE run_id=? AND ticker=?",
                              (run["run_id"], pos["ticker"]))
-                cash += pos["shares"] * px - float(cost)
+                cash += notional + gross - float(cost)
                 open_pos.remove(pos)
                 closed += 1
             else:
@@ -643,14 +667,17 @@ def step(conn, cfg: dict) -> None:
                 continue
             cash -= size
             open_pos.append({"ticker": t, "shares": shares, "entry_price": px})
+            eff[t] = px
             held_tickers.add(t)
             opened += 1
 
         # A position with no bar today is marked at its LAST REAL CLOSE, never
         # at entry. Marking at entry hid every loss on 2026-09-22, when the
         # source was missing that session for most tickers (accounting.py).
-        positions_value = sum(p["shares"] * prices.get(p["ticker"],
-                                                       stale.get(p["ticker"], p["entry_price"]))
+        # Marked on the adjusted series: value = dollars paid x (mark / entry on the same series).
+        positions_value = sum(p["shares"] * p["entry_price"]
+                              * prices.get(p["ticker"], stale.get(p["ticker"], eff.get(p["ticker"], p["entry_price"])))
+                              / eff.get(p["ticker"], p["entry_price"])
                               for p in open_pos)
         equity = cash + positions_value
         conn.execute("""
