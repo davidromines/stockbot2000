@@ -43,6 +43,7 @@ F1 = pt.start(c, cfg, "f1", strategy=genome("f1", cap=2))
 F2 = pt.start(c, cfg, "f2", strategy=genome("f2", hold=2))
 F3 = pt.start(c, cfg, "f3", strategy=genome("f3"))
 F4 = pt.start(c, cfg, "f4", strategy=genome("f4"))
+F5 = pt.start(c, cfg, "f5", strategy=genome("f5"))
 CAP0 = c.execute("SELECT capital_usd FROM paper_runs WHERE run_id=?", (F1,)).fetchone()[0]
 state = {"day": None, "px": {}, "cands": {}}
 
@@ -66,8 +67,9 @@ pt._latest_scores = market
 pt._genome_signals = signals
 
 
-def day(d, bars, cands):
-    for t, (o, cl) in bars.items():
+def day(d, bars, cands, hidden=None):
+    """`hidden`: bars in the price table that today's (floor-filtered) market does not show."""
+    for t, (o, cl) in {**bars, **(hidden or {})}.items():
         put(d, t, o, cl)
     put(d, "SPY", 100, 100)
     state.update(day=d, px={t: cl for t, (o, cl) in bars.items()}, cands=cands)
@@ -91,8 +93,8 @@ def equity(run, d):
 
 
 # --- day 1: decide only --------------------------------------------------------------------------
-day("2026-10-01", {t: (100, 100) for t in ("AAA", "BBB", "CCC", "HHH", "EEE", "NOBAR", "LEG")},
-    {"f1": ["AAA", "BBB", "CCC"], "f2": ["HHH"], "f3": ["EEE"], "f4": ["NOBAR"]})
+day("2026-10-01", {t: (100, 100) for t in ("AAA", "BBB", "CCC", "HHH", "EEE", "NOBAR", "LEG", "PEN")},
+    {"f1": ["AAA", "BBB", "CCC"], "f2": ["HHH"], "f3": ["EEE"], "f4": ["NOBAR"], "f5": ["PEN"]})
 # the transition: a position the OLD engine opened (close fill, no fill_basis) that the new engine will close
 c.execute("INSERT INTO paper_positions (run_id, ticker, entry_date, entry_price, shares, stop_price, days_held) "
           "VALUES (?,?,?,?,?,?,0)", (F4, "LEG", "2026-10-01", 100.0, SIZE / 100.0, 50.0))
@@ -105,7 +107,7 @@ check("...equity is the cash (no position, nothing debited)", equity(F1, "2026-1
 
 # --- day 2: fill at the open -----------------------------------------------------------------------
 day("2026-10-02", {"AAA": (102, 104), "BBB": (98, 97), "CCC": (100, 100), "HHH": (100, 101), "EEE": (100, 100),
-                   "LEG": (101, 100)}, {})
+                   "LEG": (101, 100), "PEN": (100, 100)}, {})
 p = positions(F1)
 check("day 2: AAA bought at the OPEN (102), stop 2 x ATR below the fill (92)", p["AAA"]["entry_price"] == 102
       and p["AAA"]["stop_price"] == 92, p.get("AAA"))
@@ -118,7 +120,9 @@ check("...the orders are gone once filled", not pending(F1))
 
 # --- day 3 (10-05): AAA closes below its stop; CCC fires; HHH reaches its holding limit -------------------------
 day("2026-10-05", {"AAA": (100, 91), "BBB": (97, 99), "CCC": (100, 100), "HHH": (101, 102), "EEE": (100, 100),
-                   "LEG": (45, 40)}, {"f1": ["CCC"]})
+                   "LEG": (45, 40)}, {"f1": ["CCC"]}, hidden={"PEN": (5, 4)})
+check("below the purchase floors: PEN (closed at $4, out of the filtered market) is still stopped on its real close",
+      pending(F5).get(("PEN", "SELL"), {}).get("reason") == "stop_loss", (pending(F5), positions(F5)))
 check("day 3: the stop is decided on the close, not booked: AAA still held, a SELL waits",
       "AAA" in positions(F1) and pending(F1).get(("AAA", "SELL"), {}).get("reason") == "stop_loss", pending(F1))
 check("...the slot the sale frees is refilled at the same open: CCC ordered (cap 2)", ("CCC", "BUY") in pending(F1))
@@ -128,7 +132,10 @@ check("holding limit: decided at the close of entry + max_hold (2 sessions after
 
 # --- day 4 (10-06): AAA gaps down through the stop -------------------------------------------------------
 day("2026-10-06", {"AAA": (85, 86), "BBB": (99, 99), "CCC": (101, 103), "HHH": (99, 99), "EEE": (100, 100),
-                   "LEG": (37, 38)}, {})
+                   "LEG": (37, 38)}, {}, hidden={"PEN": (3.5, 3.6)})
+pn = dict(c.execute("SELECT * FROM paper_trades WHERE run_id=? AND ticker='PEN'", (F5,)).fetchone())
+check("...and sold at the next open from the unfiltered table (3.50)", pn["exit_price"] == 3.5
+      and pn["exit_fill_date"] == "2026-10-06", pn)
 lg = dict(c.execute("SELECT * FROM paper_trades WHERE run_id=? AND ticker='LEG'", (F4,)).fetchone())
 check("transition: an old close-fill position exits at the next open (37), its entry basis kept",
       lg["exit_price"] == 37 and lg["entry_price"] == 100 and lg["fill_basis"] == "close"

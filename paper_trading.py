@@ -586,7 +586,6 @@ def _step_next_open(conn, cfg, run, today, prices, dv, candidates, exits_today, 
     open_pos = [dict(r) for r in conn.execute("SELECT * FROM paper_positions WHERE run_id = ?", (rid,))]
     orders = [dict(r) for r in conn.execute("SELECT * FROM paper_pending WHERE run_id=? ORDER BY created_at, ticker",
                                             (rid,))]
-    stale = _stale_marks(conn, [p["ticker"] for p in open_pos], prices, today)
     cash = run["cash_usd"]
     sold = bought = cancelled = 0
     rk = (genome or {}).get("risk", {})
@@ -658,11 +657,20 @@ def _step_next_open(conn, cfg, run, today, prices, dv, candidates, exits_today, 
         bought += 1
 
     # --- 2a. exit decisions on today's close ----------------------------------------------------
+    # `prices` is today's market AFTER the purchase floors (min price, dollar volume). A held stock that fell below
+    # them is still sold on its own close, as the simulator does: a filter that decides what may be bought must never
+    # decide what may be sold. Its real close today is read from the unfiltered table; without a bar today it is
+    # marked at its last real close and decided on nothing (the unpriceable rule below).
+    stale = _stale_marks(conn, [p["ticker"] for p in open_pos], prices, today)
+    missing = [p["ticker"] for p in open_pos if p["ticker"] not in prices]
+    closes_today = {r[0]: float(r[1]) for r in conn.execute(
+        f"SELECT ticker, close FROM prices WHERE date=? AND close > 0 AND ticker IN ({','.join('?' * len(missing))})",
+        (today, *missing))} if missing else {}
     waiting = {r[0] for r in conn.execute("SELECT ticker FROM paper_pending WHERE run_id=? AND side='SELL'", (rid,))}
     eff, to_sell = {}, 0
     for pos in open_pos[:]:
         t = pos["ticker"]
-        px = prices.get(t)
+        px = prices.get(t, closes_today.get(t))
         elapsed = days_since(pos["entry_date"])
         held_days = elapsed if elapsed >= 0 else pos["days_held"] + 1
         e_adj = _anchored(conn, pos)
