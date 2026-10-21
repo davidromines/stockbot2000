@@ -391,17 +391,14 @@ Design, in the order it must land (one branch, outside market hours, full suite,
 Acceptance: the same strategy and dates give the same trades in the simulator, the paper engine and the restated record.
 
 ### Still open after this build
-- **Owner decision (new, 10-20): wider stops.** Paper-track 6x (or 4x) stop variants of the adoptable strategies? As
-  rankable strategies their higher backtests would let them take slots at the 2026-11-02 review, which is a live stop
-  change by another route — so either (a) paper-track them excluded from slot selection until they have their own
-  record (AD6), or (b) let them compete at the review, or (c) leave stops as they are. Nothing is built for any of
-  these yet.
+- **Wider stops — owner chose (a) on 2026-10-21; DONE:** 17 research-only 6x-ATR paper funds (`stop_adopt.py`),
+  excluded from slots by `slots.research_only_sources`; their record goes to the ~11-16 decisions.
 - Found by the item 3 rehearsal (2026-10-20): the close-fill engine never stopped a held stock below the $5 purchase
   floor and booked it at its ENTRY after 4 holding periods — 35 closed trades at 0.00% whose true move was -15% to
   -96% (mean -38%; the restated record already has the real figures), and 701 open positions in 63 such names
   (median -44%) waiting to be booked the same way. Fixed in the next-open path; the 10-21/10-22 runs book the sales.
-  The original rows stay as recorded (restatements beside originals); accounting still reads their 0.00% — a v3 that
-  takes closed-trade P&L from the restated record is the follow-up.
+  The original rows stay as recorded (restatements beside originals). **Accounting v3 (owner "ok go" 2026-10-21, DONE)**
+  takes closed-trade P&L from the restated record, so the 35 now count at their real moves.
 - Kalman trades record FILL dates (they buy at the session's open), so the restatement prices them one session late
   (2 trades, none flagged). Small; fix in kalman_pair (record the decision date) when that family is touched.
 - (Closed 10-20: re-anchoring now covers the rotation and conviction steps; `paper_trading.close()` books no exits, so
