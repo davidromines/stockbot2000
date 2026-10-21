@@ -254,7 +254,7 @@ work on your local model, per the design goal.
 | Script | What it makes |
 |---|---|
 | `eod_report.py --mode LIVE [--send]` | The detailed end-of-day text report (17 sections; cron 21:10 UTC weekdays) |
-| `daily_snapshot.py --mode LIVE [--dry-run \| --out F.png \| --send]` | One portrait image: real-account P&L, a card and sparkline per slot, one plain-English line. Needs `matplotlib`. Built and tested; **not yet on cron** pending the owner's design sign-off. Slot figures are scoped to each slot's current assignment |
+| `daily_snapshot.py --mode LIVE [--dry-run \| --out F.png \| --send]` | One portrait image: real-account P&L, a card and sparkline per slot, one plain-English line. Needs `matplotlib`. **On cron since 2026-10-21: sent to Telegram at 21:12 UTC weekdays** (the text `eod_report.py` still runs at 21:10 and writes its file, no longer sends). Caption carries the evidence lines; Runner slots show today's trades. Slot figures are scoped to each slot's current assignment |
 | `audit_forward.py [--reported] [--families a,b]` | Read-only audit of forward families from raw `paper_trades` (Addendum F, Phase A1-A3): dedupe, clustered t, bootstrap, next-open honest-fill recompute. Writes `reports/audit_forward_<date>.md/.json` |
 | `restate_paper.py [--report]` | Restates closed paper trades at next-open fills into `paper_trades_restated` beside the originals (Addendum F G1); daily stage `[9k0]` |
 | `audit_selection.py` | Read-only multiple-testing and enrollment audit (Addendum F, Phase A4-A5): Holm / BH / max-T, effective tests, retroactive-replay split. Writes `reports/audit_selection_<date>.md` |
