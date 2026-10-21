@@ -66,6 +66,9 @@ def adopt(conn, cfg, spec: dict, rows: list, apply_: bool) -> list:
         if not apply_:
             done.append({**item, "status": "would open"})
             continue
+        if conn.execute("SELECT 1 FROM paper_runs WHERE name=?", (new_name,)).fetchone():
+            new_name = f"{new_name} [{parent[-6:]}]"           # two parents can share a name; fund names are unique
+            item["name"] = new_name
         genome = rsw.with_stop(spec["entry_rule"][strat], MULT)
         family = f"{leagues.family_of(conn, parent, int(ver)) or 'unknown'}_stop{MULT:g}x"
         paper_trading.init(conn)
