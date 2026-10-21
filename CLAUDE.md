@@ -74,6 +74,23 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-10-21 — owner decisions actioned: wider-stop variants, accounting v3, image report; crypto intraday tested
+
+**Owner 2026-10-21 "ok go" on three items, all on main (suite 188 pass):** (1) `stop_adopt.py`: 17 research-only paper
+funds, each a 6x-ATR-stop copy of a strategy that passed `stop_width_slots_v1` (family `<parent>_stop6x`, source_ref
+the experiment); `slots.research_only_sources` keeps them out of slots and stand-ins until the owner decides on their
+record (~11-16). (2) accounting v3: closed paper trades from `paper_trades_restated` where restated (corrects the close
+fills and the 35 trades booked at 0.00%); reconciliation stays on the engine's own ledger; `restatement_usd` per fund.
+(3) `daily_snapshot.py --send` on cron 21:12 UTC weekdays (evidence lines in the caption; today from the previous
+close; Runner cards); `eod_report.py` still runs at 21:10 but no longer sends. **Found and fixed the same day:** a
+read-only reader (the image report) hit accounting.init's new ALTER TABLE — schema additions now skip on read-only
+connections. **Crypto:** owner wants intraday crypto. `crypto_swing_v1` (registered, COMPLETE): 0 of 18 rules
+(breakout / momentum / dip, held 12-48 h, 10 coins, 2 years hourly) make money at Robinhood's crypto buy/sell prices
+(~1.9% apart; median hourly move 0.2-0.5%); the 4 crypto paper funds are -1% to -15% in 4 weeks. Recommendation given:
+no Robinhood intraday crypto runner. **Options:** the bot's account 403446024 has NO option level (the owner's main
+account has level 3); design = $1,000 book, one long call/put per trade, <= $100 a contract. Open questions to the
+owner: the options-on-our-best-stock-strategies build and one seed-free evolutionary search run.
+
 ### 2026-10-20 — Stage AD BUILT (owner "go ahead and build" 10-19, "go" 10-20); START HERE
 
 Branch merged (5dec7c1), full suite 178+ files pass. Build log and what is open: `docs/STAGE_AD_PROFITABILITY_PLAN.md` §11.
