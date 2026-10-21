@@ -91,8 +91,11 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
     if rows:
         start_equity = rows[0][2]
         latest_at, latest_session, latest_equity = rows[-1]
+        # Today is measured from the previous session's last mark (its close), as the end-of-day report does; the
+        # first mark of today is the fallback for the first session only.
+        before = [r for r in rows if r[1] < latest_session]
         today = [r for r in rows if r[1] == latest_session]
-        today_start = today[0][2] if today else latest_equity
+        today_start = before[-1][2] if before else (today[0][2] if today else latest_equity)
         out["account"] = {
             "equity": latest_equity,
             "pnl_usd": latest_equity - start_equity,
@@ -112,6 +115,7 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
             lim = {}
         out["drawdown"] = {"equity": latest_equity, "peak": peak, "pct": (peak - latest_equity) / peak * 100 if peak else 0.0,
                            "notice": lim.get("drawdown_notice_percent"), "review": lim.get("drawdown_review_percent"),
+                           "strategy": lim.get("strategy_review_percent"),
                            "stop": lim.get("max_drawdown_percent")}
     else:
         out["account"] = None
@@ -127,10 +131,12 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
             slot_results[slot_id] = {"empty": True}
             continue
         since = holder["since"]
-        name = _human_name(conn, holder["strategy_key"], holder["version"])
+        name = RUNNER_NAMES.get(holder["strategy_key"]) or _human_name(conn, holder["strategy_key"], holder["version"])
         closed = [t for t in pnl["closed"] if t["slot"] == slot_id and t["opened"] >= since]
         open_ = [t for t in pnl["open"] if t["slot"] == slot_id and t["opened"] >= since]
         realized_net = sum(t["net"] for t in closed)
+        day = out["account"]["latest_date"] if out.get("account") else None
+        closed_today = [t for t in closed if day and str(t["closed"])[:10] == day]
         symbol = entry = qty = mark = unreal_gross = ret_pct = opened_at = None
         if len(open_) == 1:
             o = open_[0]
@@ -160,6 +166,8 @@ def collect(conn, cfg: dict, mode: str = "LIVE") -> dict:
             "entry": entry, "mark": mark, "quantity": qty,
             "net_usd": total_net if (open_ or closed) else None, "ret_pct": ret_pct,
             "days_held": days_held, "spark": spark, "closed_trades": len(closed),
+            "runner": str(holder["strategy_key"]).startswith("intraday:"),
+            "today_trades": len(closed_today), "today_net": sum(t["net"] for t in closed_today),
         }
     out["slots"] = slot_results
     return out
@@ -180,13 +188,41 @@ def _footer_line(data: dict) -> str:
     return line
 
 
-def _caption(data: dict) -> str:
+def _money(x: float) -> str:
+    """+0.03 / -0.31; a value that rounds to zero is +0.00, never -0.00."""
+    return f"{0.0 if abs(x) < 0.005 else x:+.2f}"
+
+
+def _esc(text: str) -> str:
+    """Matplotlib reads text between two $ signs as math ('$82.27 vs $90.26' came out as italics); escape them."""
+    return str(text).replace("$", r"\$")
+
+
+RUNNER_NAMES = {"intraday:momentum_runner": "Momentum Runner (stocks)",
+                "intraday:twin_etf_runner": "Twin-ETF Runner"}
+
+
+def _caption(data: dict, evidence: list | None = None) -> str:
+    """The photo's caption: the headline, then the evidence lines the end-of-day report leads with (account vs SPY,
+    progress of each pre-registered test). Telegram allows 1,024 characters."""
     acct = data["account"]
     date = data["generated_at"][:10]
     if not acct:
         return f"Stockbot2000 — {date}"
     verdict = "PROFITABLE" if acct["pnl_usd"] > 0 else ("LOSING" if acct["pnl_usd"] < 0 else "FLAT")
-    return f"Stockbot2000 — {date} — {verdict} {acct['pnl_usd']:+.2f} ({acct['pnl_pct']:+.1f}%)"
+    head = f"Stockbot2000 — {date} — {verdict} {acct['pnl_usd']:+.2f} ({acct['pnl_pct']:+.1f}%)"
+    lines = [x.strip() for x in (evidence or []) if x and x.strip()]
+    return "\n".join([head] + lines)[:1024]
+
+
+def evidence_lines(conn, data: dict, mode: str) -> list:
+    """eod_report's VS THE MARKET / EVIDENCE lines, so the image and the text report say the same thing."""
+    try:
+        import eod_report
+        day = (data.get("account") or {}).get("latest_date")
+        return [x for x in eod_report._section_evidence(conn, day, mode) if x and not x.isupper()] if day else []
+    except Exception:                                        # noqa: BLE001 — the image never fails on its caption
+        return []
 
 
 def _sparkline(ax, series, color):
@@ -211,17 +247,28 @@ def _slot_card(ax, slot_id: int, s: dict):
                va="center", transform=ax.transAxes)
         return
     net, ret = s.get("net_usd"), s.get("ret_pct")
+    flat_runner = s.get("runner") and not s.get("symbol")
+    shown = (s.get("today_net") or 0.0) if flat_runner else net          # the card's colour follows its big number
     ax.add_patch(FancyBboxPatch((0.01, 0.06), 0.98, 0.88, boxstyle="round,pad=0,rounding_size=0.03",
-                                linewidth=0, facecolor=_card_color(net), transform=ax.transAxes))
-    ax.text(0.04, 0.72, f"SLOT {slot_id}  —  {s['symbol'] or 'no position'}", fontsize=16,
+                                linewidth=0, facecolor=_card_color(shown if (not flat_runner or s.get("today_trades")) else None),
+                                transform=ax.transAxes))
+    ax.text(0.04, 0.72, f"SLOT {slot_id}  —  {s['symbol'] or ('Runner' if s.get('runner') else 'no position')}", fontsize=16,
            fontweight="bold", color="#222", va="center", transform=ax.transAxes)
-    ax.text(0.04, 0.30, (s["name"] or "")[:40], fontsize=11, color="#555", va="center",
+    ax.text(0.04, 0.30, _esc((s["name"] or "")[:40]), fontsize=11, color="#555", va="center",
            transform=ax.transAxes)
+    if flat_runner:
+        # A Runner is flat between trades: show today's trades and what they made, then the total since assignment
+        t, tn = s.get("today_trades") or 0, s.get("today_net") or 0.0
+        ax.text(0.62, 0.72, _money(tn) if t else "—", fontsize=20, fontweight="bold",
+               color=_color(tn) if t else GRAY, ha="right", va="center", transform=ax.transAxes)
+        sub = f"{t} trade{'s' if t != 1 else ''} today" + (f"  ·  {_money(net)} since assigned" if net is not None else "")
+        ax.text(0.62, 0.32, sub, fontsize=11, color="#555", ha="right", va="center", transform=ax.transAxes)
+        return
     if net is None:
         ax.text(0.97, 0.5, "no open position yet", fontsize=13, color=GRAY, ha="right",
                va="center", transform=ax.transAxes)
         return
-    ax.text(0.62, 0.72, f"{net:+.2f}", fontsize=20, fontweight="bold", color=_color(net),
+    ax.text(0.62, 0.72, _money(net), fontsize=20, fontweight="bold", color=_color(net),
            ha="right", va="center", transform=ax.transAxes)
     sub = f"{ret:+.1f}%" if ret is not None else ""
     if s.get("days_held") is not None:
@@ -277,10 +324,11 @@ def render(data: dict, out_path: str) -> None:
     foot_ax = fig.add_subplot(gs[7]); foot_ax.axis("off")
     dd = data.get("drawdown")
     if dd:
-        lv = " · ".join(f"{n} {v:.0f}%" for n, v in (("notice", dd["notice"]), ("review", dd["review"]), ("stop", dd["stop"])) if v)
-        foot_ax.text(0.5, 0.78, f"Below peak: {dd['pct']:.1f}% (${dd['equity']:.2f} vs ${dd['peak']:.2f})" + (f"   ·   {lv}" if lv else ""),
+        lv = " · ".join(f"{n} {v:.0f}%" for n, v in (("notice", dd["notice"]), ("written review", dd.get("strategy")),
+                                                      ("entries pause", dd["review"]), ("stop", dd["stop"])) if v)
+        foot_ax.text(0.5, 0.78, _esc(f"Below peak: {dd['pct']:.1f}% (${dd['equity']:.2f} vs ${dd['peak']:.2f})" + (f"   ·   {lv}" if lv else "")),
                     fontsize=12, color="#444", ha="center", va="center", transform=foot_ax.transAxes)
-    foot_ax.text(0.5, 0.28, _footer_line(data), fontsize=12, color="#555", ha="center",
+    foot_ax.text(0.5, 0.28, _esc(_footer_line(data)), fontsize=12, color="#555", ha="center",
                 va="center", transform=foot_ax.transAxes, wrap=True)
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
@@ -309,6 +357,8 @@ def main(argv=None) -> int:
         s = data["slots"].get(slot_id, {})
         if s.get("empty"):
             print(f"  slot {slot_id}: CASH")
+        elif s.get("runner") and not s.get("symbol"):
+            print(f"  slot {slot_id}: Runner — {s.get('today_trades')} trades today, net {s.get('today_net', 0):+.2f}")
         elif not s.get("symbol"):
             print(f"  slot {slot_id}: {s.get('name')} — no open position")
         else:
@@ -316,6 +366,8 @@ def main(argv=None) -> int:
             print(f"  slot {slot_id}: {s['symbol']} ({s['name']})  net {s['net_usd']:+.2f}  {ret}  "
                  f"held {s.get('days_held')}d")
     print(_footer_line(data))
+    ev = evidence_lines(conn, data, a.mode)
+    print("caption:\n" + _caption(data, ev))
 
     if a.dry_run:
         return 0
@@ -323,7 +375,7 @@ def main(argv=None) -> int:
     print(f"wrote {a.out}")
     if a.send:
         import notify
-        ok = notify.send_telegram_photo(a.out, _caption(data))
+        ok = notify.send_telegram_photo(a.out, _caption(data, ev))
         print("sent" if ok else "send FAILED")
     return 0
 

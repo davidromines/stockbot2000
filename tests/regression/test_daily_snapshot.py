@@ -92,8 +92,13 @@ def main():
 
     acct = data["account"]
     check("account P&L: 101 - 100 = +1.00", abs(acct["pnl_usd"] - 1.0) < 1e-9, acct["pnl_usd"])
-    check("today's P&L: 101 - 104 = -3.00 (second session)", abs(acct["today_pnl_usd"] - (-3.0)) < 1e-9,
+    # Today is measured from the previous session's close (103), as the end-of-day report does — not from today's
+    # first mark (104), which would leave the overnight move out of "today".
+    check("today's P&L: 101 - 103 (previous close) = -2.00", abs(acct["today_pnl_usd"] - (-2.0)) < 1e-9,
          acct["today_pnl_usd"])
+    check("dollar signs are escaped for matplotlib (no mathtext between two $)",
+          ds._esc("$82.27 vs $90.26") == r"\$82.27 vs \$90.26")
+    check("a value that rounds to zero prints +0.00, never -0.00", ds._money(-0.001) == "+0.00" and ds._money(-0.31) == "-0.31")
     check("days_live counts distinct sessions (2)", data["days_live"] == 2, data["days_live"])
 
     s1 = data["slots"][1]
