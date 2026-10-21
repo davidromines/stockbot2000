@@ -71,7 +71,12 @@ log = logging.getLogger("accounting")
 # 2 (2026-10-20, Stage AD item 4/3): open paper positions are valued on the ADJUSTED series, as the engine marks
 # them (dollars paid x mark / entry on the same series) — v1 compared the recorded entry with a back-adjusted mark,
 # booking splits, spin-offs and dividends as P&L (CTVA). Rows of v1 stay as they were.
-ACCOUNTING_VERSION = 2
+# 3 (2026-10-21, owner "ok go"): a closed paper trade's P&L comes from the RESTATED record (paper_trades_restated:
+# next-open fills on one adjusted series) wherever it has a row, the engine's own record otherwise. It corrects the
+# close fills before 2026-10-20 and the 35 trades the old engine booked at 0.00% (true -15% to -96%). The engine's
+# figures stay the basis of the reconciliation ("does the engine agree with its own ledger"); the difference the
+# restatement makes is reported per fund (restatement_usd).
+ACCOUNTING_VERSION = 3
 TOLERANCE_USD = 0.05          # engines mark at slightly different closes; cents, not dollars
 
 
@@ -104,6 +109,10 @@ def init(conn) -> None:
             computed_at      TEXT NOT NULL,
             PRIMARY KEY (as_of, fund_kind, fund_id, accounting_version)
         )""")
+    have = {r[1] for r in conn.execute("PRAGMA table_info(fund_accounting)")}
+    for col, typ in (("restated_trades", "INTEGER"), ("restatement_usd", "REAL")):   # v3
+        if col not in have:
+            conn.execute(f"ALTER TABLE fund_accounting ADD COLUMN {col} {typ}")
     conn.commit()
 
 
@@ -120,6 +129,8 @@ def _mark(conn, ticker: str, as_of: str):
 
 
 def _row(**kw) -> dict:
+    kw.setdefault("restated_trades", 0)
+    kw.setdefault("restatement_usd", 0.0)
     kw["costs_usd"] = kw["costs_realized"] + kw["costs_open"]
     kw["net_usd"] = kw["gross_usd"] - kw["costs_usd"]
     kw["equity_restated"] = kw["capital_usd"] + kw["net_usd"]
@@ -130,7 +141,9 @@ def _row(**kw) -> dict:
         kw["reconciled"], kw["recon_diff_usd"], kw["unexplained_usd"] = 1, None, 0.0
         kw["recon_status"] = "RECONCILED"
         return kw
-    diff = orig - (kw["capital_usd"] + kw["gross_usd"] - kw["costs_realized"])
+    # The engine's own curve is checked against its own ledger (gross_engine_usd), not against the restatement.
+    diff = orig - (kw["capital_usd"] + kw.get("gross_engine_usd", kw["gross_usd"]) - kw["costs_realized"])
+    kw.pop("gross_engine_usd", None)
     kw["recon_diff_usd"] = diff
     kw["unexplained_usd"] = diff - kw["cash_drift_usd"] - kw["mark_diff_usd"]
     kw["reconciled"] = 1 if abs(diff) <= TOLERANCE_USD else 0
@@ -150,6 +163,10 @@ def _row(**kw) -> dict:
 # per fund kind
 # --------------------------------------------------------------------------- #
 def paper_funds(conn, cm) -> list:
+    import restate_paper
+    restated_version = restate_paper.VERSION
+    have_restated = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='paper_trades_restated'")
+                         .fetchone())
     out = []
     for r in conn.execute("SELECT * FROM paper_runs WHERE status='open'"):
         e = conn.execute("SELECT date, equity_usd, cash_usd, positions_usd FROM paper_equity "
@@ -160,6 +177,16 @@ def paper_funds(conn, cm) -> list:
         t = conn.execute("SELECT COUNT(*) n, COALESCE(SUM(gross_pnl_usd),0) g, "
                          "COALESCE(SUM(costs_usd),0) k FROM paper_trades WHERE run_id=?",
                          (r["run_id"],)).fetchone()
+        g_rep, n_rest, restatement = float(t["g"]), 0, 0.0
+        if have_restated:
+            x = conn.execute(
+                """SELECT COUNT(*) n, COALESCE(SUM(t.entry_price * t.shares * x.gross_pct / 100.0 - t.gross_pnl_usd), 0) dg,
+                          COALESCE(SUM(x.net_usd - t.net_pnl_usd), 0) dn
+                   FROM paper_trades t JOIN paper_trades_restated x ON x.version=? AND x.run_id=t.run_id
+                        AND x.ticker=t.ticker AND x.entry_date=t.entry_date WHERE t.run_id=?""",
+                (restated_version, r["run_id"])).fetchone()
+            n_rest, restatement = int(x["n"]), float(x["dn"])
+            g_rep += float(x["dg"])
         gross_open = costs_open = basis_open = mtm_open = 0.0
         n_open = unpriced = 0
         net_closed = conn.execute("SELECT COALESCE(SUM(net_pnl_usd),0) FROM paper_trades "
@@ -189,7 +216,8 @@ def paper_funds(conn, cm) -> list:
             cash_drift_usd=cash_drift, mark_diff_usd=mark_diff,
             as_of=as_of, fund_kind="paper", fund_id=r["run_id"],
             label=r["label"] or r["name"], capital_usd=float(r["capital_usd"]),
-            gross_usd=float(t["g"]) + gross_open, costs_realized=float(t["k"]),
+            gross_usd=g_rep + gross_open, gross_engine_usd=float(t["g"]) + gross_open,
+            restated_trades=n_rest, restatement_usd=restatement, costs_realized=float(t["k"]),
             costs_open=costs_open, equity_original=float(e["equity_usd"]),
             open_positions=n_open, closed_trades=int(t["n"]), cost_basis="modeled",
             note=(f"{unpriced} open position(s) unpriced, marked at entry"
@@ -330,7 +358,7 @@ def store(conn, rows: list) -> int:
     cols = ("as_of fund_kind fund_id label capital_usd gross_usd costs_realized "
             "costs_open costs_usd net_usd equity_original equity_restated "
             "open_positions closed_trades cost_basis reconciled recon_diff_usd "
-            "recon_status cash_drift_usd mark_diff_usd unexplained_usd note").split()
+            "recon_status cash_drift_usd mark_diff_usd unexplained_usd note restated_trades restatement_usd").split()
     for r in rows:
         vals = [r.get(c) for c in cols] + [ACCOUNTING_VERSION, now]
         conn.execute(f"INSERT OR REPLACE INTO fund_accounting ({','.join(cols)},"

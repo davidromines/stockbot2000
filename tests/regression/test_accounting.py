@@ -232,7 +232,29 @@ def main():
           abs(r["gross_usd"] - (2.0 + 4.0)) < 1e-9, r["gross_usd"])
     check("v2: the engine's re-anchored mark ($24) agrees: no mark difference", abs(r["mark_diff_usd"]) < 1e-9,
           r["mark_diff_usd"])
-    check("v2: the version is stamped", accounting.ACCOUNTING_VERSION == 2)
+    check("v3: the version is stamped", accounting.ACCOUNTING_VERSION == 3)
+
+    # --- v3: a closed trade's P&L comes from the restated record; the engine still reconciles on its own ledger ---
+    print("\naccounting.py — v3: closed trades from the restated record")
+    conn = _paper_db(positions_usd=24.0, cash=81.9)
+    conn.execute("""CREATE TABLE paper_trades_restated (version TEXT, run_id TEXT, ticker TEXT, entry_date TEXT,
+        exit_date TEXT, entry_open_next REAL, exit_open_next REAL, gross_pct REAL, cost_pct REAL, net_pct REAL,
+        net_usd REAL, corporate_action INTEGER, computed_at TEXT)""")
+    # AAA: the engine booked +$2.00 gross at close fills; at next-open fills the same trade was -5% gross, 1% costs
+    conn.execute("INSERT INTO paper_trades_restated VALUES ('v2_next_open','r1','AAA','2026-09-02','2026-09-10',"
+                 "10.5,9.975,-5.0,1.0,-6.0,-0.6,0,'x')")
+    conn.commit()
+    r = accounting.paper_funds(conn, StubCost(0.0))[0]
+    check("v3: gross = the restated closed trade (-$0.50) + the open position (+$4.00) = +$3.50",
+          abs(r["gross_usd"] - 3.5) < 1e-9, r["gross_usd"])
+    check("v3: the engine still reconciles against its own ledger", r["recon_status"] == "RECONCILED", r["recon_status"])
+    check("v3: the restatement is reported: 1 trade, -$2.50", r["restated_trades"] == 1
+          and abs(r["restatement_usd"] - (-2.5)) < 1e-9, (r["restated_trades"], r["restatement_usd"]))
+    check("v3: equity = capital + restated net", abs(r["equity_restated"] - (100 + 3.5 - 0.1)) < 1e-9, r["equity_restated"])
+    conn2 = _paper_db(positions_usd=24.0, cash=81.9)
+    r2 = accounting.paper_funds(conn2, StubCost(0.0))[0]
+    check("v3: without a restated row the engine's own trade P&L stands", abs(r2["gross_usd"] - 6.0) < 1e-9
+          and r2["restated_trades"] == 0, (r2["gross_usd"], r2["restated_trades"]))
 
     print()
     if FAILED:
