@@ -128,7 +128,10 @@ def init(conn) -> None:
         have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         for col in cols:
             if col not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
+                try:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
+                except sqlite3.OperationalError:          # a read-only reader: the read-write step adds them
+                    pass
     conn.commit()
 
 

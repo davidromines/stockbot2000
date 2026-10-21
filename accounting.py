@@ -112,7 +112,12 @@ def init(conn) -> None:
     have = {r[1] for r in conn.execute("PRAGMA table_info(fund_accounting)")}
     for col, typ in (("restated_trades", "INTEGER"), ("restatement_usd", "REAL")):   # v3
         if col not in have:
-            conn.execute(f"ALTER TABLE fund_accounting ADD COLUMN {col} {typ}")
+            try:
+                conn.execute(f"ALTER TABLE fund_accounting ADD COLUMN {col} {typ}")
+            except sqlite3.OperationalError:
+                # A read-only reader (daily_snapshot, the Telegram bot) reaches init through slots.current(); it does
+                # not need the columns, and the read-write daily stage adds them. Found 2026-10-21 by the suite.
+                pass
     conn.commit()
 
 

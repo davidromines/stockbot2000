@@ -256,6 +256,22 @@ def main():
     check("v3: without a restated row the engine's own trade P&L stands", abs(r2["gross_usd"] - 6.0) < 1e-9
           and r2["restated_trades"] == 0, (r2["gross_usd"], r2["restated_trades"]))
 
+    # --- a read-only reader reaching init before the read-write stage has added the v3 columns -----------------
+    import tempfile
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "old.db")
+    w = sqlite3.connect(path)
+    w.execute("CREATE TABLE fund_accounting (as_of TEXT, fund_kind TEXT, fund_id TEXT, accounting_version INTEGER)")
+    w.commit(); w.close()
+    ro = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        accounting.init(ro)
+        ok = True
+    except sqlite3.Error as e:
+        ok = repr(e)
+    check("init on a read-only connection without the v3 columns does not raise (daily_snapshot, 2026-10-21)",
+          ok is True, ok)
+
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED: {', '.join(FAILED)}")
