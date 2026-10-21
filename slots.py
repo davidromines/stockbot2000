@@ -68,6 +68,10 @@ DEFAULTS = {
     "min_hold_sessions": 5,          # a holder keeps its slot at least this long unless ineligible
     "max_replacements_per_day": 1,   # churn bound (§9)
     "max_evidence_lag_sessions": 3,  # evidence older than this is stale data (B19)
+    # Strategies registered from these experiments are paper-tracked but never take a slot until the owner decides
+    # on their own record (owner 2026-10-21: wider-stop variants, option (a)). Not a selection rule for any existing
+    # candidate, so it is not part of rules_fingerprint.
+    "research_only_sources": ["stop_width_slots_v1"],
     "max_per_family": 1,             # slots one strategy family may hold (B7); configurable
     # Stage K: crypto scores +12..+22%/trade on 30-60 day holds against ~0.5% for stocks, so
     # armed it would take most slots on backtests carried by 2017 and 2020. At most this many
@@ -117,6 +121,19 @@ def settings(cfg: dict) -> dict:
     out = {**DEFAULTS, **(cfg.get("slots") or {})}
     out["review"] = {**DEFAULTS["review"], **((cfg.get("slots") or {}).get("review") or {})}
     return out
+
+
+def _research_only(conn, sources) -> dict:
+    """strategy_key -> source experiment for every strategy registered from a research-only experiment."""
+    sources = tuple(sources)
+    if not sources:
+        return {}
+    try:
+        return {k: src for k, src in conn.execute(
+            f"SELECT strategy_key, source_ref FROM league_strategies WHERE source_ref IN ({','.join('?' * len(sources))})",
+            sources)}
+    except sqlite3.Error:                                     # no league yet: nothing can have been registered from one
+        return {}
 
 
 def rules_fingerprint(cfg: dict) -> str:
@@ -325,10 +342,14 @@ def assess(conn, cfg: dict) -> list:
     import ranking
     s = settings(cfg)
     latest = _latest_session(conn)
+    research_only = _research_only(conn, s.get("research_only_sources") or ())
     out = []
     for r in ranking.rank(conn, cfg):
         key, ver = r["strategy_key"], r["version"]
         reasons = []
+        if key in research_only:
+            reasons.append(f"research only: a {research_only[key]} variant, paper-tracked until it has its own record "
+                           f"(owner 2026-10-21)")
         if not r["passes_gate"]:
             reasons.append(r["gate"])
         halted = killswitch.strategy_halted(conn, key)
