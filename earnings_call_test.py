@@ -97,24 +97,29 @@ def prev_known(ev: pd.DataFrame, A: pd.Series) -> tuple:
 
 
 def features(conn, ev: pd.DataFrame, A: pd.Series) -> pd.DataFrame:
-    """Point-in-time features as of A. A previous surprise counts only if it was known by A."""
+    """Point-in-time features as of A, one company at a time (loading every company's daily fundamentals and prices at
+    once was killed at the 6 GB cap, 2026-10-22). A previous surprise counts only if it was known by A."""
     X = ev[["ticker"]].copy()
     X["A"] = A.values
     X["prev_sue"], X["prev2_sue"] = prev_known(ev, A)
-    f = pd.read_sql(f"SELECT ticker, date, {', '.join(FUND)} FROM daily_fundamentals WHERE date >= '2010-01-01'", conn)
-    f["date"] = pd.to_datetime(f["date"])
-    left = X.assign(_d=pd.to_datetime(X["A"]), _i=np.arange(len(X))).sort_values("_d")
-    m = pd.merge_asof(left, f.sort_values("date"), left_on="_d", right_on="date", by="ticker", direction="backward")
-    del f
-    p = pd.read_sql("SELECT ticker, date, close FROM prices WHERE date >= '2010-01-01' AND ticker IN "
-                    f"({','.join('?' * ev['ticker'].nunique())})", conn, params=list(ev["ticker"].unique()))
-    p["date"] = pd.to_datetime(p["date"])
-    p = p.sort_values(["ticker", "date"])
-    p["close_120"] = p.groupby("ticker")["close"].shift(120)
-    p["mom120"] = p["close"] / p["close_120"] - 1
-    m = pd.merge_asof(m.sort_values("_d"), p[["ticker", "date", "mom120"]].rename(columns={"date": "_pd"}).sort_values("_pd"),
-                      left_on="_d", right_on="_pd", by="ticker", direction="backward")
-    return m.sort_values("_i").set_index(ev.index)[["ticker", "A"] + FEATURES]
+    for col in FUND + ["mom120"]:
+        X[col] = np.nan
+    cols = ", ".join(FUND)
+    for t, idx in X.groupby("ticker").groups.items():
+        a = pd.DataFrame({"A": pd.to_datetime(X.loc[idx, "A"]), "_i": idx}).sort_values("A")
+        f = pd.read_sql(f"SELECT date, {cols} FROM daily_fundamentals WHERE ticker=? ORDER BY date", conn, params=(t,))
+        if len(f):
+            f["date"] = pd.to_datetime(f["date"])
+            m = pd.merge_asof(a, f, left_on="A", right_on="date", direction="backward")
+            X.loc[m["_i"].to_numpy(), FUND] = m[FUND].to_numpy()
+        p = pd.read_sql("SELECT date, close FROM prices WHERE ticker=? AND date >= '2010-01-01' ORDER BY date", conn,
+                        params=(t,))
+        if len(p) > 120:
+            p["date"] = pd.to_datetime(p["date"])
+            p["mom120"] = p["close"] / p["close"].shift(120) - 1
+            m = pd.merge_asof(a, p[["date", "mom120"]], left_on="A", right_on="date", direction="backward")
+            X.loc[m["_i"].to_numpy(), "mom120"] = m["mom120"].to_numpy()
+    return X[["ticker", "A"] + FEATURES]
 
 
 # --- prediction (walk-forward) -------------------------------------------------------------------

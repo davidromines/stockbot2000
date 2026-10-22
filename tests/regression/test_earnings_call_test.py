@@ -74,6 +74,22 @@ check("the call: delta 0.70-0.80, 20-75 days, gap <= 5%, expiring after the exit
 check("the spot by put-call parity from stored quotes (100 + 3.05 - 3.0 = 100.05)",
       abs(ect.local_spot(c, "AAA", "2023-04-20") - 100.05) < 1e-9)
 
+# features: as of A from the company's own history, never a later value
+cf = sqlite3.connect(":memory:")
+cf.execute("CREATE TABLE daily_fundamentals (ticker TEXT, date TEXT, " + ", ".join(f"{x} REAL" for x in ect.FUND) + ")")
+cf.execute("CREATE TABLE prices (ticker TEXT, date TEXT, close REAL)")
+for d_, v in (("2023-01-03", 1.0), ("2023-03-01", 2.0), ("2023-05-01", 3.0)):          # a new filing each time
+    cf.execute("INSERT INTO daily_fundamentals VALUES (?,?," + ",".join("?" * len(ect.FUND)) + ")", ("AAA", d_, *[v] * len(ect.FUND)))
+for i, d_ in enumerate(pd.bdate_range("2022-01-03", "2023-06-30").strftime("%Y-%m-%d")):
+    cf.execute("INSERT INTO prices VALUES ('AAA', ?, ?)", (d_, 100.0 + i))
+evf = pd.DataFrame({"ticker": ["AAA", "AAA"], "prev_sue": [0.5, 0.5], "prev_date": ["2023-01-01"] * 2,
+                    "prev2_sue": [np.nan] * 2, "prev2_date": [None] * 2})
+Xf = ect.features(cf, evf, pd.Series(["2023-04-15", "2023-02-15"]))
+check("fundamentals as of A: 04-15 sees the 03-01 filing (2.0), 02-15 sees 01-03 (1.0), never 05-01",
+      list(Xf["roa"]) == [2.0, 1.0], list(Xf["roa"]))
+check("the 120-session momentum is computed to A only", Xf["mom120"].iloc[1] < Xf["mom120"].iloc[0] + 1 and
+      Xf["mom120"].notna().all(), list(Xf["mom120"]))
+
 # the pass rule
 days = pd.bdate_range("2020-01-02", "2026-06-30").strftime("%Y-%m-%d")
 sp = days[np.linspace(0, len(days) - 1, 400).astype(int)]
