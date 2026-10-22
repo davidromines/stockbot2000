@@ -36,7 +36,8 @@ def books(cfg: dict, limits: dict) -> dict:
         "options": {"capital_usd": float(ol.get("capital_usd", 1000.0)),
                     "per_trade_usd": float(ol.get("per_trade_usd", 100.0)), "max_open": int(ol.get("max_open", 10)),
                     "paper_stake_usd": float(o.get("stake_usd", 100.0)),
-                    "max_contract_usd": float(o.get("max_contract_cost_usd", 100.0)),
+                    "max_contract_usd": (None if o.get("max_contract_cost_usd", 100.0) is None
+                                         else float(o.get("max_contract_cost_usd", 100.0))),
                     "max_daily_loss_usd": float(ol.get("max_daily_loss_usd", 150.0)),
                     "max_drawdown_pct": float(ol.get("max_drawdown_pct", 35.0)),
                     "min_paper_trades": int(ol.get("min_paper_trades", 20)),
@@ -67,7 +68,13 @@ def problems(b: dict) -> list:
     if abs(o["per_trade_usd"] - o["paper_stake_usd"]) > 1e-9:
         out.append(f"options: paper measures ${o['paper_stake_usd']:.2f} trades but real trades are "
                    f"${o['per_trade_usd']:.2f} — the paper record would describe a different size")
-    if o["max_contract_usd"] > o["per_trade_usd"] + 1e-9:
+    if o["max_contract_usd"] is None:
+        # No per-contract price cap (owner 2026-10-22): research and paper buy one contract whatever it costs. Armed,
+        # a real order could outsize the book's trade, so arming needs live sizing set for real contract prices first.
+        if o["armed"]:
+            out.append(f"options: no per-contract cap while armed — a real trade is ${o['per_trade_usd']:.2f}; set "
+                       f"options.live per_trade_usd / capital_usd for the contracts you will buy, or a cap")
+    elif o["max_contract_usd"] > o["per_trade_usd"] + 1e-9:
         out.append(f"options: one contract may cost ${o['max_contract_usd']:.2f} but a real trade is "
                    f"${o['per_trade_usd']:.2f} — an order could outsize the book's trade")
     if o["max_daily_loss_usd"] <= 0 or o["max_drawdown_pct"] <= 0:

@@ -501,8 +501,10 @@ def trade_return(p: dict, v: float, cost: float) -> float:
 
 
 def one_contract(cost: float, s: dict) -> bool:
-    """One contract (quotes are per share, so x100) costs no more than the book allows."""
-    return cost * CONTRACT <= s["max_contract_cost_usd"]
+    """One contract (quotes are per share, so x100) costs no more than the book allows; no cap (None, the owner's
+    choice 2026-10-22) allows any price — the contract is still one contract."""
+    cap = s.get("max_contract_cost_usd")
+    return cap is None or cost * CONTRACT <= float(cap)
 
 
 def trade_usd(p: dict, v: float, cost: float, s: dict, cfg: dict | None = None) -> float:

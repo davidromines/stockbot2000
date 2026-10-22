@@ -42,6 +42,12 @@ def main():
     p = books.problems(books.books(big, LIM))
     check("options: a contract dearer than a real trade is caught", any("one contract may cost" in x for x in p), p)
     check("options: the default cap equals the trade size", not any("one contract" in x for x in books.problems(b)))
+    nocap = {**CFG, "options": {"stake_usd": 100, "max_contract_cost_usd": None,
+                                "live": {"capital_usd": 1000, "per_trade_usd": 100, "max_open": 10}}}
+    check("options: no cap while paper only is not a problem (owner 2026-10-22)",
+          not any("cap" in x for x in books.problems(books.books(nocap, {**LIM, "allow_options": False}))))
+    check("options: no cap while ARMED is caught (live sizing must cover real contract prices)",
+          any("no per-contract cap while armed" in x for x in books.problems(books.books(nocap, {**LIM, "allow_options": True}))))
     print()
     if FAILED:
         print(f"  {len(FAILED)} FAILED")

@@ -53,8 +53,11 @@ def main() -> int:
 
     cfg = load_config()
     s = ol.settings(cfg)
-    check("the shipped config sets a per-contract cost cap", float(s["max_contract_cost_usd"]) > 0,
+    check("the shipped config has no per-contract price cap (owner 2026-10-22)", s["max_contract_cost_usd"] is None,
           s["max_contract_cost_usd"])
+    check("no cap: any one contract may be bought; a set cap still refuses a dearer one",
+          ol.one_contract(25.0, {"max_contract_cost_usd": None}) and not ol.one_contract(2.0, {"max_contract_cost_usd": 100.0})
+          and ol.one_contract(1.0, {"max_contract_cost_usd": 100.0}))
     check("the shipped config trades long calls and puts only", sorted(s["tradeable_legs"]) == ["C", "P"],
           s["tradeable_legs"])
     check("the default needs no config at all", ol.settings({})["max_contract_cost_usd"] == 100.0
