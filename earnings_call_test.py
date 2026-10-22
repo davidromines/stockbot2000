@@ -111,14 +111,14 @@ def features(conn, ev: pd.DataFrame, A: pd.Series) -> pd.DataFrame:
         if len(f):
             f["date"] = pd.to_datetime(f["date"])
             m = pd.merge_asof(a, f, left_on="A", right_on="date", direction="backward")
-            X.loc[m["_i"].to_numpy(), FUND] = m[FUND].to_numpy()
+            X.loc[m["_i"].to_numpy(), FUND] = m[FUND].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
         p = pd.read_sql("SELECT date, close FROM prices WHERE ticker=? AND date >= '2010-01-01' ORDER BY date", conn,
                         params=(t,))
         if len(p) > 120:
             p["date"] = pd.to_datetime(p["date"])
             p["mom120"] = p["close"] / p["close"].shift(120) - 1
             m = pd.merge_asof(a, p[["date", "mom120"]], left_on="A", right_on="date", direction="backward")
-            X.loc[m["_i"].to_numpy(), "mom120"] = m["mom120"].to_numpy()
+            X.loc[m["_i"].to_numpy(), "mom120"] = pd.to_numeric(m["mom120"], errors="coerce").to_numpy(dtype=float)
     return X[["ticker", "A"] + FEATURES]
 
 

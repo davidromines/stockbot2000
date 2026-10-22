@@ -82,6 +82,10 @@ for d_, v in (("2023-01-03", 1.0), ("2023-03-01", 2.0), ("2023-05-01", 3.0)):   
     cf.execute("INSERT INTO daily_fundamentals VALUES (?,?," + ",".join("?" * len(ect.FUND)) + ")", ("AAA", d_, *[v] * len(ect.FUND)))
 for i, d_ in enumerate(pd.bdate_range("2022-01-03", "2023-06-30").strftime("%Y-%m-%d")):
     cf.execute("INSERT INTO prices VALUES ('AAA', ?, ?)", (d_, 100.0 + i))
+cf.execute("INSERT INTO daily_fundamentals VALUES ('BBB', '2023-01-03'," + ",".join(["NULL"] * len(ect.FUND)) + ")")
+Xn = ect.features(cf, pd.DataFrame({"ticker": ["BBB"], "prev_sue": [0.1], "prev_date": ["2023-01-01"],
+                                    "prev2_sue": [np.nan], "prev2_date": [None]}), pd.Series(["2023-04-15"]))
+check("a company whose fundamentals are all empty gets NaN features, not an error", Xn["roa"].isna().all())
 evf = pd.DataFrame({"ticker": ["AAA", "AAA"], "prev_sue": [0.5, 0.5], "prev_date": ["2023-01-01"] * 2,
                     "prev2_sue": [np.nan] * 2, "prev2_date": [None] * 2})
 Xf = ect.features(cf, evf, pd.Series(["2023-04-15", "2023-02-15"]))
