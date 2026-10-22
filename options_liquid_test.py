@@ -103,6 +103,37 @@ def register(conn, cfg) -> dict:
     return json.loads(er.get(conn, EXPERIMENT)["spec"])
 
 
+def lean_signals(conn, cfg, start: str, end: str, keys: list) -> dict:
+    """options_lab.stock_signals for the frozen five: date -> [(ticker, strategy name)], most liquid first, loading
+    only the columns their rules read. The full loader (every feature and every fundamental, 2020 onward) was killed
+    at the 6 GB cap on 2026-10-22."""
+    import genome as gn
+    import storage
+    import strategy_objects as so
+    from train_model import FEATURE_COLS
+    gs = []
+    for k in keys:
+        ver = conn.execute("SELECT MAX(version) FROM league_strategies WHERE strategy_key=?", (k,)).fetchone()[0] or 1
+        g = so.genome(conn, k, ver)
+        nm = conn.execute("SELECT name FROM league_strategies WHERE strategy_key=? AND version=?", (k, ver)).fetchone()
+        if g and g.get("entry"):
+            gs.append((nm[0] if nm else k, g))
+    need = storage.columns_read([g for _, g in gs])
+    df = storage.load_training_frame(conn, FEATURE_COLS, types=cfg["universe"]["tradeable_types"], start_date=start,
+                                     end_date=end, min_price=cfg["risk"].get("min_price"),
+                                     min_dollar_volume=cfg["risk"].get("min_dollar_volume"), include_liquidity=True)
+    df = df[[c for c in df.columns if c in {"ticker", "date", "close", "dollar_volume_20"} | need]]
+    if any(storage.needs_panel(g) for _, g in gs):
+        df = storage.attach_fundamentals(conn, df, extras=need)
+    df = df.sort_values(["ticker", "date"])
+    out = {}
+    for name, g in gs:
+        hit = df[gn._as_bool(gn.evaluate(g["entry"], df)).to_numpy()]
+        for d, grp in hit.sort_values("dollar_volume_20", ascending=False).groupby("date"):
+            out.setdefault(str(d)[:10], []).extend((t, name) for t in grp["ticker"].astype(str))
+    return out
+
+
 def _done(sink: Path = SINK) -> set:
     return {json.loads(x)["variant"] for x in sink.read_text().splitlines() if x.strip()} if sink.exists() else set()
 
@@ -115,7 +146,6 @@ def run(conn, cfg, sp: dict) -> int:
     ol.init(conn)
     dates = ol.option_dates(conn, "2020-01-01", None)
     done, wrote, sig = _done(), 0, None
-    top = set(sp["entry_rule"]["stock_signal_top5_at_registration"])
     for key in SETTINGS:
         for name in strategies():
             v = variant(name, key)
@@ -123,13 +153,8 @@ def run(conn, cfg, sp: dict) -> int:
                 continue
             p = ol.STRATEGIES[name]
             if p["rule"] in ("stock_signal", "signal_cheap_iv") and sig is None:
-                import ranking
-                real = ranking.rank
-                ranking.rank = lambda c, g: [r for r in real(c, g) if r["strategy_key"] in top]   # the frozen five
-                try:
-                    sig = ol.stock_signals(conn, cfg, dates[0], dates[-1])
-                finally:
-                    ranking.rank = real
+                sig = lean_signals(conn, cfg, dates[0], dates[-1], sp["entry_rule"]["stock_signal_top5_at_registration"])
+                print(f"stock signals: {sum(len(v) for v in sig.values()):,} on {len(sig):,} dates", flush=True)
             conn.execute("DELETE FROM option_trades WHERE mode='BACKTEST' AND strategy=?", (v,))
             ol.run(conn, cfg_for(cfg, key), v, dates, "BACKTEST",
                    sig if p["rule"] in ("stock_signal", "signal_cheap_iv") else None, spec=p)
