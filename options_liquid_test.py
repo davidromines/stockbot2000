@@ -134,6 +134,13 @@ def lean_signals(conn, cfg, start: str, end: str, keys: list) -> dict:
     return out
 
 
+def optionable(conn, d: str, _cache={}) -> set:
+    """Symbols with any option quote on date d (option_quotes is keyed by date first)."""
+    if d not in _cache:
+        _cache[d] = {r[0] for r in conn.execute("SELECT DISTINCT symbol FROM option_quotes WHERE date=?", (d,))}
+    return _cache[d]
+
+
 def _done(sink: Path = SINK) -> set:
     return {json.loads(x)["variant"] for x in sink.read_text().splitlines() if x.strip()} if sink.exists() else set()
 
@@ -154,7 +161,12 @@ def run(conn, cfg, sp: dict) -> int:
             p = ol.STRATEGIES[name]
             if p["rule"] in ("stock_signal", "signal_cheap_iv") and sig is None:
                 sig = lean_signals(conn, cfg, dates[0], dates[-1], sp["entry_rule"]["stock_signal_top5_at_registration"])
-                print(f"stock signals: {sum(len(v) for v in sig.values()):,} on {len(sig):,} dates", flush=True)
+                n0 = sum(len(v) for v in sig.values())
+                # Only ~150 stocks have option quotes on a given day; a candidate without any can never open a trade
+                # (options_lab.pick finds no contract), so dropping it first gives the same trades, hours sooner.
+                sig = {d: [x for x in v if x[0] in optionable(conn, d)] for d, v in sig.items()}
+                print(f"stock signals: {n0:,}, with option quotes that day: {sum(len(v) for v in sig.values()):,}",
+                      flush=True)
             conn.execute("DELETE FROM option_trades WHERE mode='BACKTEST' AND strategy=?", (v,))
             ol.run(conn, cfg_for(cfg, key), v, dates, "BACKTEST",
                    sig if p["rule"] in ("stock_signal", "signal_cheap_iv") else None, spec=p)
