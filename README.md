@@ -284,6 +284,10 @@ work on your local model, per the design goal.
 | `earnings_study.py [--write]` | Stage AD3.5: holding across 8-K 2.02 announcements vs same-stock controls |
 | `stop_study.py [--write]` | Stage AD3.6: MAE/MFE in ATR units from the restated forward record against the configured stops |
 | `risk_sweep.py --register \| --run \| --report [--write]` | Stage AD3.5/AD3.6: registered backtests of an earnings-skip rule and ATR stop widths on the ranking's basis (run with `run_bounded.sh`, after a daily run) |
+| `stop_adopt.py [--apply]` | Opens research-only paper strategies with a 6x ATR stop for every strategy whose 6x cell passed `stop_width_slots_v1`; slot selection refuses them (`slots.research_only_sources`) |
+| `crypto_swing_study.py --register \| --run [--write]` | Registered `crypto_swing_v1`: crypto breakout / momentum / dip rules held 12-48 h at Robinhood's crypto buy and sell prices (FAIL 2026-10-21) |
+| `options_liquid_test.py --register \| --run \| --report [--write]` | Registered `options_liquid_v1`: the long call/put strategies with no per-contract cap, and with the entry gap limited to 5% (FAIL 2026-10-22). Resumable per variant |
+| `earnings_call_test.py --register \| --run [--write]` | Registered `earnings_itm_call_v1`: predict an earnings beat (walk-forward logistic on surprises and fundamentals), buy an in-the-money call 5 sessions before the report (FAIL 2026-10-22) |
 | `digest.py --send` | Weekly Telegram digest (Sundays) |
 
 Outside ideas the owner shares are reviewed in `docs/IDEAS_LOG.md`; the current audit plan is

@@ -74,6 +74,23 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
+### 2026-11-01 — state for the independent review; START HERE
+
+**Real account** $83.24 at the 10-30 close: −$4.47 (−5.1%) since launch (31 sessions; SPY +0.7%), **+$1.59 (+1.9%)
+since the 10-19 changes** (SPY +0.8%). The loss is the 20 medium-term trades closed before 10-19 (−$6.79, the slot
+churn); Runners 47 trades −$0.01; open OVV +$1.68, NTLA +$1.56 (stop $9.23), CRM −$0.91. Ledger = Robinhood to the
+cent. Acceptance 27/27; suite 190 files pass; backup verified 2026-11-01 (forward 1,874,668 rows / 75 tables).
+**Since 10-21, all registered, all FAIL:** `options_liquid_v1` (owner removed the $100-per-contract cap 10-22; with
+tight gaps 0 of 10 long call/put strategies pass; closest insider-buying call +22%/trade, t 1.9) and
+`earnings_itm_call_v1` (owner's idea: predict a beat, buy an ITM call; the beat is predictable, 69% vs 55%, but
+priced in: +0.28% vs SPY around a predicted beat; the free option data covered 30 of 9,625 reports). Owner rules
+recorded: no open-ended losses (short options blocked in code); options remain off (no account approval).
+**Next:** first monthly slot review 2026-11-02 (preview keeps all three holders); post-freeze decisions ~11-16;
+Robinhood sign-in renewal before ~11-04; prospective tests: strategy families 12 of 20 dates (December), Runner
+141 of 300 signals (early December), timing dial 9 of 120 (April 2027). Proposed, not approved: a 5% gap limit for
+option paper funds. Docs refreshed 11-01: `PROJECT_STATUS.md`, the plan's §11, the roadmap AD row, README, the
+ideas log (#17-#19), and the reviewer tracker artifact.
+
 ### 2026-10-21 — owner decisions actioned: wider-stop variants, accounting v3, image report; crypto intraday tested
 
 **Owner 2026-10-21 "ok go" on three items, all on main (suite 188 pass):** (1) `stop_adopt.py`: 17 research-only paper

@@ -610,3 +610,43 @@ The "recompute mismatch" lead was wrong. `funnel.forward_families` uses the same
 momentum +2.04% (n 416, t +4.2) exactly; the numbers compared had come from a week-old snapshot (momentum n was 331). The
 retraction is recorded in `docs/ADDENDUM_F_PROFITABILITY_AUDIT.md`. The honest findings from the first audit pass (paper engine fills
 at the signal-day close; `pnl_pct` is gross; 5-19 independent entry dates per family) are in the same appendix.
+
+
+## 2026-10-21 #17 — Owner: "I want crypto built. It is perfect for intraday trading."
+
+**What it is.** Intraday crypto trading through the existing Robinhood crypto path (Stage K is built, switched off).
+
+**Assessment.** Checked against our own data before building: Robinhood's crypto buy price runs ~1.9% above its sell
+price at the same moment (measured hourly since 2026-09-25, every coin), and a coin's median one-hour move is 0.2-0.5%
+(Coinbase hourly bars, 2024-09..2026-10). Registered `crypto_swing_v1`: 0 of 18 breakout / momentum / dip rules held
+12-48 hours make money at those prices (every cell loses 0.3-1.9% per trade, both halves). The four crypto paper
+funds are -1% to -15% in four weeks.
+
+**Adopted.** Nothing live. Intraday crypto would need a venue with much closer buy and sell prices.
+
+## 2026-10-22 #18 — Owner: "Someone is making money on options — how are they doing it?" / "remove the $100 cap"
+
+**What it is.** Research into who profits in options, then a re-test without the per-contract cap.
+
+**Assessment.** The consistent winners are market makers (the buy/sell gap and order flow), volatility sellers (open-
+ended losses; ruled out by the owner) and hedged quant books; retail buyers lose 5-14% around earnings (Bryzgalova,
+Pavlova & Sikorskaya 2023; de Silva, Smith & So 2025). Our own quotes: contracts at or under $100 had a median gap of
+72% of their price; backtest trades entered with a gap <= 5% averaged +2.1%, wide-gap ones -18% to -34%. Registered
+`options_liquid_v1`: with no cap and tight gaps, 0 of 10 long call/put strategies pass (closest: insider-buying call,
++22%/trade, t 1.9).
+
+**Adopted.** The $100 cap removed (2026-10-22). A 5% gap limit for paper is proposed, not approved.
+
+## 2026-10-22 #19 — Owner: "Use fundamentals and value analysis to predict which stocks will beat earnings and then buy in the money calls"
+
+**What it is.** Two steps: predict an earnings beat; buy an in-the-money call before the report.
+
+**Assessment.** Registered `earnings_itm_call_v1`. Step one works out of sample (a walk-forward model's top fifth beat
+69% of the time against 55%; last quarter's top-fifth surprise beats 73%). Step two fails: around a predicted beat the
+stock moves only +0.28% against SPY over the week (t 0.9) — the predictable part is priced in (Martineau 2021 for large
+stocks); actual beats move +1.2%, misses -1.7%. 16 model-selected calls lost 4.1% per trade; the free option data
+covered 30 of 9,625 reports.
+
+**Adopted.** Nothing. The missing input is analyst-consensus estimates (what the market expects), which the project
+does not have historically.
+
