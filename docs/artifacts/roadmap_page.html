@@ -1,9 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stockbot2000 Roadmap</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -178,95 +172,90 @@
     .figure{border-right:none; border-bottom:1px solid var(--border);}
     .figure:last-child{border-bottom:none;}
   }
+  .test{margin-top:14px;}
+  .test .t{font-size:13px; color:var(--text-soft); margin-bottom:6px; line-height:1.45;}
+  .test .bar-row{margin-bottom:0;}
+  .pill.fail{color:var(--neg); background:var(--caution-bg);}
 </style>
-</head>
-<body>
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">Project Roadmap</p>
+    <p class="eyebrow">Project Roadmap · for independent review</p>
     <h1>Stockbot2000</h1>
-    <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the five best currently eligible ones in charge of five ~$20 slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L.</p>
+    <p class="sub">An autonomous trading system that continuously discovers, tests and ranks strategies, puts the best currently eligible ones in charge of five small slots, and trades, monitors and replaces them automatically through Robinhood. The goal is positive trading P&amp;L. This page is the state on Sunday 1 November 2026, figures to Friday 30 October’s close.</p>
     <div class="meta-row">
-      <span>UPDATED 2026-10-13 (audit complete)</span>
-      <span>13 PHASES + ADDENDA A–E + STAGES K–AA, ALL BUILT</span>
-      <span>STATUS: LIVE SINCE 09-24 15:39 UTC, 16 TRADING DAYS · ADDENDUM F (INDEPENDENT PROFITABILITY AUDIT): PHASE A1–A3 FIRST PASS RUN · STAGE O (KNOWLEDGE FACTORY) AND STAGE R (OPTIONS, R1–R7) NOW COMPLETE · FIRST STATISTICALLY POSITIVE FORWARD FAMILIES OBSERVED · DEEPSEEK FOR DEVELOPMENT ONLY</span>
+      <span>UPDATED 2026-11-01</span>
+      <span>13 PHASES + ADDENDA A–H + STAGES K–AD</span>
+      <span>LIVE SINCE 09-24 · 31 TRADING DAYS · AUDIT (ADDENDUM F) COMPLETE: NO ESTABLISHED EDGE · INTRADAY RUNNERS IN 2 SLOTS AT $5 A TRADE · STAGE AD BUILT · 3 PROSPECTIVE TESTS RUNNING</span>
     </div>
   </header>
 
   <div class="stats">
-    <div class="stat done"><div class="n">13</div><div class="l">Phases complete</div></div>
-    <div class="stat done"><div class="n">148</div><div class="l">Regression test files, all passing</div></div>
-    <div class="stat done"><div class="n">O · R</div><div class="l">Fully built 10-05 / 10-12 — Knowledge Factory (O1–O13); options engine incl. real-order path (R1–R7, gated off)</div></div>
-    <div class="stat neg"><div class="n">−4.1%</div><div class="l">Real account since 09-24 (16 trading days): −$3.59 of ~$88; $84.12 at Monday’s close, 6.8% below its $90.26 peak</div></div>
-    <div class="stat progress"><div class="n">7</div><div class="l">Forward families now statistically positive at t &gt; 2 (not yet promotable — see below)</div></div>
-    <div class="stat"><div class="n">0</div><div class="l">Strategies with a <i>confirmed</i> durable edge</div></div>
+    <div class="stat neg"><div class="n">−5.1%</div><div class="l">Real account since 09-24 (31 trading days): $83.24 against $87.71; SPY +0.7% over the same days</div></div>
+    <div class="stat done"><div class="n">+1.9%</div><div class="l">Since the 10-19 changes (10 trading days): +$1.59; SPY +0.8%</div></div>
+    <div class="stat done"><div class="n">190</div><div class="l">Regression test files, all passing; acceptance checklist 27 of 27</div></div>
+    <div class="stat progress"><div class="n">7</div><div class="l">Pre-registered experiments decided since 10-19: 2 positive, 5 negative</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">Strategies with a demonstrated edge; the first deciding test reports about December</div></div>
   </div>
 
   <div class="distribution">
-    <h3>Where the project stands — update, 12 October</h3>
-    <p class="cap">Every build item on the roadmap is now built. Since the 29 September snapshot below: Stage O (the Knowledge Strategy Factory) finished its last four steps (O10–O13) on 05 October — documented trading knowledge now reproduces, varies and feeds the pipeline end to end, no second promotion path. Stage R (options) finished its real-money path on 12 October: <span class="mono">options_live.py</span> mirrors a proven option strategy's paper trades for real, whole contracts, same review-then-place/ref_id idempotency as the stock path — built, tested (its own regression bug was found and fixed in review), committed, and <b>deliberately inert</b>: <span class="mono">allow_options</span> is off, the account has no options level yet, and no option strategy is within 20 closed paper trades of "proven" (best today: 3). The daily diagnostic funnel (Stage T) has kept running and now shows the first candidates with real statistical weight: <b>7 families are positive at t &gt; 2</b> on growing forward samples (momentum t=4.8 on 331 trades; the Lab-search population t=17.2 on 5,560; three others at t &gt; 3). None of these are promoted — see "For the independent reviewer" below for why not yet. Also new: a one-page visual daily report (<span class="mono">daily_snapshot.py</span>) replacing the old wall-of-text Telegram message, built and tested, awaiting the owner's look at the rendered image before it goes on cron.</p>
-    <div class="stackbar">
-      <span style="width:100%; background:var(--done);"></span>
+    <h3>Where the project stands — 1 November</h3>
+    <p class="cap">The 13 October audit (Addendum F, all phases) found <b>no strategy family survives as an established edge</b> once costs, next-open fills, dependence between trades and the number of things tried are accounted for. The 19 October review (Addendum H) and Claude’s whole-system review traced the live loss mostly to implementation: 17 of 23 live exits were forced by slot reassignment (mean −3.30%, median hold 3 days against designed holds of 21–252), and the ranking picked volatile names (book beta 2.27). Stage AD, built 19–22 October on the owner’s go-ahead, stopped the churn (monthly review), capped book beta at 1.3, fixed live quotes, added a split handler, and moved the paper engine to next-open fills. Since then the account is +1.9% against SPY +0.8% — ten sessions, most of it one stock, so encouraging but not evidence. Seven pre-registered experiments have run since 19 October; the three that can establish an edge are prospective and still accruing:</p>
+    <div class="test">
+      <div class="t"><span class="mono">forward_families_prospective</span> — 8 strategy families: 12 of 20 independent entry dates, then 15 sessions · verdict about December</div>
+      <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:60%; background:var(--progress);"></div></div><span class="bar-pct">60%</span></div>
     </div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--done);"></i>Every roadmap build item complete — what remains is owner-gated arming (options, crypto, search) and forward evidence accruing in calendar time</span>
+    <div class="test">
+      <div class="t"><span class="mono">intraday_runner_v0_prospective</span> — the live Runners’ signals: 141 of 300 (stock signals mean −0.07%, t −1.2) · verdict early December</div>
+      <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:47%; background:var(--progress);"></div></div><span class="bar-pct">47%</span></div>
     </div>
-  </div>
-
-  <div class="questions">
-    <h2 style="margin-bottom:6px;">For the independent reviewer</h2>
-    <p class="section-cap" style="margin-bottom:12px;">Where an outside view would help most. State as of Tuesday 13 October. <b>The independent review is entered as Addendum F (Stage AB); the first read-only pass of its Phase A has run (below). Nothing live has changed.</b> Items 1–6 are the open questions the audit is meant to answer. State as of Monday 12 October’s close, 16 trading days into LIVE. Nothing here is proven: the account is down 4.1% since launch, and even the seven families below are forward signal, not a demonstrated edge.</p>
-    <div class="q-item"><div class="q-mark partial">0</div><div><div class="q-title">Addendum F: audit before trusting — and what a first look already found</div><div class="q-body">First read-only pass of Phase A (<span class="mono">audit_forward.py</span>, 13 October). Two things it found in our own code: <b>the paper engine fills entries and exits at the signal-day close</b> (the simulator and backtest moved to next-open fills on 15 September, the paper engine did not), and <b>the <span class="mono">pnl_pct</span> that the funnel and the 12 October dossier call net is the gross price move</b> (modelled costs of 0.15–0.18% a round trip are stored, not deducted). Recomputed with costs and next-open fills on adjusted prices, and with entry dates as the unit of independence, <span class="mono">lab_search</span> falls from +1.30% (t 18.5) to +0.90% (date-clustered t 2.2, 10 independent entry dates, 95% interval −0.25% to +1.40%) and <span class="mono">momentum</span> from +2.04% (t 4.2) to +1.71% (t 1.4, 18 dates, interval −1.03% to +3.78%); no family has the 20 independent entry dates needed for any label above “unresolved”. Earlier queries had also found, without changing anything: (a) four <span class="mono">CTVA</span> paper trades booked at about −84% because an unadjusted entry price is compared with a back-adjusted exit (likely a spin-off); (b) the same ticker-and-date trade appears once per fund (<span class="mono">lab_search</span>: 8,791 trades in 566 funds); (c) <b>retracted</b>: an apparent mismatch between the funnel and a plain recompute was a week-old snapshot (the funnel’s formula is identical); the real change is that the reported set moved in a week as trades accumulated; (d) the funnel’s t-statistic treats trades as independent, and deflation for the number of things tried exists only in the frozen Lab ladder; (e) noise alone produces a best t of 2.5–4.9 depending on how many independent tests are assumed, so two or three of the seven (t 2.9–3.4) sit in the luck range even before the dependence fix. Status of the seven: <b>unresolved</b>, not promoted, not dismissed. <b>Phases B and C (13 October, read-only and shadow).</b> Funnel: 2,233 strategies, 168 with 20 or more honest forward trades, 82 of those positive, <b>none with 20 independent entry dates of its own</b>; the pool of honest forward trades nets −0.45% per trade. The ranking counts open positions as trades (the top 50 rest on a median of 20 trades from one entry date), ranks later returns worse than the backtest alone, and one shared trade (+164%) sits in the paper funds of three of the five slots. A 13-criterion shadow gate for real capital finds 0 of 384 strategies eligible. The five live positions have a beta of 2.27 to SPY (three high-beta chip and hardware names). Nothing live changed; five decisions are with the owner. <b>Phase D (13 October, read-only).</b> A typical ranked strategy trades synthetic dead companies for 37% of its trades; 88% are positive as the ranking treats them but 55% in the worst case, and a third of verdicts flip on that unidentifiable assumption (paid delisted data is not yet warranted: forward evidence is the binding constraint). Live fills happen at the open, so the restated next-open basis describes them and the original signal-day-close basis does not; fill shortfalls are inconclusive at 35 trades. No new defect; nothing changed. <b>Phases E, F and H (13 October, read-only).</b> The Knowledge Factory holds 4,158 documented ideas, 91% of them title-only and untestable; the rest are about 175 lineages behind 1,281 strategies, so breadth is overstated. The pre-registered similarity experiment does not meet its bar (+0.48 points over random, interval −0.18 to +1.21). Profitability is now reported four ways; the real account's realised +$0.37 and unrealised −$3.97 reconcile to its −$3.59 equity change. <b>All acceptance criteria are met and no strategy survives the audit as an established edge</b>; the prospective test (about December) is the decisive measurement (<code>docs/AUDIT_F_FINAL_REPORT.md</code>). <b>Phase A4–A6 (13 October, read-only).</b> Multiple-testing adjustment (Holm, Benjamini–Hochberg, max-T on excess over SPY; about 28 effective independent tests): no family survives. The Lab survivors were enrolled on 27 September with a start date of 24 September, so 2,886 of <span class="mono">lab_search</span>’s 7,941 trades are a replay (+1.63% against +0.48% on the prospective trades, +0.19% over SPY); enrollment itself did not depend on outcomes. Verdicts: six unresolved, <span class="mono">st_uptrend_pullback</span> and <span class="mono">st_momentum_1d</span> provisionally not supported, none promising. A pre-registered prospective test (<span class="mono">forward_families_prospective</span> v1, locked, entries from 12 October, 20 independent dates plus 15 sessions, expected about December) is the test that can change this.</div></div></div>
-    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Seven families are now statistically positive — should any be promoted?</div><div class="q-body">The daily diagnostic funnel (Stage T) now shows real t-stats on growing forward samples: <span class="mono">lab_search</span> +1.51%/trade (t=17.2, n=5,560), <span class="mono">momentum</span> +2.69% (t=4.8, n=331), <span class="mono">kf_seasonality</span> +1.18% (t=7.1, n=340), <span class="mono">st_uptrend_pullback</span> +1.13% (t=3.7, n=348), <span class="mono">kf_mean_reversion</span> +4.86% (t=2.9, n=28), <span class="mono">bollinger_reversion</span> +1.22% (t=3.2, n=150), <span class="mono">st_momentum_1d</span> +0.47% (t=3.4, n=683). None are promoted — this project's whole history (§ change log) is results like this turning out to be artifacts. What would make these believable rather than the next entry in that history: a correlation check across the 5,560 <span class="mono">lab_search</span> trades (roughly half share a ticker+date with another fund, which deflates the effective n), a holdout re-test now that the sample exists, or simply more calendar time?</div></div></div>
-    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">The account is down 4.1% after 16 trading days — expected noise, or a reason to look harder?</div><div class="q-body">3 of 5 slots are currently negative (two are Lab-discovered strategies whose only "name" is the rule they evolved — see item 4). At $20/slot this is $3.59 of real money, immaterial in dollars; the question is whether 15 days is simply too early to read anything into, given the forward samples in item 1 needed hundreds of trades before a t-stat meant something.</div></div></div>
-    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">R7 (real-money options) is built and inert — is the gate right?</div><div class="q-body"><span class="mono">options_live.py</span> mirrors a proven option strategy's paper trades for real money, gated on <span class="mono">allow_options</span> (off), the account's option level (not yet applied for), and ≥20 closed paper trades net positive per strategy (today's best: 3, after only days of paper history). Is "20 closed trades net positive" the right bar before real option premium is risked, or too low given how often this project's backtests have been artifacts?</div></div></div>
-    <div class="q-item"><div class="q-mark open">4</div><div><div class="q-title">Lab-discovered strategies have no readable name</div><div class="q-body">A strategy born from the frozen evolutionary search's past survivors carries its raw evolved rule as its only "name" (e.g. <span class="mono">((rank(chaikin_osc) &gt; 0.64 and pct_off_52w_low) ...</span>) rather than a description a person could audit at a glance. The new daily report (item 6) papers over this for the owner's phone; it is still true in the ranking, the league and the Control Center. Worth fixing at the source?</div></div></div>
-    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Slot selection still rests mostly on backtests for new assignments</div><div class="q-body">A strategy with no forward trades still enters a slot on backtest alone (with synthetic dead companies). Item 1's positive families are the first to have enough forward evidence to check that backtest against; everything newer to a slot still hasn't been checked. Same question as September, now with a first real answer forming.</div></div></div>
-    <div class="q-item"><div class="q-mark open">6</div><div><div class="q-title">A new daily report, not yet live</div><div class="q-body">The owner asked for a one-page image (big P&amp;L number, a sparkline per slot, no jargon) to replace the 17-section text report currently sent to Telegram. Built, tested, rendered against real data — paused for the owner's visual sign-off before it goes on cron. Reported here so a reviewer sees it coming, not as a finished change.</div></div></div>
-  </div>
-
-  <div class="questions">
-    <h2 style="margin-bottom:6px;">Next, automatically</h2>
-    <p class="section-cap" style="margin-bottom:12px;">Times Pacific.</p>
-    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Daily run, ~07:00 UTC weekdays</div><div class="q-body">Price/fundamentals top-up, factory pipeline, survivorship backtests, the diagnostic funnel (which produced item 1 above), knowledge-factory cycle, slot reassessment, health check, nightly backup.</div></div></div>
-    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">During market hours (13:00–20:59 UTC)</div><div class="q-body">Slot trader every 5 minutes (SIMULATION, SHADOW, LIVE); options and crypto traders run but place nothing (both gated off); evening report at 21:10 UTC.</div></div></div>
-    <div class="q-item"><div class="q-mark resolved">3</div><div><div class="q-title">Phase 6 research-integrity report</div><div class="q-body">Built 09-24, running nightly since; its output is what surfaced the seven statistically positive families above.</div></div></div>
-  </div>
-
-  <div class="questions">
-    <h2 style="margin-bottom:6px;">Your decisions</h2>
-    <p class="section-cap" style="margin-bottom:12px;">Nothing below is blocking today's trading. No buildable roadmap item remains without one of these.</p>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Options with real money (R7) — built 12 October, inert</div><div class="q-body">The account still has no options level: apply in the Robinhood app, then set <span class="mono">allow_options</span>. Even then it stays inert until a strategy clears 20 closed paper trades net positive (today's best: 3).</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Addendum F — go-ahead and your drawdown tolerance</div><div class="q-body"><b>Approved 13 October and done:</b> (G1) <span class="mono">restate_paper.py</span> stores every closed paper trade at next-open fills beside the originals (18,730 of 20,294 so far, in the daily run before the funnel); (G2, G3) the funnel now shows gross, net, next-open (“honest”) means, errors clustered by entry date and ticker, independent entry dates and the 88-family luck level — and its hard-coded conclusions are replaced by data-driven text. <b>Drawdown tiers merged and live (13 October, 05:15 UTC)</b>: a Telegram notice at 10% from the peak, new entries paused at 20% (exits still go), the 35% stop unchanged. Checked after the merge; the acceptance checklist is 27 of 27. Returns will be reported per trade, per deployed dollar, portfolio-level and monthly side by side with no target, as you ruled on 13 October.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">The new daily image report — look and confirm</div><div class="q-body">Rendered against real data, tested, waiting on the owner's reaction to the design before it replaces the Telegram text report.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">L4 — published returns as a strategy’s starting score</div><div class="q-body">L1 is done: momentum, value, earnings yield, FCF/price, Piotroski and earnings surprise survive publication at t &gt; 3; liquidity and size do not. Default: not used as a prior.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">M5 — pay ~$270/yr for delisted price data</div><div class="q-body">Would replace most synthetic dead companies with real ones.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">K7 — <span class="mono">allow_crypto: true</span></div><div class="q-body">K1–K6 built and the one-slot cap for crypto is in place. Arming is yours.</div></div></div>
-    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Restart the evolutionary search (<span class="mono">search.mode: ACTIVE</span>)</div><div class="q-body">Frozen by policy; seed-free restart rules are built (one run a day, never in market hours). A governor cannot lift its own freeze, so this edit is yours.</div></div></div>
+    <div class="test">
+      <div class="t"><span class="mono">market_timing_dial_shadow_v1</span> — classifier as a market-timing dial: 9 of 120 sessions with outcomes · verdict about April 2027</div>
+      <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:8%; background:var(--planned);"></div></div><span class="bar-pct">8%</span></div>
+    </div>
   </div>
 
   <section class="dataset finding">
-    <h2>The five slots — what the system is doing today, 12 October</h2>
-    <p class="cap">Real Robinhood account (Agentic). Figures from today's one-page report (<span class="mono">daily_snapshot.py</span>, built this session). <b>Since assigned</b> — each slot's P&amp;L is scoped to the strategy CURRENTLY in that slot, not since account inception: slots get reassigned, and a trade from a previous occupant must never be counted against the current one.</p>
+    <h2>The live account — 30 October close</h2>
+    <p class="cap">Real Robinhood account (Agentic). Slots 1, 2 and 4 hold medium-term strategies; slots 3 and 5 are the intraday Runners, $5 a trade, flat every night. Each slot’s figure is scoped to the strategy currently in it. Robinhood’s realised P&amp;L and the bot’s ledger agree to the cent (daily check [9k7], gap $0.00 over 20 days).</p>
     <div class="figures">
-      <div class="figure"><div class="v neg">−$3.59</div><div class="k">real account, since LIVE began 09-24 (−4.1%); peak $90.26, now 6.8% below it</div></div>
-      <div class="figure"><div class="v neg">−$0.62</div><div class="k">Monday 12 Oct</div></div>
-      <div class="figure"><div class="v">15</div><div class="k">trading days live</div></div>
-      <div class="figure"><div class="v">5 / 5</div><div class="k">slots holding a position; cash $0</div></div>
+      <div class="figure"><div class="v neg">−$4.47</div><div class="k">since LIVE began 09-24 (−5.1%); peak $90.26, lowest close $81.03</div></div>
+      <div class="figure"><div class="v">+$1.59</div><div class="k">since the 10-19 changes (+1.9%; SPY +0.8%)</div></div>
+      <div class="figure"><div class="v">31</div><div class="k">trading days live</div></div>
+      <div class="figure"><div class="v">3 + 2</div><div class="k">medium-term positions held · Runner slots flat overnight</div></div>
     </div>
     <div class="scroll"><table class="dist">
-      <caption>Open positions, scoped to each slot's current assignment</caption>
+      <caption>Where the −$4.47 is</caption>
+      <thead><tr><th>Part</th><th>Trades</th><th class="r">Net</th></tr></thead>
+      <tbody>
+        <tr><td>Medium-term trades closed before 10-19 (mostly sold early by slot reassignment)</td><td class="num">20</td><td class="num neg">−$6.79</td></tr>
+        <tr><td>Intraday Runners, 10-16 to 10-30</td><td class="num">47</td><td class="num neg">−$0.01</td></tr>
+        <tr><td>Open positions (below)</td><td class="num">3</td><td class="num">+$2.33</td></tr>
+        <tr class="highlight"><td>Account change since 09-24</td><td></td><td class="num neg">−$4.47</td></tr>
+      </tbody></table></div>
+    <div class="scroll" style="margin-top:18px;"><table class="dist">
+      <caption>The five slots. All three medium-term positions were bought on 14 October, before the review rules; they keep their own exits until the monthly review.</caption>
+      <thead><tr><th>Slot</th><th>Holding</th><th>Strategy</th><th class="r">Entry</th><th class="r">Net</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>OVV $20</td><td>“A Tale of Two Strategies: Cash Flow, Accruals…” — quality, Knowledge Factory reproduction</td><td class="num">66.98</td><td class="num">+$1.68 (+8.4%)</td></tr>
+        <tr><td>2</td><td>NTLA $20</td><td>“The Stock Market Valuation of R&amp;D Expenditures” — reproduction; stop $9.23</td><td class="num">11.55</td><td class="num">+$1.56 (+7.8%)</td></tr>
+        <tr><td>3</td><td>—</td><td>Intraday Momentum Runner (stocks), $5 a trade</td><td class="num">—</td><td class="num">flat</td></tr>
+        <tr><td>4</td><td>CRM $20</td><td>“Standardized Unexpected Earnings” reproduction, stand-in for Earnings Surprise (age 10, hold 60)</td><td class="num">239.42</td><td class="num neg">−$0.91 (−4.5%)</td></tr>
+        <tr><td>5</td><td>—</td><td>Twin-ETF Runner (index bull / inverse pairs), $5 a trade</td><td class="num">—</td><td class="num">flat</td></tr>
+      </tbody></table></div>
+    <p class="note warn"><b>Read with care.</b> The gain since 10-19 is ten sessions and mostly NTLA (+18% in two days). The Runners’ replay on history was negative (stock −0.11% per signal, t −3.3) and their live record is flat; the owner keeps them live at $5 a trade with the evidence gates waived.</p>
+    <details style="margin-top:14px;"><summary style="cursor:pointer; color:var(--text-mute); font-size:13px;">12 October snapshot (superseded, kept for the record)</summary>
+    <div class="scroll" style="margin-top:10px;"><table class="dist">
+      <caption>Open positions on 12 October, scoped to each slot’s assignment then. Account −$3.59 (−4.1%) after 15 trading days.</caption>
       <thead><tr><th>Slot</th><th>Symbol</th><th>Strategy</th><th>Held</th><th class="r">Net since assigned</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>WDC</td><td>Lab-discovered strategy (56f07a26) — no readable name; see reviewer item 4</td><td>7d</td><td class="num neg">−$2.57 (−12.8%)</td></tr>
-        <tr><td>2</td><td>CRS</td><td>Lab-discovered strategy (82731d28) — no readable name</td><td>11d</td><td class="num neg">−$0.53 (−2.8%)</td></tr>
-        <tr><td>3</td><td>INTC</td><td>St Uptrend Pullback v2 (longer_hold) — one of the 7 statistically positive families (reviewer item 1)</td><td>3d</td><td class="num neg">−$0.97 (−5.6%)</td></tr>
-        <tr><td>4</td><td>AMD</td><td>St Reversal 1d v3 (trend_filter) — replaced DELL on 10-12</td><td>0d</td><td class="num">$0.00 (0.0%)</td></tr>
-        <tr><td>5</td><td>FDX</td><td>Lab-discovered strategy (4187611e) — no readable name</td><td>6d</td><td class="num">+$0.10 (+0.9%)</td></tr>
+        <tr><td>1</td><td>WDC</td><td>Lab-discovered strategy (56f07a26)</td><td>7d</td><td class="num neg">−$2.57 (−12.8%)</td></tr>
+        <tr><td>2</td><td>CRS</td><td>Lab-discovered strategy (82731d28)</td><td>11d</td><td class="num neg">−$0.53 (−2.8%)</td></tr>
+        <tr><td>3</td><td>INTC</td><td>St Uptrend Pullback v2 (longer_hold)</td><td>3d</td><td class="num neg">−$0.97 (−5.6%)</td></tr>
+        <tr><td>4</td><td>AMD</td><td>St Reversal 1d v3 (trend_filter)</td><td>0d</td><td class="num">$0.00 (0.0%)</td></tr>
+        <tr><td>5</td><td>FDX</td><td>Lab-discovered strategy (4187611e)</td><td>6d</td><td class="num">+$0.10 (+0.9%)</td></tr>
       </tbody></table></div>
-    <p class="note warn"><b>Three of five slots are Lab-discovered strategies with no readable name</b> (<span class="mono">family='lab_search'</span>: their own "name" is the raw rule they evolved to, e.g. <span class="mono">((rank(chaikin_osc) &gt; 0.6404 and pct_off_52w_low) ...</span>). This is exactly the family that is statistically positive in aggregate at the largest sample size (t=17.2, n=5,560 — reviewer item 1), yet individually unauditable at a glance — the daily report humanizes the display label, the underlying ranking and league still cannot explain WHY any one of them trades.</p>
-    <p class="note">This table replaces the 28 September snapshot below, which is kept as the historical record rather than silently overwritten.</p>
+    </details>
     <details style="margin-top:14px;"><summary style="cursor:pointer; color:var(--text-mute); font-size:13px;">28 September snapshot (superseded, kept for the record)</summary>
     <div class="scroll" style="margin-top:10px;"><table class="dist">
       <caption>Open positions, marked at Monday 28 September's close. <b>Predicted</b> = the ranking's expected net return per 20 trading days held.</caption>
@@ -293,6 +282,93 @@
       </tbody></table></div>
     </details>
   </section>
+
+  <section class="dataset">
+    <h2>Stage AD — built from the 19 October review</h2>
+    <p class="cap">Addendum H (the review, verbatim) and Claude’s staged plan are in <span class="mono">docs/ADDENDUM_H_ALPHA_RESEARCH_ENGINE.md</span> and <span class="mono">docs/STAGE_AD_PROFITABILITY_PLAN.md</span>; §11 of the plan is the build log. The owner answered decisions H1–H10 on 19 October and said “go” on the 20th. Each live change was merged outside market hours from a separate worktree, with the full suite run first.</p>
+    <div class="scroll"><table class="dist steps">
+      <thead><tr><th>Change</th><th>State</th><th>Result / note</th></tr></thead>
+      <tbody>
+        <tr><td>Monthly slot review; between reviews only hard failures release a slot; rule changes grandfathered</td><td class="st"><span class="pill done">live</span></td><td>First review Monday 2 November; the read-only preview keeps all three holders. Margin to replace = switching cost + 1 standard error</td></tr>
+        <tr><td>Book beta cap 1.3</td><td class="st"><span class="pill done">live</span></td><td>Refuses a purchase only, never forces a sale</td></tr>
+        <tr><td>Runners at $5 a trade (owner H1)</td><td class="st"><span class="pill done">live</span></td><td>47 trades to 10-30, −$0.01 net</td></tr>
+        <tr><td>Live quotes: a fresh, tight bid/ask stands in for Robinhood’s lagging last-trade time</td><td class="st"><span class="pill done">live 10-21</span></td><td>On 10-20 the lag caused 117 quote refusals, 6 entry halts and one forced exit</td></tr>
+        <tr><td>Split handler for the live slot ledger</td><td class="st"><span class="pill done">live</span></td><td>A clean broker/ledger ratio confirmed by a second source restates the position before any stop is checked; reports, ranking and attribution treat it as one continuing position</td></tr>
+        <tr><td>Paper engine: decide on the close, fill at the next open</td><td class="st"><span class="pill done">live 10-21</span></td><td>The simulator’s convention since 09-15; decision dates kept, so the locked prospective test is not shifted twice. Rehearsed on a copy of the database first</td></tr>
+        <tr><td><b>Found by that rehearsal:</b> held stocks below the $5 purchase floor were never stopped</td><td class="st"><span class="pill done">fixed</span></td><td>The old engine booked them at their entry price after 20 sessions: 35 trades recorded at 0.00% whose true moves were −15% to −96% (mean −38%), and 701 open positions in 63 names (median −44%). Now stopped on their real close; the restated record already had the true figures</td></tr>
+        <tr><td>Accounting v2 / v3</td><td class="st"><span class="pill done">live 10-22</span></td><td>Open paper positions valued on the split/dividend-adjusted series; closed trades taken from the restated record; 2,793 of 2,804 funds reconciled on the first run</td></tr>
+        <tr><td>One-page image report to Telegram</td><td class="st"><span class="pill done">live 10-21</span></td><td>21:12 UTC weekdays; caption leads with the account vs SPY and the tests’ progress</td></tr>
+        <tr><td>Wider-stop variants (6× ATR) of the slot strategies</td><td class="st"><span class="pill progress">paper 10-22</span></td><td>17 research-only paper funds; slot selection refuses them until the owner decides on their own record (option (a))</td></tr>
+        <tr><td>Daily stages [9k2]–[9k7]</td><td class="st"><span class="pill progress">shadow</span></td><td>Evidence-weighted allocator (overlap with current picks 1 of 3; no swap beats the switching cost), live attribution vs SPY, timing dial, ridge forecasts (validation IC +0.04 / +0.06 / +0.09 at 5 / 20 / 60 days), Runner prospective test, ledger check</td></tr>
+        <tr><td>Basket slots (4 × ~$5, inverse-volatility weights), risk-adjusted ordering, entry-timing experiment</td><td class="st"><span class="pill planned">shadow</span></td><td>Run in SIMULATION; each goes to the owner after the 20-session rule freeze (~11-16)</td></tr>
+        <tr><td>External benchmark (published JKP factor returns)</td><td class="st"><span class="pill done">done</span></td><td>Our long-short spreads correlate 0.86 (momentum) and 0.73 (value) with the published series: partial replication</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section class="dataset finding">
+    <h2>Pre-registered experiments since 19 October</h2>
+    <p class="cap">Each rule was written into <span class="mono">experiment_registry</span> before any result existed and run once. Backtests use the real-plus-synthetic dead-company universe, next-open fills, net of costs. Reports are in <span class="mono">reports/</span>.</p>
+    <div class="scroll"><table class="dist steps">
+      <thead><tr><th>Experiment</th><th>Question</th><th>Result</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">alpha_bench_v1</td><td>Do 12 published signals replicate here (long-only, next-open, net)?</td><td>0 validated, 8 replicated; a volatility screen helps the momentum and reversal baskets</td><td class="st"><span class="pill fail">none validated</span></td></tr>
+        <tr><td class="mono">classifier_timing_dial_v1</td><td>Does the classifier’s average score across stocks time the market?</td><td>Correlation +0.36, Newey–West t +6.5, 94% of folds, purged folds; now running prospectively (above)</td><td class="st"><span class="pill done">pass, one look</span></td></tr>
+        <tr><td class="mono">earnings_skip_v1</td><td>Skip entries within 5 sessions of an earnings report?</td><td>The skipped trades did better (+2.53% against +1.98% a trade); no skip rule</td><td class="st"><span class="pill fail">fail</span></td></tr>
+        <tr><td class="mono">stop_width_slots_v1</td><td>Wider or tighter ATR stops on the 23 slot strategies (2016–2019)?</td><td>Every tighter stop loses; 6× beats the current stop for 19 of 23 (20 of 23 per 20 sessions held); stop-outs fall from 15–48% to 4–21%</td><td class="st"><span class="pill done">wider wins · paper only</span></td></tr>
+        <tr><td class="mono">crypto_swing_v1</td><td>Crypto breakout / momentum / dip rules held 12–48 h at Robinhood’s prices (10 coins, 2024-09 to 2026-10)?</td><td>0 of 18 pass: Robinhood’s crypto buy price sits ~1.9% above its sell price, against a typical hourly move of 0.2–0.5%; no intraday crypto runner built</td><td class="st"><span class="pill fail">fail</span></td></tr>
+        <tr><td class="mono">options_liquid_v1</td><td>Long calls and puts without the $100-a-contract cap, tight-gap contracts only?</td><td>0 of 10 pass; tight gaps shrink losses for 7 of 10; closest is an insider-buying call at +22% a trade, t 1.9 (needs 2.8)</td><td class="st"><span class="pill fail">fail</span></td></tr>
+        <tr><td class="mono">earnings_itm_call_v1</td><td>Predict an earnings beat from fundamentals, buy an in-the-money call before the report (owner’s idea)</td><td>The prediction works (69% beat against 55%), but the stock moves only +0.28% over SPY around a predicted beat (priced in); 16 model trades −4.1%; only 30 of 9,625 reports had usable free option quotes</td><td class="st"><span class="pill fail">fail</span></td></tr>
+      </tbody></table></div>
+  </section>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">What has not been established</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Stated as prominently as the results.</p>
+    <div class="q-item"><div class="q-mark no">✗</div><div><div class="q-title">No strategy has a demonstrated edge</div><div class="q-body">The audit found none, and the live gain since 19 October is ten sessions driven by one stock. The prospective family test (about December) is the first measurement that can change this.</div></div></div>
+    <div class="q-item"><div class="q-mark no">✗</div><div><div class="q-title">The Runners have no edge in replay</div><div class="q-body">Stock Runner −0.11% per signal (t −3.3), twin −0.14% on history; prospective so far −0.07% (t −1.2) over 141 signals. They stay live at the owner’s instruction.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">◑</div><div><div class="q-title">Survivorship is reconstructed, not observed</div><div class="q-body">Backtests include 7,618 synthetic dead companies (generator v5c, graded per exit type). A third of strategy verdicts flip on the unidentifiable worst-case assumption (Phase D). Real delisted prices (~$270/yr) remain unbought by the owner’s choice.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">◑</div><div><div class="q-title">Earnings “beats” are year-over-year, not against consensus</div><div class="q-body">No analyst-consensus history is available free; a beat is EPS against the same quarter a year earlier.</div></div></div>
+    <div class="q-item"><div class="q-mark partial">◑</div><div><div class="q-title">Option tests are small</div><div class="q-body">The free option data covers about 150 stocks a day with end-of-day quotes, so every option experiment rests on few trades.</div></div></div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">For the independent reviewer</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Where an outside view would help most, as of 1 November. Claude’s current recommendation is given with each; none is decided.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Is the deciding bar right?</div><div class="q-body"><span class="mono">forward_families_prospective</span> passes a family only with at least 12 of its own independent entry dates among the first 20 pooled, excess over SPY above zero, a max-T adjusted p of 0.05 or less (about 28 effective tests) and a bootstrap lower bound above zero, measured 15 sessions after the 20th date. It is locked. Is 20 dates enough power to see a realistic edge of ~0.5% a trade, or will a fail be uninformative? <i>Recommendation: keep it locked; register a larger follow-up now rather than reinterpret this one later.</i></div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">How should the run since 19 October be read?</div><div class="q-body">+1.9% against SPY +0.8% in ten sessions, after the churn fix. What would distinguish “the implementation fix worked” from luck — forced-exit counts and holding periods against the design, rather than P&amp;L? <i>Recommendation: report holding period and exit reasons beside P&amp;L in the monthly review, and judge the fix on those.</i></div></div></div>
+    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">The Runners after their prospective verdict</div><div class="q-body">Replay negative, live flat, prospective slightly negative at the halfway point. <i>Recommendation: if the registered test fails in early December, move both Runners to SHADOW and return slots 3 and 5 to the medium-term ranking.</i></div></div></div>
+    <div class="q-item"><div class="q-mark open">4</div><div><div class="q-title">Wider stops: when may a backtest finding go live?</div><div class="q-body">6× ATR stops beat the current stops for 19 of 23 slot strategies on 2016–2019 backtests. They are paper-only now. Should they wait for their own paper record (weeks to months at these trade counts), or is a backtest finding about exits — not entries — strong enough to adopt sooner? <i>Recommendation: wait for the ~11-16 review of their paper record; they are research-only until then.</i></div></div></div>
+    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Shadow systems: what record should each need before it decides?</div><div class="q-body">Basket slots, risk-adjusted ordering, entry timing and the evidence-weighted allocator all run in shadow until about 16 November. Twenty sessions is a rule freeze, not a test with a pass mark. <i>Recommendation: baskets and the beta-aware ordering on risk grounds (they reduce concentration whatever the return); the allocator and entry timing only with a pre-registered pass rule.</i></div></div></div>
+    <div class="q-item"><div class="q-mark open">6</div><div><div class="q-title">Options: worth more work without paid data?</div><div class="q-body">Four option experiments have failed; the owner’s rule is long single calls or puts only (no short options, no open-ended losses). The free chain data is thin. <i>Recommendation: options stay off; paper option funds get a 5% buy/sell gap limit (proposed, not approved) so they stop recording untradeable contracts.</i></div></div></div>
+    <details style="margin-top:12px;"><summary style="cursor:pointer; color:var(--text-mute); font-size:13px;">13 October questions and the audit’s answers (kept for the record)</summary>
+    <div class="q-item"><div class="q-mark partial">0</div><div><div class="q-title">Addendum F: audit before trusting — and what a first look already found</div><div class="q-body">First read-only pass of Phase A (<span class="mono">audit_forward.py</span>, 13 October). Two things it found in our own code: <b>the paper engine fills entries and exits at the signal-day close</b> (the simulator and backtest moved to next-open fills on 15 September, the paper engine did not), and <b>the <span class="mono">pnl_pct</span> that the funnel and the 12 October dossier call net is the gross price move</b> (modelled costs of 0.15–0.18% a round trip are stored, not deducted). Recomputed with costs and next-open fills on adjusted prices, and with entry dates as the unit of independence, <span class="mono">lab_search</span> falls from +1.30% (t 18.5) to +0.90% (date-clustered t 2.2, 10 independent entry dates, 95% interval −0.25% to +1.40%) and <span class="mono">momentum</span> from +2.04% (t 4.2) to +1.71% (t 1.4, 18 dates, interval −1.03% to +3.78%); no family has the 20 independent entry dates needed for any label above “unresolved”. Earlier queries had also found, without changing anything: (a) four <span class="mono">CTVA</span> paper trades booked at about −84% because an unadjusted entry price is compared with a back-adjusted exit (likely a spin-off); (b) the same ticker-and-date trade appears once per fund (<span class="mono">lab_search</span>: 8,791 trades in 566 funds); (c) <b>retracted</b>: an apparent mismatch between the funnel and a plain recompute was a week-old snapshot (the funnel’s formula is identical); the real change is that the reported set moved in a week as trades accumulated; (d) the funnel’s t-statistic treats trades as independent, and deflation for the number of things tried exists only in the frozen Lab ladder; (e) noise alone produces a best t of 2.5–4.9 depending on how many independent tests are assumed, so two or three of the seven (t 2.9–3.4) sit in the luck range even before the dependence fix. Status of the seven: <b>unresolved</b>, not promoted, not dismissed. <b>Phases B and C (13 October, read-only and shadow).</b> Funnel: 2,233 strategies, 168 with 20 or more honest forward trades, 82 of those positive, <b>none with 20 independent entry dates of its own</b>; the pool of honest forward trades nets −0.45% per trade. The ranking counts open positions as trades (the top 50 rest on a median of 20 trades from one entry date), ranks later returns worse than the backtest alone, and one shared trade (+164%) sits in the paper funds of three of the five slots. A 13-criterion shadow gate for real capital finds 0 of 384 strategies eligible. The five live positions have a beta of 2.27 to SPY (three high-beta chip and hardware names). Nothing live changed; five decisions are with the owner. <b>Phase D (13 October, read-only).</b> A typical ranked strategy trades synthetic dead companies for 37% of its trades; 88% are positive as the ranking treats them but 55% in the worst case, and a third of verdicts flip on that unidentifiable assumption (paid delisted data is not yet warranted: forward evidence is the binding constraint). Live fills happen at the open, so the restated next-open basis describes them and the original signal-day-close basis does not; fill shortfalls are inconclusive at 35 trades. No new defect; nothing changed. <b>Phases E, F and H (13 October, read-only).</b> The Knowledge Factory holds 4,158 documented ideas, 91% of them title-only and untestable; the rest are about 175 lineages behind 1,281 strategies, so breadth is overstated. The pre-registered similarity experiment does not meet its bar (+0.48 points over random, interval −0.18 to +1.21). Profitability is now reported four ways; the real account's realised +$0.37 and unrealised −$3.97 reconcile to its −$3.59 equity change. <b>All acceptance criteria are met and no strategy survives the audit as an established edge</b>; the prospective test (about December) is the decisive measurement (<code>docs/AUDIT_F_FINAL_REPORT.md</code>). <b>Phase A4–A6 (13 October, read-only).</b> Multiple-testing adjustment (Holm, Benjamini–Hochberg, max-T on excess over SPY; about 28 effective independent tests): no family survives. The Lab survivors were enrolled on 27 September with a start date of 24 September, so 2,886 of <span class="mono">lab_search</span>’s 7,941 trades are a replay (+1.63% against +0.48% on the prospective trades, +0.19% over SPY); enrollment itself did not depend on outcomes. Verdicts: six unresolved, <span class="mono">st_uptrend_pullback</span> and <span class="mono">st_momentum_1d</span> provisionally not supported, none promising. A pre-registered prospective test (<span class="mono">forward_families_prospective</span> v1, locked, entries from 12 October, 20 independent dates plus 15 sessions, expected about December) is the test that can change this.</div></div></div>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Seven families are now statistically positive — should any be promoted?</div><div class="q-body">The daily diagnostic funnel (Stage T) now shows real t-stats on growing forward samples: <span class="mono">lab_search</span> +1.51%/trade (t=17.2, n=5,560), <span class="mono">momentum</span> +2.69% (t=4.8, n=331), <span class="mono">kf_seasonality</span> +1.18% (t=7.1, n=340), <span class="mono">st_uptrend_pullback</span> +1.13% (t=3.7, n=348), <span class="mono">kf_mean_reversion</span> +4.86% (t=2.9, n=28), <span class="mono">bollinger_reversion</span> +1.22% (t=3.2, n=150), <span class="mono">st_momentum_1d</span> +0.47% (t=3.4, n=683). None are promoted — this project's whole history (§ change log) is results like this turning out to be artifacts. What would make these believable rather than the next entry in that history: a correlation check across the 5,560 <span class="mono">lab_search</span> trades (roughly half share a ticker+date with another fund, which deflates the effective n), a holdout re-test now that the sample exists, or simply more calendar time?</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">The account is down 4.1% after 16 trading days — expected noise, or a reason to look harder?</div><div class="q-body">3 of 5 slots are currently negative (two are Lab-discovered strategies whose only "name" is the rule they evolved — see item 4). At $20/slot this is $3.59 of real money, immaterial in dollars; the question is whether 15 days is simply too early to read anything into, given the forward samples in item 1 needed hundreds of trades before a t-stat meant something.</div></div></div>
+    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">R7 (real-money options) is built and inert — is the gate right?</div><div class="q-body"><span class="mono">options_live.py</span> mirrors a proven option strategy's paper trades for real money, gated on <span class="mono">allow_options</span> (off), the account's option level (not yet applied for), and ≥20 closed paper trades net positive per strategy (today's best: 3, after only days of paper history). Is "20 closed trades net positive" the right bar before real option premium is risked, or too low given how often this project's backtests have been artifacts?</div></div></div>
+    <div class="q-item"><div class="q-mark open">4</div><div><div class="q-title">Lab-discovered strategies have no readable name</div><div class="q-body">A strategy born from the frozen evolutionary search's past survivors carries its raw evolved rule as its only "name" (e.g. <span class="mono">((rank(chaikin_osc) &gt; 0.64 and pct_off_52w_low) ...</span>) rather than a description a person could audit at a glance. The new daily report (item 6) papers over this for the owner's phone; it is still true in the ranking, the league and the Control Center. Worth fixing at the source?</div></div></div>
+    <div class="q-item"><div class="q-mark open">5</div><div><div class="q-title">Slot selection still rests mostly on backtests for new assignments</div><div class="q-body">A strategy with no forward trades still enters a slot on backtest alone (with synthetic dead companies). Item 1's positive families are the first to have enough forward evidence to check that backtest against; everything newer to a slot still hasn't been checked. Same question as September, now with a first real answer forming.</div></div></div>
+    <div class="q-item"><div class="q-mark open">6</div><div><div class="q-title">A new daily report, not yet live</div><div class="q-body">The owner asked for a one-page image (big P&amp;L number, a sparkline per slot, no jargon) to replace the 17-section text report currently sent to Telegram. Built, tested, rendered against real data — paused for the owner's visual sign-off before it goes on cron. Reported here so a reviewer sees it coming, not as a finished change.</div></div></div>
+    </details>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">Next, automatically</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Times UTC; the owner is on Pacific time.</p>
+    <div class="q-item"><div class="q-mark open">1</div><div><div class="q-title">Monday 2 November — first monthly slot review</div><div class="q-body">In the 07:00 daily run. The read-only preview keeps all three medium-term holders; the Runner slots are reserved.</div></div></div>
+    <div class="q-item"><div class="q-mark open">2</div><div><div class="q-title">Daily run, ~07:00 weekdays</div><div class="q-body">Price and fundamentals top-up, factory pipeline, survivorship backtests, paper step (next-open fills), restatement [9k0], diagnostic funnel, shadow capital gate [9k1], allocator, attribution, timing dial, forecasts, Runner prospective test and ledger check [9k2]–[9k7], slot review, backup.</div></div></div>
+    <div class="q-item"><div class="q-mark open">3</div><div><div class="q-title">Market hours, 13:00–20:59</div><div class="q-body">Slot trader every 5 minutes (SIMULATION, SHADOW, LIVE); Runner service from 13:20; options and crypto traders run but place nothing; image report to Telegram at 21:12.</div></div></div>
+    <div class="q-item"><div class="q-mark open">4</div><div><div class="q-title">Prospective verdicts</div><div class="q-body">Families about December; Runner early December; timing dial about April 2027.</div></div></div>
+  </div>
+
+  <div class="questions">
+    <h2 style="margin-bottom:6px;">The owner’s decisions</h2>
+    <p class="section-cap" style="margin-bottom:12px;">Nothing below blocks Monday’s trading.</p>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">~16 November, after the 20-session freeze</div><div class="q-body">Basket slots in LIVE; risk-adjusted ordering; the entry-timing experiment; the allocator from shadow to deciding; the wider-stop variants on their paper record.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Robinhood sign-in renewal, before ~4 November</div><div class="q-body"><span class="mono">robinhood_mcp.py --login</span> from the desktop with the Robinhood app; the bot warns at 20 days and halts safely if it lapses.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Options</div><div class="q-body">The 5% gap limit for paper option funds (proposed); the account’s options approval and <span class="mono">allow_options</span>; how much capital, if any. Short options stay blocked in code.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">The forward backup is outgrowing GitHub</div><div class="q-body"><span class="mono">backups/forward.sql.gz</span> is 51 MB; GitHub refuses files over 100 MB. Proposal: move it to Git LFS or split it by table group within the next few weeks.</div></div></div>
+    <div class="q-item"><div class="q-mark open">?</div><div><div class="q-title">Standing switches</div><div class="q-body">L4 (published returns as a starting score; default off), M5 (~$270/yr delisted prices), K7 <span class="mono">allow_crypto</span> (the swing test failed; recommend leaving it off), <span class="mono">search.mode: ACTIVE</span> (frozen by policy; a governor cannot lift its own freeze).</div></div></div>
+  </div>
 
   <section class="phase-list">
     <h2>Milestones</h2>
@@ -909,24 +985,64 @@
           </tbody></table></div>
       </div>
     </div>
-    <p class="group-label">Entered 13 October</p>
-    <div class="phase last">
+    <p class="group-label">Entered and completed 13 October</p>
+    <div class="phase">
       <div class="phase-num">AB</div>
       <div>
-        <div class="phase-head"><div class="phase-title">Addendum F — Independent profitability audit</div><span class="pill progress">A1–A3 first pass run</span></div>
+        <div class="phase-head"><div class="phase-title">Addendum F — Independent profitability audit</div><span class="pill done">complete</span></div>
         <p class="phase-desc">An audit directive, not a build directive. Before anything new is built on the seven forward-positive families, reproduce them from raw trade records with dependence-aware statistics and a multiple-testing correction; find where candidates are lost between hypothesis and real money; audit the ranking formula; separate research ranking from live-capital eligibility (shadow mode only); re-test survivorship and execution assumptions. Hard rules: no live-execution change, options, crypto and the evolutionary search stay off, nothing live without your approval. Spec: <span class="mono">docs/ADDENDUM_F_PROFITABILITY_AUDIT.md</span>; reviewed outside ideas: <span class="mono">docs/IDEAS_LOG.md</span>.</p>
-        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:15%; background:var(--progress);"></div></div><span class="bar-pct">15%</span></div>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
         <div class="scroll"><table class="dist steps">
           <thead><tr><th>Phase</th><th>What</th><th>State</th></tr></thead>
           <tbody>
-            <tr><td class="mono">A</td><td>Reproduce the seven families from raw trades; recompute returns and uncertainty (clustered, block-bootstrap, effective n); multiple-testing and the September enrollment; a verdict per family</td><td class="st"><span class="pill progress">A1–A3 done · A4–A6 next</span></td></tr>
-            <tr><td class="mono">B</td><td>Funnel to real money, root-cause ranking, audit of the ranking formula, calibration of its predictions</td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">C</td><td>Capital-eligibility gate separate from research rank; comparable scoring across holding periods; correlation-aware slots (shadow only)</td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">D</td><td>Survivorship sensitivity (incl. worst case), execution and cost realism</td><td class="st"><span class="pill planned">planned</span></td></tr>
-            <tr><td class="mono">E</td><td>Discovery quality: knowledge-factory audit, hypothesis scorecard, historical-analogue experiment (Stage P already scored 0.523 AUC)</td><td class="st"><span class="pill planned">later</span></td></tr>
-            <tr><td class="mono">F–H</td><td>Profitability measures reported side by side, verified fixes with tests, deliverables and handoff</td><td class="st"><span class="pill planned">planned</span></td></tr>
+            <tr><td class="mono">A</td><td>Reproduce the seven families from raw trades; recompute returns and uncertainty (clustered, block-bootstrap, effective n); multiple-testing and the September enrollment; a verdict per family</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">B</td><td>Funnel to real money, root-cause ranking, audit of the ranking formula, calibration of its predictions</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">C</td><td>Capital-eligibility gate separate from research rank; comparable scoring across holding periods; correlation-aware slots (shadow only)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">D</td><td>Survivorship sensitivity (incl. worst case), execution and cost realism</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">E</td><td>Discovery quality: knowledge-factory audit, hypothesis scorecard, historical-analogue experiment (Stage P already scored 0.523 AUC)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">F–H</td><td>Profitability measures reported side by side, verified fixes with tests, deliverables and handoff</td><td class="st"><span class="pill done">done</span></td></tr>
           </tbody></table></div>
         <p class="note new"><b>Ideas review, 13 October.</b> Sixteen outside posts, papers and prompts were checked against our own data (<span class="mono">docs/IDEAS_LOG.md</span>); most were declined (futures and intraday, LEAPS and Kelly now, crypto, theme picks, LLM-made backtests, self-rewriting live logic). The adopted additions, each tagged with its phase and priority, are appended to the addendum. Most useful: the Deflated Sharpe paper, which showed that the correction for how many things were tried is not applied anywhere outside the frozen Lab ladder.</p>
+        <p class="note"><b>Outcome.</b> No family survives the multiple-testing adjustment: six unresolved, two provisionally not supported, none promising. Two engine defects fixed (paper fills at the signal-day close; a gross figure reported as net), a restated record built beside the originals, and the decisive prospective test registered and locked (<span class="mono">docs/AUDIT_F_FINAL_REPORT.md</span>).</p>
+      </div>
+    </div>
+    <p class="group-label">Built 14–19 October</p>
+    <div class="phase">
+      <div class="phase-num">AC</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Addendum G — Intraday Momentum Runners</div><span class="pill done">live in slots 3 and 5</span></div>
+        <p class="phase-desc">A resident service that scans about 200 liquid names every minute and the index bull/inverse ETF pairs (SPY/SH, SSO/SDS, QQQ/PSQ, QLD/QID, IWM/RWM), enters through the same execution, risk and broker path as the slots, and is flat by 15:45 ET. Stops of 1% initial and trailing on stocks; a $1–2 daily loss limit. The reviewer approved the plan in principle; the owner waived its evidence gates (60-session shadow, holdout, paper) and put it live on 15–17 October, $5 a trade since 19 October.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--done);"></div></div><span class="bar-pct">100%</span></div>
+        <div class="scroll"><table class="dist steps">
+          <thead><tr><th>Part</th><th>What</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">M2</td><td>Stops, simulator and position manager (<span class="mono">intraday_stops.py</span>, <span class="mono">intraday_sim.py</span>, <span class="mono">intraday_manager.py</span>)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">Runner</td><td>Stock momentum service (<span class="mono">intraday_runner.py</span>); 1-minute bars stored for later study</td><td class="st"><span class="pill done">live 10-16</span></td></tr>
+            <tr><td class="mono">Twin</td><td>Index ETF sets the direction: momentum up buys the bull ETF, down buys the inverse ETF as an ordinary long (never short, never both legs)</td><td class="st"><span class="pill done">live 10-17</span></td></tr>
+            <tr><td class="mono">AD7</td><td>Replays on history: stock −0.11% per signal (t −3.3), twin −0.14%; prospective test registered 10-19 23:45 UTC</td><td class="st"><span class="pill progress">141 of 300 signals</span></td></tr>
+          </tbody></table></div>
+        <p class="note warn">Not validated: v0 rules are uncalibrated, the replay is negative, and the project’s own same-day shadow set nets −0.05% a trade. Live record to 10-30: 47 trades, −$0.01.</p>
+      </div>
+    </div>
+    <p class="group-label">Entered 19 October, built 19–22 October</p>
+    <div class="phase last">
+      <div class="phase-num">AD</div>
+      <div>
+        <div class="phase-head"><div class="phase-title">Addendum H — Alpha research engine and the profitability plan</div><span class="pill done">built · decisions ~11-16</span></div>
+        <p class="phase-desc">The second independent review asked for an evidence engine before any more live changes; Claude’s whole-system review found the live loss was mostly implementation (forced exits, high-beta picks, one name per slot). Owner decisions H1–H10 answered on 19 October. Every build item is done; what remains is shadow time and the owner’s post-freeze decisions. Details in the Stage AD table above.</p>
+        <div class="bar-row"><div class="bar-track"><div class="bar-fill" style="width:90%; background:var(--done);"></div></div><span class="bar-pct">90%</span></div>
+        <div class="scroll"><table class="dist steps">
+          <thead><tr><th>Step</th><th>What</th><th>State</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">AD0</td><td>Stop the churn: monthly review, grandfathered rules, idle cash stays cash, 20-session rule freeze</td><td class="st"><span class="pill done">live</span></td></tr>
+            <tr><td class="mono">AD1</td><td>Integrity: ledger to the cent, backups, open positions in the funnel, sign-in watchdog (it could never fire before), corporate actions in the paper engine, split handler</td><td class="st"><span class="pill done">live</span></td></tr>
+            <tr><td class="mono">AD2</td><td>Live = tested: basket slots, entry-timing experiment, next-open paper fills</td><td class="st"><span class="pill progress">fills live · rest shadow</span></td></tr>
+            <tr><td class="mono">AD3</td><td>Risk: dispersion, risk-adjusted order (shadow), beta cap 1.3 (live), earnings skip (fail), stop widths (wider wins, paper)</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">AD4–AD6</td><td>Alpha bench (0 validated / 8 replicated), timing dial (pass, prospective), prediction service, evidence-weighted allocator</td><td class="st"><span class="pill progress">shadow</span></td></tr>
+            <tr><td class="mono">AD7–AD9</td><td>Runner replays; published-factor check (0.86 / 0.73); live attribution and evidence in the daily report</td><td class="st"><span class="pill done">done</span></td></tr>
+            <tr><td class="mono">+</td><td>Owner requests since: quote fix, accounting v3, image report, wider-stop paper funds, crypto swing test, options without the cap, earnings-beat calls</td><td class="st"><span class="pill done">done</span></td></tr>
+          </tbody></table></div>
+        <p class="note">Small items left on purpose: Kalman pair trades restate one session late (2 trades); the 5-minute reconciliation can catch a Runner order in flight (10-28 18:34 UTC, RWM: one false halt, reconciled OK on the next run five minutes later — fix by skipping symbols with an order in flight).</p>
       </div>
     </div>
   </section>
@@ -991,14 +1107,14 @@
       <div class="q-mark partial">◑</div>
       <div>
         <div class="q-title">Is there a real edge?</div>
-        <div class="q-body">Ranking skill: yes, AUC 0.63 in 31 of 31 folds. Tradeable edge: no. The ranking is mostly about timing across dates rather than choosing stocks within a day, and it loses money under honest fills. No strategy from any source has cleared a forward test.</div>
+        <div class="q-body">Ranking skill: yes, AUC 0.63 in 31 of 31 folds. Tradeable edge: no. The ranking is mostly about timing across dates rather than choosing stocks within a day, and it loses money under honest fills. No strategy from any source has cleared a forward test. The 13 October audit confirmed it with dependence-aware statistics and a multiple-testing correction; the locked prospective test (about December) decides.</div>
       </div>
     </div>
     <div class="q-item">
       <div class="q-mark no">✗</div>
       <div>
         <div class="q-title">Is stop width a real effect? <span class="mono" style="color:var(--neg); font-size:12px;">— answered: no</span></div>
-        <div class="q-body">The pre-registered sweep over 2006–2019 found the Rising 200 entry loses net in all 30 stop × hold settings, and tight stops did no better than wide. The funds stay classified PROMISING / INSUFFICIENT EVIDENCE with the sweep attached.</div>
+        <div class="q-body">The pre-registered sweep over 2006–2019 found the Rising 200 entry loses net in all 30 stop × hold settings, and tight stops did no better than wide. The funds stay classified PROMISING / INSUFFICIENT EVIDENCE with the sweep attached. <b>A different question, 20 October:</b> on the 23 current slot strategies, <i>wider</i> stops (6× ATR) beat their current stops for 19 of 23 (<span class="mono">stop_width_slots_v1</span>); paper-tracked, not live.</div>
       </div>
     </div>
     <div class="q-item">
@@ -1021,6 +1137,17 @@
     <h2>Recent changes</h2>
     <p class="section-cap">What moved since 09-11, newest first.</p>
     <ul class="cl-list">
+      <li><b>Documentation, backup and this page refreshed for the independent review (11-01).</b> Backup verified: forward records 1,874,668 rows in 75 tables, listings snapshot 536,389 rows. Suite 190 files pass; acceptance 27 of 27.</li>
+      <li><b>Earnings beat → in-the-money call: fail (10-22).</b> Owner’s idea. A walk-forward model of fundamentals and past surprises predicts beats (69% against 55%), but the stock gains only +0.28% over SPY around a predicted beat; 16 model call trades −4.1%. Free option quotes existed for 30 of 9,625 reports.</li>
+      <li><b>Options without the $100 cap: fail (10-22).</b> The cap forced contracts whose buy/sell gap had a median of 72% of their price. Removed; still one long call or put per trade, short options blocked in code. With tight gaps, 0 of 10 strategies pass; the insider-buying call is closest (+22% a trade, t 1.9).</li>
+      <li><b>Crypto swing test: fail (10-21).</b> 0 of 18 rules held 12–48 hours make money at Robinhood’s crypto prices; no intraday crypto runner built.</li>
+      <li><b>Accounting v3 and the wider-stop paper funds (10-22).</b> Closed paper trades now come from the restated record; 17 research-only 6× ATR funds opened, kept out of the slots.</li>
+      <li><b>Next-open paper engine, live quote fix and the image report go live (10-21).</b> The rehearsal on a database copy found held stocks below $5 were never stopped and were booked at their entry (35 hidden losses, 701 open positions); fixed and booked.</li>
+      <li><b>Earnings skip fails, wider stops win; the live split handler (10-20).</b> <span class="mono">earnings_skip_v1</span> FAIL; <span class="mono">stop_width_slots_v1</span>: 6× ATR beats the current stop for 19 of 23 slot strategies.</li>
+      <li><b>Stage AD built (10-19 / 10-20).</b> Monthly slot review, grandfathered rules, book beta cap 1.3, Runners at $5; alpha bench, timing dial, prediction service, allocator, attribution and ledger check in shadow or daily stages.</li>
+      <li><b>Second independent review entered as Addendum H (10-19).</b> With Claude’s staged plan; the live loss traced to forced exits and high-beta picks. The owner answered H1–H10 the same day.</li>
+      <li><b>Intraday Runners live (10-15 to 10-17).</b> Addendum G: stock momentum Runner (first live trade 10-16) and the twin-ETF Runner on index bull/inverse pairs; evidence gates waived by the owner.</li>
+      <li><b>Audit complete (10-13).</b> Phases A4–H of Addendum F: no family survives multiple-testing adjustment; the prospective test was registered and locked; capital gate in shadow (0 of 384 eligible).</li>
       <li><b>Phase A1–A3 first pass of the audit (10-13).</b> <span class="mono">audit_forward.py</span> (read-only, 20 tests): the paper engine fills at the signal-day close, <span class="mono">pnl_pct</span> is the gross move, and with costs, next-open fills and entry dates as the unit, no family has more than 18 independent entry dates. <span class="mono">lab_search</span> +1.30% → +0.90% (t 18.5 → 2.2); <span class="mono">momentum</span> +2.04% → +1.71% (t 4.2 → 1.4). All eight families unresolved. Fixes proposed, not made.</li>
       <li><b>Independent review received; Addendum F entered (10-13).</b> An audit directive: reproduce the seven positive families from raw trades before trusting them, separate research ranking from live-capital eligibility, keep live execution, options, crypto and the frozen search untouched. Owner ruling: the “1%” target is reported four ways side by side, no single denominator yet. Not started.</li>
       <li><b>Ideas review and first leads (10-13).</b> Sixteen outside ideas reviewed and logged; adopted items attached to the addendum. Queries found, without changing anything: corporate actions booked as losses (CTVA), duplicate trades across funds, deflation absent outside the Lab ladder, and no option expiry beyond 77 days. (A funnel-versus-recompute mismatch reported earlier was retracted: it was a week-old snapshot.)</li>
@@ -1085,7 +1212,3 @@
   </footer>
 
 </div>
-</body>
-</html>
-
-</body></html>
