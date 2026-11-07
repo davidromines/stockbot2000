@@ -1,6 +1,22 @@
 # PROJECT_STATUS
 
-Updated 2026-11-01 (Sunday; figures to Friday 2026-10-30's close unless stated).
+Updated 2026-11-07 (Saturday; figures to Friday 2026-11-06's close). The account is 15.5% below its peak, so the
+owner's written review (rule H10) is due: `docs/REVIEW_DRAWDOWN_15PCT_2026-11-07.md`. The self-contained reviewer
+dossier is `docs/artifacts/review_report.html` (https://claude.ai/artifact/3YFiMwNxvpXk3ycNVi2PKt, version 14).
+
+**2026-11-07 figures (they supersede the 10-30 ones below):** account $76.24, −$11.47 (−13.1%) since launch against
+SPY −4.2%; −$7.00 (−8.4%) this week against SPY −2.7%; 32 trading days. The breakdown:
+
+| Part | Trades | Net |
+|---|---:|---:|
+| Medium-term trades closed before 10-19 | 22 | −$6.73 |
+| Two stops since 10-19 (OVV −8.3%, CRM −11.0%) | 2 | −$3.85 |
+| Runners | 65 | −$0.25 |
+| Open positions: NTLA, OVV (re-bought 6 minutes after its stop), MA | 3 | −$0.61 |
+
+The prospective family test is at 17 of 20 dates, all eight families negative and below SPY (interim). The funnel
+passes 0 of 86 families; the capital gate passes 0 of 1,497. **Correction:** the 10-30 rows below say "31 trading
+days"; the true count to 10-30 was 27, because weekend equity marks had been counted.
 
 Stockbot2000 is a quantitative research and trading system: it ingests prices and point-in-time fundamentals,
 generates and evaluates strategies, tracks them through a versioned league, and since 2026-09-24 15:39 UTC trades a
