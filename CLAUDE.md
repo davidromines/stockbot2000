@@ -74,7 +74,33 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### 2026-11-01 — state for the independent review; START HERE
+### 2026-11-07 — 15% drawdown review written; full dossier republished; START HERE
+
+The account closed 15.5% below its peak on 11-06 ($76.24; −$11.47 / −13.1% since launch vs SPY −4.2%), which triggers
+the owner's H10 written review: `docs/REVIEW_DRAWDOWN_15PCT_2026-11-07.md`. Its conclusion: the machinery works, but
+there is no edge.
+
+**Where the forward evidence stands:**
+- The prospective family test is at 17 of 20 dates, all 8 families negative and below SPY (interim).
+- The funnel passes 0 of 86 families; the capital gate passes 0 of 1,497.
+
+**Where the live loss comes from:**
+- Since 10-19 it is single-stock risk: beta 0.81; about 10 of the 13.6 points lost are stock-specific.
+- The slot holders' own paper records are negative (slot 2: 29 trades, −10.4%), but `backtest_first` never scores paper results.
+
+**Two defects found, not yet fixed:**
+- OVV was re-bought 6 minutes after its stop on 11-05. Fix: a cooldown after a stop.
+- A false reconciliation halt on 10-28 caught a Runner order in flight. Fix: skip symbols with an open order.
+
+**Recommended (owner decides; nothing applied):**
+- Option B: the two fixes; basket slots LIVE when the freeze ends; release at the monthly review any holder with ≥20 own paper trades and a negative net.
+- A pre-registered fallback to SIMULATION if `forward_families_prospective` fails.
+
+**Reviewer dossier:** v14, rewritten as a self-contained full project report (`docs/artifacts/review_report.html`, same URL).
+
+**Correction:** the 11-01 block below says "31 sessions". The true count to 10-30 was 27, because weekend equity marks had been counted; it is 32 to 11-06.
+
+### 2026-11-01 — state for the independent review
 
 **Real account** $83.24 at the 10-30 close: −$4.47 (−5.1%) since launch (31 sessions; SPY +0.7%), **+$1.59 (+1.9%)
 since the 10-19 changes** (SPY +0.8%). The loss is the 20 medium-term trades closed before 10-19 (−$6.79, the slot
