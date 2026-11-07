@@ -85,7 +85,7 @@ No. Single-name risk is the main open problem.
 - **The book beta cap (1.3) did not bind.** The book's beta is 0.75, but the cap measures market exposure only:
   - NTLA has a beta of 2.1 and about 95% a year of stock-specific volatility.
   - OVV (oil) has a beta of −0.35 and fell 15% in the week.
-- **Stops are wide.** 3× ATR stops sit 16–33% below entry (10-19 finding), so one slot can lose $3–6 before its stop fires. The stop-width experiment favours wider stops, not tighter.
+- **Stops are wide on volatile names.** NTLA's stop is 20% below its entry, OVV's 11% and MA's 7%; across the 10-19 holdings the range was 16–33%. One slot can lose $1–6 before its stop fires. The stop-width experiment favours wider stops, not tighter.
 - **The fix exists but is not live.** Basket slots (4 names, inverse-volatility weights) still run in SIMULATION only, with first basket entries on 11-05/06. There is nothing to compare against yet.
 
 **Is this luck?** Partly, possibly. At this account's daily volatility (1.53%), a strategy with zero edge has about
