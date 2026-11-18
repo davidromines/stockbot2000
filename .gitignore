@@ -90,3 +90,6 @@ logs/*.txt
 # Large local data (regenerable): analog library and SEC insider quarterly sets.
 data/analog/
 data/insider/
+# Regenerated every run (crypto_orders.py --build, build_dashboard.py); untracked 2026-11-18.
+data/crypto_slate.txt
+reports/dashboard.html
