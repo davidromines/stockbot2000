@@ -84,7 +84,7 @@ Each candidate strategy also carries one setting of every gene below.
 
 | Gene | Controls | Range |
 |---|---|---|
-| `indicator_weights` | Contribution of each of ~25 indicators to a stock's score | −1.0 … 1.0 each |
+| `indicator_weights` | Contribution of each of the 20 indicators (`train_model.FEATURE_COLS`) to a stock's score | −1.0 … 1.0 each |
 | `entry_threshold` | How high a score must be before buying | 0.50 … 0.95 |
 | `stop_atr_multiple` | Stop distance in multiples of the stock's own volatility | 0.5 … 5.0 |
 | `take_profit_pct` | Optional fixed profit target | none, 3% … 40% |
@@ -247,7 +247,7 @@ workers. Together that is 8-11 GB against 9.2 GB available, so **the search and 
 LLM report still must not run simultaneously.** Losing a gigabyte against the plan
 did not change that conclusion; it removed the margin that made it comfortable.
 
-Two further notes on the real box. The 8.5 GB database benefits substantially from
+Two further notes on the real box. The database (8.5 GB then, ~21 GB by 2026-11) benefits substantially from
 the OS page cache, and a memory-hungry search will evict it — expect the first
 queries after a search to be slower. And since 4 vCPUs fully commits the host
 alongside the other VM, the overnight window must still be picked against that VM's
