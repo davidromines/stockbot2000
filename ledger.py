@@ -95,6 +95,9 @@ def init(conn) -> None:
         ) STRICT
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_strat_run ON strategies(run_id, generation)")
+    # degradation._link finds a paper fund's Lab strategy by genome text. Without this index each lookup scanned
+    # 1.05M rows (0.16 s), and ranking.rank() does ~1,900 of them: 150 of its 152 seconds (2026-11-18).
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_strat_genome ON strategies(genome)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_eval_pnl ON evaluations(net_pnl_usd DESC)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_eval_fitness ON evaluations(fitness DESC)")
     conn.commit()
