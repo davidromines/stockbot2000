@@ -1,0 +1,116 @@
+{
+ "companies": 9474,
+ "rows": 12580732,
+ "by_reason": {
+  "evidence:bankruptcy": 598,
+  "evidence:acquired": 3749,
+  "evidence:performance": 652,
+  "prior:merger": 1436,
+  "evidence:going_private": 84,
+  "prior:performance": 1318,
+  "prior:other": 166,
+  "evidence:acquisition": 16,
+  "evidence:spac": 1335,
+  "evidence:delisting_notice": 2,
+  "evidence:voluntary": 118
+ },
+ "prior_used": {
+  "NASDAQ": {
+   "performance": 0.59,
+   "merger": 0.35,
+   "other": 0.06
+  },
+  "NYSE": {
+   "performance": 0.31,
+   "merger": 0.65,
+   "other": 0.04
+  },
+  "AMEX": {
+   "performance": 0.31,
+   "merger": 0.65,
+   "other": 0.04
+  },
+  "other": {
+   "performance": 0.45,
+   "merger": 0.5,
+   "other": 0.05
+  }
+ },
+ "evidence_mix_not_used": {
+  "NASDAQ": {
+   "performance": 0.2563739376770538,
+   "merger": 0.7220254957507082,
+   "other": 0.02160056657223796,
+   "_n": 2824
+  },
+  "NYSE": {
+   "performance": 0.15849056603773584,
+   "merger": 0.8132075471698114,
+   "other": 0.02830188679245283,
+   "_n": 1060
+  },
+  "AMEX": {
+   "performance": 0.3018867924528302,
+   "merger": 0.660377358490566,
+   "other": 0.03773584905660377,
+   "_n": 53
+  },
+  "other": {
+   "performance": 0.1466173144149702,
+   "merger": 0.7361710878058811,
+   "other": 0.11721159777914868,
+   "_n": 4863
+  }
+ },
+ "settings": {
+  "prior_by_exchange": {
+   "NASDAQ": {
+    "performance": 0.59,
+    "merger": 0.35,
+    "other": 0.06
+   },
+   "NYSE": {
+    "performance": 0.31,
+    "merger": 0.65,
+    "other": 0.04
+   },
+   "AMEX": {
+    "performance": 0.31,
+    "merger": 0.65,
+    "other": 0.04
+   },
+   "other": {
+    "performance": 0.45,
+    "merger": 0.5,
+    "other": 0.05
+   }
+  },
+  "min_calibration": 200,
+  "delisting_mixture": {
+   "NASDAQ": {
+    "p_worthless": 0.2,
+    "mu": -0.44,
+    "sd": 0.4
+   },
+   "other": {
+    "p_worthless": 0.11,
+    "mu": -0.25,
+    "sd": 0.45
+   }
+  },
+  "spac": {
+   "price": 10.0,
+   "daily_sd": 0.001,
+   "annual_drift": 0.02
+  },
+  "include_form25_edgar_only": true,
+  "donor_total_returns": false,
+  "failure_donors": "died",
+  "pre_excess_drift": -0.516,
+  "item5_anchors": false
+ },
+ "distress_donors": 1137,
+ "post_distress_pool": 73,
+ "anchored_companies": 0,
+ "method": "evidence_distress_v5c"
+}

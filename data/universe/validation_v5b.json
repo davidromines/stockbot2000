@@ -1,0 +1,171 @@
+{
+ "failures_vs_heldout_real_distress": {
+  "auc": 0.756,
+  "passes": false,
+  "n_real": 545,
+  "n_synthetic": 28,
+  "top_features": {
+   "beta": 0.305,
+   "vol": 0.138,
+   "flat_share": 0.105,
+   "max_dd": 0.1
+  },
+  "median_real_vs_synth": {
+   "vol": [
+    1.1926,
+    1.1894
+   ],
+   "skew": [
+    0.0675,
+    0.1499
+   ],
+   "kurt": [
+    6.418,
+    5.096
+   ],
+   "ac1": [
+    -0.0087,
+    -0.0585
+   ],
+   "ac1_abs": [
+    0.1699,
+    0.1532
+   ],
+   "max_dd": [
+    -0.8255,
+    -0.815
+   ],
+   "final_60": [
+    -0.6667,
+    -0.6356
+   ],
+   "beta": [
+    1.1902,
+    -0.0461
+   ],
+   "flat_share": [
+    0.0336,
+    0.0252
+   ],
+   "big_share": [
+    0.1092,
+    0.1218
+   ]
+  }
+ },
+ "buyouts_vs_real_dead_sample": {
+  "auc": 0.503,
+  "passes": true,
+  "n_real": 158,
+  "n_synthetic": 1420,
+  "top_features": {
+   "ac1_abs": 0.192,
+   "skew": 0.156,
+   "ac1": 0.155,
+   "final_60": 0.132
+  },
+  "median_real_vs_synth": {
+   "vol": [
+    0.3537,
+    0.3648
+   ],
+   "skew": [
+    1.1673,
+    1.1109
+   ],
+   "kurt": [
+    16.4511,
+    14.0735
+   ],
+   "ac1": [
+    -0.0244,
+    -0.0258
+   ],
+   "ac1_abs": [
+    0.1092,
+    0.1043
+   ],
+   "max_dd": [
+    -0.2155,
+    -0.228
+   ],
+   "final_60": [
+    0.022,
+    0.0258
+   ],
+   "beta": [
+    0.7276,
+    0.7234
+   ],
+   "flat_share": [
+    0.0159,
+    0.0159
+   ],
+   "big_share": [
+    0.004,
+    0.004
+   ]
+  }
+ },
+ "spacs_vs_real_spacs": {
+  "auc": 0.47,
+  "passes": true,
+  "n_real": 77,
+  "n_synthetic": 70,
+  "top_features": {
+   "ac1": 0.233,
+   "ac1_abs": 0.218,
+   "kurt": 0.123,
+   "beta": 0.11
+  },
+  "median_real_vs_synth": {
+   "vol": [
+    0.0266,
+    0.0277
+   ],
+   "skew": [
+    0.4456,
+    0.3592
+   ],
+   "kurt": [
+    9.1747,
+    9.2988
+   ],
+   "ac1": [
+    -0.1899,
+    -0.2221
+   ],
+   "ac1_abs": [
+    0.1894,
+    0.1749
+   ],
+   "max_dd": [
+    -0.0127,
+    -0.0122
+   ],
+   "final_60": [
+    0.0094,
+    0.0085
+   ],
+   "beta": [
+    0.0096,
+    0.0043
+   ],
+   "flat_share": [
+    0.5578,
+    0.5355
+   ],
+   "big_share": [
+    0.0,
+    0.0
+   ]
+  }
+ },
+ "failure_delisting_moments": {
+  "delisting_return_mean": -0.452,
+  "delisting_return_sd": 0.449,
+  "worthless_share": 0.164,
+  "literature": "Shumway 1997 NYSE/AMEX mean -29.9% sd 48.9% ~11% worthless; Nasdaq -55% effective"
+ },
+ "max_auc": 0.6
+}

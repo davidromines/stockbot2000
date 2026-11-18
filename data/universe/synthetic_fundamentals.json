@@ -1,0 +1,9 @@
+{
+ "generator": "synthetic_v5.parquet:465003674",
+ "companies": 4093,
+ "filings": 73701,
+ "filings_priced_at_filed_level": 15999,
+ "daily_rows": 4468946,
+ "daily_rows_with_sue": 1042885,
+ "synthetic_companies": 6160
+}

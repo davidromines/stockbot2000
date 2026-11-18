@@ -1,0 +1,109 @@
+{
+ "built_at": "2026-09-24T07:34:54+00:00",
+ "discriminability": {
+  "auc": 0.987,
+  "max_auc": 0.6,
+  "passes": false,
+  "n_real": 491,
+  "n_synthetic": 1422,
+  "feature_importance": {
+   "flat_share": 0.84,
+   "beta": 0.053,
+   "vol": 0.037,
+   "max_dd": 0.032,
+   "ac1_abs": 0.014,
+   "final_60": 0.01,
+   "kurt": 0.006,
+   "skew": 0.004,
+   "ac1": 0.002,
+   "big_share": 0.001
+  },
+  "distributions": {
+   "vol": {
+    "real_median": 0.4067601031169102,
+    "synthetic_median": 0.4751057676386191,
+    "ks": 0.2875442923394662
+   },
+   "skew": {
+    "real_median": 0.4717877772062868,
+    "synthetic_median": 0.2434493529666094,
+    "ks": 0.17467867465289422
+   },
+   "kurt": {
+    "real_median": 5.613394979994117,
+    "synthetic_median": 4.377516051189818,
+    "ks": 0.1819029449929963
+   },
+   "ac1": {
+    "real_median": -0.024989840732382567,
+    "synthetic_median": -0.03319476357352092,
+    "ks": 0.06294167017567986
+   },
+   "ac1_abs": {
+    "real_median": 0.09958865550327821,
+    "synthetic_median": 0.133314150716675,
+    "ks": 0.12581029558780976
+   },
+   "max_dd": {
+    "real_median": -0.2950091417457512,
+    "synthetic_median": -0.43969082816220545,
+    "ks": 0.34304542238492597
+   },
+   "final_60": {
+    "real_median": 0.015080333019609649,
+    "synthetic_median": -0.03980234386829434,
+    "ks": 0.1565349282872292
+   },
+   "beta": {
+    "real_median": 0.790928069163278,
+    "synthetic_median": 0.8369791807304773,
+    "ks": 0.22368598199374978
+   },
+   "flat_share": {
+    "real_median": 0.01593625498007968,
+    "synthetic_median": 0.0,
+    "ks": 0.8536984998610718
+   },
+   "big_share": {
+    "real_median": 0.00398406374501992,
+    "synthetic_median": 0.00796812749003984,
+    "ks": 0.17982904660828825
+   }
+  },
+  "previous_generator_auc": 0.978
+ },
+ "provenance": {
+  "every_synthetic_row_tagged": true,
+  "synthetic_rows_without_volume": true,
+  "real_rows_untouched": true,
+  "synthetic_rows": 9713435
+ },
+ "sensitivity_12_1_momentum": {
+  "exclude": {
+   "months": 191,
+   "cagr": 0.2327,
+   "mean_monthly": 0.02
+  },
+  "real_only": {
+   "months": 191,
+   "cagr": 0.3792,
+   "mean_monthly": 0.0376
+  },
+  "as_is": {
+   "months": 191,
+   "cagr": 0.1727,
+   "mean_monthly": 0.0149
+  },
+  "zero": {
+   "months": 191,
+   "cagr": 0.1244,
+   "mean_monthly": 0.0115
+  },
+  "optimistic": {
+   "months": 191,
+   "cagr": 0.1725,
+   "mean_monthly": 0.0149
+  }
+ },
+ "verdict": "synthetic rows are for retests and stress bounds ONLY (fails the discriminability gate)"
+}

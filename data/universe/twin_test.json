@@ -1,0 +1,1390 @@
+{
+ "at": "2026-09-26T00:54:45+00:00",
+ "experiment": "twin_test_v5",
+ "strategies": 119,
+ "generator": "v5 (failures) / v4 final-year donor (buyouts, as v5 uses)",
+ "failures": {
+  "trades_real": 252069,
+  "trades_twin": 258969,
+  "companies": 70,
+  "companies_traded_real": 62,
+  "companies_traded_twin": 63,
+  "mean_real": -0.0044755023604656635,
+  "mean_twin": -0.003791994335525766,
+  "median_real": -0.02891140406590751,
+  "median_twin": -0.04480462773228756,
+  "win_real": 0.3775474175721727,
+  "win_twin": 0.3646266541555167,
+  "diff": 0.0006835080249398976,
+  "ks_stat": 0.07048158749266914,
+  "ks_p_naive": 0.0,
+  "diff_ci95": [
+   -0.01999713074202866,
+   0.02036507135499055
+  ],
+  "verdict": "PASS",
+  "by_strategy": [
+   {
+    "strategy": "fx_bollinger_reversion_1d2d490f7c v1",
+    "n_real": 843,
+    "real": 0.0034185751,
+    "n_twin": 686,
+    "twin": 0.0122958031
+   },
+   {
+    "strategy": "fx_bollinger_reversion_793a49a124 v2",
+    "n_real": 510,
+    "real": -0.005347697,
+    "n_twin": 411,
+    "twin": 0.0011252121
+   },
+   {
+    "strategy": "fx_bollinger_reversion_793a49a124 v3",
+    "n_real": 510,
+    "real": -0.0043037199,
+    "n_twin": 411,
+    "twin": 0.0096284231
+   },
+   {
+    "strategy": "fx_bollinger_reversion_9fd718ea6a v1",
+    "n_real": 510,
+    "real": -0.0046064625,
+    "n_twin": 411,
+    "twin": -0.0011977374
+   },
+   {
+    "strategy": "fx_bollinger_reversion_bb2de4f1a9 v1",
+    "n_real": 843,
+    "real": 0.0035591216,
+    "n_twin": 686,
+    "twin": 0.0111974951
+   },
+   {
+    "strategy": "fx_bollinger_reversion_cd65f14b0d v1",
+    "n_real": 510,
+    "real": -0.005347697,
+    "n_twin": 411,
+    "twin": 0.0011252121
+   },
+   {
+    "strategy": "fx_bollinger_reversion_d30b81ff5e v2",
+    "n_real": 510,
+    "real": -0.0046064625,
+    "n_twin": 411,
+    "twin": -0.0011977374
+   },
+   {
+    "strategy": "fx_bollinger_reversion_d30b81ff5e v3",
+    "n_real": 510,
+    "real": -0.0027799885,
+    "n_twin": 411,
+    "twin": 0.00940373
+   },
+   {
+    "strategy": "fx_bollinger_reversion_de2f6d10db v1",
+    "n_real": 843,
+    "real": 0.0024955067,
+    "n_twin": 686,
+    "twin": 0.0118452878
+   },
+   {
+    "strategy": "fx_bollinger_reversion_eff77dfcff v1",
+    "n_real": 843,
+    "real": 0.0040771287,
+    "n_twin": 686,
+    "twin": 0.0089867511
+   },
+   {
+    "strategy": "fx_high_volatility_3b3180ccec v1",
+    "n_real": 4999,
+    "real": -0.0069681392,
+    "n_twin": 5000,
+    "twin": -0.0272679099
+   },
+   {
+    "strategy": "fx_low_volatility_664fcbce89 v1",
+    "n_real": 4999,
+    "real": -0.0069681392,
+    "n_twin": 5000,
+    "twin": -0.0272679099
+   },
+   {
+    "strategy": "fx_ma_cross_07b43481e5 v2",
+    "n_real": 162,
+    "real": -0.0216904306,
+    "n_twin": 163,
+    "twin": -0.015216599
+   },
+   {
+    "strategy": "fx_ma_cross_07b43481e5 v3",
+    "n_real": 162,
+    "real": -0.006551439,
+    "n_twin": 163,
+    "twin": -0.0042876726
+   },
+   {
+    "strategy": "fx_ma_cross_0a876f959d v2",
+    "n_real": 162,
+    "real": -0.0177849645,
+    "n_twin": 163,
+    "twin": -0.0252757583
+   },
+   {
+    "strategy": "fx_ma_cross_0a876f959d v3",
+    "n_real": 162,
+    "real": -0.0057957195,
+    "n_twin": 163,
+    "twin": -0.0111510273
+   },
+   {
+    "strategy": "fx_ma_cross_846516560b v1",
+    "n_real": 162,
+    "real": -0.0177849645,
+    "n_twin": 163,
+    "twin": -0.0252757583
+   },
+   {
+    "strategy": "fx_ma_cross_e6c75be168 v1",
+    "n_real": 162,
+    "real": -0.0216904306,
+    "n_twin": 163,
+    "twin": -0.015216599
+   },
+   {
+    "strategy": "fx_macd_cross_06c05066e2 v1",
+    "n_real": 1087,
+    "real": 0.0008625643,
+    "n_twin": 1043,
+    "twin": -0.0190989966
+   },
+   {
+    "strategy": "fx_macd_cross_75f4887d7b v1",
+    "n_real": 1087,
+    "real": -0.0033504501,
+    "n_twin": 1043,
+    "twin": -0.0203056377
+   },
+   {
+    "strategy": "fx_macd_cross_94020ac8a5 v2",
+    "n_real": 1087,
+    "real": 0.0008115326,
+    "n_twin": 1043,
+    "twin": -0.0193213291
+   },
+   {
+    "strategy": "fx_macd_cross_94020ac8a5 v3",
+    "n_real": 1087,
+    "real": -0.0048608568,
+    "n_twin": 1043,
+    "twin": -0.0134358974
+   },
+   {
+    "strategy": "fx_macd_cross_aa1471deb2 v1",
+    "n_real": 1087,
+    "real": 0.0008115326,
+    "n_twin": 1043,
+    "twin": -0.0193213291
+   },
+   {
+    "strategy": "fx_macd_cross_dfb530e5d4 v1",
+    "n_real": 1087,
+    "real": -0.0032811834,
+    "n_twin": 1043,
+    "twin": -0.019583879
+   },
+   {
+    "strategy": "fx_macd_cross_e286d95676 v2",
+    "n_real": 1087,
+    "real": 0.0008625643,
+    "n_twin": 1043,
+    "twin": -0.0190989966
+   },
+   {
+    "strategy": "fx_macd_cross_e286d95676 v3",
+    "n_real": 1087,
+    "real": -0.0048165936,
+    "n_twin": 1043,
+    "twin": -0.013332711
+   },
+   {
+    "strategy": "fx_relative_strength_2ba1ba467b v1",
+    "n_real": 3786,
+    "real": 0.0005245779,
+    "n_twin": 4983,
+    "twin": 0.0027301195
+   },
+   {
+    "strategy": "fx_relative_strength_3bd821802e v1",
+    "n_real": 4997,
+    "real": -9.75747e-05,
+    "n_twin": 5000,
+    "twin": -0.0095154471
+   },
+   {
+    "strategy": "fx_relative_strength_40b8abd903 v1",
+    "n_real": 4997,
+    "real": -0.0004385651,
+    "n_twin": 5000,
+    "twin": -0.0138505322
+   },
+   {
+    "strategy": "fx_relative_strength_47d142e29e v1",
+    "n_real": 3786,
+    "real": 0.0002683729,
+    "n_twin": 4983,
+    "twin": -0.0022873902
+   },
+   {
+    "strategy": "fx_relative_strength_53ecfb2b6f v1",
+    "n_real": 4997,
+    "real": 0.0003364737,
+    "n_twin": 5000,
+    "twin": -0.0123330989
+   },
+   {
+    "strategy": "fx_relative_strength_8829323f6a v1",
+    "n_real": 4997,
+    "real": -0.000132507,
+    "n_twin": 5000,
+    "twin": -0.0090539859
+   },
+   {
+    "strategy": "fx_relative_strength_9052f01ab8 v1",
+    "n_real": 3786,
+    "real": 0.0013348824,
+    "n_twin": 4983,
+    "twin": -0.0033902091
+   },
+   {
+    "strategy": "fx_relative_strength_f10f4dc013 v1",
+    "n_real": 3786,
+    "real": 0.0013136714,
+    "n_twin": 4983,
+    "twin": -0.0024187115
+   },
+   {
+    "strategy": "fx_rsi_reversion_00b3274623 v1",
+    "n_real": 89,
+    "real": -0.0109538364,
+    "n_twin": 82,
+    "twin": 0.0124894385
+   },
+   {
+    "strategy": "fx_rsi_reversion_119caa7780 v2",
+    "n_real": 10,
+    "real": 0.0475315711,
+    "n_twin": 11,
+    "twin": 0.1747478148
+   },
+   {
+    "strategy": "fx_rsi_reversion_119caa7780 v3",
+    "n_real": 10,
+    "real": -0.0012635687,
+    "n_twin": 11,
+    "twin": 0.1893558805
+   },
+   {
+    "strategy": "fx_rsi_reversion_29bd81edaa v1",
+    "n_real": 10,
+    "real": 0.0475315711,
+    "n_twin": 11,
+    "twin": 0.1747478148
+   },
+   {
+    "strategy": "fx_rsi_reversion_80d084e0a9 v1",
+    "n_real": 89,
+    "real": -0.016857169,
+    "n_twin": 82,
+    "twin": 0.0301005339
+   },
+   {
+    "strategy": "fx_rsi_reversion_c03083d58c v2",
+    "n_real": 10,
+    "real": 0.0443040474,
+    "n_twin": 11,
+    "twin": 0.1871930864
+   },
+   {
+    "strategy": "fx_rsi_reversion_c03083d58c v3",
+    "n_real": 10,
+    "real": -0.0041983512,
+    "n_twin": 11,
+    "twin": 0.1893558805
+   },
+   {
+    "strategy": "fx_rsi_reversion_caf952b8a5 v1",
+    "n_real": 89,
+    "real": -0.0161723317,
+    "n_twin": 82,
+    "twin": 0.032363762
+   },
+   {
+    "strategy": "fx_rsi_reversion_e863217149 v1",
+    "n_real": 89,
+    "real": -0.0115301817,
+    "n_twin": 82,
+    "twin": 0.0245004599
+   },
+   {
+    "strategy": "fx_rsi_reversion_f970b70b00 v1",
+    "n_real": 10,
+    "real": 0.0443040474,
+    "n_twin": 11,
+    "twin": 0.1871930864
+   },
+   {
+    "strategy": "fx_trend_following_63bf848dc3 v1",
+    "n_real": 4999,
+    "real": 0.0048316918,
+    "n_twin": 5000,
+    "twin": 0.0077867928
+   },
+   {
+    "strategy": "fx_trend_following_8660a34ccc v2",
+    "n_real": 4999,
+    "real": 0.0048316918,
+    "n_twin": 5000,
+    "twin": 0.0077867928
+   },
+   {
+    "strategy": "fx_trend_following_9f644e50eb v2",
+    "n_real": 4999,
+    "real": 0.0055419218,
+    "n_twin": 5000,
+    "twin": 0.0041085729
+   },
+   {
+    "strategy": "fx_trend_following_f05c5bddf1 v1",
+    "n_real": 4999,
+    "real": 0.0055419218,
+    "n_twin": 5000,
+    "twin": 0.0041085729
+   },
+   {
+    "strategy": "fx_ts_momentum_2fcd7fe76a v1",
+    "n_real": 4998,
+    "real": -0.007689119,
+    "n_twin": 5000,
+    "twin": 0.0280010641
+   },
+   {
+    "strategy": "fx_ts_momentum_48357b1b64 v1",
+    "n_real": 4999,
+    "real": 0.0058820785,
+    "n_twin": 5000,
+    "twin": 0.01574017
+   },
+   {
+    "strategy": "fx_ts_momentum_5087f2f38c v1",
+    "n_real": 4999,
+    "real": 0.004624499,
+    "n_twin": 5000,
+    "twin": 0.0340448392
+   },
+   {
+    "strategy": "fx_ts_momentum_52582f8bf1 v1",
+    "n_real": 4999,
+    "real": 0.0039207557,
+    "n_twin": 5000,
+    "twin": 0.0259586433
+   },
+   {
+    "strategy": "fx_ts_momentum_8442e3cf6c v1",
+    "n_real": 4999,
+    "real": 0.0059989784,
+    "n_twin": 5000,
+    "twin": 0.0174913091
+   },
+   {
+    "strategy": "fx_ts_momentum_911d5935a2 v1",
+    "n_real": 4998,
+    "real": -0.007800468,
+    "n_twin": 5000,
+    "twin": 0.0441463197
+   },
+   {
+    "strategy": "fx_ts_momentum_ac8f2ee198 v1",
+    "n_real": 4998,
+    "real": -0.0053583507,
+    "n_twin": 5000,
+    "twin": 0.0279075707
+   },
+   {
+    "strategy": "fx_ts_momentum_f1a2b528e7 v1",
+    "n_real": 4998,
+    "real": -0.0046700173,
+    "n_twin": 5000,
+    "twin": 0.0305097263
+   },
+   {
+    "strategy": "fx_volatility_contraction_07bbc76b02 v1",
+    "n_real": 4997,
+    "real": -0.0147210837,
+    "n_twin": 5000,
+    "twin": -0.0131716959
+   },
+   {
+    "strategy": "fx_volatility_contraction_36ad2c62d4 v1",
+    "n_real": 2884,
+    "real": -0.0135960963,
+    "n_twin": 2504,
+    "twin": -0.0367284138
+   },
+   {
+    "strategy": "fx_volatility_contraction_3f42448392 v1",
+    "n_real": 4997,
+    "real": -0.0159904041,
+    "n_twin": 5000,
+    "twin": -0.0220313939
+   },
+   {
+    "strategy": "fx_volatility_contraction_48b5b52fa1 v1",
+    "n_real": 4997,
+    "real": -0.0142485219,
+    "n_twin": 5000,
+    "twin": -0.0137597509
+   },
+   {
+    "strategy": "fx_volatility_contraction_5b7dc86bee v1",
+    "n_real": 2884,
+    "real": -0.0118330921,
+    "n_twin": 2504,
+    "twin": -0.021394574
+   },
+   {
+    "strategy": "fx_volatility_contraction_93889c5c6b v1",
+    "n_real": 2884,
+    "real": -0.012071181,
+    "n_twin": 2504,
+    "twin": -0.0437080499
+   },
+   {
+    "strategy": "fx_volatility_contraction_aeadff4ea2 v1",
+    "n_real": 2884,
+    "real": -0.0104899174,
+    "n_twin": 2504,
+    "twin": -0.0229152953
+   },
+   {
+    "strategy": "fx_volatility_contraction_b875bd6ca7 v1",
+    "n_real": 4997,
+    "real": -0.0168445916,
+    "n_twin": 5000,
+    "twin": -0.0232938985
+   },
+   {
+    "strategy": "fx_xs_momentum_37c90f2f2f v1",
+    "n_real": 4064,
+    "real": -0.0217118674,
+    "n_twin": 3491,
+    "twin": -0.0166048201
+   },
+   {
+    "strategy": "fx_xs_momentum_5587369ed0 v2",
+    "n_real": 4999,
+    "real": -0.017454811,
+    "n_twin": 4999,
+    "twin": -0.0036630223
+   },
+   {
+    "strategy": "fx_xs_momentum_5587369ed0 v3",
+    "n_real": 4999,
+    "real": -0.0158177672,
+    "n_twin": 4999,
+    "twin": -0.0127528705
+   },
+   {
+    "strategy": "fx_xs_momentum_7bddca93a4 v1",
+    "n_real": 4064,
+    "real": -0.0310912597,
+    "n_twin": 3491,
+    "twin": -0.0099825166
+   },
+   {
+    "strategy": "fx_xs_momentum_7bddfe699f v1",
+    "n_real": 4999,
+    "real": -0.0144028306,
+    "n_twin": 4999,
+    "twin": -0.0045242894
+   },
+   {
+    "strategy": "fx_xs_momentum_8388980383 v1",
+    "n_real": 4064,
+    "real": -0.0230096761,
+    "n_twin": 3491,
+    "twin": -0.0186870124
+   },
+   {
+    "strategy": "fx_xs_momentum_9b905b3ac1 v2",
+    "n_real": 4999,
+    "real": -0.0144028306,
+    "n_twin": 4999,
+    "twin": -0.0045242894
+   },
+   {
+    "strategy": "fx_xs_momentum_9b905b3ac1 v3",
+    "n_real": 4999,
+    "real": -0.0146312386,
+    "n_twin": 4999,
+    "twin": -0.0117625726
+   },
+   {
+    "strategy": "fx_xs_momentum_b946161e77 v1",
+    "n_real": 4064,
+    "real": -0.0282050036,
+    "n_twin": 3491,
+    "twin": -0.0088668732
+   },
+   {
+    "strategy": "fx_xs_momentum_dc80cd84e3 v1",
+    "n_real": 4999,
+    "real": -0.017454811,
+    "n_twin": 4999,
+    "twin": -0.0036630223
+   },
+   {
+    "strategy": "paper:0fafb9a23b54 v1",
+    "n_real": 2247,
+    "real": 0.015876313,
+    "n_twin": 2395,
+    "twin": 0.0099229864
+   },
+   {
+    "strategy": "paper:11c704a36203 v1",
+    "n_real": 3914,
+    "real": -0.0140293497,
+    "n_twin": 5000,
+    "twin": -0.0178318922
+   },
+   {
+    "strategy": "paper:2fea4b36ee25 v1",
+    "n_real": 2700,
+    "real": 0.0071053741,
+    "n_twin": 2958,
+    "twin": -0.0160786388
+   },
+   {
+    "strategy": "paper:323dfe67d348 v1",
+    "n_real": 304,
+    "real": -0.0060952933,
+    "n_twin": 804,
+    "twin": -0.0326927476
+   },
+   {
+    "strategy": "paper:356bd211b655 v1",
+    "n_real": 3574,
+    "real": 0.0040742794,
+    "n_twin": 5000,
+    "twin": -0.0149412268
+   },
+   {
+    "strategy": "paper:4c373dbad035 v1",
+    "n_real": 304,
+    "real": 0.0129551259,
+    "n_twin": 804,
+    "twin": -0.0211818357
+   },
+   {
+    "strategy": "paper:5075d2479c78 v1",
+    "n_real": 1686,
+    "real": 0.0100150573,
+    "n_twin": 1605,
+    "twin": -3.33162e-05
+   },
+   {
+    "strategy": "paper:5c30377d97c8 v1",
+    "n_real": 2700,
+    "real": 0.0078828136,
+    "n_twin": 2958,
+    "twin": -0.0055703604
+   },
+   {
+    "strategy": "paper:63d07528f1c6 v1",
+    "n_real": 4999,
+    "real": 0.0059989784,
+    "n_twin": 5000,
+    "twin": 0.0174913091
+   },
+   {
+    "strategy": "paper:71b3b0f78cc3 v1",
+    "n_real": 4999,
+    "real": 0.0058820785,
+    "n_twin": 5000,
+    "twin": 0.01574017
+   },
+   {
+    "strategy": "paper:77569b6429ff v1",
+    "n_real": 2700,
+    "real": 0.0098213351,
+    "n_twin": 2958,
+    "twin": -0.0164352582
+   },
+   {
+    "strategy": "paper:79f2e596c900 v1",
+    "n_real": 2700,
+    "real": 0.0063125651,
+    "n_twin": 2958,
+    "twin": -0.0023397071
+   },
+   {
+    "strategy": "paper:7ecaca191264 v1",
+    "n_real": 2479,
+    "real": 0.0269286648,
+    "n_twin": 2697,
+    "twin": 0.0011113498
+   },
+   {
+    "strategy": "paper:843a1bb37c00 v1",
+    "n_real": 3235,
+    "real": 0.0073531579,
+    "n_twin": 5000,
+    "twin": -0.0200675514
+   },
+   {
+    "strategy": "paper:c5d77070e0ff v1",
+    "n_real": 4999,
+    "real": 0.0164510136,
+    "n_twin": 5000,
+    "twin": -0.0190994052
+   },
+   {
+    "strategy": "paper:d635b81122c9 v1",
+    "n_real": 5000,
+    "real": -0.013893666,
+    "n_twin": 5000,
+    "twin": -0.022464347
+   },
+   {
+    "strategy": "paper:e5b6bae945e4 v1",
+    "n_real": 4125,
+    "real": -0.0082618683,
+    "n_twin": 5000,
+    "twin": -0.016146894
+   }
+  ],
+  "rows_real": 54608,
+  "rows_twin": 71802,
+  "price_real_median": 6.815000057220459,
+  "price_twin_median": 56.29032448668133,
+  "anchored_subset": {
+   "companies": 10,
+   "anchors_median": 5.0,
+   "unanchored": {
+    "mean_real": 0.002658944028451972,
+    "mean_twin": 0.008665476485486077,
+    "diff": 0.006006532457034105,
+    "diff_ci95": [
+     -0.010497288125215847,
+     0.026615190914145073
+    ],
+    "verdict": "FAIL"
+   },
+   "anchored": {
+    "mean_real": 0.002658944028451972,
+    "mean_twin": -0.00942522465002905,
+    "diff": -0.012084168678481022,
+    "diff_ci95": [
+     -0.04959450136353097,
+     0.0069120164245790455
+    ],
+    "verdict": "FAIL"
+   },
+   "price_real_median": 7.733515739440918,
+   "price_unanchored_median": 826.4575482197508,
+   "price_anchored_median": 2.0708341041060123,
+   "anchoring_moves_closer": false
+  }
+ },
+ "buyouts": {
+  "trades_real": 339334,
+  "trades_twin": 299862,
+  "companies": 156,
+  "companies_traded_real": 154,
+  "companies_traded_twin": 125,
+  "mean_real": 0.0012624546154596105,
+  "mean_twin": -0.003365811979677127,
+  "median_real": -0.005937376894613578,
+  "median_twin": -0.012091152593569238,
+  "win_real": 0.43811407050280843,
+  "win_twin": 0.4028252996378334,
+  "diff": -0.0046282665951367374,
+  "ks_stat": 0.04831471954015398,
+  "ks_p_naive": 0.0,
+  "diff_ci95": [
+   -0.010314791587405147,
+   0.0014081480670865123
+  ],
+  "verdict": "PASS",
+  "by_strategy": [
+   {
+    "strategy": "fx_bollinger_reversion_1d2d490f7c v1",
+    "n_real": 4999,
+    "real": 0.0005175524,
+    "n_twin": 4645,
+    "twin": -0.0003889573
+   },
+   {
+    "strategy": "fx_bollinger_reversion_793a49a124 v2",
+    "n_real": 4791,
+    "real": 0.0013690537,
+    "n_twin": 3033,
+    "twin": -0.0013390423
+   },
+   {
+    "strategy": "fx_bollinger_reversion_793a49a124 v3",
+    "n_real": 4791,
+    "real": 0.0002909904,
+    "n_twin": 3033,
+    "twin": -0.0017016095
+   },
+   {
+    "strategy": "fx_bollinger_reversion_9fd718ea6a v1",
+    "n_real": 4791,
+    "real": 0.001233551,
+    "n_twin": 3033,
+    "twin": -0.0017059366
+   },
+   {
+    "strategy": "fx_bollinger_reversion_bb2de4f1a9 v1",
+    "n_real": 4999,
+    "real": -0.0009147784,
+    "n_twin": 4645,
+    "twin": -0.0014095245
+   },
+   {
+    "strategy": "fx_bollinger_reversion_cd65f14b0d v1",
+    "n_real": 4791,
+    "real": 0.0013690537,
+    "n_twin": 3033,
+    "twin": -0.0013390423
+   },
+   {
+    "strategy": "fx_bollinger_reversion_d30b81ff5e v2",
+    "n_real": 4791,
+    "real": 0.001233551,
+    "n_twin": 3033,
+    "twin": -0.0017059366
+   },
+   {
+    "strategy": "fx_bollinger_reversion_d30b81ff5e v3",
+    "n_real": 4791,
+    "real": 0.000149409,
+    "n_twin": 3033,
+    "twin": -0.0019120747
+   },
+   {
+    "strategy": "fx_bollinger_reversion_de2f6d10db v1",
+    "n_real": 4999,
+    "real": -0.0008189404,
+    "n_twin": 4645,
+    "twin": -0.0011549142
+   },
+   {
+    "strategy": "fx_bollinger_reversion_eff77dfcff v1",
+    "n_real": 4999,
+    "real": 0.0003710852,
+    "n_twin": 4645,
+    "twin": -0.0008959674
+   },
+   {
+    "strategy": "fx_high_volatility_3b3180ccec v1",
+    "n_real": 4995,
+    "real": 0.0088384162,
+    "n_twin": 4997,
+    "twin": -0.0050739848
+   },
+   {
+    "strategy": "fx_low_volatility_664fcbce89 v1",
+    "n_real": 4995,
+    "real": 0.0088384162,
+    "n_twin": 4997,
+    "twin": -0.0050739848
+   },
+   {
+    "strategy": "fx_ma_cross_07b43481e5 v2",
+    "n_real": 933,
+    "real": -0.0014749986,
+    "n_twin": 613,
+    "twin": -0.0040588896
+   },
+   {
+    "strategy": "fx_ma_cross_07b43481e5 v3",
+    "n_real": 933,
+    "real": -0.0013443666,
+    "n_twin": 613,
+    "twin": -0.0044175714
+   },
+   {
+    "strategy": "fx_ma_cross_0a876f959d v2",
+    "n_real": 933,
+    "real": -0.0032976111,
+    "n_twin": 613,
+    "twin": -0.005043568
+   },
+   {
+    "strategy": "fx_ma_cross_0a876f959d v3",
+    "n_real": 933,
+    "real": -0.0021578099,
+    "n_twin": 613,
+    "twin": -0.0042158199
+   },
+   {
+    "strategy": "fx_ma_cross_846516560b v1",
+    "n_real": 933,
+    "real": -0.0032976111,
+    "n_twin": 613,
+    "twin": -0.005043568
+   },
+   {
+    "strategy": "fx_ma_cross_e6c75be168 v1",
+    "n_real": 933,
+    "real": -0.0014749986,
+    "n_twin": 613,
+    "twin": -0.0040588896
+   },
+   {
+    "strategy": "fx_macd_cross_06c05066e2 v1",
+    "n_real": 4998,
+    "real": -0.0030809833,
+    "n_twin": 4221,
+    "twin": -0.0037002438
+   },
+   {
+    "strategy": "fx_macd_cross_75f4887d7b v1",
+    "n_real": 4998,
+    "real": -0.0037010387,
+    "n_twin": 4221,
+    "twin": -0.0031168724
+   },
+   {
+    "strategy": "fx_macd_cross_94020ac8a5 v2",
+    "n_real": 4998,
+    "real": -0.0029811194,
+    "n_twin": 4221,
+    "twin": -0.0036859791
+   },
+   {
+    "strategy": "fx_macd_cross_94020ac8a5 v3",
+    "n_real": 4998,
+    "real": -0.0040631448,
+    "n_twin": 4221,
+    "twin": -0.0043226771
+   },
+   {
+    "strategy": "fx_macd_cross_aa1471deb2 v1",
+    "n_real": 4998,
+    "real": -0.0029811194,
+    "n_twin": 4221,
+    "twin": -0.0036859791
+   },
+   {
+    "strategy": "fx_macd_cross_dfb530e5d4 v1",
+    "n_real": 4998,
+    "real": -0.0036044211,
+    "n_twin": 4221,
+    "twin": -0.0031900558
+   },
+   {
+    "strategy": "fx_macd_cross_e286d95676 v2",
+    "n_real": 4998,
+    "real": -0.0030809833,
+    "n_twin": 4221,
+    "twin": -0.0037002438
+   },
+   {
+    "strategy": "fx_macd_cross_e286d95676 v3",
+    "n_real": 4998,
+    "real": -0.0040653499,
+    "n_twin": 4221,
+    "twin": -0.0043018332
+   },
+   {
+    "strategy": "fx_relative_strength_2ba1ba467b v1",
+    "n_real": 4986,
+    "real": -0.002221195,
+    "n_twin": 4993,
+    "twin": -0.0022336168
+   },
+   {
+    "strategy": "fx_relative_strength_3bd821802e v1",
+    "n_real": 4992,
+    "real": -0.0010732789,
+    "n_twin": 4994,
+    "twin": -0.0025180335
+   },
+   {
+    "strategy": "fx_relative_strength_40b8abd903 v1",
+    "n_real": 4992,
+    "real": -0.0014740198,
+    "n_twin": 4994,
+    "twin": -0.0021478203
+   },
+   {
+    "strategy": "fx_relative_strength_47d142e29e v1",
+    "n_real": 4986,
+    "real": -0.002242069,
+    "n_twin": 4993,
+    "twin": -0.0033439337
+   },
+   {
+    "strategy": "fx_relative_strength_53ecfb2b6f v1",
+    "n_real": 4992,
+    "real": -0.0015357529,
+    "n_twin": 4994,
+    "twin": -0.0024220025
+   },
+   {
+    "strategy": "fx_relative_strength_8829323f6a v1",
+    "n_real": 4992,
+    "real": -0.0011350651,
+    "n_twin": 4994,
+    "twin": -0.0025312847
+   },
+   {
+    "strategy": "fx_relative_strength_9052f01ab8 v1",
+    "n_real": 4986,
+    "real": -0.0021795437,
+    "n_twin": 4993,
+    "twin": -0.003325461
+   },
+   {
+    "strategy": "fx_relative_strength_f10f4dc013 v1",
+    "n_real": 4986,
+    "real": -0.0021763993,
+    "n_twin": 4993,
+    "twin": -0.0024307775
+   },
+   {
+    "strategy": "fx_rsi_reversion_00b3274623 v1",
+    "n_real": 902,
+    "real": 0.0024018088,
+    "n_twin": 753,
+    "twin": -0.0045857187
+   },
+   {
+    "strategy": "fx_rsi_reversion_119caa7780 v2",
+    "n_real": 165,
+    "real": -0.0004700764,
+    "n_twin": 162,
+    "twin": -0.0071314717
+   },
+   {
+    "strategy": "fx_rsi_reversion_119caa7780 v3",
+    "n_real": 165,
+    "real": -0.0031603572,
+    "n_twin": 162,
+    "twin": -0.0002474293
+   },
+   {
+    "strategy": "fx_rsi_reversion_29bd81edaa v1",
+    "n_real": 165,
+    "real": -0.0004700764,
+    "n_twin": 162,
+    "twin": -0.0071314717
+   },
+   {
+    "strategy": "fx_rsi_reversion_80d084e0a9 v1",
+    "n_real": 902,
+    "real": 0.0001423982,
+    "n_twin": 753,
+    "twin": -0.0046878419
+   },
+   {
+    "strategy": "fx_rsi_reversion_c03083d58c v2",
+    "n_real": 165,
+    "real": -0.0011299038,
+    "n_twin": 162,
+    "twin": -0.0081855888
+   },
+   {
+    "strategy": "fx_rsi_reversion_c03083d58c v3",
+    "n_real": 165,
+    "real": -0.0027291337,
+    "n_twin": 162,
+    "twin": -0.0012508851
+   },
+   {
+    "strategy": "fx_rsi_reversion_caf952b8a5 v1",
+    "n_real": 902,
+    "real": -0.0003132229,
+    "n_twin": 753,
+    "twin": -0.003969758
+   },
+   {
+    "strategy": "fx_rsi_reversion_e863217149 v1",
+    "n_real": 902,
+    "real": 0.0014952544,
+    "n_twin": 753,
+    "twin": -0.003455622
+   },
+   {
+    "strategy": "fx_rsi_reversion_f970b70b00 v1",
+    "n_real": 165,
+    "real": -0.0011299038,
+    "n_twin": 162,
+    "twin": -0.0081855888
+   },
+   {
+    "strategy": "fx_trend_following_63bf848dc3 v1",
+    "n_real": 4995,
+    "real": 0.001689326,
+    "n_twin": 4993,
+    "twin": -0.0029913662
+   },
+   {
+    "strategy": "fx_trend_following_8660a34ccc v2",
+    "n_real": 4995,
+    "real": 0.001689326,
+    "n_twin": 4993,
+    "twin": -0.0029913662
+   },
+   {
+    "strategy": "fx_trend_following_9f644e50eb v2",
+    "n_real": 4995,
+    "real": 0.0016707521,
+    "n_twin": 4993,
+    "twin": -0.0027847142
+   },
+   {
+    "strategy": "fx_trend_following_f05c5bddf1 v1",
+    "n_real": 4995,
+    "real": 0.0016707521,
+    "n_twin": 4993,
+    "twin": -0.0027847142
+   },
+   {
+    "strategy": "fx_ts_momentum_2fcd7fe76a v1",
+    "n_real": 5000,
+    "real": -0.0129572382,
+    "n_twin": 4057,
+    "twin": -0.011524039
+   },
+   {
+    "strategy": "fx_ts_momentum_48357b1b64 v1",
+    "n_real": 4999,
+    "real": 0.0024088323,
+    "n_twin": 4999,
+    "twin": -0.002190101
+   },
+   {
+    "strategy": "fx_ts_momentum_5087f2f38c v1",
+    "n_real": 4999,
+    "real": 0.0064925498,
+    "n_twin": 4999,
+    "twin": 0.0041908332
+   },
+   {
+    "strategy": "fx_ts_momentum_52582f8bf1 v1",
+    "n_real": 4999,
+    "real": 0.0039510125,
+    "n_twin": 4999,
+    "twin": 0.0013920381
+   },
+   {
+    "strategy": "fx_ts_momentum_8442e3cf6c v1",
+    "n_real": 4999,
+    "real": 0.0036682158,
+    "n_twin": 4999,
+    "twin": -0.0012781735
+   },
+   {
+    "strategy": "fx_ts_momentum_911d5935a2 v1",
+    "n_real": 5000,
+    "real": -0.0125921516,
+    "n_twin": 4057,
+    "twin": -0.0101121809
+   },
+   {
+    "strategy": "fx_ts_momentum_ac8f2ee198 v1",
+    "n_real": 5000,
+    "real": -0.0066868793,
+    "n_twin": 4057,
+    "twin": -0.0109500268
+   },
+   {
+    "strategy": "fx_ts_momentum_f1a2b528e7 v1",
+    "n_real": 5000,
+    "real": -0.0045424827,
+    "n_twin": 4057,
+    "twin": -0.0090232402
+   },
+   {
+    "strategy": "fx_volatility_contraction_07bbc76b02 v1",
+    "n_real": 4993,
+    "real": -0.0028107968,
+    "n_twin": 5000,
+    "twin": -0.0048103381
+   },
+   {
+    "strategy": "fx_volatility_contraction_36ad2c62d4 v1",
+    "n_real": 4994,
+    "real": -0.0022241073,
+    "n_twin": 4997,
+    "twin": -0.0053191623
+   },
+   {
+    "strategy": "fx_volatility_contraction_3f42448392 v1",
+    "n_real": 4993,
+    "real": -0.0024313555,
+    "n_twin": 5000,
+    "twin": -0.0049156041
+   },
+   {
+    "strategy": "fx_volatility_contraction_48b5b52fa1 v1",
+    "n_real": 4993,
+    "real": -0.002814085,
+    "n_twin": 5000,
+    "twin": -0.0050662345
+   },
+   {
+    "strategy": "fx_volatility_contraction_5b7dc86bee v1",
+    "n_real": 4994,
+    "real": -0.0027670301,
+    "n_twin": 4997,
+    "twin": -0.0062807596
+   },
+   {
+    "strategy": "fx_volatility_contraction_93889c5c6b v1",
+    "n_real": 4994,
+    "real": -0.0012452728,
+    "n_twin": 4997,
+    "twin": -0.0055727286
+   },
+   {
+    "strategy": "fx_volatility_contraction_aeadff4ea2 v1",
+    "n_real": 4994,
+    "real": -0.0025212371,
+    "n_twin": 4997,
+    "twin": -0.0062685749
+   },
+   {
+    "strategy": "fx_volatility_contraction_b875bd6ca7 v1",
+    "n_real": 4993,
+    "real": -0.0024505411,
+    "n_twin": 5000,
+    "twin": -0.0049783255
+   },
+   {
+    "strategy": "fx_xs_momentum_37c90f2f2f v1",
+    "n_real": 4997,
+    "real": -0.0026563558,
+    "n_twin": 4997,
+    "twin": -0.0021849271
+   },
+   {
+    "strategy": "fx_xs_momentum_5587369ed0 v2",
+    "n_real": 4998,
+    "real": -0.0018437022,
+    "n_twin": 4999,
+    "twin": -0.0030913515
+   },
+   {
+    "strategy": "fx_xs_momentum_5587369ed0 v3",
+    "n_real": 4998,
+    "real": -0.0027003721,
+    "n_twin": 4999,
+    "twin": -0.0034949752
+   },
+   {
+    "strategy": "fx_xs_momentum_7bddca93a4 v1",
+    "n_real": 4997,
+    "real": -0.0009856094,
+    "n_twin": 4997,
+    "twin": -0.0013711863
+   },
+   {
+    "strategy": "fx_xs_momentum_7bddfe699f v1",
+    "n_real": 4998,
+    "real": -0.0022035507,
+    "n_twin": 4999,
+    "twin": -0.0036741354
+   },
+   {
+    "strategy": "fx_xs_momentum_8388980383 v1",
+    "n_real": 4997,
+    "real": -0.0025078885,
+    "n_twin": 4997,
+    "twin": -0.0018072325
+   },
+   {
+    "strategy": "fx_xs_momentum_9b905b3ac1 v2",
+    "n_real": 4998,
+    "real": -0.0022035507,
+    "n_twin": 4999,
+    "twin": -0.0036741354
+   },
+   {
+    "strategy": "fx_xs_momentum_9b905b3ac1 v3",
+    "n_real": 4998,
+    "real": -0.002742538,
+    "n_twin": 4999,
+    "twin": -0.0040233404
+   },
+   {
+    "strategy": "fx_xs_momentum_b946161e77 v1",
+    "n_real": 4997,
+    "real": -0.0019379707,
+    "n_twin": 4997,
+    "twin": -0.0015367338
+   },
+   {
+    "strategy": "fx_xs_momentum_dc80cd84e3 v1",
+    "n_real": 4998,
+    "real": -0.0018437022,
+    "n_twin": 4999,
+    "twin": -0.0030913515
+   },
+   {
+    "strategy": "paper:0fafb9a23b54 v1",
+    "n_real": 1597,
+    "real": 0.0336199237,
+    "n_twin": 609,
+    "twin": -0.011729488
+   },
+   {
+    "strategy": "paper:11c704a36203 v1",
+    "n_real": 3452,
+    "real": 0.0391214755,
+    "n_twin": 2354,
+    "twin": -0.0021874586
+   },
+   {
+    "strategy": "paper:2fea4b36ee25 v1",
+    "n_real": 2054,
+    "real": 0.0155246694,
+    "n_twin": 875,
+    "twin": -0.0022673538
+   },
+   {
+    "strategy": "paper:323dfe67d348 v1",
+    "n_real": 1818,
+    "real": 0.0066997966,
+    "n_twin": 786,
+    "twin": 0.020558992
+   },
+   {
+    "strategy": "paper:356bd211b655 v1",
+    "n_real": 1312,
+    "real": 0.0056832032,
+    "n_twin": 890,
+    "twin": 0.0194932839
+   },
+   {
+    "strategy": "paper:4c373dbad035 v1",
+    "n_real": 1818,
+    "real": 0.0049023237,
+    "n_twin": 786,
+    "twin": 0.0182663872
+   },
+   {
+    "strategy": "paper:5075d2479c78 v1",
+    "n_real": 1054,
+    "real": 0.0088685059,
+    "n_twin": 345,
+    "twin": -0.004955409
+   },
+   {
+    "strategy": "paper:5c30377d97c8 v1",
+    "n_real": 2054,
+    "real": 0.0144053441,
+    "n_twin": 875,
+    "twin": -0.0248274731
+   },
+   {
+    "strategy": "paper:63d07528f1c6 v1",
+    "n_real": 4999,
+    "real": 0.0036682158,
+    "n_twin": 4999,
+    "twin": -0.0012781735
+   },
+   {
+    "strategy": "paper:71b3b0f78cc3 v1",
+    "n_real": 4999,
+    "real": 0.0024088323,
+    "n_twin": 4999,
+    "twin": -0.002190101
+   },
+   {
+    "strategy": "paper:77569b6429ff v1",
+    "n_real": 2054,
+    "real": 0.014185269,
+    "n_twin": 875,
+    "twin": -0.0008892709
+   },
+   {
+    "strategy": "paper:79f2e596c900 v1",
+    "n_real": 2054,
+    "real": 0.0050932991,
+    "n_twin": 875,
+    "twin": -0.0114958304
+   },
+   {
+    "strategy": "paper:7ecaca191264 v1",
+    "n_real": 1885,
+    "real": 0.0218953122,
+    "n_twin": 762,
+    "twin": -0.0185201547
+   },
+   {
+    "strategy": "paper:843a1bb37c00 v1",
+    "n_real": 907,
+    "real": 0.0033836368,
+    "n_twin": 529,
+    "twin": -0.031962563
+   },
+   {
+    "strategy": "paper:c5d77070e0ff v1",
+    "n_real": 2374,
+    "real": 0.0183070003,
+    "n_twin": 1652,
+    "twin": -0.000575682
+   },
+   {
+    "strategy": "paper:d635b81122c9 v1",
+    "n_real": 4904,
+    "real": 0.0722660061,
+    "n_twin": 2447,
+    "twin": -0.0032749918
+   },
+   {
+    "strategy": "paper:e5b6bae945e4 v1",
+    "n_real": 1275,
+    "real": 0.0055459537,
+    "n_twin": 888,
+    "twin": -0.0195969127
+   }
+  ],
+  "rows_real": 293992,
+  "rows_twin": 190001,
+  "price_real_median": 33.89,
+  "price_twin_median": 8.304060535616461,
+  "anchored_subset": {
+   "companies": 47,
+   "anchors_median": 16.0,
+   "unanchored": {
+    "mean_real": -0.0023623266177061498,
+    "mean_twin": -0.002418966167272956,
+    "diff": -5.663954956680638e-05,
+    "diff_ci95": [
+     -0.007438213847868395,
+     0.007741557574179965
+    ],
+    "verdict": "PASS"
+   },
+   "anchored": {
+    "mean_real": -0.0023623266177061498,
+    "mean_twin": -0.003269017294855413,
+    "diff": -0.0009066906771492632,
+    "diff_ci95": [
+     -0.008108889012804134,
+     0.005758050152581385
+    ],
+    "verdict": "PASS"
+   },
+   "price_real_median": 35.34,
+   "price_unanchored_median": 8.399190012301577,
+   "price_anchored_median": 33.919886327209035,
+   "anchoring_moves_closer": false
+  }
+ }
+}
