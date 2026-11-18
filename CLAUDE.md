@@ -1649,7 +1649,8 @@ model parameters — read them from config.
 
 Two stores, different purposes.
 
-**Market data** — `data/market_data.db` (SQLite), ~8.5 GB. Every table below
+**Market data** — `data/market_data.db` (SQLite), ~21 GB (2026-11-18; features 8.0, prices 2.8,
+sec_facts 1.9, daily_fundamentals 1.4, options 1.4). Every table below
 lives here.
 
 *Prices and indicators*
@@ -2083,7 +2084,7 @@ refreshes a row must not silently own every column in it.
   tagged. `universe.tradeable_types` keeps the scanner on common stock; the
   database deliberately holds the whole market.
 - History: **full available depth**, 1962 to present.
-- **Measured** database size: 8.5 GB (73 GB free). The original 14-19 GB estimate
+- **Measured** database size: 8.5 GB on 2026-09-08; ~21 GB on 2026-11-18 (95 GB free). The original 14-19 GB estimate
   turned out to be in the right range only by accident — it assumed 20 years for
   6-8k common stocks, and the real shape is 60+ years for 13k instruments.
 - Beware the earlier universe count of 6,169 "common stocks": **822 of those were
@@ -2218,8 +2219,8 @@ call the broker.
 `docs/ROADMAP_INTEGRATION.md`, finished 2026-09-24 with baselines (§16),
 calibration (§19), rate regimes (§21), `case_studies/TNON.md` (§24),
 `docs/RESEARCH_METHODOLOGY.md` + `docs/EXPERIMENT_PROTOCOL.md` (§29) and
-`phase6_report.py` (§31). **The §31 report has not been run yet** — it needs
-the VM's database: `./run_bounded.sh ./venv/bin/python phase6_report.py`.
+`phase6_report.py` (§31). The §31 report was run 2026-09-27 (`reports/phase6_report.md`); re-run with
+`./run_bounded.sh ./venv/bin/python phase6_report.py`.
 
 All existing systems integrate into this direction. Its premise is the project's
 own record: the system has repeatedly produced apparent edges that were later
@@ -2257,9 +2258,9 @@ abstraction, order state machine, execution engine, shadow mode, and the runner.
 Built since (Addendum A, 2026-09-24): scheduled reconciliation (every
 slot_trader run compares the slot log with the broker and halts on any
 difference), order-state recovery on restart (LedgerSimulatedBroker rebuilds
-from the orders ledger), and a per-trade reason on every slot trade. **Still
-not built: the LIVE transmit path** (RobinhoodBroker builds the spec only;
-transmission is the operator's) and the automated acceptance checklist.
+from the orders ledger), and a per-trade reason on every slot trade. The LIVE
+transmit path (`robinhood_live.LiveBroker`) and the acceptance checklist
+(`acceptance.py`) were built 2026-09-24; LIVE has traded since 15:39 UTC that day.
 
 Connects the strategy engine to the Agentic account via Robinhood's official
 Trading MCP, with a deterministic execution pipeline — signal, risk engine,
@@ -2287,7 +2288,7 @@ losses, and nothing in this project has yet demonstrated one.
 
 ---
 
-## Planned: the Strategy Lab
+## The Strategy Lab (built; search FROZEN since 2026-09-22)
 
 A major scope addition, fully specced in `docs/STRATEGY_LAB.md`. Summary:
 
@@ -2334,7 +2335,7 @@ Key design points (do not silently change these — they were deliberate):
 - **Trial count is recorded** so a deflated Sharpe ratio can be computed. Testing
   200k strategies inflates the winner's apparent skill; the correction matters.
 
-New modules to build: `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
+Modules (all built): `genome.py`, `simulator.py`, `reward.py`, `evolve.py`,
 `ledger.py`, `promote.py`, `lab_dashboard.py`.
 
 ---
