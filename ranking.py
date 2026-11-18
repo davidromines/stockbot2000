@@ -59,6 +59,7 @@ import sqlite3
 import sys
 
 log = logging.getLogger("ranking")
+_STALE_WARNED: set = set()   # (key, version) already warned about a stale survivorship backtest
 
 DEFAULTS = {"prior_trades": 10, "no_backtest_prior": 0.0,
             # Stage L4: shrink a backtest by its family's POST-publication evidence (JKP, dead
@@ -150,7 +151,11 @@ def survivorship(conn, key: str, version: int) -> dict:
         return {}
     if not s or not s.get("trades"):
         return {}
-    if s.get("stale"):
+    # Search strategies are never recomputed (survivorship_backtest.strategies skips them) and never scored on a
+    # backtest, so for them the warning was false; it also repeated on every rank() call (233k lines in the
+    # Control Center log by 11-12). Once per strategy per process, and only where a recompute is due.
+    if s.get("stale") and (key, version) not in _STALE_WARNED and not from_search(conn, key):
+        _STALE_WARNED.add((key, version))
         log.warning(f"{key} v{version}: dead-company backtest is from an earlier synthetic build — "
                     "used until survivorship_backtest.py recomputes it")
     return {"backtest": s["per_trade"], "worst_case": (w or {}).get("per_trade"),
