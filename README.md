@@ -88,7 +88,7 @@ Training and backtesting are still run manually, not on cron.
 
 ## Historical data store
 
-`data/market_data.db` (~8.5 GB) holds **35.4M daily bars across 13,121
+`data/market_data.db` (~21 GB, 2026-11) holds **35.4M daily bars across 13,121
 instruments back to 1962**, plus 33.8M feature rows, the SEC fundamentals, the
 delisting registry, the Lab's genomes and every forward record. The daily
 pipeline reads it directly — the old Parquet path is gone.
