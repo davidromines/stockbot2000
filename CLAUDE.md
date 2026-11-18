@@ -1324,8 +1324,7 @@ table per stage. **That file is the roadmap; this list is history.**
   recorded anywhere; see `BACKLOG.md`.
 - **Indicator count is 20, not 25.** `FEATURE_COLS` in `train_model.py` lists 20,
   and all 20 are verified present in `features.py` output. `README.md` and
-  `docs/STRATEGY_LAB.md` both say "~25" in places — the genome's `indicator_weights`
-  space is sized off that wrong number and should be built against 20.
+  `docs/STRATEGY_LAB.md` used to say "~25"; corrected 2026-11-18.
 - **Wikipedia S&P 500 scrape returns HTTP 403.** Still true, and `universe.source:
   sp500` still falls back to 18 hardcoded tickers — that is the smoke-test path and
   is left alone deliberately. Production uses `universe.source: all_us`, built from
