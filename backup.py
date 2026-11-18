@@ -135,9 +135,31 @@ GROUPS = {
 }
 TABLES = [t for g in GROUPS.values() for t in g]
 
+# A THIRD shape, found 2026-11-18: forward.sql.gz had grown to 80 MB (51 MB on 11-01) against GitHub's hard 100 MB
+# per-file limit, so within days it could no longer be pushed. These forward tables are append-only by a date column
+# and make up ~3/4 of it (minute bars alone ~40%). Each is archived one MONTH per file in backups/monthly/; a file is
+# rewritten only when that month's rows change, so git stores a past month once. forward.sql.gz keeps their schema and
+# indexes with no rows. Restore: forward first, then the monthly files (see main()).
+MONTHLY = {"minute_bars": "ts", "fund_accounting": "as_of", "prediction_log": "date",
+           "scoreboard_snapshots": "at", "degradation": "at", "ranking_history": "date",
+           "capital_gate_shadow": "as_of", "league_standings": "as_of", "strategy_failures": "as_of",
+           "intraday_heartbeat": "at"}
+MONTHLY_DIR = OUT_DIR / "monthly"
 
-def dump(conn, path: Path, tables: list) -> dict:
-    """Write a gzipped SQL dump of `tables` only, and report what went in."""
+
+def _sql_value(v) -> str:
+    if v is None:
+        return "NULL"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, bytes):
+        return "X'" + v.hex() + "'"
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def dump(conn, path: Path, tables: list, schema_only=()) -> dict:
+    """Write a gzipped SQL dump of `tables` only, and report what went in. Tables in `schema_only` get their
+    schema and indexes but no rows (their rows are in the monthly archives)."""
     counts = {}
     present = {r[0] for r in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -157,21 +179,11 @@ def dump(conn, path: Path, tables: list) -> dict:
                 (t,)).fetchone()
             if schema and schema[0]:
                 fh.write(f"DROP TABLE IF EXISTS {t};\n{schema[0]};\n")
-            cur = conn.execute(f"SELECT * FROM {t}")
+            cur = conn.execute(f"SELECT * FROM {t}" + (" LIMIT 0" if t in schema_only else ""))
             cols = [d[0] for d in cur.description]
             collist = ",".join(f'"{c}"' for c in cols)
             for row in cur:
-                vals = []
-                for v in row:
-                    if v is None:
-                        vals.append("NULL")
-                    elif isinstance(v, (int, float)):
-                        vals.append(repr(v))
-                    elif isinstance(v, bytes):
-                        vals.append("X'" + v.hex() + "'")
-                    else:
-                        vals.append("'" + str(v).replace("'", "''") + "'")
-                fh.write(f"INSERT INTO {t} ({collist}) VALUES ({','.join(vals)});\n")
+                fh.write(f"INSERT INTO {t} ({collist}) VALUES ({','.join(_sql_value(v) for v in row)});\n")
                 n += 1
             for idx in conn.execute(
                     "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? "
@@ -208,6 +220,70 @@ def verify(path: Path, expected: dict) -> tuple[bool, list]:
     return (not problems), problems
 
 
+def dump_monthly(conn, out_dir: Path, tables: dict) -> list:
+    """Archive each append-only table one month per file: out_dir/<table>_<YYYY-MM>.sql.gz.
+
+    One pass per table routes rows to per-month files in a scratch directory. A file holds CREATE TABLE IF NOT
+    EXISTS and its rows (no DROP, no indexes), so the files restore after forward.sql.gz in any order. The bytes
+    are deterministic (no timestamp, gzip mtime 0): a month whose rows did not change produces an identical file
+    and is left alone, so git stores it once. A changed or new month replaces its file only after a restore of it
+    reads back the same row count. Returns (path, rows, status) per month; status is unchanged / written / FAILED."""
+    import re
+    out_dir.mkdir(parents=True, exist_ok=True)
+    present = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    results = []
+    for t, col in tables.items():
+        if t not in present:
+            log.warning(f"{t}: not present, skipped")
+            continue
+        schema = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (t,)).fetchone()[0]
+        create = re.sub(r"^\s*CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?", "CREATE TABLE IF NOT EXISTS ", schema,
+                        count=1, flags=re.IGNORECASE)
+        cur = conn.execute(f"SELECT COALESCE(substr({col}, 1, 7), 'unknown'), * FROM {t}")
+        cols = [d[0] for d in cur.description][1:]
+        collist = ",".join(f'"{c}"' for c in cols)
+        scratch = Path(tempfile.mkdtemp(dir=out_dir))
+        writers, counts = {}, {}
+        try:
+            for row in cur:
+                m = re.sub(r"[^0-9A-Za-z-]", "_", str(row[0]))
+                if m not in writers:
+                    raw = open(scratch / f"{t}_{m}.sql.gz", "wb")
+                    gz = gzip.GzipFile(filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=0)
+                    gz.write(f"-- stockbot2000 monthly archive: {t} {m}\nPRAGMA foreign_keys=OFF;\n"
+                             f"BEGIN TRANSACTION;\n{create};\n".encode())
+                    writers[m], counts[m] = (raw, gz), 0
+                writers[m][1].write(f"INSERT INTO {t} ({collist}) VALUES "
+                                    f"({','.join(_sql_value(v) for v in row[1:])});\n".encode())
+                counts[m] += 1
+            for raw, gz in writers.values():
+                gz.write(b"COMMIT;\n")
+                gz.close()
+                raw.close()
+            total = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+            if sum(counts.values()) != total:      # rows written while dumping: the next run catches them
+                log.warning(f"{t}: {sum(counts.values()):,} rows archived of {total:,} counted")
+            for m in sorted(counts):
+                new, dest = scratch / f"{t}_{m}.sql.gz", out_dir / f"{t}_{m}.sql.gz"
+                if dest.exists() and dest.read_bytes() == new.read_bytes():
+                    results.append((dest, counts[m], "unchanged"))
+                    continue
+                ok, problems = verify(new, {t: counts[m]})
+                if ok:
+                    shutil.move(str(new), dest)
+                    log.info(f"  {dest.name:<44}{counts[m]:>9,} rows written")
+                else:
+                    log.error(f"  {dest.name}: {problems}")
+                results.append((dest, counts[m], "written" if ok else "FAILED"))
+        finally:
+            for raw, gz in writers.values():
+                if not raw.closed:
+                    gz.close()
+                    raw.close()
+            shutil.rmtree(scratch, ignore_errors=True)
+    return results
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -241,7 +317,7 @@ def main():
         path = (OUT_DIR / f"{group}.sql.gz" if group == "forward"
                 else OUT_DIR / f"{group}_{stamp}.sql.gz")
         log.info(f"dumping {group}: {len(tables)} tables -> {path}")
-        counts = dump(conn, path, tables)
+        counts = dump(conn, path, tables, schema_only=set(MONTHLY) if group == "forward" else ())
         ok, problems = verify(path, counts)
         all_ok = all_ok and ok
         digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
@@ -252,6 +328,11 @@ def main():
         for old in sorted(OUT_DIR.glob(f"{group}_2*.sql.gz"))[:-a.keep]:
             old.unlink(); log.info(f"pruned {old.name}")
 
+    log.info(f"dumping monthly archives: {len(MONTHLY)} tables -> {MONTHLY_DIR}/")
+    monthly = dump_monthly(conn, MONTHLY_DIR, MONTHLY)
+    m_failed = [p.name for p, _, st in monthly if st == "FAILED"]
+    all_ok = all_ok and not m_failed
+
     print(f"\n  BACKUP {'VERIFIED' if all_ok else 'FAILED VERIFICATION'}")
     print("  " + "-" * 62)
     for g, path, size, rows, ntab, digest, ok, problems in lines:
@@ -260,9 +341,16 @@ def main():
         print(f"             {path}")
         for x in problems:
             print("             PROBLEM:", x)
+    n_w = sum(1 for _, _, st in monthly if st == "written")
+    print(f"  {'monthly':<10}{sum(p.stat().st_size for p, _, st in monthly if p.exists())/1024:>8,.0f} KB"
+          f"{sum(n for _, n, _ in monthly):>10,} rows  {len(MONTHLY):>2} tables  {len(monthly)} files, "
+          f"{n_w} written  {'ok' if not m_failed else 'FAILED'}")
+    print(f"             {MONTHLY_DIR}/")
+    for x in m_failed:
+        print("             PROBLEM: verification failed for", x)
     print("  " + "-" * 62)
-    print("  restore:  gunzip -c backups/forward.sql.gz | sqlite3 restored.db")
-    print("  The forward archive is committed to git, so a push puts it off this")
+    print("  restore:  gunzip -c backups/forward.sql.gz backups/monthly/*.sql.gz | sqlite3 restored.db")
+    print("  forward + monthly are committed to git, so a push puts them off this")
     print("  machine. Listings is large and static; copy it deliberately.")
     conn.close()
     raise SystemExit(0 if all_ok else 1)
