@@ -43,7 +43,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 PLAN_TTL = 600               # seconds between slots.plan() recomputations. Was 60: an open page re-ranked
-                             # ~1,500 strategies every minute (17,982 times by 11-12, ~7 s each) for inputs
+                             # every strategy each minute (17,982 times by 11-12, ~150 s each before the 11-18 genome index) for inputs
                              # that change nightly and on trades; the page shows when it was computed.
 STALE_HEARTBEAT_MIN = 15     # a trader heartbeat older than this, in market hours, is a failure
 
