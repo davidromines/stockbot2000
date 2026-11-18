@@ -74,7 +74,20 @@ needs `--suite`; check 26 needs more SHADOW sessions). **As of 2026-10-13 it is 
 owner switched the session to manual approval to finish it. Expect the same
 in a new session for anything touching orders.
 
-### 2026-11-07 — 15% drawdown review written; full dossier republished; START HERE
+### 2026-11-18 — VM outage 11-12 → 11-18; whole-project audit; START HERE
+
+- **Outage:** the VM stopped uncleanly Thu 11-12 15:02 UTC and came back Wed 11-18 03:07 UTC. Missed: 3.5 sessions of
+  trading and stop checks, three daily runs (those days' listings are lost for good). No stop was crossed; sign-in
+  refreshed itself; reconciled OK. Nothing alerted the owner: alerts run on the VM itself.
+- **Audit:** `docs/AUDIT_2026-11-18.md` (fixed vs needs the owner). Suite 190/190.
+  - Ranking ~152 s → ~3 s (index `idx_strat_genome`).
+  - Backup split by month (`backups/monthly/`) to stay under GitHub's 100 MB limit. Restore with
+    `gunzip -c backups/forward.sql.gz backups/monthly/*.sql.gz | sqlite3 restored.db`.
+  - Repo cleaned; stale docs corrected.
+- **Waiting on the owner:** the outage alert (external dead-man check), the false sign-in alert, retiring the manual-order
+  messages, the two defects from the 15% review, and the overdue post-freeze decisions.
+
+### 2026-11-07 — 15% drawdown review written; full dossier republished
 
 The account closed 15.5% below its peak on 11-06 ($76.24; −$11.47 / −13.1% since launch vs SPY −4.2%), which triggers
 the owner's H10 written review: `docs/REVIEW_DRAWDOWN_15PCT_2026-11-07.md`. Its conclusion: the machinery works, but
