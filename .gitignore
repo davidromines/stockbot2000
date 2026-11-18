@@ -70,3 +70,23 @@ data/telegram_offset.json
 data/telegram_pending.json
 # Stage AD7: cached free 1-minute history for the intraday replays (re-fetchable, large)
 data/intraday_replay/
+
+# Daily outputs, rewritten by daily.sh / cron (found untracked 2026-11-18). Tracking them dirties
+# the tree every morning and invites `git add -A` accidents. The dated copies already committed
+# as audit evidence stay tracked; .gitignore does not affect tracked files.
+data/acceptance.txt
+data/compute_spend.txt
+data/factory_report.txt
+data/funnel.txt
+data/knowledge_factory.txt
+data/roster_plan.txt
+data/stop_conditions.txt
+reports/capital_gate_*.md
+reports/live_attribution_*.md
+reports/intraday_prospective_*.md
+reports/ledger_check_*.md
+reports/daily_snapshot.png
+logs/*.txt
+# Large local data (regenerable): analog library and SEC insider quarterly sets.
+data/analog/
+data/insider/
