@@ -10,3 +10,5 @@ lxml>=5.0.0
 mcp>=2.2
 pypdf>=6.0          # congress_trades.py: House transaction-report PDFs
 matplotlib>=3.8.0   # daily_snapshot.py: one-page report image
+numpy>=2.0.0        # imported directly by ~90 modules (was only implied by pandas)
+httpx2>=2.13.0      # robinhood_mcp.py imports it directly (also a dependency of mcp 2.x)
