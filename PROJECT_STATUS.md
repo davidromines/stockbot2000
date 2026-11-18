@@ -1,5 +1,13 @@
 # PROJECT_STATUS
 
+**2026-11-18:** the VM was down from Thu 11-12 15:02 UTC to Wed 11-18 03:07 UTC (an unclean stop: the log simply
+ends). Missed: the rest of 11-12 and the sessions of 11-13, 11-16 and 11-17 (no trading, no stop checks, no Telegram),
+and three daily runs (the listings for those days are lost for good). No stop was crossed while unwatched; the
+Robinhood sign-in refreshed itself on restart and the account reconciled. Account about $74.4 at the 11-17 close, 17.5%
+below the peak; new entries pause automatically at $72.21 (20%). Same day: a whole-project audit (suite 190 files
+pass; fixes committed: the ranking ~50x faster via a missing index, backup split by month to stay under GitHub's
+100 MB file limit, the repo cleaned of untracked outputs, stale docs corrected).
+
 Updated 2026-11-07 (Saturday; figures to Friday 2026-11-06's close). The account is 15.5% below its peak, so the
 owner's written review (rule H10) is due: `docs/REVIEW_DRAWDOWN_15PCT_2026-11-07.md`. The self-contained reviewer
 dossier is `docs/artifacts/review_report.html` (https://claude.ai/artifact/3YFiMwNxvpXk3ycNVi2PKt, version 14).
@@ -91,7 +99,7 @@ open-ended losses").
 |---|---|---|---|
 | `forward_families_prospective` — 8 strategy families | 20 pooled entry dates, then 15 sessions | 12 of 20 dates | December 2026 |
 | `intraday_runner_v0_prospective` — the live Runners' signals | 300 signals over 30 sessions | stock 141 / 9 sessions, mean −0.07% (t −1.2); twin 17, −0.11% | early December |
-| `market_timing_dial_shadow_v1` | 120 sessions with outcomes | 9 | April 2027 |
+| `market_timing_dial_shadow_v1` | 120 sessions with outcomes | 9 dates scored, 0 with outcomes yet (the first arrive mid-November) | April 2027 |
 
 ## What has NOT been established
 
